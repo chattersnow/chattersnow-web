@@ -174,7 +174,15 @@ function SummaryRow({
   const body = (
     <>
       <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
-      <span className="shrink-0 text-sm font-semibold">{value}</span>
+      {/* Never `shrink-0`: these values are tenant content -- an event's name
+          among them -- so one long enough cannot be allowed to set the row's
+          width. It did, and because nothing above it constrains the page, the
+          whole document grew past the viewport and the reader had to zoom out
+          to read anything (#1079). Capped at just over half the row so the
+          label keeps a readable share, and truncating past that. */}
+      <span className="min-w-0 max-w-[55%] truncate text-sm font-semibold">
+        {value}
+      </span>
     </>
   );
 
