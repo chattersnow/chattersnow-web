@@ -12,17 +12,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
+import { StatusBadge } from "@/components/portal/status-badge";
+import { SEVERITY_TONE } from "./attention-severity";
 import type {
   AttentionSeverity,
   PendingApprovalItem,
 } from "@/lib/portal/attention-items";
-
-const SEVERITY_TONE: Record<AttentionSeverity, StatusTone> = {
-  urgent: "danger",
-  attention: "warning",
-  info: "progress",
-};
 
 const SEVERITY_RANK: Record<AttentionSeverity, number> = {
   urgent: 2,

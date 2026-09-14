@@ -12,6 +12,7 @@ import { CURRENT_RELEASE } from "../welcome/releases";
 import { WelcomeDialog } from "../welcome/welcome-dialog";
 import { WhatsNewDialog } from "../welcome/whats-new-dialog";
 import { MobileNav } from "./mobile-nav";
+import { AttentionItemsProvider } from "./attention-context";
 import type { PortalShellProps } from "./shell-props";
 
 /**
@@ -85,7 +86,13 @@ export function PortalShellMobile({
         className="app-shell grow px-4 pt-6 pb-24 outline-none"
       >
         <BrandLogoProvider logoUrl={branding.logoUrl}>
-          <LexiconProvider lexicon={lexicon}>{children}</LexiconProvider>
+          <LexiconProvider lexicon={lexicon}>
+            {/* So the dashboard can lead with what needs this reader without
+                re-running the layout's seven attention queries. */}
+            <AttentionItemsProvider items={attentionItems}>
+              {children}
+            </AttentionItemsProvider>
+          </LexiconProvider>
         </BrandLogoProvider>
       </main>
       <MobileNav permissions={permissions} lexicon={lexicon} />
