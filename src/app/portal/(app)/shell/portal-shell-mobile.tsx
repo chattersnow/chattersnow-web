@@ -1,0 +1,100 @@
+import Link from "next/link";
+import Image from "next/image";
+import { Toaster } from "@/components/ui/toast";
+import { BrandLogoProvider } from "@/components/brand-logo-context";
+import { SkipLink } from "@/components/skip-link";
+import { LexiconProvider } from "@/components/lexicon-context";
+import { CommandPalette } from "../command-palette";
+import { IdleTimeout } from "../idle-timeout";
+import { DemoBanner } from "../demo-banner";
+import { NotificationsMenu } from "../notifications-menu";
+import { CURRENT_RELEASE } from "../welcome/releases";
+import { WelcomeDialog } from "../welcome/welcome-dialog";
+import { WhatsNewDialog } from "../welcome/whats-new-dialog";
+import { MobileNav } from "./mobile-nav";
+import type { PortalShellProps } from "./shell-props";
+
+/**
+ * The portal shell a phone gets (#1079).
+ *
+ * Not the desktop shell with things hidden: no sidebar markup reaches the
+ * response at all. A compact header carries the identity and the two controls
+ * worth a permanent slot -- search and the bell -- and everything else lives
+ * in the bottom tab bar or the sheet behind its "More" button.
+ *
+ * The dialogs, idle timeout and toaster mount here for the same reasons they
+ * mount in the desktop shell: this is the one tree that survives a navigation.
+ */
+export function PortalShellMobile({
+  permissions,
+  lexicon,
+  branding,
+  currentPerson,
+  attentionItems,
+  tenantContext,
+  isDemo,
+  welcomeOwed,
+  whatsNewOwed,
+  children,
+}: PortalShellProps) {
+  const tenantName =
+    tenantContext.tenants.find(
+      (tenant) => tenant.id === tenantContext.currentTenantId,
+    )?.name ?? "Operations Portal";
+
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <SkipLink href="#portal-main" />
+      <header className="sticky top-0 z-20 flex h-(--portal-header-height) items-center gap-2 border-b border-[var(--line)] bg-[var(--background)] px-4">
+        <Link
+          href="/portal/home"
+          aria-label={`${tenantName} portal home`}
+          className="flex min-w-0 items-center gap-2"
+        >
+          {branding.logoUrl && (
+            <Image
+              src={branding.logoUrl}
+              alt=""
+              width={28}
+              height={28}
+              className="size-7 shrink-0 rounded object-contain"
+            />
+          )}
+          <span className="truncate text-base font-semibold text-[var(--purple-deep)]">
+            {tenantName}
+          </span>
+        </Link>
+        {/* Search and the bell only. The theme toggle, help and the account
+            link are all in the sheet: a phone header that carries six controls
+            leaves no room for the name of the organization you are in. */}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <CommandPalette
+            permissions={permissions}
+            lexicon={lexicon}
+            currentPerson={currentPerson}
+          />
+          <NotificationsMenu items={attentionItems} />
+        </div>
+      </header>
+      {isDemo && <DemoBanner />}
+      <main
+        id="portal-main"
+        tabIndex={-1}
+        // Bottom padding clears the fixed tab bar, which would otherwise sit
+        // on top of the last thing on every page.
+        className="app-shell grow px-4 pt-6 pb-24 outline-none"
+      >
+        <BrandLogoProvider logoUrl={branding.logoUrl}>
+          <LexiconProvider lexicon={lexicon}>{children}</LexiconProvider>
+        </BrandLogoProvider>
+      </main>
+      <MobileNav permissions={permissions} lexicon={lexicon} />
+      {welcomeOwed && (
+        <WelcomeDialog key="welcome" initialOpen permissions={permissions} />
+      )}
+      {whatsNewOwed && <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />}
+      <IdleTimeout />
+      <Toaster />
+    </div>
+  );
+}
