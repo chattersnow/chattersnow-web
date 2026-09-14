@@ -2,6 +2,22 @@
 // local Supabase stack (`bun run db:start && bun run db:reset`) rather than
 // mocking the Supabase client. Run via `bun run test:integration`.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { todayInZone } from "@/lib/time";
+
+/**
+ * The seeded tenant's reporting zone (`app_settings.org.timezone`, pinned in
+ * supabase/seed.sql). Reports and dashboard windows are cut on the
+ * organization's days rather than the database's UTC days (#1065), so a
+ * fixture meaning "today" has to mean the same day they do -- on a UTC CI
+ * runner, `new Date().toISOString()` is already tomorrow for six hours every
+ * evening, which is precisely the defect that decision exists to fix.
+ */
+export const TENANT_TIME_ZONE = "America/Denver";
+
+/** Today as the seeded tenant has it, "YYYY-MM-DD". */
+export function tenantToday() {
+  return todayInZone(TENANT_TIME_ZONE);
+}
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_PUBLISHABLE_KEY =
@@ -350,8 +366,7 @@ export async function createMonetaryDonation(
       event_id: overrides.eventId ?? null,
       amount: overrides.amount ?? 25,
       method: overrides.method ?? "cash",
-      received_date:
-        overrides.receivedDate ?? new Date().toISOString().slice(0, 10),
+      received_date: overrides.receivedDate ?? tenantToday(),
       notes: overrides.notes ?? `Integration test gift ${crypto.randomUUID()}`,
     })
     .select("id")

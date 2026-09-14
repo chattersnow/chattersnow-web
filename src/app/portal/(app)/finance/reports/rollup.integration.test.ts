@@ -19,6 +19,8 @@ import {
   createPublishedEvent,
   serviceRoleClient,
   signInAs,
+  TENANT_TIME_ZONE,
+  tenantToday,
 } from "../../../../../../test/integration-setup";
 
 // Every fixture row carries a unique amount, so assertions can find it inside
@@ -31,8 +33,18 @@ const IN_RANGE_DATE = "2026-03-15";
 const EARLIER_IN_RANGE_DATE = "2026-03-05";
 const IN_RANGE = { p_from: "2026-03-01", p_to: "2026-03-31" };
 const OUT_OF_RANGE = { p_from: "2026-04-01", p_to: "2026-04-30" };
-const today = new Date().toISOString().slice(0, 10);
+
+// The reporting zone this file pins the tenant to below (#1065). Every day
+// this file talks about is a day in it, including "today" -- taking that off
+// `new Date().toISOString()` made the run fail between 6pm and midnight
+// Mountain, which is exactly the defect under test.
+const ORG_ZONE = TENANT_TIME_ZONE;
+const today = tenantToday();
 const TODAY_RANGE = { p_from: today, p_to: today };
+
+// 7pm on 31 March in Denver, which UTC calls 1 April: the instant that tells
+// the two possible answers apart. It belongs in the March report.
+const LAST_EVENING_OF_MARCH = "2026-04-01T01:00:00Z";
 
 type ReportPayload = {
   revenue: { amount: string | number }[];
@@ -82,6 +94,22 @@ const expenseAmount = uniqueAmount();
 const reimbursementAmount = uniqueAmount();
 const donationAmount = uniqueAmount();
 
+// Pin the tenant's reporting zone rather than leaning on what the migration
+// inferred from the seeded events: the boundary cases below only mean anything
+// against a known zone, and a seed change should not quietly turn them into
+// tautologies. Restored in afterAll.
+const { data: previousZoneRow } = await adminClient
+  .from("app_settings")
+  .select("value")
+  .eq("key", "org.timezone")
+  .maybeSingle();
+const previousZone = previousZoneRow?.value ?? null;
+const { error: zoneError } = await adminClient
+  .from("app_settings")
+  .update({ value: ORG_ZONE })
+  .eq("key", "org.timezone");
+if (zoneError) throw zoneError;
+
 const event = await createPublishedEvent();
 const person = await createPerson();
 
@@ -119,6 +147,18 @@ const reimbursementId = await insertFixture("reimbursements", {
   amount: reimbursementAmount,
 });
 
+// The same instant on the reimbursement side. `created_at` is the only date
+// this table has (20260826000000), so it is what the rollup buckets by, and
+// this row is the one that moves between February-style and March-style
+// answers. Set explicitly rather than defaulted to now().
+const boundaryReimbursementAmount = uniqueAmount();
+const boundaryReimbursementId = await insertFixture("reimbursements", {
+  person_id: person.id,
+  description: `Integration test boundary reimbursement ${crypto.randomUUID()}`,
+  amount: boundaryReimbursementAmount,
+  created_at: LAST_EVENING_OF_MARCH,
+});
+
 const donationId = await insertFixture("monetary_donations", {
   donor_id: person.id,
   amount: donationAmount,
@@ -137,6 +177,7 @@ const run = crypto.randomUUID().slice(0, 8);
 const inRangeSaleAmount = uniqueAmount();
 const voidedSaleAmount = uniqueAmount();
 const outOfRangeSaleAmount = uniqueAmount();
+const boundarySaleAmount = uniqueAmount();
 
 const { data: saleProduct, error: saleProductError } = await adminClient
   .from("products")
@@ -148,15 +189,18 @@ if (saleProductError) throw saleProductError;
 const { data: saleVariants, error: saleVariantError } = await adminClient
   .from("product_variants")
   .insert(
-    [inRangeSaleAmount, voidedSaleAmount, outOfRangeSaleAmount].map(
-      (price, index) => ({
-        product_id: saleProduct.id,
-        label: `Rollup ${index}`,
-        price,
-        stock_on_hand: 5,
-        is_active: true,
-      }),
-    ),
+    [
+      inRangeSaleAmount,
+      voidedSaleAmount,
+      outOfRangeSaleAmount,
+      boundarySaleAmount,
+    ].map((price, index) => ({
+      product_id: saleProduct.id,
+      label: `Rollup ${index}`,
+      price,
+      stock_on_hand: 5,
+      is_active: true,
+    })),
   )
   .select("id, price");
 if (saleVariantError) throw saleVariantError;
@@ -192,6 +236,7 @@ const outOfRangeSaleId = await sell(
   outOfRangeSaleAmount,
   "2026-04-15T18:00:00Z",
 );
+const boundarySaleId = await sell(boundarySaleAmount, LAST_EVENING_OF_MARCH);
 const voidedSaleId = await sell(voidedSaleAmount, `${IN_RANGE_DATE}T19:00:00Z`);
 const { error: voidError } = await adminClient.rpc("void_product_sale", {
   p_sale_id: voidedSaleId,
@@ -206,7 +251,12 @@ function saleAmounts(payload: ReportPayload) {
 afterAll(async () => {
   // `sales` has no delete grant for authenticated by design, so the catalog
   // this file created is taken back out through service_role.
-  for (const saleId of [inRangeSaleId, outOfRangeSaleId, voidedSaleId]) {
+  for (const saleId of [
+    inRangeSaleId,
+    outOfRangeSaleId,
+    boundarySaleId,
+    voidedSaleId,
+  ]) {
     await service.from("sale_line_items").delete().eq("sale_id", saleId);
     await service.from("sales").delete().eq("id", saleId);
   }
@@ -215,12 +265,23 @@ afterAll(async () => {
   // Ordered by dependency: the reimbursement and donation reference the
   // person, and both the revenue and expense rows reference the event.
   await adminClient.from("reimbursements").delete().eq("id", reimbursementId);
+  await adminClient
+    .from("reimbursements")
+    .delete()
+    .eq("id", boundaryReimbursementId);
   await adminClient.from("monetary_donations").delete().eq("id", donationId);
   await person.cleanup();
   await adminClient.from("event_revenue").delete().eq("id", revenueId);
   await adminClient.from("event_revenue").delete().eq("id", earlierRevenueId);
   await adminClient.from("event_expenses").delete().eq("id", expenseId);
   await event.cleanup();
+
+  if (previousZone !== null) {
+    await adminClient
+      .from("app_settings")
+      .update({ value: previousZone })
+      .eq("key", "org.timezone");
+  }
 });
 
 describe("get_finance_report_data access", () => {
@@ -347,6 +408,50 @@ describe("get_finance_report_data period filtering", () => {
     expect(saleAmounts(marchPayload)).not.toContain(outOfRangeSaleAmount);
     expect(saleAmounts(aprilPayload)).toContain(outOfRangeSaleAmount);
     expect(saleAmounts(aprilPayload)).not.toContain(inRangeSaleAmount);
+  });
+
+  // #1065: the case that tells a UTC reporting day from a tenant-local one. A
+  // sale rung and a reimbursement filed at 7pm on 31 March in Denver are
+  // stored as 1 April in UTC; under the old `::date` cast both fell into the
+  // April report and March was short an evening.
+  test("counts an instant late on the last evening of the month in that month", async () => {
+    const [marchPayload, aprilPayload] = await Promise.all([
+      report(adminClient, IN_RANGE),
+      report(adminClient, OUT_OF_RANGE),
+    ]);
+
+    expect(saleAmounts(marchPayload)).toContain(boundarySaleAmount);
+    expect(saleAmounts(aprilPayload)).not.toContain(boundarySaleAmount);
+
+    expect(amounts(marchPayload.reimbursements)).toContain(
+      boundaryReimbursementAmount,
+    );
+    expect(amounts(aprilPayload.reimbursements)).not.toContain(
+      boundaryReimbursementAmount,
+    );
+  });
+
+  test("moves that same instant into April when the tenant is in UTC", async () => {
+    // The proof that the zone is what decides it, rather than some other
+    // property of the row. Restored before the assertions that follow.
+    await adminClient
+      .from("app_settings")
+      .update({ value: "UTC" })
+      .eq("key", "org.timezone");
+
+    try {
+      const [marchPayload, aprilPayload] = await Promise.all([
+        report(adminClient, IN_RANGE),
+        report(adminClient, OUT_OF_RANGE),
+      ]);
+      expect(saleAmounts(marchPayload)).not.toContain(boundarySaleAmount);
+      expect(saleAmounts(aprilPayload)).toContain(boundarySaleAmount);
+    } finally {
+      await adminClient
+        .from("app_settings")
+        .update({ value: ORG_ZONE })
+        .eq("key", "org.timezone");
+    }
   });
 
   test("returns empty arrays rather than nulls for a period with nothing in it", async () => {

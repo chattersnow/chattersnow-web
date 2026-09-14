@@ -1585,6 +1585,17 @@ insert into public.app_settings (key, value) values
   ('org.fiscal_year_start_month', to_jsonb(7))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
+-- Reporting time zone (20260916000000, #1065). The migration infers a tenant's
+-- zone from the mode of its events, but it runs on an empty database here --
+-- the seed comes after -- so a reset would leave local development on UTC
+-- while a real deployment lands on the zone its events are in. Every seeded
+-- event is in Denver, so this is what that inference would have produced, and
+-- pinning it is what lets the rollup and dashboard specs assert against a
+-- known month boundary.
+insert into public.app_settings (key, value) values
+  ('org.timezone', to_jsonb('America/Denver'::text))
+on conflict (tenant_id, key) do update set value = excluded.value;
+
 -- Outbound email (#488). The admin account opts in to the daily task digest and
 -- has one delivery already recorded, so both tables have a row locally: the
 -- account page shows a toggle in its on state, and the tenant-isolation suite

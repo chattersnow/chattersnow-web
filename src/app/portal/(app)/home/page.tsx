@@ -37,6 +37,8 @@ import {
 } from "@/lib/fiscal-year";
 import { listRecentDonationsAction } from "./actions";
 import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { getOrgTimeZone } from "@/lib/org-timezone";
+import { todayInZone, utcDateFromIsoDay } from "@/lib/time";
 import { ViewerTime } from "@/components/viewer-time";
 
 // For plain `date` columns (e.g. grants.application_deadline) rather than
@@ -130,23 +132,28 @@ export default async function PortalHomePage({
     { resource: "inventory_intake", level: "manage" },
   ]);
 
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  // Two clocks, on purpose. `nowIso` is a real instant, for "what is coming
+  // up"; every *day* below is the organization's day, because the finance
+  // rollup buckets in the org's zone (#1065) and the tiles must be cut on the
+  // same boundary. Off the server's UTC clock, "this month" rolled over to the
+  // next month at 6pm on the last day of this one.
+  const nowIso = new Date().toISOString();
 
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const todayDate = nowIso.slice(0, 10);
-  const startOfMonthDate = startOfMonth.toISOString().slice(0, 10);
+  const [orgTimeZone, fiscalYearStartMonth] = await Promise.all([
+    getOrgTimeZone(supabase),
+    getFiscalYearStartMonth(supabase),
+  ]);
+  const todayDate = todayInZone(orgTimeZone);
+  const startOfMonthDate = `${todayDate.slice(0, 7)}-01`;
+  const today = utcDateFromIsoDay(todayDate);
 
   // "This year" on this dashboard means the org's fiscal year, not the
   // calendar year -- a winter season spans the new year, so a January boundary
   // would split one season's income across two of these figures.
-  const fiscalYearStartMonth = await getFiscalYearStartMonth(supabase);
-  const currentFiscalYear = fiscalYearForDate(now, fiscalYearStartMonth);
+  const currentFiscalYear = fiscalYearForDate(today, fiscalYearStartMonth);
   const fiscalYearLabel = formatFiscalYearLabel(currentFiscalYear);
   const { from: startOfYearDate } = fiscalYearToDateRange(
-    now,
+    today,
     fiscalYearStartMonth,
   );
 
@@ -168,7 +175,13 @@ export default async function PortalHomePage({
         getEventTaskSummary(supabase, { canManageEvents: canCheckIn }, nowIso)
       : Promise.resolve(null),
     canSeeFinancial
-      ? getFinancialSummary(supabase, startOfMonthDate, startOfYearDate, nowIso)
+      ? getFinancialSummary(
+          supabase,
+          startOfMonthDate,
+          startOfYearDate,
+          nowIso,
+          todayDate,
+        )
       : Promise.resolve(null),
     canSeeInventory ? getInventorySummary(supabase) : Promise.resolve(null),
     canSeeAccessManagement
