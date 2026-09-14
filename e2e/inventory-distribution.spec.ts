@@ -9,6 +9,7 @@ import { test, expect } from "./helpers/test";
 import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { portalMain } from "./helpers/regions";
+import { exactLabel } from "./helpers/labels";
 
 test.describe("portal inventory distribution", () => {
   test.beforeEach(async ({ page }) => {
@@ -37,14 +38,16 @@ test.describe("portal inventory distribution", () => {
     await page.goto("/portal/inventory/donations");
     await page.getByRole("button", { name: "Add donation" }).click();
     const addSheet = modal(page);
-    await addSheet.getByLabel("Donor name").fill(donorName);
+    await addSheet.getByLabel(exactLabel("Donor name")).fill(donorName);
     await addSheet.getByLabel("Donor source").click();
     await page
       .getByRole("listbox")
       .getByText("Individual", { exact: true })
       .click();
     await addSheet.getByRole("button", { name: "Continue" }).click();
-    await addSheet.getByLabel("Item description").fill(itemDescription);
+    await addSheet
+      .getByLabel(exactLabel("Item description"))
+      .fill(itemDescription);
     await addSheet.getByLabel("Item category").click();
     await page
       .getByRole("listbox")

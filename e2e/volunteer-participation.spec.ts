@@ -14,6 +14,7 @@ import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
 import { modal } from "./helpers/dialog";
 import { pickPerson } from "./helpers/people";
+import { exactLabel } from "./helpers/labels";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -73,19 +74,17 @@ test.describe("portal volunteer participation", () => {
       await expect(dialog).toBeVisible();
 
       await pickPerson(dialog, volunteer.name);
-      await dialog.getByLabel("Hours").fill("3.25");
+      await dialog.getByLabel(exactLabel("Hours")).fill("3.25");
 
       // Both selects render their popup outside the dialog, so the options
       // are only reachable from the page root. "Winter Gear Swap" and
       // "Ride Buddy" are seeded by supabase/seed.sql and only ever read by
       // the other specs, so they're stable to pick here.
-      await dialog.getByRole("combobox", { name: "Event (optional)" }).click();
+      await dialog.getByRole("combobox", { name: "Event" }).click();
       await page
         .getByRole("option", { name: "Winter Gear Swap", exact: true })
         .click();
-      await dialog
-        .getByRole("combobox", { name: "Role type (optional)" })
-        .click();
+      await dialog.getByRole("combobox", { name: "Role type" }).click();
       await page
         .getByRole("option", { name: "Ride Buddy", exact: true })
         .click();
@@ -110,7 +109,7 @@ test.describe("portal volunteer participation", () => {
       await expect(sheet.getByText("Winter Gear Swap")).toBeVisible();
 
       await sheet.getByRole("button", { name: "Edit hours entry" }).click();
-      await sheet.getByLabel("Hours").fill("4.5");
+      await sheet.getByLabel(exactLabel("Hours")).fill("4.5");
       await sheet.getByRole("button", { name: "Save changes" }).click();
 
       // Saving returns the sheet to view mode, showing what just landed.

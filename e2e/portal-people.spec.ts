@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
+import { exactLabel } from "./helpers/labels";
 
 // Seeded by supabase/seed.sql: Priya Natarajan (volunteer), Jamie Rivera
 // (donor), and Summit Outdoor Co. (sponsor) are always present after a
@@ -156,7 +157,7 @@ test.describe("portal people directory", () => {
     // Exact, because the dialog also holds a person picker whose search
     // input labels itself "Search by name or email..." -- a substring match
     // on "Name" or "Email" resolves to both.
-    await addDialog.getByLabel("Name", { exact: true }).fill(personName);
+    await addDialog.getByLabel(exactLabel("Name")).fill(personName);
     await addDialog.getByLabel("Email", { exact: true }).fill(personEmail);
     await addDialog.getByLabel("Phone", { exact: true }).fill("555-0142");
     await addDialog
