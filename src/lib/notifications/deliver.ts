@@ -103,6 +103,12 @@ export async function deliverEmail(
     text: message.text,
     html: message.html,
     ...(replyTo ? { replyTo } : {}),
+    // Whatever the renderer chose to attach (#1068). The ledger records that a
+    // message went out, not what travelled with it, so nothing else here
+    // changes.
+    ...(message.attachments?.length
+      ? { attachments: message.attachments }
+      : {}),
   });
 
   const { error: finalizeError } = await admin

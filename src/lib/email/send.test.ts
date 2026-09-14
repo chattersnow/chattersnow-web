@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 
 // send.ts imports "server-only", which throws outside Next's bundler (it is
 // aliased to a no-op only during a Next.js server build) -- stub it so this
@@ -47,6 +55,30 @@ describe("sendEmail without a key", () => {
 
     expect(result).toEqual({ ok: true, id: null });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("names what would have been attached, for reading out of the dev log", async () => {
+    // Reading this line is how an attachment gets checked without a provider,
+    // which is the point of the no-op path.
+    delete process.env.RESEND_API_KEY;
+    const info = spyOn(console, "info").mockImplementation(() => {});
+    try {
+      await sendEmail({
+        ...MESSAGE,
+        attachments: [
+          {
+            filename: "event.ics",
+            contentType: "text/calendar",
+            content: "BEGIN:VCALENDAR",
+          },
+        ],
+      });
+      expect(info).toHaveBeenCalledWith(
+        expect.stringContaining("(attachments: event.ics)"),
+      );
+    } finally {
+      info.mockRestore();
+    }
   });
 });
 
@@ -147,6 +179,54 @@ describe("sendEmail with a key", () => {
       RequestInit,
     ];
     expect(JSON.parse(init.body as string)).not.toHaveProperty("reply_to");
+  });
+
+  test("sends an attachment base64-encoded, under the provider's own keys", async () => {
+    const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await sendEmail({
+      ...MESSAGE,
+      attachments: [
+        {
+          filename: "event.ics",
+          contentType: "text/calendar; charset=utf-8; method=PUBLISH",
+          content: "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n",
+        },
+      ],
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    // snake_case content_type is Resend's spelling, not ours -- the mapping is
+    // this module's whole job, so it is the thing worth asserting.
+    expect(JSON.parse(init.body as string).attachments).toEqual([
+      {
+        filename: "event.ics",
+        content: Buffer.from(
+          "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n",
+          "utf8",
+        ).toString("base64"),
+        content_type: "text/calendar; charset=utf-8; method=PUBLISH",
+      },
+    ]);
+  });
+
+  test("omits attachments entirely when there are none", async () => {
+    // Every message but one, so an always-present empty array would put a key
+    // in the payload of every send in the application.
+    const fetchMock = mock(() => Promise.resolve(jsonResponse(200, {})));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await sendEmail({ ...MESSAGE, attachments: [] });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string)).not.toHaveProperty("attachments");
   });
 
   test("refuses to send with no from address configured", async () => {

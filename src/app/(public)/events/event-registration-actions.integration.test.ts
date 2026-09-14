@@ -9,9 +9,11 @@ import {
   countEventRegistrations,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   uniqueEmail,
   uniqueIp,
 } from "../../../../test/integration-setup";
+import { EVENT_REGISTRATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -25,6 +27,22 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => anonClient(),
 }));
 
+// The action schedules the registrant's confirmation with after() (#1068).
+// This file imports the action directly, so there is no request scope and
+// Next's real after() would throw -- and the sender it schedules imports
+// "server-only", which throws outside Next's bundler. Everything else in
+// next/server is kept, so the mock cannot surprise another file sharing this
+// process. Same shape as gear-cart-request-actions.integration.test.ts.
+mock.module("server-only", () => ({}));
+const nextServer = await import("next/server");
+const afterTasks: Promise<unknown>[] = [];
+mock.module("next/server", () => ({
+  ...nextServer,
+  after: (task: () => Promise<unknown>) => {
+    afterTasks.push(task());
+  },
+}));
+
 const { registerForEventAction } = await import("./event-registration-actions");
 
 function formData(fields: Record<string, string>) {
@@ -34,7 +52,18 @@ function formData(fields: Record<string, string>) {
 }
 
 const cleanups: (() => Promise<void>)[] = [];
+const service = serviceRoleClient();
+
 afterEach(async () => {
+  // Let the scheduled confirmation settle before the fixtures it reads go
+  // away. RESEND_API_KEY is unset here, so nothing leaves the building.
+  await Promise.all(afterTasks.splice(0));
+  // Only the service role may write this table -- `authenticated` has select
+  // and no delete policy at all (20260906140000).
+  await service
+    .from("notification_deliveries")
+    .delete()
+    .eq("kind", EVENT_REGISTRATION_CONFIRMATION_KIND);
   while (cleanups.length) {
     const cleanup = cleanups.pop()!;
     await cleanup();
@@ -451,5 +480,71 @@ describe("registerForEventAction under concurrency", () => {
       .select("party_size")
       .eq("event_id", id);
     expect(data!.reduce((sum, row) => sum + row.party_size, 0)).toBe(4);
+  });
+});
+
+// #1068. The action's own half of the confirmation: that it is scheduled at
+// all, and against the right person. What the message says is unit-tested.
+describe("registerForEventAction confirmation", () => {
+  test("schedules one confirmation, ledgered against the registrant", async () => {
+    currentIp = uniqueIp();
+    const email = uniqueEmail("confirm-registrant");
+    // Popped before the event fixture, since deleteEvent() has to clear
+    // event_registrations first or the FK refuses. Removing the people row
+    // cascades its delivery row away with it.
+    cleanups.push(async () => {
+      await adminClient.from("people").delete().eq("email", email);
+    });
+    const { id } = await event();
+
+    const result = await registerForEventAction(
+      id,
+      formData({ name: "Confirmed Registrant", email }),
+    );
+    expect(result).toMatchObject({ success: true });
+
+    // The send is scheduled, not awaited: nothing about it may reach the
+    // visitor, so it has to be drained before the ledger is read.
+    await Promise.all(afterTasks.splice(0));
+
+    const { data: person } = await service
+      .from("people")
+      .select("id")
+      .eq("email", email)
+      .single();
+    const { data: rows } = await service
+      .from("notification_deliveries")
+      .select("person_id, dedupe_key, status")
+      .eq("kind", EVENT_REGISTRATION_CONFIRMATION_KIND);
+
+    expect(rows).toHaveLength(1);
+    expect(rows![0].person_id).toBe(person!.id);
+    expect(rows![0].status).toBe("sent");
+    expect(rows![0].dedupe_key).toBe(
+      `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${(result as { registrationId: string }).registrationId}`,
+    );
+  });
+
+  test("schedules nothing for a filled honeypot", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+
+    const result = await registerForEventAction(
+      id,
+      formData({
+        name: "Bot",
+        email: uniqueEmail("confirm-honeypot"),
+        company: "Acme Spam Co",
+      }),
+    );
+    expect(result).toMatchObject({ success: true });
+
+    await Promise.all(afterTasks.splice(0));
+
+    const { data: rows } = await service
+      .from("notification_deliveries")
+      .select("id")
+      .eq("kind", EVENT_REGISTRATION_CONFIRMATION_KIND);
+    expect(rows).toEqual([]);
   });
 });

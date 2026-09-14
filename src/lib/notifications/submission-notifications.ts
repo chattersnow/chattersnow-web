@@ -7,7 +7,10 @@ import {
 import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
-import { GEAR_REQUEST_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
+import {
+  EVENT_REGISTRATION_CONFIRMATION_KIND,
+  GEAR_REQUEST_CONFIRMATION_KIND,
+} from "@/lib/notifications/kinds";
 import { lexiconForTenant } from "@/lib/tenant-lexicon";
 import {
   renderArtworkSubmissionEmail,
@@ -16,6 +19,7 @@ import {
   renderVolunteerApplicationEmail,
 } from "@/lib/notifications/submission-emails";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
+import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
 import {
   MEETUP_INSTRUCTIONS_SETTING_KEY,
   PAYMENT_METHODS_SETTING_KEY,
@@ -401,6 +405,132 @@ export async function sendGearRequestConfirmation(
             : null,
       }),
     logPrefix: "[gear-request-confirm]",
+  });
+}
+
+type EventRegistrationRow = {
+  id: string;
+  tenant_id: string;
+  event_id: string;
+  person_id: string | null;
+  name: string | null;
+  email: string | null;
+  party_size: number | null;
+};
+
+type ConfirmationEventRow = {
+  name: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  timezone: string;
+};
+
+const EVENT_REGISTRATION_SELECT =
+  "id, tenant_id, event_id, person_id, name, email, party_size";
+
+/**
+ * The registrant's own confirmation (#1068), shaped like the gear requester's
+ * above: the recipient is the person the row is about, who has no account and
+ * no preference row, so this bypasses the opt-in and goes straight to the
+ * ledger, gated only by the tenant's kill switch. register_for_event() always
+ * mints the `people` row deliverEmail() needs.
+ *
+ * Three things here look like omissions and are not:
+ *
+ * It reads `event_registrations.email` rather than resolving the address
+ * through deliveryAddress() (#1042). That rule exists for portal mail, where an
+ * account holder's `notification_email` redirects messages away from the
+ * address that identifies them in the directory. This is not portal mail: the
+ * registrant typed an address into a public form seconds ago and the screen
+ * names that address back to them, so posting the receipt to a different
+ * mailbox than the one the page promised would be a bug, not a courtesy.
+ *
+ * It does not join `people` at all. Everything the message needs -- the name
+ * they typed, the address they typed, the party size -- is on the registration,
+ * and personDisplayName()'s fallback chain ends at the email address, which
+ * would greet somebody as "Hi bob@example.com,".
+ *
+ * The first read is keyed on the registration's primary key with no tenant
+ * filter, as the gear confirmation's is: it is an unguessable uuid, and the
+ * tenant is named on everything downstream of it -- the events read below, and
+ * the ledger row deliverEmail() writes.
+ */
+export async function sendEventRegistrationConfirmation(
+  admin: SupabaseClient,
+  options: { registrationId: string; siteUrl: string },
+): Promise<DeliveryOutcome> {
+  const { data, error } = await admin
+    .from("event_registrations")
+    .select(EVENT_REGISTRATION_SELECT)
+    .eq("id", options.registrationId)
+    .maybeSingle<EventRegistrationRow>();
+
+  if (error) {
+    console.error(
+      "[submission-notify] could not read the registration for its confirmation",
+      error,
+    );
+    return "failed";
+  }
+
+  // No row is a filled honeypot: register_for_event() answers one with a freshly
+  // generated uuid for a row it never inserted. A blank email is the staff-entered
+  // shape 20260901010000 exists for -- a walk-in checked in from the portal whose
+  // `people` row has no address on it -- and is nothing to report either.
+  const to = data?.email?.trim() ?? "";
+  if (!data || !data.person_id || !to) return "skipped";
+
+  if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
+
+  // A second scoped read rather than an `event:events(...)` embed on purpose:
+  // event_registrations.event_id references events(id) alone, with no composite
+  // (tenant_id, id) foreign key, so an embed could not name its tenant -- and on
+  // the service-role client there is no policy underneath to catch a mistake.
+  // Inside the same Promise.all it costs no latency.
+  const [event, mail] = await Promise.all([
+    admin
+      .from("events")
+      .select("name, starts_at, ends_at, location, timezone")
+      .eq("id", data.event_id)
+      .eq("tenant_id", data.tenant_id)
+      .maybeSingle<ConfirmationEventRow>(),
+    tenantMailContext(admin, data.tenant_id, {
+      fallbackOrigin: options.siteUrl,
+    }),
+  ]);
+
+  if (event.error) {
+    console.error(
+      "[submission-notify] could not read the event for a registration confirmation",
+      event.error,
+    );
+    return "failed";
+  }
+  if (!event.data) return "skipped";
+  const registered = event.data;
+
+  return deliverEmail(admin, {
+    tenantId: data.tenant_id,
+    identity: mail.identity,
+    personId: data.person_id,
+    kind: EVENT_REGISTRATION_CONFIRMATION_KIND,
+    dedupeKey: `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${data.id}`,
+    to,
+    render: () =>
+      renderEventRegistrationConfirmationEmail({
+        orgName: mail.displayName,
+        registrantName: (data.name ?? "").trim(),
+        eventName: registered.name,
+        startsAt: registered.starts_at,
+        endsAt: registered.ends_at,
+        timeZone: registered.timezone,
+        location: registered.location,
+        partySize: data.party_size ?? 1,
+        eventId: data.event_id,
+        siteUrl: mail.origin,
+      }),
+    logPrefix: "[event-registration-confirm]",
   });
 }
 

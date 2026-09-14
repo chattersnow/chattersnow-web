@@ -18,7 +18,7 @@ The site shall allow visitors to:
 
 Events are presented as a list in the initial release. A calendar view is a possible future enhancement, pending research into a suitable approach; the data model should not preclude it.
 
-**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`) and opens event details in a sheet (with `/events/e/[id]` kept as a direct-link detail page, and `/events/[id]` permanently redirecting there for links shared before the move) showing date/time, location, description, and public sponsors/partners (`public_event_sponsors`, sourced from `event_sponsors`/`people` and limited to sponsors marked `is_public`), plus a public registration form (when `registration_enabled` and within the registration window) backed by `event_registrations` and the `register_for_event()` RPC (see [§6](../technical-spec.md#6-proposed-data-model)).
+**Implemented:** `/events` lists upcoming and past events read live from Supabase (`public_events`) and opens event details in a sheet (with `/events/e/[id]` kept as a direct-link detail page, and `/events/[id]` permanently redirecting there for links shared before the move) showing date/time, location, description, and public sponsors/partners (`public_event_sponsors`, sourced from `event_sponsors`/`people` and limited to sponsors marked `is_public`), plus a public registration form (when `registration_enabled` and within the registration window) backed by `event_registrations` and the `register_for_event()` RPC (see [§6](../technical-spec.md#6-proposed-data-model)). After the response, the registrant receives their own confirmation (#1068, kind `event_registration_confirmation`, which is deliberately not in `NOTIFICATION_KINDS`: they hold no portal account and so no preference row, and only the tenant's org-wide email switch governs it). It restates the event, its window in the event's own timezone with the zone labelled, its place and the party size, links to the public event page on the tenant's own domain, and attaches the event as a `text/calendar` file; it deliberately echoes back neither the phone number nor the notes. Staff are not notified of a new registration -- tracked separately.
 
 An event must support these fields:
 
@@ -32,7 +32,7 @@ An event must support these fields:
 - Optional capacity
 - Optional public registration deadline
 
-Future event capabilities may include registration status, waitlists, confirmations, calendar integration, and event photos.
+Future event capabilities may include registration status, waitlists, and event photos.
 
 ## 5.5 Event management
 

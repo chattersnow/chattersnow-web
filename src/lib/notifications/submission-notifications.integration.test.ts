@@ -23,6 +23,8 @@ import {
   SEEDED_USERS,
   anonClient,
   createAvailableGearItems,
+  createPerson,
+  createPublishedEvent,
   createVolunteerApplication,
   deleteContactMessages,
   serviceRoleClient,
@@ -31,6 +33,7 @@ import {
 } from "../../../test/integration-setup";
 import {
   EMAIL_ENABLED_SETTING_KEY,
+  EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
 } from "./kinds";
 
@@ -44,6 +47,7 @@ const {
   notifyNewContactMessage,
   notifyNewGearRequest,
   notifyNewVolunteerApplication,
+  sendEventRegistrationConfirmation,
   sendGearRequestConfirmation,
 } = await import("./submission-notifications");
 
@@ -56,6 +60,7 @@ const KINDS = [
   CONTACT_MESSAGE_KIND,
   GEAR_REQUEST_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
+  EVENT_REGISTRATION_CONFIRMATION_KIND,
 ];
 
 let tenantId: string;
@@ -63,6 +68,8 @@ let adminPersonId: string;
 const contactEmails: string[] = [];
 const applicationCleanups: (() => Promise<void>)[] = [];
 const gearCleanups: (() => Promise<void>)[] = [];
+const eventCleanups: (() => Promise<void>)[] = [];
+const personCleanups: (() => Promise<void>)[] = [];
 const requesterEmails: string[] = [];
 
 beforeAll(async () => {
@@ -104,6 +111,10 @@ afterAll(async () => {
   // The gear fixtures first (their cleanup finds the request through the
   // movements), then the requester people rows nothing references any more.
   for (const cleanup of gearCleanups) await cleanup();
+  // Events before those people rows too: deleteEvent() clears the event's
+  // registrations, which are what reference them.
+  for (const cleanup of eventCleanups) await cleanup();
+  for (const cleanup of personCleanups) await cleanup();
   if (requesterEmails.length) {
     await service.from("people").delete().in("email", requesterEmails);
   }
@@ -187,6 +198,29 @@ async function newContactMessage() {
   });
   if (error) throw error;
   return data as string;
+}
+
+/** A public event registration from a fresh registrant, through the real RPC. */
+async function newEventRegistration(
+  overrides: Parameters<typeof createPublishedEvent>[0] = {},
+) {
+  const event = await createPublishedEvent(overrides);
+  eventCleanups.push(event.cleanup);
+  const email = uniqueEmail("event-notify");
+  requesterEmails.push(email);
+  const { data, error } = await anonClient().rpc("register_for_event", {
+    p_event_id: event.id,
+    p_name: "Integration Test Registrant",
+    p_email: email,
+    p_phone: null,
+    p_party_size: 2,
+    p_notes: "Bringing a friend.",
+    p_honeypot: null,
+    // A fresh IP per fixture: the RPC's own per-IP limit is 8 per 15 minutes.
+    p_ip_address: uniqueIp(),
+  });
+  if (error) throw error;
+  return { id: data as string, email, eventId: event.id };
 }
 
 describe("a new volunteer application", () => {
@@ -469,5 +503,119 @@ describe("a new gear request", () => {
       }),
     ).toBe("skipped");
     expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toEqual([]);
+  });
+});
+
+// #1068. One send per registration, with no preference to honour: the
+// registrant holds no account, so only the tenant's own switch can stop it.
+describe("a new event registration", () => {
+  test("confirms to the registrant, ledgered against their people row", async () => {
+    const registration = await newEventRegistration();
+
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: registration.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("sent");
+
+    const { data: person } = await service
+      .from("people")
+      .select("id")
+      .eq("email", registration.email)
+      .single();
+    const rows = await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].person_id).toBe(person!.id);
+    expect(rows[0].status).toBe("sent");
+    expect(rows[0].dedupe_key).toBe(
+      `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${registration.id}`,
+    );
+
+    // A retried Server Action confirms once.
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: registration.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND)).toHaveLength(
+      1,
+    );
+  });
+
+  test("sends for an event with an end time and a place, same as without", async () => {
+    // The renderer's two branches are unit-tested; this is here to prove the
+    // sender reads both columns without tripping over either.
+    const registration = await newEventRegistration({
+      endsAt: new Date(Date.now() + 27 * 60 * 60 * 1000).toISOString(),
+      timezone: "America/Denver",
+    });
+
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: registration.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("sent");
+  });
+
+  test("honours the tenant's switch and ignores a honeypot", async () => {
+    await setOrgEmailEnabled(false);
+    const registration = await newEventRegistration();
+
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: registration.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    // What register_for_event() hands back for a filled honeypot: a uuid for a
+    // row it never inserted.
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: crypto.randomUUID(),
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND)).toEqual([]);
+  });
+
+  test("skips a registration with no address rather than failing", async () => {
+    // The shape 20260901010000 exists for: a walk-in added from the portal
+    // whose people row carries no email. The public form cannot produce it, so
+    // it is built here directly.
+    const event = await createPublishedEvent();
+    eventCleanups.push(event.cleanup);
+    const person = await createPerson({ name: "Walk-in With No Address" });
+    // Popped after the event's cleanup, which has to clear the registration
+    // referencing this row first.
+    personCleanups.push(person.cleanup);
+
+    const { error: insertError } = await service
+      .from("event_registrations")
+      .insert({
+        tenant_id: tenantId,
+        event_id: event.id,
+        name: "Walk-in With No Address",
+        email: "",
+        party_size: 1,
+        person_id: person.id,
+      });
+    if (insertError) throw insertError;
+
+    const { data: row } = await service
+      .from("event_registrations")
+      .select("id")
+      .eq("event_id", event.id)
+      .single();
+
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: row!.id as string,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND)).toEqual([]);
   });
 });

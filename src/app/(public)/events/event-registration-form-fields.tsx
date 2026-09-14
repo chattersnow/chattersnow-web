@@ -57,6 +57,12 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
           <div className="rainbow-accent mb-2 w-10" />
           <AlertDescription>
             You&apos;re registered! We look forward to seeing you there.
+            {/* Named so the absence of a message in a minute's time reads as a
+                problem rather than as normal. Its own element, not appended to
+                the sentence above, which e2e/events.spec.ts locates by text. */}
+            <span className="mt-1 block">
+              We&apos;ve emailed a copy to {email}.
+            </span>
           </AlertDescription>
         </Alert>
         <RiderProfileForm registrationId={registrationId} />
