@@ -158,7 +158,9 @@ export async function listEventDonationsAction(
       "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     .eq("event_id", eventId)
+    // See the donations list page: `donated_at` is a day, so it ties.
     .order("donated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .order("id", { ascending: true })
     .order("id", { referencedTable: "inventory_items", ascending: true });
 
@@ -182,7 +184,11 @@ export async function listRecentDonationsAction(
     .select(
       "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
+    // The tiebreaker matters most here: `donated_at` ties per day and this
+    // query takes only `limit` rows, so without it a donation entered seconds
+    // ago can be missing from the dashboard altogether.
     .order("donated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .order("id", { ascending: true })
     .order("id", { referencedTable: "inventory_items", ascending: true })
     .limit(limit);

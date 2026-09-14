@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toDateInputValue } from "./format";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/portal/empty-state";
 import { useEventDateDefaults } from "../event-date-defaults";
@@ -41,7 +40,8 @@ export function GiveawaySalesForm({
   // time opens on the event's date; an existing one keeps what was saved.
   const eventDates = useEventDateDefaults();
   const [drawingDate, setDrawingDate] = useState(
-    giveaway ? toDateInputValue(giveaway.drawing_date) : eventDates.date,
+    // A `date` column, so the stored value is already the input's format.
+    giveaway ? (giveaway.drawing_date ?? "") : eventDates.date,
   );
   const [notes, setNotes] = useState(giveaway?.notes ?? "");
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatInstantDate } from "@/lib/format";
+import { formatCalendarDate } from "@/lib/format";
 import { HistoryCard, HistoryItem, HistoryList } from "./history-card";
 
 type Donation = {
@@ -22,7 +22,10 @@ export async function DonorCard({
     .from("donations")
     .select("id, donated_at, notes, event:events(name)")
     .eq("donor_id", personId)
-    .order("donated_at", { ascending: false });
+    // See the donations list page: `donated_at` is a day, so it ties.
+    .order("donated_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true });
   const donations = (data ?? []) as unknown as Donation[];
 
   return (
@@ -37,7 +40,7 @@ export async function DonorCard({
         {donations.map((donation) => (
           <HistoryItem
             key={donation.id}
-            primary={`${formatInstantDate(donation.donated_at)}${
+            primary={`${formatCalendarDate(donation.donated_at)}${
               donation.event?.name ? ` · ${donation.event.name}` : ""
             }`}
             secondary={donation.notes}

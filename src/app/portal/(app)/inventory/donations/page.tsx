@@ -68,7 +68,14 @@ export default async function InventoryDonationsPage({
       "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
       { count: "exact" },
     )
+    // `created_at` is load-bearing, not noise: since #1053 `donated_at` is a
+    // calendar `date`, so every donation recorded on the same day ties on it
+    // and `id` is a random UUID. Without a tiebreaker that means something, a
+    // donation recorded seconds ago sorts arbitrarily among today's and can
+    // land on page 2. Within a day the useful order is the order they were
+    // entered, so it follows `dir` too -- oldest-first means oldest-entered.
     .order("donated_at", { ascending: dir === "asc" })
+    .order("created_at", { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
   if (search) {

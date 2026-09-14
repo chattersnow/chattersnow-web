@@ -43,9 +43,8 @@ export function parseGiveawayForm(
       ticketsSold,
       ticketPrice,
       revenueAmount,
-      drawingDate: drawingDateRaw
-        ? new Date(drawingDateRaw).toISOString()
-        : null,
+      // "YYYY-MM-DD" straight through to a `date` column (#1053).
+      drawingDate: drawingDateRaw || null,
       notes: notes || null,
     },
   };
@@ -109,9 +108,8 @@ export function parseGiveawayWinnerForm(
       winnerName,
       winnerContact: winnerContact || null,
       distributionStatus,
-      distributedAt: distributedAtRaw
-        ? new Date(distributedAtRaw).toISOString()
-        : null,
+      // "YYYY-MM-DD" straight through to a `date` column (#1053).
+      distributedAt: distributedAtRaw || null,
       notes: notes || null,
     },
   };

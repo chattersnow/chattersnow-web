@@ -59,10 +59,6 @@ export function donorLabel(donor: DonationRow["donor"]) {
   return donor.is_anonymous ? "Anonymous" : donor.name || "—";
 }
 
-export function donatedAtInputValue(donatedAt: string) {
-  return donatedAt.slice(0, 10);
-}
-
 /**
  * Normalizes the embedded `inventory_categories` on each of a donation's items
  * into the flat `category_key` / `category_label` fields every render site

@@ -257,6 +257,18 @@ export function nowDatetimeLocalInBrowser(): string {
 }
 
 /**
+ * Today as "YYYY-MM-DD" in the browser's timezone, for seeding an
+ * `<input type="date">` or naming the day a `date` column should record.
+ *
+ * `new Date().toISOString().slice(0, 10)` is already tomorrow for anyone west
+ * of Greenwich working in the evening, which is when most of this gets typed
+ * (#1053).
+ */
+export function todayInBrowser(): string {
+  return nowDatetimeLocalInBrowser().slice(0, 10);
+}
+
+/**
  * Converts a `<input type="datetime-local">` value to the UTC instant it
  * represents when read in the browser's timezone -- the platform convention,
  * and the conversion that has to happen in the *client* so that the server

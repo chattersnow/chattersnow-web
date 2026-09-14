@@ -26,7 +26,9 @@ describe("parseDonationEditForm", () => {
     );
     expect("data" in result).toBe(true);
     if ("data" in result) {
-      expect(result.data.donated_at).toBe(new Date("2026-05-01").toISOString());
+      // A `date` column now, so the typed day is bound straight through --
+      // no `new Date()` in the middle to turn it into UTC midnight (#1053).
+      expect(result.data.donated_at).toBe("2026-05-01");
       expect(result.data.notes).toBe("Dropped off at HQ");
     }
   });

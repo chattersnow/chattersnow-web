@@ -401,7 +401,7 @@ export default async function PortalHomePage({
                           : donation.donor.name}
                       </span>
                       <span className="app-muted">
-                        {formatDateTime(donation.donated_at)} ·{" "}
+                        {formatCalendarDate(donation.donated_at)} ·{" "}
                         {donation.inventory_items.length} item
                         {donation.inventory_items.length === 1 ? "" : "s"}
                       </span>

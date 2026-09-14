@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { donorLabel, type DonationRow } from "./donation-shared";
-import { formatInstantDate } from "@/lib/format";
+import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 
@@ -100,7 +100,7 @@ export function DonationsTable({
                   </TableCell>
                   <TableCell>{donation.event?.name ?? "—"}</TableCell>
                   <TableCell>
-                    {formatInstantDate(donation.donated_at)}
+                    {formatCalendarDate(donation.donated_at)}
                   </TableCell>
                   <TableCell>
                     <Button

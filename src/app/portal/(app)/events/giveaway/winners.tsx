@@ -19,13 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Pencil } from "lucide-react";
-import {
-  DISTRIBUTION_STATUS_LABELS,
-  DISTRIBUTION_STATUSES,
-  toDateInputValue,
-} from "./format";
+import { DISTRIBUTION_STATUS_LABELS, DISTRIBUTION_STATUSES } from "./format";
 import { Spinner } from "@/components/ui/spinner";
-import { formatInstantDate } from "@/lib/format";
+import { formatCalendarDate } from "@/lib/format";
 import { useEventDateDefaults } from "../event-date-defaults";
 
 export function WinnerForm({
@@ -50,7 +46,8 @@ export function WinnerForm({
   // blank included.
   const eventDates = useEventDateDefaults();
   const [distributedAt, setDistributedAt] = useState(
-    winner ? toDateInputValue(winner.distributed_at) : eventDates.date,
+    // A `date` column, so the stored value is already the input's format.
+    winner ? (winner.distributed_at ?? "") : eventDates.date,
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -214,7 +211,7 @@ export function WinnerSummary({
         {winner.distributed_at && (
           <span className="app-muted text-sm">
             <span className="sr-only">Distributed on: </span>
-            {formatInstantDate(winner.distributed_at)}
+            {formatCalendarDate(winner.distributed_at)}
           </span>
         )}
         {canEdit && (

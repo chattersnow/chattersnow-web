@@ -30,6 +30,10 @@ export type CreateDonationInput = {
   donorNotes?: string;
   items: DonationItemInput[];
   eventId?: string;
+  /** The day the gear arrived, "YYYY-MM-DD", read in the browser's timezone
+   *  (`todayInBrowser`). Absent falls back to the database's `current_date`,
+   *  which is a day ahead for an evening intake west of Greenwich (#1053). */
+  donatedOn?: string;
 };
 
 const SOURCE_TYPES = [
@@ -63,6 +67,7 @@ export type DonationRpcArgs = {
     photo_url: string | null;
   }[];
   p_event_id: string | null;
+  p_donated_at: string | null;
 };
 
 export function parseDonationInput(
@@ -150,6 +155,7 @@ export function parseDonationInput(
         photo_url: item.photoUrl?.trim() || null,
       })),
       p_event_id: input.eventId ?? null,
+      p_donated_at: input.donatedOn?.trim() || null,
     },
   };
 }
