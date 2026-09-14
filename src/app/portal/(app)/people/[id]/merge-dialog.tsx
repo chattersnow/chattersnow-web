@@ -2,8 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Merge } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { PersonPicker, type PickedPerson } from "../person-picker";
 import type { PersonListItem } from "../actions";
 
@@ -15,8 +24,13 @@ import type { PersonListItem } from "../actions";
  * one person who signed up twice under two different addresses, which only a
  * human can spot -- so the merge has to be reachable from the record itself,
  * not just from the queue.
+ *
+ * A dialog on the Profile card rather than a card of its own (#1108). Merging
+ * is a rare, deliberate, one-way act on the record this page is already about,
+ * so it belongs with the record's other controls; as a card it took a column
+ * slot on every visit, permanently, next to the things people came to read.
  */
-export function MergeCard({
+export function MergeDialog({
   personId,
   people,
 }: {
@@ -24,19 +38,33 @@ export function MergeCard({
   people: PersonListItem[];
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<PickedPerson | null>(null);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Merge a duplicate</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        <p className="app-muted text-sm">
-          Pick the record that is the same person as this one. Everything on it
-          moves here, and it is then deleted. You will see what moves before
-          anything happens.
-        </p>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Merge a duplicate"
+          />
+        }
+      >
+        <Merge />
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Merge a duplicate</DialogTitle>
+          <DialogDescription>
+            Pick the record that is the same person as this one. Everything on
+            it moves here, and it is then deleted. You will see what moves
+            before anything happens.
+          </DialogDescription>
+        </DialogHeader>
+
         <PersonPicker
           people={people}
           selected={picked}
@@ -45,7 +73,8 @@ export function MergeCard({
           allowCreate={false}
           placeholder="Search for the duplicate record..."
         />
-        <div>
+
+        <DialogFooter>
           <Button
             disabled={!picked}
             onClick={() =>
@@ -56,8 +85,8 @@ export function MergeCard({
           >
             Review merge
           </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

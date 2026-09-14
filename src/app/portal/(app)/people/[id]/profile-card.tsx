@@ -17,13 +17,7 @@ import {
 import { PersonPicker, type PickedPerson } from "../person-picker";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { runAction } from "@/components/portal/action-toast";
-import {
-  PortalUserBadge,
-  isOrganization,
-  rolesFor,
-  type PersonRow,
-} from "../people-shared";
-import { useLexicon } from "@/components/lexicon-context";
+import { isOrganization, type PersonRow } from "../people-shared";
 import { ImagePreviewBox, useImagePreview } from "../../website/image-preview";
 import {
   experienceLevelLabel,
@@ -32,7 +26,6 @@ import {
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import {
@@ -46,6 +39,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
+import { MergeDialog } from "./merge-dialog";
 
 /**
  * The organization's mark, at the shape and fit the public sponsor wall draws
@@ -124,7 +118,6 @@ export function ProfileCard({
   sponsorWallPublic?: boolean;
 }) {
   const router = useRouter();
-  const vocabulary = useLexicon();
   const formId = `person-profile-form-${person.id}`;
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<PersonFormState>(() =>
@@ -203,7 +196,12 @@ export function ProfileCard({
           Profile
         </CardTitle>
         {canManage && mode === "view" && (
-          <CardAction>
+          <CardAction className="flex items-center gap-1">
+            {/* Merging used to be a card of its own. It is a rare, one-way act
+                on the record this card already holds, so it sits with the
+                record's other controls rather than taking a permanent column
+                slot next to the things people came to read (#1108). */}
+            <MergeDialog personId={person.id} people={people} />
             <Button
               type="button"
               variant="ghost"
@@ -219,17 +217,6 @@ export function ProfileCard({
       <CardContent>
         {mode === "view" ? (
           <div className="flex flex-col gap-3 text-sm">
-            <div className="flex flex-wrap gap-2">
-              {rolesFor(person, vocabulary).map((role) => (
-                <Badge key={role} variant="secondary">
-                  {role}
-                </Badge>
-              ))}
-              {isOrganization(person) && (
-                <Badge variant="outline">Organization</Badge>
-              )}
-              <PortalUserBadge person={person} />
-            </div>
             <p>
               <span className="app-muted">Email:</span> {person.email ?? "—"}
             </p>

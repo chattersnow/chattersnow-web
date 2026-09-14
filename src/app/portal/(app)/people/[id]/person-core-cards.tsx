@@ -1,78 +1,53 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
-import {
   listRolesAction,
   listUsersAction,
 } from "../../administration/users/actions";
 import { roleLabelMap } from "@/lib/format";
-import type { PersonListItem } from "../actions";
 import {
   isOrganization,
   type OrganizationMembership,
   type PersonRow,
 } from "../people-shared";
 import { AccountCard } from "./account-card";
-import { MergeCard } from "./merge-card";
 import { OrganizationsCard } from "./organizations-card";
 import { ProfileCard } from "./profile-card";
 import { PublicTeamCard, type PublicTeamMembership } from "./public-team-card";
+import { listOtherPeople } from "./person-data";
 import { resolvePersonAccount } from "./person-account";
 
 /**
- * The cards that belong to the person rather than to any one role: their
- * profile, their organization links, and the portal account behind the record.
+ * The cards that belong to the person rather than to any one role.
  *
- * Grouped into one component so the page body awaits only the person row. Left
- * inline, these queries would resolve before the aspect cards were even
- * invoked, adding a whole wave to the request.
+ * One component per card, each its own async server component, so the page can
+ * give each one a Suspense boundary and a column. They were a single component
+ * emitting five cards behind one skeleton until #1108, which cost two things:
+ * the whole group popped in at once, several cards' worth of layout arriving in
+ * one jump; and the group awaited its two query waves in series, so Profile --
+ * the card everyone comes for -- could not render until `list_portal_users()`
+ * had answered for a card only an administrator sees.
+ *
+ * The shared whole-directory read they used to pass between them now lives in
+ * `person-data.ts` behind React `cache()`, so splitting them up did not turn
+ * one select into three.
+ *
+ * Permissions come in as props. The page has already resolved them, and reading
+ * them again per card would be four more round trips for an answer that cannot
+ * change inside one request.
  */
-export async function PersonCoreCards({ person }: { person: PersonRow }) {
+
+export async function PersonProfileCard({
+  person,
+  canManage,
+  canDeleteRiderProfile,
+}: {
+  person: PersonRow;
+  canManage: boolean;
+  canDeleteRiderProfile: boolean;
+}) {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
-  const canManage = hasPermission(permissions, "people", "manage");
-  // A rider profile deletion request reaches whoever is running the event as
-  // often as it reaches the directory, and a lead working the door holds
-  // events:manage without necessarily holding people:manage (#602). Matches the
-  // gate on delete_rider_profile itself.
-  const canDeleteRiderProfile =
-    canManage || hasPermission(permissions, "events", "manage");
-  const canManageAccounts = hasPermission(
-    permissions,
-    "administration",
-    "manage",
-  );
-
-  const portalUsersPromise = canManageAccounts
-    ? listUsersAction()
-    : Promise.resolve(null);
-  // list_portal_users() reports role *names*; the account card renders the
-  // tenant's own wording for them (#910).
-  const rolesPromise = canManageAccounts
-    ? listRolesAction()
-    : Promise.resolve(null);
-
-  const [
-    { data: peopleOptions },
-    { data: memberships },
-    { data: sponsorTag },
-    { data: publicTeam },
-  ] = await Promise.all([
-    supabase
-      .from("people")
-      .select(
-        "id, name, preferred_name, email, phone, person_type, auth_user_id",
-      )
-      .neq("id", person.id)
-      .order("name", { ascending: true }),
-    supabase
-      .from("person_organizations")
-      .select(
-        "id, role, is_primary, organization:people!person_organizations_organization_id_fkey(id, name, preferred_name, email, phone), person:people!person_organizations_person_id_fkey(id, name, preferred_name, email, phone)",
-      )
-      .eq(isOrganization(person) ? "organization_id" : "person_id", person.id),
+  const [people, { data: sponsorTag }] = await Promise.all([
+    listOtherPeople(person.id),
     // The only read of a manual role tag anywhere in the form (#1024). The
     // role checkboxes are seeded from the *derived* flags on
     // people_with_roles, which answer "holds this role" rather than "was
@@ -84,28 +59,90 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
       .eq("person_id", person.id)
       .eq("role", "sponsor")
       .maybeSingle(),
-    // The public team page is a page of people, so an organization has no
-    // listing to show and the card is not rendered for one below (#1014).
-    isOrganization(person)
-      ? Promise.resolve({ data: null })
-      : supabase
-          .from("public_team_members")
-          .select("id, public_role, photo_url, bio, sort_order")
-          .eq("person_id", person.id)
-          .maybeSingle(),
   ]);
 
-  const peopleOptionRows = (peopleOptions ?? []) as unknown as PersonListItem[];
-  const membershipRows = (memberships ??
-    []) as unknown as OrganizationMembership[];
-  const publicTeamMembership = (publicTeam ??
-    null) as PublicTeamMembership | null;
+  return (
+    <ProfileCard
+      person={person}
+      people={people}
+      canManage={canManage}
+      canDeleteRiderProfile={canDeleteRiderProfile}
+      sponsorWallPublic={sponsorTag?.is_public ?? false}
+    />
+  );
+}
 
+export async function PersonOrganizationsCard({
+  person,
+  canManage,
+}: {
+  person: PersonRow;
+  canManage: boolean;
+}) {
+  const supabase = await createSupabaseServerClient();
+  const [people, { data: memberships }] = await Promise.all([
+    listOtherPeople(person.id),
+    supabase
+      .from("person_organizations")
+      .select(
+        "id, role, is_primary, organization:people!person_organizations_organization_id_fkey(id, name, preferred_name, email, phone), person:people!person_organizations_person_id_fkey(id, name, preferred_name, email, phone)",
+      )
+      .eq(isOrganization(person) ? "organization_id" : "person_id", person.id),
+  ]);
+
+  return (
+    <OrganizationsCard
+      personId={person.id}
+      isOrganization={isOrganization(person)}
+      memberships={(memberships ?? []) as unknown as OrganizationMembership[]}
+      people={people}
+      canManage={canManage}
+    />
+  );
+}
+
+/**
+ * The public team page is a page of people, so an organization has no listing
+ * to show and the page does not render this for one (#1014).
+ */
+export async function PersonPublicTeamCard({
+  person,
+  canManage,
+}: {
+  person: PersonRow;
+  canManage: boolean;
+}) {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("public_team_members")
+    .select("id, public_role, photo_url, bio, sort_order")
+    .eq("person_id", person.id)
+    .maybeSingle();
+
+  return (
+    <PublicTeamCard
+      personId={person.id}
+      personName={person.name}
+      membership={(data ?? null) as PublicTeamMembership | null}
+      canManage={canManage}
+    />
+  );
+}
+
+export async function PersonAccountCard({
+  person,
+  canManagePerson,
+}: {
+  person: PersonRow;
+  canManagePerson: boolean;
+}) {
+  // list_portal_users() reports role *names*; the account card renders the
+  // tenant's own wording for them (#910).
   const [portalUsers, roles] = await Promise.all([
-    portalUsersPromise,
-    rolesPromise,
+    listUsersAction(),
+    listRolesAction(),
   ]);
-  const roleLabels = roleLabelMap(roles && "data" in roles ? roles.data : []);
+
   const { account, linkable } = resolvePersonAccount(
     person.id,
     person.email,
@@ -113,47 +150,14 @@ export async function PersonCoreCards({ person }: { person: PersonRow }) {
   );
 
   return (
-    <>
-      <ProfileCard
-        person={person}
-        people={peopleOptionRows}
-        canManage={canManage}
-        canDeleteRiderProfile={canDeleteRiderProfile}
-        sponsorWallPublic={sponsorTag?.is_public ?? false}
-      />
-
-      <OrganizationsCard
-        personId={person.id}
-        isOrganization={isOrganization(person)}
-        memberships={membershipRows}
-        people={peopleOptionRows}
-        canManage={canManage}
-      />
-
-      {!isOrganization(person) && (
-        <PublicTeamCard
-          personId={person.id}
-          personName={person.name}
-          membership={publicTeamMembership}
-          canManage={canManage}
-        />
-      )}
-
-      {canManage && (
-        <MergeCard personId={person.id} people={peopleOptionRows} />
-      )}
-
-      {canManageAccounts && (
-        <AccountCard
-          personId={person.id}
-          account={account}
-          linkable={linkable}
-          roleLabels={roleLabels}
-          notificationEmail={person.notification_email}
-          notificationEmailPending={person.notification_email_pending}
-          canManagePerson={canManage}
-        />
-      )}
-    </>
+    <AccountCard
+      personId={person.id}
+      account={account}
+      linkable={linkable}
+      roleLabels={roleLabelMap(roles && "data" in roles ? roles.data : [])}
+      notificationEmail={person.notification_email}
+      notificationEmailPending={person.notification_email_pending}
+      canManagePerson={canManagePerson}
+    />
   );
 }
