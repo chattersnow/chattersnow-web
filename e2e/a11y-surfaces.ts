@@ -87,14 +87,25 @@ export const SURFACES: Surface[] = [
     close: pressEscape,
   },
   {
-    // The sidebar becomes a sheet at mobile widths, so on a phone this is the
-    // only way to navigate the portal at all.
+    // On a phone the whole nav tree lives behind the tab bar's "More" button
+    // (#1079), so this sheet is the only way to reach most of the portal.
+    // Before the mobile shell it was the sidebar's own sheet, reached from the
+    // sidebar toggle -- which the mobile shell no longer renders, so the
+    // toggle stays in the list as the desktop passes' equivalent.
     name: "mobile-nav",
     routes: ["/portal"],
     open: (page) =>
       clickIfPresent(
         page,
-        () => page.getByRole("button", { name: /toggle sidebar/i }),
+        () =>
+          page
+            // Scoped to the tab bar: "More" is a common enough label that an
+            // unscoped lookup would open some page's own menu on a desktop
+            // pass and file the result under this surface.
+            .getByRole("navigation", { name: "Primary" })
+            .getByRole("button", { name: "More" })
+            .or(page.getByRole("button", { name: /toggle sidebar/i }))
+            .first(),
         () => page.waitForTimeout(300),
       ),
     close: pressEscape,

@@ -449,6 +449,24 @@ async function resolveDynamicRoute(
   }
 }
 
+/**
+ * Forces the portal shell this pass is meant to scan.
+ *
+ * `device_override` is the cookie the proxy prefers over the user-agent, so
+ * this needs no UA spoofing and exercises exactly the path a real phone takes.
+ */
+async function setDeviceOverride(
+  page: Page,
+  viewport: ViewportName,
+): Promise<void> {
+  const { hostname } = new URL(baseURL);
+  await page
+    .context()
+    .addCookies([
+      { name: "device_override", value: viewport, domain: hostname, path: "/" },
+    ]);
+}
+
 async function scanRoute(
   page: Page,
   route: string,
@@ -464,6 +482,13 @@ async function scanRoute(
     // means initial.
     try {
       await page.setViewportSize(VIEWPORTS[pass.viewport]);
+      // The portal picks its shell from a request header the proxy stamps, so
+      // resizing alone would scan the desktop shell at 390px and give the
+      // mobile shell no coverage at all (#1079). The cookie is set in both
+      // directions rather than cleared for desktop, so a pass never inherits
+      // the previous one's answer. Harmless on public routes, which have one
+      // responsive tree and no shell to choose.
+      await setDeviceOverride(page, pass.viewport);
       await page.goto(new URL(route, baseURL).toString(), {
         waitUntil: "networkidle",
         timeout: 30_000,
