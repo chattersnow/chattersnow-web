@@ -10,11 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  formatCurrency,
-  formatDateTime,
-  personDisplayName,
-} from "@/lib/format";
+import { formatCurrency, personDisplayName } from "@/lib/format";
 import {
   deliveryMethodLabel,
   isOpenGearRequest,
@@ -24,6 +20,7 @@ import {
 import type { Lexicon } from "@/lib/lexicon";
 import { GearRequestStatusBadge } from "../request-status-badge";
 import { GearRequestStatusActions } from "./request-status-actions";
+import { ViewerTime } from "@/components/viewer-time";
 
 export type GearRequestDetailRow = {
   id: string;
@@ -127,7 +124,9 @@ export function GearRequestDetailView({
         </div>
         <p className="app-muted mt-2 flex flex-wrap items-center gap-2 text-sm">
           <GearRequestStatusBadge status={request.status} />
-          <span>Requested {formatDateTime(request.created_at)}</span>
+          <span>
+            Requested <ViewerTime iso={request.created_at} fallbackZone="UTC" />
+          </span>
         </p>
       </div>
 
@@ -175,25 +174,35 @@ export function GearRequestDetailView({
                       "Not recorded"}
                   </ReadOnlyField>
                   <ReadOnlyField label="Postage" htmlFor="request-quote">
-                    {request.quoted_amount === null
-                      ? "Not quoted yet"
-                      : `${formatCurrency(request.quoted_amount)} quoted ${formatDateTime(request.quoted_at)}`}
+                    {request.quoted_amount === null ? (
+                      "Not quoted yet"
+                    ) : (
+                      <>
+                        {`${formatCurrency(request.quoted_amount)} quoted `}
+                        <ViewerTime
+                          iso={request.quoted_at}
+                          fallbackZone="UTC"
+                        />
+                      </>
+                    )}
                   </ReadOnlyField>
                   <ReadOnlyField label="Paid" htmlFor="request-paid">
-                    {request.paid_at
-                      ? formatDateTime(request.paid_at)
-                      : "Not yet"}
+                    {request.paid_at ? (
+                      <ViewerTime iso={request.paid_at} fallbackZone="UTC" />
+                    ) : (
+                      "Not yet"
+                    )}
                   </ReadOnlyField>
                 </>
               )}
               {request.fulfilled_at && (
                 <ReadOnlyField label="Fulfilled" htmlFor="request-fulfilled">
-                  {formatDateTime(request.fulfilled_at)}
+                  <ViewerTime iso={request.fulfilled_at} fallbackZone="UTC" />
                 </ReadOnlyField>
               )}
               {request.cancelled_at && (
                 <ReadOnlyField label="Cancelled" htmlFor="request-cancelled">
-                  {formatDateTime(request.cancelled_at)}
+                  <ViewerTime iso={request.cancelled_at} fallbackZone="UTC" />
                 </ReadOnlyField>
               )}
             </FieldGroup>

@@ -9,11 +9,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import {
-  formatDateTimeInZone,
-  TIMEZONE_OPTIONS,
-  utcIsoToDatetimeLocalInZone,
-} from "@/lib/time";
+import { TIMEZONE_OPTIONS, utcIsoToDatetimeLocalInZone } from "@/lib/time";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
@@ -37,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { runAction } from "@/components/portal/action-toast";
+import { ViewerTime } from "@/components/viewer-time";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -50,11 +47,6 @@ const STATUSES = [
   { value: "cancelled", label: "Cancelled" },
   { value: "archived", label: "Archived" },
 ];
-
-const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  dateStyle: "medium",
-  timeStyle: "short",
-};
 
 function toDatetimeLocalValue(iso: string | null, timezone: string) {
   if (!iso) return "";
@@ -212,22 +204,14 @@ export function OverviewTab({
 
         <Field orientation="responsive">
           <ReadOnlyField label="Starts" htmlFor="details-startsAt">
-            {formatDateTimeInZone(
-              event.starts_at,
-              event.timezone,
-              DATE_FORMAT_OPTIONS,
-              "en-US",
-            )}
+            <ViewerTime iso={event.starts_at} fallbackZone={event.timezone} />
           </ReadOnlyField>
           <ReadOnlyField label="Ends" htmlFor="details-endsAt">
-            {event.ends_at
-              ? formatDateTimeInZone(
-                  event.ends_at,
-                  event.timezone,
-                  DATE_FORMAT_OPTIONS,
-                  "en-US",
-                )
-              : "—"}
+            {event.ends_at ? (
+              <ViewerTime iso={event.ends_at} fallbackZone={event.timezone} />
+            ) : (
+              "—"
+            )}
           </ReadOnlyField>
         </Field>
 

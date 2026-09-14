@@ -42,6 +42,7 @@ import {
 } from "./program-suggestion-shared";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { datetimeLocalToUtcIsoInBrowser } from "@/lib/time";
 
 function getInitialFormState() {
   return {
@@ -118,8 +119,16 @@ export function NewCalendarItemDialog({
     const formData = new FormData();
     formData.set("title", form.title);
     formData.set("itemType", form.itemType);
-    formData.set("startsAt", form.startsAt);
-    formData.set("endsAt", form.endsAt);
+    // Converted here, in the browser, so the item's instants are fixed from
+    // the typist's own clock rather than the server's (#1063).
+    formData.set(
+      "startsAt",
+      datetimeLocalToUtcIsoInBrowser(form.startsAt) ?? "",
+    );
+    formData.set(
+      "endsAt",
+      form.endsAt ? (datetimeLocalToUtcIsoInBrowser(form.endsAt) ?? "") : "",
+    );
     formData.set("timeZone", form.timeZone);
     formData.set("recurrenceRule", form.recurrenceRule);
     formData.set("summary", form.summary);

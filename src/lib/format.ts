@@ -111,17 +111,24 @@ export function actorDisplayName(
  * off by a day for every real user, which is why the choice is named here
  * rather than left to an options object at each call site.
  *
- * The platform convention, settled in #1057: **a time someone types is in
- * their browser's timezone, it is stored in UTC, and it is displayed in the
- * viewer's browser timezone.** One rule, portal and public site alike. A
- * surface showing a time must also say which zone it is showing, so a reader
- * elsewhere never has to guess whose clock a bare "5:00 PM" is on.
+ * The platform convention (#1057, #1063, #1064): **a typed time is in the
+ * browser's timezone and stored in UTC; the portal shows an instant in the
+ * viewer's zone and the public site shows an event in the event's own; every
+ * displayed time names its zone.**
  *
- * `formatDateTimeInZone` in `src/lib/time.ts` renders in some *other* zone,
- * and is the exception rather than a second option: the records that carry a
- * timezone field of their own (`events.timezone`, `calendar_items.time_zone`,
- * `artwork_calls.timezone`) still use it, and #1057's follow-up moves them off
- * it. Reaching for it in new code needs a reason.
+ * **The two functions below cannot honour the portal half on their own.** They
+ * build an `Intl.DateTimeFormat` with no `timeZone`, which resolves to the
+ * *running process* -- the browser in a client component, but UTC on Vercel in
+ * a server component. Around twenty portal surfaces were quietly showing UTC
+ * because of that. A portal surface rendering an instant belongs in
+ * `<ViewerTime>` (`src/components/viewer-time.tsx`), which resolves the zone in
+ * the browser and labels it. These stay for client components that already run
+ * in the viewer's zone and for text that is not a rendered surface.
+ *
+ * `formatDateTimeInZone` in `src/lib/time.ts` renders in a *named* zone. That
+ * is the public site's half of the rule, not a loophole: an event on the public
+ * site is shown in `events.timezone` because a visitor needs the clock they
+ * will turn up on.
  */
 
 const calendarDate = new Intl.DateTimeFormat("en-US", {

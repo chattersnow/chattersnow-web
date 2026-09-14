@@ -211,13 +211,19 @@ Foreign keys should enforce relationships. Monetary amounts should use a fixed-p
 
 ### 6.1 Dates and times
 
-**A time someone types is in their browser's timezone, it is stored in UTC, and it is displayed in the viewer's browser timezone.** One rule, for the portal and the public site alike (#1057). A surface that shows a time must also say which timezone it is showing, so a reader elsewhere never has to work out whose clock a bare "5:00 PM" is on.
+**A time someone types is in their browser's timezone. It is stored in UTC. The portal shows it in the viewer's browser timezone; the public site shows an event in the event's own timezone. Every displayed time names the zone it is in** (#1057, #1063, #1064).
+
+The labelling is not decoration — it is what makes either half safe. A reader must never have to work out whose clock a bare "5:00 PM" is on.
+
+Why the public site differs: public pages are server-rendered and cached, so the viewer's zone is not knowable when the HTML is built. Rendering every public time in the browser would cost crawlers and no-JS visitors the time entirely and shift it visibly after hydration — and for a physical event the event's own clock is the useful one anyway. A Denver meetup reads "6:00 PM MDT" to a visitor in New York, which is what they need in order to turn up.
 
 An instant is stored in a timezone-aware column (`timestamptz`). A value that is a calendar day rather than an instant — the day a prize was handed over, the day a donation is dated — belongs in a `date` column, because a date-only input written to a `timestamptz` becomes UTC midnight and reads back as the previous day for every viewer west of Greenwich (#1053).
 
-Some records carry a timezone of their own (`events.timezone`, `calendar_items.time_zone`, `artwork_calls.timezone`), which is where the thing physically happens. That field no longer governs how a typed time is parsed. It is the documented exception for display only, and it is being retired from the date/time path; new code should not add a caller.
+Some records carry a timezone of their own (`events.timezone`, `calendar_items.time_zone`, `artwork_calls.timezone`): where the thing physically happens. **It governs public display only.** It does not say how a typed time is read — a coordinator entering an event types in their own clock wherever they are sitting — and it does not govern the portal, which shows the reader their own time like every other surface.
 
-The helpers that implement this are in `src/lib/time.ts`, named for the zone each answers in: the `...InBrowser` family is the convention, the `...InZone` family the exception. Formatting for display is in `src/lib/format.ts` (`formatInstantDate` / `formatDateTime` for instants, `formatCalendarDate` for `date` columns).
+The helpers are in `src/lib/time.ts`, named for the zone each answers in: the `...InBrowser` family for entry, `...InZone` for rendering a record in its own zone, and `DATE_TIME_WITH_ZONE` for the labelled format.
+
+**A server component cannot render the viewer's zone.** `formatInstantDate` and `formatDateTime` in `src/lib/format.ts` build an `Intl.DateTimeFormat` with no `timeZone`, which resolves to the _running process_ — the browser in a client component, but UTC on Vercel in a server component. Any portal surface showing an instant must therefore render it through `<ViewerTime>` (`src/components/viewer-time.tsx`), which reads the zone via `useViewerTimeZone()` and falls back to a zone the caller names until the browser has answered. Use `formatCalendarDate` for `date` columns, which carry no zone and need none.
 
 ## 7. Security and Privacy
 

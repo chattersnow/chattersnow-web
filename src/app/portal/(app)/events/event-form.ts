@@ -1,5 +1,4 @@
 import type { ParseResult } from "@/lib/forms";
-import { datetimeLocalToUtcIsoInZone } from "@/lib/time";
 
 const VISIBILITIES = ["public", "private"] as const;
 const STATUSES = [
@@ -22,6 +21,12 @@ export type EventFormData = {
   programIds: string[];
   flierUrl: string | null;
 };
+
+/** A UTC instant as the client sent it, or null if it is not one. */
+function toInstant(value: string): string | null {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
 
 export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
   const name = String(formData.get("name") ?? "").trim();
@@ -47,13 +52,16 @@ export function parseEventForm(formData: FormData): ParseResult<EventFormData> {
     return { error: "Select a valid status." };
   }
 
-  // Parsed against the submitted timezone (not the server's runtime
-  // timezone) since this is a naive "YYYY-MM-DDTHH:mm" value with no offset.
-  const startsAtIso = datetimeLocalToUtcIsoInZone(startsAt, timezone);
+  // Already instants: since #1063 the browser converts before submitting, so
+  // what arrives here is a UTC ISO string rather than a naive wall-clock one.
+  // Doing it in the client is the whole point -- this parser runs on the
+  // server, where the only zone available is the server's own (UTC on
+  // Vercel), which is never the zone the typist meant. `events.timezone` is
+  // still collected and still governs how the *public* site renders the
+  // event; it no longer says how a typed time is read.
+  const startsAtIso = toInstant(startsAt);
   if (!startsAtIso) return { error: "Enter a valid start date and time." };
-  const endsAtIso = endsAt
-    ? datetimeLocalToUtcIsoInZone(endsAt, timezone)
-    : null;
+  const endsAtIso = endsAt ? toInstant(endsAt) : null;
   if (endsAt && !endsAtIso)
     return { error: "Enter a valid end date and time." };
   if (endsAtIso && endsAtIso < startsAtIso) {

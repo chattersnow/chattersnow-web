@@ -10,9 +10,20 @@ import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
 import { EventSponsors } from "./event-sponsors";
 
+// Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
+// full where a card abbreviates it. The zone name is the part that matters and
+// is the same either way (#1064).
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  dateStyle: "full",
-  timeStyle: "short",
+  // Components rather than `dateStyle`/`timeStyle`, which Intl refuses to
+  // combine with `timeZoneName`. This is `dateStyle: "full"` plus the short
+  // time and the zone the event is in.
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZoneName: "short",
 };
 
 /** Where a detail view is being rendered: its own page, or the sheet over the listing. */

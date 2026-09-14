@@ -24,6 +24,29 @@ export type EventWindow = {
   timezone: string;
 };
 
+/**
+ * The house format for an instant that names its own zone: "Mar 14, 2026,
+ * 6:00 PM MDT".
+ *
+ * `timeZoneName: "short"` is the labelling half of #1057 -- every displayed
+ * time says which zone it is in, so a reader elsewhere is never guessing. It
+ * was five identical `DATE_FORMAT_OPTIONS` consts across the portal and the
+ * public site before this; one place to change means the label cannot be
+ * added to four surfaces and forgotten on the fifth.
+ */
+export const DATE_TIME_WITH_ZONE: Intl.DateTimeFormatOptions = {
+  // Spelled out rather than `dateStyle: "medium", timeStyle: "short"`, which
+  // is what this replaced: Intl forbids either style alongside `timeZoneName`
+  // and throws. These components are that pair's equivalent -- "Mar 14, 2026,
+  // 6:00 PM MDT".
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZoneName: "short",
+};
+
 export function formatDateInZone(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,

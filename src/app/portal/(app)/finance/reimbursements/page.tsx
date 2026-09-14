@@ -44,8 +44,9 @@ import {
   type ReimbursementStatus,
 } from "./reimbursements-shared";
 import type { PersonListItem } from "../../people/actions";
-import { formatInstantDate, personDisplayName } from "@/lib/format";
+import { personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { ViewerTime } from "@/components/viewer-time";
 
 type ReimbursementsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -449,7 +450,11 @@ export default async function ReimbursementsPage({
                         {reimbursement.description}
                       </TableCell>
                       <TableCell hideBelow="lg">
-                        {formatInstantDate(reimbursement.created_at)}
+                        <ViewerTime
+                          iso={reimbursement.created_at}
+                          fallbackZone="UTC"
+                          options={{ dateStyle: "medium" }}
+                        />
                       </TableCell>
                       <TableCell>
                         {formatAmount(
