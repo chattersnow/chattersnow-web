@@ -68,6 +68,7 @@ export function PartnershipsTable({
       {
         key: "email",
         label: "Contact email",
+        hideBelow: "md",
         sortValue: (opportunity) => opportunity.organization.email,
         cellClassName: "app-muted",
         render: (opportunity) => opportunity.organization.email ?? "—",
@@ -92,6 +93,7 @@ export function PartnershipsTable({
       {
         key: "owner",
         label: "Internal owner",
+        hideBelow: "lg",
         sortValue: (opportunity) => personDisplayName(opportunity.owner),
         cellClassName: "app-muted",
         render: (opportunity) => personDisplayName(opportunity.owner),

@@ -1,19 +1,24 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 import { SortHeaderButton } from "@/components/portal/sort-header-link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PaginationNav, RowsPerPageSelect } from "@/components/ui/pagination";
 import {
+  showBelow,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  widestBreakpoint,
   type HideBelow,
   type StickyHeader,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
 export type SortValue = string | number | null | undefined;
@@ -69,6 +74,7 @@ export function PortalDataTable<T, K extends string = string>({
   stickyHeader = "page",
   stickyFirstColumn,
   shell = "card",
+  rowDetail = "auto",
 }: {
   columns: readonly PortalDataTableColumn<T, K>[];
   /** Already filtered. */
@@ -80,6 +86,20 @@ export function PortalDataTable<T, K extends string = string>({
   stickyFirstColumn?: boolean;
   /** `bare` for a table inside a sheet, which brings its own surface. */
   shell?: "card" | "bare";
+  /**
+   * Whether a row carries a disclosure for the columns `hideBelow` drops
+   * (#1090). `auto` means every table that hides anything gets one, which is
+   * the only reason hiding a column is honest: the value is one tap away at
+   * the width that dropped it, and gone from the markup at the width that
+   * shows the column itself.
+   *
+   * `none` is for a table whose row already opens the whole record -- a
+   * detail route, a details sheet -- where a second disclosure would be a
+   * worse copy of the one the row already has. The column-budget test
+   * (`table-column-budget.test.ts`) makes a table that opts out prove it has
+   * that surface.
+   */
+  rowDetail?: "auto" | "none";
 }) {
   const [sort, setSort] = useState<{ key: K; dir: SortDirection } | null>(
     defaultSort ?? null,
@@ -134,6 +154,38 @@ export function PortalDataTable<T, K extends string = string>({
   // only control that could put the reader back on ten.
   const showFooter = rows.length > PAGE_SIZE_OPTIONS[0];
 
+  // The columns `hideBelow` drops, and the width at which the last of them
+  // comes back. Both are derived from the column list rather than passed in:
+  // a table that hides a column and forgets to say so is exactly the failure
+  // this exists to prevent.
+  const hiddenColumns = useMemo(
+    () =>
+      columns.filter(
+        (
+          column,
+        ): column is PortalDataTableColumn<T, K> & { hideBelow: HideBelow } =>
+          column.hideBelow !== undefined,
+      ),
+    [columns],
+  );
+  const detailBreakpoint = widestBreakpoint(
+    hiddenColumns.map((column) => column.hideBelow),
+  );
+  const showsDetail = rowDetail === "auto" && detailBreakpoint !== undefined;
+  const detailColumnCount = columns.length + (showsDetail ? 1 : 0);
+
+  const [expandedRows, setExpandedRows] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  function toggleRow(key: string) {
+    setExpandedRows((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  }
+
   function handleSort(key: K) {
     setSort((previous) =>
       previous?.key === key
@@ -178,32 +230,112 @@ export function PortalDataTable<T, K extends string = string>({
                 )}
               </TableHead>
             ))}
+            {showsDetail && (
+              <TableHead
+                className={cn("w-0", showBelow(detailBreakpoint))}
+                scope="col"
+              >
+                <span className="sr-only">More columns</span>
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {visible.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={columns.length}
+                colSpan={detailColumnCount}
                 className="app-muted text-center"
               >
                 {emptyMessage}
               </TableCell>
             </TableRow>
           ) : (
-            visible.map((row) => (
-              <TableRow key={getRowKey(row)}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    hideBelow={column.hideBelow}
-                    className={column.cellClassName}
-                  >
-                    {column.render(row)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
+            visible.map((row) => {
+              const key = getRowKey(row);
+              const open = expandedRows.has(key);
+              return (
+                <Fragment key={key}>
+                  <TableRow>
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.key}
+                        hideBelow={column.hideBelow}
+                        className={column.cellClassName}
+                      >
+                        {column.render(row)}
+                      </TableCell>
+                    ))}
+                    {showsDetail && (
+                      <TableCell
+                        // As narrow as a cell gets: this column is pure
+                        // overhead against the three the reader came for,
+                        // and every pixel it takes is one the identity
+                        // column gives up.
+                        className={cn("w-0 px-1", showBelow(detailBreakpoint))}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-expanded={open}
+                          onClick={() => toggleRow(key)}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "transition-transform motion-reduce:transition-none",
+                              open && "rotate-180",
+                            )}
+                          />
+                          <span className="sr-only">
+                            {open ? "Hide more columns" : "Show more columns"}
+                          </span>
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                  {showsDetail && open && (
+                    // `data-row-detail` keeps `stickyFirstColumn` off this
+                    // row: its one cell spans the whole row, and pinning it
+                    // would park the disclosure at the left edge under a
+                    // half-viewport cap.
+                    <TableRow
+                      data-row-detail=""
+                      className={cn("bg-muted/40", showBelow(detailBreakpoint))}
+                    >
+                      <TableCell
+                        colSpan={detailColumnCount}
+                        className="px-2 py-3 whitespace-normal"
+                      >
+                        <dl className="grid gap-2">
+                          {hiddenColumns.map((column) => (
+                            <div
+                              key={column.key}
+                              // Each pair leaves with the column it stands
+                              // in for, not with the disclosure as a whole:
+                              // between `sm` and `lg` some of these columns
+                              // are on screen already, and repeating them
+                              // below the row would be noise.
+                              className={cn(
+                                "flex gap-3",
+                                showBelow(column.hideBelow),
+                              )}
+                            >
+                              <dt className="app-muted w-28 shrink-0">
+                                {column.label}
+                              </dt>
+                              <dd className="min-w-0 flex-1 break-words">
+                                {column.render(row)}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })
           )}
         </TableBody>
       </Table>

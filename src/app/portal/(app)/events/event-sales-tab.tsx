@@ -81,6 +81,7 @@ export function EventSalesTab({
       {
         key: "payment_method",
         label: "Payment",
+        hideBelow: "lg",
         sortValue: (sale) =>
           paymentMethodLabel(sale.payment_method as PaymentMethod),
         render: (sale) =>
@@ -97,6 +98,7 @@ export function EventSalesTab({
       {
         key: "status",
         label: "Status",
+        hideBelow: "sm",
         sortValue: (sale) => sale.status,
         render: (sale) => <SaleStatusBadge status={sale.status} />,
       },

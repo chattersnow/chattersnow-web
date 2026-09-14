@@ -55,6 +55,58 @@ test.describe("the portal's two shells", () => {
     await expect(page).toHaveURL(/\/portal\/administration/);
   });
 
+  // Issue #1096: every other modal surface in the app offers a visible exit --
+  // 31 sheets render their own control, every dialog keeps the primitive's X.
+  // Navigation was the one that did not, on the surface where touch is the
+  // only input and Escape is not available.
+  test("the More sheet closes from a control you can see and hit", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    await page.getByRole("button", { name: "More" }).click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+
+    const close = sheet.getByRole("button", { name: "Close menu" });
+    const box = await close.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+    await close.click();
+    await expect(sheet).toHaveCount(0);
+    // Closing is not navigating: the reader who opened the menu to look and
+    // then decided to stay put is still where they were.
+    await expect(page).toHaveURL(/\/portal\/home/);
+  });
+
+  // The other half of #1096: a desktop-classified browser under `md` still
+  // gets the sidebar's own sheet, which hid the close button outright.
+  test("the sidebar's sheet closes from a control you can see and hit", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "desktop");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    await page.getByRole("button", { name: /toggle sidebar/i }).click();
+    const sheet = page.getByRole("navigation", { name: "Sidebar" });
+    await expect(sheet).toBeVisible();
+
+    const close = sheet.getByRole("button", { name: "Close menu" });
+    const box = await close.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+    await close.click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page).toHaveURL(/\/portal\/home/);
+  });
+
   test("the dashboard leads with what needs the reader", async ({ page }) => {
     await signIn(page);
     await useShell(page, "mobile");
@@ -81,5 +133,102 @@ test.describe("the portal's two shells", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(
       0,
     );
+  });
+});
+
+// Its own describe because it needs a touch context. The other tests force a
+// shell with the cookie; this one is about what the probe decides on its own,
+// and the probe deliberately ignores a narrow *desktop* window -- so resizing
+// the default desktop browser would exercise the wrong branch entirely.
+test.describe("a phone that gets rotated", () => {
+  test.use({ viewport: { width: 430, height: 932 }, hasTouch: true });
+
+  // Reported from a real iPhone and reproduced against the deployed site.
+  // DeviceProbe measured `window.innerWidth`, which a rotation changes: an
+  // iPhone 15 Pro Max is 430px in portrait and 932px in landscape, so turning
+  // the phone once wrote `device_override=desktop`, and the next navigation --
+  // back in portrait -- served the desktop shell at 430px, which is a layout
+  // you have to zoom out to read. It righted itself a navigation later, which
+  // is what made it look intermittent rather than broken.
+  test("keeps the mobile shell through a rotation", async ({ page }) => {
+    await signIn(page);
+
+    // Two loads to start: the user-agent here is a desktop one, so the first
+    // response is the desktop shell and the probe corrects it. That is the
+    // documented behaviour -- the point of this test is what happens after.
+    await page.goto("/portal/home");
+    await page.goto("/portal/home");
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }),
+    ).toBeVisible();
+
+    await page.setViewportSize({ width: 932, height: 430 });
+    await page.goto("/portal/home");
+    await page.setViewportSize({ width: 430, height: 932 });
+    await page.goto("/portal/home");
+
+    // Asserted on what the portrait navigation was *served*, not on the
+    // cookie: the probe rewrites the cookie back on that very page, so a
+    // cookie assertion passes against the broken code too.
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /toggle sidebar/i }),
+    ).toHaveCount(0);
+  });
+});
+
+// Issue #1090: a wide table is carried onto a phone by dropping columns, and
+// dropping a column is only honest if the value it dropped is still reachable.
+test.describe("portal tables on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("a dropped column comes back through the row's disclosure", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.goto("/portal/governance/board-members");
+
+    // Term start and term end are `hideBelow`, so the phone never shows them
+    // as columns of their own.
+    await expect(
+      page.getByRole("columnheader", { name: "Term start" }),
+    ).toBeHidden();
+
+    const row = page.getByRole("row").filter({ hasText: "Secretary" }).first();
+    await row.getByRole("button", { name: "Show more columns" }).click();
+
+    const detail = page.locator("tr[data-row-detail]").first();
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText("Term start");
+    await expect(detail).toContainText("Term end");
+  });
+
+  test("inventory opens on the gallery, and the toggle still wins", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.goto("/portal/inventory/items");
+
+    // The photograph is what identifies a gear item, so on a 390px screen a
+    // 2-up grid beats a table read through a sideways scroll. It is only the
+    // starting point: the toggle and its stored choice still decide.
+    //
+    // Named by a column of the items table rather than by `table`: the page
+    // also carries a short value-by-status aggregate that neither view
+    // touches.
+    const itemsTable = page.getByRole("columnheader", { name: "Description" });
+    await expect(itemsTable).toHaveCount(0);
+
+    await page.getByRole("button", { name: "List view" }).click();
+    await expect(itemsTable).toBeVisible();
+
+    // The stored choice survives a fresh request, where the server is still
+    // saying `mobile`.
+    await page.reload();
+    await expect(itemsTable).toBeVisible();
   });
 });

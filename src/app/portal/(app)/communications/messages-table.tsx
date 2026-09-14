@@ -84,6 +84,7 @@ export function MessagesTable({
       {
         key: "email",
         label: "Email",
+        hideBelow: "md",
         sortValue: (message) => message.email,
         cellClassName: "app-muted",
         render: (message) => message.email,
@@ -99,6 +100,7 @@ export function MessagesTable({
       {
         key: "created_at",
         label: "Submitted",
+        hideBelow: "sm",
         // The timestamp itself rather than the date the cell shows, so two
         // messages from the same day keep their real order.
         sortValue: (message) => message.created_at,

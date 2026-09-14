@@ -254,4 +254,96 @@ describe("PortalDataTable", () => {
     );
     expect(container.querySelector('[data-slot="card"]')).toBeNull();
   });
+
+  describe("row detail disclosure", () => {
+    // What makes hiding a column honest: the value it dropped is one tap
+    // away at exactly the width that dropped it (#1090).
+    const HIDING_COLUMNS: PortalDataTableColumn<Gear>[] = [
+      COLUMNS[0],
+      { ...COLUMNS[1], hideBelow: "sm" },
+      { ...COLUMNS[2], hideBelow: "lg" },
+      COLUMNS[4],
+    ];
+
+    function renderHiding(props: Record<string, unknown> = {}) {
+      return render(
+        <PortalDataTable
+          columns={HIDING_COLUMNS}
+          rows={gear(2)}
+          getRowKey={(row) => row.id}
+          emptyMessage="No gear matches your filters."
+          {...props}
+        />,
+      );
+    }
+
+    test("stays away from a table that hides nothing", () => {
+      renderTable(gear(2));
+      expect(
+        screen.queryByRole("button", { name: "Show more columns" }),
+      ).toBeNull();
+    });
+
+    test("opens one row at a time without touching its neighbours", async () => {
+      renderHiding();
+      const user = userEvent.setup();
+      const [first] = screen.getAllByRole("button", {
+        name: "Show more columns",
+      });
+      await user.click(first);
+      expect(
+        screen.getAllByRole("button", { name: "Show more columns" }),
+      ).toHaveLength(1);
+      expect(
+        screen.getByRole("button", { name: "Hide more columns" }),
+      ).toHaveAttribute("aria-expanded", "true");
+    });
+
+    test("shows every dropped column and nothing else", async () => {
+      const { container } = renderHiding();
+      await userEvent
+        .setup()
+        .click(screen.getAllByRole("button", { name: "Show more columns" })[0]);
+      const detail = container.querySelector("tr[data-row-detail]")!;
+      const terms = [...detail.querySelectorAll("dt")].map(
+        (term) => term.textContent,
+      );
+      expect(terms).toEqual(["Quantity", "Owner"]);
+    });
+
+    test("each pair leaves with the column it stands in for", async () => {
+      // Between `sm` and `lg` the quantity column is back on screen, so
+      // repeating it under the row would be noise.
+      const { container } = renderHiding();
+      await userEvent
+        .setup()
+        .click(screen.getAllByRole("button", { name: "Show more columns" })[0]);
+      const detail = container.querySelector("tr[data-row-detail]")!;
+      const pairs = [...detail.querySelectorAll("dl > div")];
+      expect(pairs[0].className).toContain("sm:hidden");
+      expect(pairs[1].className).toContain("lg:hidden");
+      // The row itself goes at the widest of them, where the last hidden
+      // column comes back.
+      expect(detail.className).toContain("lg:hidden");
+    });
+
+    test("closes again", async () => {
+      const { container } = renderHiding();
+      const user = userEvent.setup();
+      await user.click(
+        screen.getAllByRole("button", { name: "Show more columns" })[0],
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Hide more columns" }),
+      );
+      expect(container.querySelector("tr[data-row-detail]")).toBeNull();
+    });
+
+    test("can be turned off for a row that already opens the record", () => {
+      renderHiding({ rowDetail: "none" });
+      expect(
+        screen.queryByRole("button", { name: "Show more columns" }),
+      ).toBeNull();
+    });
+  });
 });

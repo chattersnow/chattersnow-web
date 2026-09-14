@@ -433,7 +433,7 @@ export function SuggestionRuleDetailsSheet({
                 </FieldGroup>
               </div>
 
-              <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+              <SheetFooter>
                 <Button type="submit" form={formId} disabled={isPending}>
                   {isPending ? (
                     <>

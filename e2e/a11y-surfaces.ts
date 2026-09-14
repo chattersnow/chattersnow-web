@@ -25,6 +25,13 @@ export type Surface = {
    * reloaded before the next surface rather than trusted to be as it was.
    */
   mutates?: boolean;
+  /**
+   * Which viewport passes open it. Defaults to the desktop pass alone, which
+   * is where all but a handful of surfaces exist; `["mobile"]` is for the ones
+   * a phone gets and a desktop does not -- the shell's "More" sheet, the rail's
+   * sheet -- whose desktop equivalent is already on screen and already scanned.
+   */
+  viewports?: readonly ("desktop" | "mobile")[];
 };
 
 const modal = (page: Page) =>
@@ -94,6 +101,7 @@ export const SURFACES: Surface[] = [
     // toggle stays in the list as the desktop passes' equivalent.
     name: "mobile-nav",
     routes: ["/portal"],
+    viewports: ["mobile"],
     open: (page) =>
       clickIfPresent(
         page,
@@ -106,6 +114,23 @@ export const SURFACES: Surface[] = [
             .getByRole("button", { name: "More" })
             .or(page.getByRole("button", { name: /toggle sidebar/i }))
             .first(),
+        () => page.waitForTimeout(300),
+      ),
+    close: pressEscape,
+  },
+  {
+    // The rail behind Site Content's and event detail's disclosure (#1093).
+    // On a phone it is a sheet, and a transient surface is invisible to the
+    // scan unless something opens it -- the same reason mobile-nav is here.
+    // Above `lg` the button is `lg:hidden`, so the desktop passes report
+    // "never opened" and the column they do scan is the one already on screen.
+    name: "portal-rail",
+    routes: ["/portal/website", "/portal/events"],
+    viewports: ["mobile"],
+    open: (page) =>
+      clickIfPresent(
+        page,
+        () => page.getByRole("button", { name: /^(Sections|Pages) · / }),
         () => page.waitForTimeout(300),
       ),
     close: pressEscape,
@@ -332,10 +357,14 @@ export const SURFACES: Surface[] = [
   })),
 ];
 
-export function surfacesFor(route: string): Surface[] {
+export function surfacesFor(
+  route: string,
+  viewport: "desktop" | "mobile" = "desktop",
+): Surface[] {
   return SURFACES.filter(
     (surface) =>
-      surface.routes === "*" ||
-      surface.routes.some((prefix) => route.startsWith(prefix)),
+      (surface.viewports ?? ["desktop"]).includes(viewport) &&
+      (surface.routes === "*" ||
+        surface.routes.some((prefix) => route.startsWith(prefix))),
   );
 }

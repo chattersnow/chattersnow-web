@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, UserRound } from "lucide-react";
+import { LogOut, Menu, UserRound, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -59,12 +61,18 @@ export function MobileNav({
   return (
     <>
       {/* `fixed`, not `sticky`: the page scrolls under it and the bar has to
-          stay on the glass whatever the content does. The padding picks up
-          the home-indicator inset so the last row of tabs is not sitting
-          under it on a notched phone. */}
+          stay on the glass whatever the content does.
+
+          The padding is `max(env(safe-area-inset-bottom), 0.5rem)` rather than
+          the inset alone, because `env()` safe-area insets resolve to 0 unless
+          the page opts in with `viewport-fit=cover` -- which this app does not,
+          and which is not a change to make blind, since it would also let the
+          public site slide under the notch in landscape. The constant clears
+          the home indicator today and the inset takes over automatically if
+          `viewport-fit` is ever turned on. */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--background)] pb-[env(safe-area-inset-bottom)]"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-[var(--background)] pb-[max(env(safe-area-inset-bottom),0.5rem)]"
       >
         <ul className="flex items-stretch">
           {tabs.map((item) => {
@@ -106,12 +114,34 @@ export function MobileNav({
       </nav>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-[85%] overflow-y-auto p-0">
-          <SheetHeader className="px-5 pt-5">
-            <SheetTitle>Menu</SheetTitle>
-            <SheetDescription>
-              Everywhere in the portal your roles can reach.
-            </SheetDescription>
+        <SheetContent
+          side="right"
+          className="w-[85%] overflow-y-auto p-0"
+          // The sheet's own X is `size-8`, and this is the one surface in the
+          // portal where touch is the only input -- 44px is the target the
+          // tab bar, the theme toggle and the hamburger already meet (#1096).
+          showCloseButton={false}
+        >
+          <SheetHeader className="flex-row items-start gap-2 space-y-0 px-3 pt-3">
+            <SheetClose
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 shrink-0"
+                  aria-label="Close menu"
+                />
+              }
+            >
+              <X />
+            </SheetClose>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2">
+              <SheetTitle>Menu</SheetTitle>
+              <SheetDescription>
+                Everywhere in the portal your roles can reach.
+              </SheetDescription>
+            </div>
           </SheetHeader>
           {/* Every section and every sub-item, flat and scrollable rather than
               collapsed: this is the surface that has to make good on "no real

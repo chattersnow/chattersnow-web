@@ -62,11 +62,11 @@ function DialogContent({
           // this in by hand; the four that forgot did so by omission, and one
           // of them (#883) shipped a dialog nobody could finish.
           //
-          // Safe to make universal because nothing `position: sticky` renders
-          // inside a Dialog -- the two sticky users in the portal are inside a
-          // Sheet, whose body is deliberately the scroller. Were that to change,
-          // see the note on Card in ./card.tsx: a sticky descendant pins to its
-          // nearest scroll container, which this now is.
+          // Being the scroll container also makes this the element a sticky
+          // descendant pins to, which `DialogFooter` now relies on (#1094) to
+          // keep the submit button visible on a tall form. See the note on Card
+          // in ./card.tsx for the same relationship in the other direction,
+          // where an unintended scroll container captured a sticky header.
           //
           // A call site can still size itself: tailwind-merge resolves the
           // `max-h`/`overflow` conflict in favour of the passed className.
@@ -118,7 +118,24 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 mt-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        // `sticky bottom-0` pins the primary action to the bottom of the popup
+        // (#1094). Since #884 the scroll container is `DialogContent` itself,
+        // which is what a sticky descendant resolves against, so on a form
+        // taller than 85vh the footer stays put while the body scrolls beneath
+        // it; on a short dialog there is nothing to scroll and it sits in flow
+        // exactly as before.
+        //
+        // `bg-muted/50` is translucent, so the `before` layer puts an opaque
+        // `bg-popover` behind it -- without that, scrolled fields read through
+        // the footer.
+        //
+        // The offset is `-bottom-4`, not `bottom-0`, because sticky resolves
+        // against the scrollport -- `DialogContent`'s padding box, 1rem inside
+        // the popup's edge -- and pins the border box, not the margin box, so
+        // the `-mb-4` that reaches the rounded edge in normal flow buys nothing
+        // while pinned. `bottom-0` leaves the footer hovering 1rem up with a
+        // strip of scrolling form under it (measured in Chrome at 1280x800).
+        "sticky -bottom-4 z-10 -mx-4 -mb-4 mt-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 before:absolute before:inset-0 before:-z-10 before:rounded-b-xl before:bg-popover sm:flex-row sm:justify-end",
         className,
       )}
       {...props}

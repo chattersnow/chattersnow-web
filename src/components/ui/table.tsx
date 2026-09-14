@@ -18,6 +18,32 @@ const HIDE_BELOW = {
 export type HideBelow = keyof typeof HIDE_BELOW;
 
 /**
+ * The inverse of `HIDE_BELOW`: shown only where the matching column is *not*.
+ * A dropped column's value has to surface somewhere, and the row-detail
+ * disclosure that surfaces it must appear and disappear on exactly the same
+ * breakpoint as the column it stands in for -- so both sides are spelled out
+ * here rather than each caller writing `sm:hidden` and hoping.
+ */
+const SHOW_BELOW = {
+  sm: "sm:hidden",
+  md: "md:hidden",
+  lg: "lg:hidden",
+} as const;
+
+/** The class that shows an element only below `breakpoint`. */
+export function showBelow(breakpoint: HideBelow) {
+  return SHOW_BELOW[breakpoint];
+}
+
+/** The widest of the breakpoints given, or undefined when there are none. */
+export function widestBreakpoint(
+  breakpoints: readonly (HideBelow | undefined)[],
+): HideBelow | undefined {
+  const order: HideBelow[] = ["sm", "md", "lg"];
+  return order.filter((size) => breakpoints.includes(size)).pop();
+}
+
+/**
  * Where a sticky header pins to. `page` is the portal's window scroll, so the
  * header stops under the sticky top bar; `container` is a scroller of the
  * table's own -- a ListPreviewSheet body -- whose surface is the popover
@@ -63,6 +89,9 @@ function Table({
   // its first measurement, which costs a fitting table a tab stop for one
   // frame.
   const [scrollable, setScrollable] = React.useState(true);
+  // Whether anything is still off the right edge. Seeded false so the server
+  // does not paint a fade over a table that turns out to fit.
+  const [moreToTheRight, setMoreToTheRight] = React.useState(false);
 
   // A container that scrolls but holds no focusable content is unreachable by
   // keyboard: there is nothing to tab towards, so the columns past the right
@@ -79,80 +108,137 @@ function Table({
     // container reporting overflow at all, so a self-measurement would latch
     // on and never let go. The 1px allowance absorbs sub-pixel table widths
     // rounding against an integer clientWidth.
-    const measure = () =>
-      setScrollable(
-        table.getBoundingClientRect().width - container.clientWidth > 1,
+    const measure = () => {
+      const tableWidth = table.getBoundingClientRect().width;
+      setScrollable(tableWidth - container.clientWidth > 1);
+      // Not `scrollWidth`, same reason: dropping `overflow-x-auto` collapses
+      // the container's own scroll metrics, so the table is the only stable
+      // ruler. `scrollLeft` is still the container's -- it is zero whenever
+      // the container is not a scroller, which is the right answer there.
+      setMoreToTheRight(
+        tableWidth - container.clientWidth - container.scrollLeft > 1,
       );
+    };
     const observer = new ResizeObserver(measure);
     observer.observe(container);
     // The table can change width without the container doing so.
     observer.observe(table);
-    return () => observer.disconnect();
+    // Passive: the handler only reads, and a scroll listener that can't
+    // preventDefault lets the browser keep scrolling off the main thread.
+    container.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      observer.disconnect();
+      container.removeEventListener("scroll", measure);
+    };
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      data-slot="table-container"
-      tabIndex={scrollable ? 0 : undefined}
-      // `overflow-x-auto` only while it is needed. `overflow-x: auto` computes
-      // `overflow-y` to `auto`, which makes this div a scroll container, which
-      // is what a sticky header pins to -- and this one never scrolls
-      // vertically, so the header would sit 73px down over the first rows
-      // rather than following the page. Off, the header finds the viewport.
-      //
-      // `isolate` because the sticky cells below need z-20 to clear
-      // stickyFirstColumn's z-10 body cells, and at equal z-index the later
-      // element wins -- which would put the table header over the portal's
-      // own top bar. One stacking context of its own keeps the internal
-      // layering free and the whole table under that bar.
-      //
-      // Full-opacity ring, not the `ring-ring/50` halo Button and Input use:
-      // there it sits outside a `focus-visible:border-ring` edge that carries
-      // the contrast, and on its own a 50% ring measures about 2.3:1 against
-      // the page -- under the 3:1 a focus indicator needs.
-      className={cn(
-        "relative isolate w-full outline-none focus-visible:ring-3 focus-visible:ring-ring",
-        scrollable && "overflow-x-auto",
-      )}
-    >
-      <table
-        data-slot="table"
+    // The scroller's own frame. The fade below has to stay put while the
+    // table slides under it, and an absolutely positioned child of a scroll
+    // container scrolls with the content -- so the fade is a sibling of the
+    // scroller rather than a child of it, and this wrapper is what both are
+    // positioned against.
+    //
+    // `isolate` lives here rather than on the scroller: the sticky cells
+    // below need z-20 to clear stickyFirstColumn's z-10 body cells, and at
+    // equal z-index the later element wins -- which would put the table
+    // header over the portal's own top bar. One stacking context around the
+    // whole thing keeps the internal layering free and everything under that
+    // bar.
+    <div data-slot="table-scroll-area" className="relative isolate w-full">
+      <div
+        ref={containerRef}
+        data-slot="table-container"
+        tabIndex={scrollable ? 0 : undefined}
+        // `overflow-x-auto` only while it is needed. `overflow-x: auto`
+        // computes `overflow-y` to `auto`, which makes this div a scroll
+        // container, which is what a sticky header pins to -- and this one
+        // never scrolls vertically, so the header would sit 73px down over
+        // the first rows rather than following the page. Off, the header
+        // finds the viewport.
+        //
+        // Full-opacity ring, not the `ring-ring/50` halo Button and Input
+        // use: there it sits outside a `focus-visible:border-ring` edge that
+        // carries the contrast, and on its own a 50% ring measures about
+        // 2.3:1 against the page -- under the 3:1 a focus indicator needs.
         className={cn(
-          "w-full caption-bottom text-sm",
-          // Row actions are ghost icon buttons, which show no border or fill
-          // until hovered -- on a touch device that means no affordance at
-          // all, just a column of grey glyphs to guess at. Inside a cell they
-          // keep a faint resting outline; the hover and focus treatments the
-          // variant already provides still take over on top.
-          "[&_td_[data-slot=button][data-variant=ghost]]:border-[var(--line)]",
-          // Honoured only when the container is not scrolling: see above.
-          stickyHeader && !scrollable && STICKY_HEADER[stickyHeader],
-          // The corner cell is pinned on both axes, so it has to clear the
-          // body's pinned column as well as its own row.
-          stickyHeader && stickyFirstColumn && "[&_thead_th:first-child]:z-30",
-          stickyFirstColumn && [
-            "[&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-10 [&_tr>*:first-child]:bg-card",
-            // The pinned cell needs an opaque background to sit over the
-            // scrolling columns, which means it can't inherit the row's
-            // translucent hover/selected tint -- mix it in explicitly, or the
-            // hovered row highlights every cell except this one.
-            "[&_tr:hover>*:first-child]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))]",
-            "[&_tr[data-state=selected]>*:first-child]:bg-muted",
-            // A pinned column must never take so much of the scrollport that
-            // the row's own controls cannot be brought out from under it.
-            // Administration's Users table caps its name cell at max-w-xs
-            // (20rem); on a 412px phone that is 320px of a 388px scrollport,
-            // leaving 68px -- less than half of the 160px "Add role" select,
-            // whose middle then sits under the pinned cell however far you
-            // scroll. Half the viewport is the most it may claim. Below `lg`
-            // only, so the callers' own cap still governs on a desktop
-            // width, where there is room for both.
-            "max-lg:[&_tr>*:first-child]:max-w-[50vw]",
-          ],
-          className,
+          "w-full outline-none focus-visible:ring-3 focus-visible:ring-ring",
+          scrollable && "overflow-x-auto",
         )}
-        {...props}
+      >
+        <table
+          data-slot="table"
+          className={cn(
+            "w-full caption-bottom text-sm",
+            // Row actions are ghost icon buttons, which show no border or fill
+            // until hovered -- on a touch device that means no affordance at
+            // all, just a column of grey glyphs to guess at. Inside a cell they
+            // keep a faint resting outline; the hover and focus treatments the
+            // variant already provides still take over on top.
+            "[&_td_[data-slot=button][data-variant=ghost]]:border-[var(--line)]",
+            // Cells don't wrap, which is right at a desk and wrong on a
+            // phone: one long name in one column widens the whole table, so
+            // even a three-column table scrolled sideways at 390px. Below
+            // `sm` the text wraps and the rows grow taller instead. Buttons
+            // and badges carry `whitespace-nowrap` of their own, so this
+            // reaches the prose and leaves the controls alone.
+            "max-sm:[&_td]:whitespace-normal max-sm:[&_td]:break-words",
+            "max-sm:[&_th]:whitespace-normal",
+            // Honoured only when the container is not scrolling: see above.
+            stickyHeader && !scrollable && STICKY_HEADER[stickyHeader],
+            // The corner cell is pinned on both axes, so it has to clear the
+            // body's pinned column as well as its own row.
+            stickyHeader &&
+              stickyFirstColumn &&
+              "[&_thead_th:first-child]:z-30",
+            stickyFirstColumn && [
+              // `:not([data-row-detail])` throughout: a row-detail row is one
+              // cell spanning the whole row, so pinning its first child would
+              // pin the disclosure itself to the left edge and cap it at half
+              // the viewport.
+              "[&_tr:not([data-row-detail])>*:first-child]:sticky [&_tr:not([data-row-detail])>*:first-child]:left-0 [&_tr:not([data-row-detail])>*:first-child]:z-10 [&_tr:not([data-row-detail])>*:first-child]:bg-card",
+              // The pinned cell needs an opaque background to sit over the
+              // scrolling columns, which means it can't inherit the row's
+              // translucent hover/selected tint -- mix it in explicitly, or the
+              // hovered row highlights every cell except this one.
+              "[&_tr:not([data-row-detail]):hover>*:first-child]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))]",
+              "[&_tr[data-state=selected]:not([data-row-detail])>*:first-child]:bg-muted",
+              // A pinned column must never take so much of the scrollport that
+              // the row's own controls cannot be brought out from under it.
+              // Administration's Users table caps its name cell at max-w-xs
+              // (20rem); on a 412px phone that is 320px of a 388px scrollport,
+              // leaving 68px -- less than half of the 160px "Add role" select,
+              // whose middle then sits under the pinned cell however far you
+              // scroll. Half the viewport is the most it may claim. Below `lg`
+              // only, so the callers' own cap still governs on a desktop
+              // width, where there is room for both.
+              "max-lg:[&_tr:not([data-row-detail])>*:first-child]:max-w-[50vw]",
+            ],
+            className,
+          )}
+          {...props}
+        />
+      </div>
+      {/*
+        `overflow-x-auto` is silent: a table that continues past the right
+        edge looks exactly like one that ends there, and on a touch device
+        there is not even a scrollbar to give it away. A fade at the edge is
+        the affordance, and it goes out the moment the last column is in
+        view so it never claims there is more when there isn't.
+
+        Drawn from `--foreground` rather than the surface colour: the same
+        table sits on a card, inside a sheet and on the page, and a fade
+        that had to name its own background would be wrong in two of the
+        three. A translucent ink over whatever is behind it darkens in light
+        mode and lightens in dark, which is the contrast either way.
+      */}
+      <div
+        aria-hidden
+        data-slot="table-scroll-fade"
+        className={cn(
+          "pointer-events-none absolute inset-y-0 right-0 z-40 w-8 bg-gradient-to-l from-foreground/15 to-transparent transition-opacity duration-150 motion-reduce:transition-none",
+          moreToTheRight ? "opacity-100" : "opacity-0",
+        )}
       />
     </div>
   );

@@ -265,7 +265,7 @@ export function ServiceDetailsSheet({
           )}
 
           {mode === "edit" && (
-            <SheetFooter className="flex-row items-center justify-between border-t bg-muted/50">
+            <SheetFooter className="items-center justify-between">
               <Tooltip>
                 <TooltipTrigger
                   render={

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // next/image builds a real URL from the src at render, which happy-dom refuses.
@@ -69,14 +69,19 @@ describe("PhotoUploadField", () => {
     expect(screen.getByLabelText("Photo")).toBeTruthy();
   });
 
+  // The upload path awaits the path action and then the upload before it
+  // touches state, and React schedules that re-render on its own queue rather
+  // than the one userEvent's delay drains -- so the result lands after the
+  // event settles often enough that a getBy/assert-now pass failed on CI while
+  // passing everywhere else (#1104). Everything downstream of an upload waits.
   test("reports the uploaded URL to the caller", async () => {
     const onChange = mock<(url: string) => void>(() => {});
     render(<PhotoUploadField value="" onChange={onChange} idPrefix="item-1" />);
 
     await userEvent.upload(screen.getByLabelText("Photo"), pngFile());
 
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(PUBLIC_URL));
     expect(uploadGearPhotoMock).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith(PUBLIC_URL);
   });
 
   test("shows a failed upload inline and keeps the field empty", async () => {
@@ -88,7 +93,7 @@ describe("PhotoUploadField", () => {
 
     await userEvent.upload(screen.getByLabelText("Photo"), pngFile());
 
-    expect(screen.getByText("That photo is too large.")).toBeTruthy();
+    expect(await screen.findByText("That photo is too large.")).toBeTruthy();
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -102,10 +107,12 @@ describe("PhotoUploadField", () => {
 
     await userEvent.upload(screen.getByLabelText("Photo"), pngFile());
 
-    expect(uploadGearPhotoMock).not.toHaveBeenCalled();
     expect(
-      screen.getByText("You don't have permission to perform this action."),
+      await screen.findByText(
+        "You don't have permission to perform this action.",
+      ),
     ).toBeTruthy();
+    expect(uploadGearPhotoMock).not.toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
   });
 

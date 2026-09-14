@@ -92,6 +92,7 @@ export function WorkQueueTable({
       {
         key: "item_type",
         label: "Type",
+        hideBelow: "md",
         // On the label the cell shows, not the stored value.
         sortValue: (item) => labelFor(ITEM_TYPES, item.item_type),
         cellClassName: "app-muted",
@@ -100,6 +101,7 @@ export function WorkQueueTable({
       {
         key: "priority",
         label: "Priority",
+        hideBelow: "sm",
         // Numeric, so tier 1 -- the most urgent -- leads an ascending sort.
         sortValue: (item) => item.priority_tier,
         render: (item) => <PriorityTierBadge tier={item.priority_tier} />,
@@ -107,6 +109,7 @@ export function WorkQueueTable({
       {
         key: "content_status",
         label: "Content status",
+        hideBelow: "sm",
         // On the badge's label, so the order matches the words on screen
         // rather than the underscored values behind them.
         sortValue: (item) =>
@@ -145,6 +148,7 @@ export function WorkQueueTable({
       {
         key: "owner",
         label: "Owner",
+        hideBelow: "lg",
         // Null rather than the "—" the cell falls back to, so unowned items
         // collect at the end whichever way the column points.
         sortValue: (item) =>
@@ -155,6 +159,7 @@ export function WorkQueueTable({
       {
         key: "reviewer",
         label: "Reviewer",
+        hideBelow: "lg",
         sortValue: (item) =>
           item.content_opportunity?.reviewer_id
             ? ownerName(owners, item.content_opportunity.reviewer_id)

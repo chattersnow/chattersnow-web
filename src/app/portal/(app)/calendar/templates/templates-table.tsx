@@ -68,6 +68,7 @@ export function TemplatesTable({
       {
         key: "key",
         label: "Key",
+        hideBelow: "md",
         sortValue: (template) => template.key,
         cellClassName: "app-muted",
         render: (template) => template.key,
@@ -75,6 +76,7 @@ export function TemplatesTable({
       {
         key: "version",
         label: "Version",
+        hideBelow: "sm",
         // Numeric, so v9 sorts below v10 rather than after it.
         sortValue: (template) => template.version,
         render: (template) => `v${template.version}`,
@@ -91,6 +93,7 @@ export function TemplatesTable({
       {
         key: "requires_consent",
         label: "Requires consent",
+        hideBelow: "lg",
         sortValue: (template) => (template.requires_consent ? "Yes" : "No"),
         cellClassName: "app-muted",
         render: (template) => (template.requires_consent ? "Yes" : "No"),

@@ -354,6 +354,7 @@ export function ResolutionsTab({
     {
       key: "mover",
       label: "Mover",
+      hideBelow: "md",
       sortValue: (resolution) => personDisplayName(resolution.mover),
       cellClassName: "app-muted",
       render: (resolution) => personDisplayName(resolution.mover),

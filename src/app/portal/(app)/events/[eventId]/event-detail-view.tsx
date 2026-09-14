@@ -34,6 +34,7 @@ import {
 import { EventDateProvider } from "../event-date-defaults";
 import { useUrlTabState } from "@/components/portal/use-url-tab-state";
 import { DeleteEventButton } from "./delete-event-button";
+import type { DeviceClass } from "@/proxy";
 import { EventSectionRail } from "./event-section-rail";
 
 const NOOP_CALLBACKS: FormTabCallbacks = {
@@ -230,6 +231,8 @@ function PlainTabCard({
 }
 
 export function EventDetailView(props: {
+  /** Which shape the rail takes, decided on the server (#1079, #1093). */
+  device: DeviceClass;
   event: EventRow;
   programs: Program[];
   canManage: boolean;
@@ -254,6 +257,7 @@ export function EventDetailView(props: {
 }
 
 function EventDetailContent({
+  device,
   event,
   programs,
   canManage,
@@ -262,6 +266,7 @@ function EventDetailContent({
   initialCard,
   cardTasks,
 }: {
+  device: DeviceClass;
   event: EventRow;
   programs: Program[];
   canManage: boolean;
@@ -324,6 +329,7 @@ function EventDetailContent({
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
         <EventSectionRail
+          device={device}
           phases={phases}
           current={card}
           currentTitle={title}

@@ -125,7 +125,21 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      className={cn(
+        // The house footer, matching `DialogFooter` (#1094). All 35 call sites
+        // used to hand-write `flex-row ... border-t bg-muted/50` on top of an
+        // older stacked default; that is one style, not a set of variants, so
+        // it belongs here. Overrides stay for the handful that want
+        // `justify-between` or `flex-wrap`.
+        //
+        // `mt-auto` is what pins the footer to the bottom of `SheetContent`'s
+        // `h-full` flex column. It only holds if the call site renders the body
+        // between header and footer as `flex-1 overflow-y-auto` -- a dependency
+        // invisible from here. Without it the column is shorter than the sheet
+        // and the footer floats up under the content.
+        "mt-auto flex flex-row justify-end gap-2 border-t bg-muted/50 p-4",
+        className,
+      )}
       {...props}
     />
   );

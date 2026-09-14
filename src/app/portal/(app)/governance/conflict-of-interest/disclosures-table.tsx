@@ -64,6 +64,7 @@ export function DisclosuresTable({
         // Free prose, truncated: unsorted for the same reason as every other
         // notes column in the portal.
         label: "Notes",
+        hideBelow: "md",
         cellClassName: "app-muted max-w-xs truncate",
         render: (disclosure) => (
           <span title={disclosure.notes ?? undefined}>

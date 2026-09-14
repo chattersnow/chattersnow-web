@@ -292,7 +292,7 @@ export function EditBylawsModal({ bylaws }: { bylaws: Bylaws }) {
           )}
 
           {mode === "edit" && (
-            <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+            <SheetFooter>
               <Button type="submit" form={formId} disabled={isPending}>
                 {isPending ? (
                   <>

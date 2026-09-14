@@ -126,6 +126,7 @@ const EVENT_COLUMNS: PortalDataTableColumn<ProgramEvent>[] = [
   {
     key: "visibility",
     label: "Visibility",
+    hideBelow: "sm",
     sortValue: (event) => event.visibility,
     render: (event) => <VisibilityBadge visibility={event.visibility} />,
   },
@@ -461,7 +462,7 @@ export function ProgramDetailsDialog({
           )}
 
           {mode === "edit" && (
-            <SheetFooter className="flex-row justify-end border-t bg-muted/50">
+            <SheetFooter>
               <Button type="submit" form={formId} disabled={isPending}>
                 {isPending ? (
                   <>

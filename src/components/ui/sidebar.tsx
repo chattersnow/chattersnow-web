@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -23,7 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PanelLeftIcon } from "lucide-react";
+import { PanelLeftIcon, XIcon } from "lucide-react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -189,19 +190,49 @@ function Sidebar({
           data-mobile="true"
           role="navigation"
           aria-label="Sidebar"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
             } as React.CSSProperties
           }
           side={side}
+          // Not the default X: it is positioned `absolute top-3 right-3` and
+          // this sheet's children fill it from the top edge, so it would land
+          // on whatever the caller puts in `SidebarHeader` -- in this app, the
+          // tenant switcher's chevron. The row below gives it space of its own
+          // (#1096).
+          showCloseButton={false}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex h-full w-full flex-col">
+            {/* A visible way out. The trigger that opened this is behind the
+                backdrop, so without it the only exits are Escape -- no
+                keyboard on a phone -- a tap on a backdrop strip the sheet's
+                width leaves narrow, or committing to a navigation the reader
+                may not want. `size-11` rather than the sheet's usual
+                `icon-sm`: this is a touch-only surface and 44px is the
+                standard the rest of the app's phone controls meet. */}
+            <div className="flex justify-end px-2 pt-2">
+              <SheetClose
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-11"
+                    aria-label="Close menu"
+                  />
+                }
+              >
+                <XIcon />
+              </SheetClose>
+            </div>
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     );
