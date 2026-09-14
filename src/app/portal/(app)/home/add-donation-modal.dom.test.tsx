@@ -6,7 +6,7 @@ import * as HomeActions from "./actions";
 import { labelText } from "../../../../../test/labels";
 
 type CreateDonationResult =
-  | { error: string }
+  | HomeActions.CreateDonationResult
   | { success: true; giveaway: HomeActions.DonationGiveawayGrant | null };
 
 const createDonationActionMock = mock<
@@ -267,7 +267,10 @@ describe("AddDonationModal", () => {
 
   test("shows the server error and stays open on failure", async () => {
     createDonationActionMock.mockImplementation(async () => ({
-      error: "Could not save the donation. Please try again.",
+      error: {
+        code: "server_error" as const,
+        message: "Could not save the donation. Please try again.",
+      },
     }));
     const user = userEvent.setup();
     await openModal(user);

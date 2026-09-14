@@ -79,6 +79,40 @@ describe("runAction", () => {
     expect(hasToast("Name is required.")).toBe(false);
   });
 
+  test("reads the message out of the #1082 envelope", async () => {
+    // The envelope nests the copy one level down. Before runAction learned to
+    // read it, every converted action's message became the generic fallback --
+    // the operator was told "Something went wrong" instead of being told that
+    // the item had already been given out.
+    const seen: string[] = [];
+    await clickSave(
+      async () => ({
+        error: {
+          code: "conflict" as const,
+          message: "That item has already been distributed.",
+        },
+      }),
+      { success: "Saved.", onError: (message) => seen.push(message) },
+    );
+    await waitFor(() =>
+      expect(seen).toEqual(["That item has already been distributed."]),
+    );
+  });
+
+  test("falls back when an envelope carries no message", async () => {
+    const seen: string[] = [];
+    await clickSave(
+      async () => ({ error: { code: "server_error" as const } }),
+      {
+        success: "Saved.",
+        onError: (message) => seen.push(message),
+      },
+    );
+    await waitFor(() =>
+      expect(seen).toEqual(["Something went wrong. Please try again."]),
+    );
+  });
+
   test("reports the outcome to the caller", async () => {
     const ok = await runAction(async () => ({ success: true as const }), {
       success: "Saved.",

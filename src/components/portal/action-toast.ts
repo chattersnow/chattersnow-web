@@ -7,11 +7,18 @@ import { toast } from "@/components/ui/toast";
  * What a portal Server Action settles into: a failure carries a message, a
  * success carries whatever the caller needs (usually just `{ success: true }`,
  * sometimes an id or a count).
+ *
+ * Two failure shapes, on purpose. `{ error: string }` is what most actions
+ * still answer; `{ error: { code, message } }` is the envelope the write paths
+ * split from their transport now answer (#1082 Phase 2). Both are read here so
+ * the two can coexist while the rest are converted -- a helper that understood
+ * only one of them would turn the other's copy into the generic fallback.
  */
-export type ActionResult = { error: string } | object | void;
+export type ActionResult =
+  { error: string } | { error: { message: string } } | object | void;
 
 /** The success half of an action's result union, once `{ error }` is ruled out. */
-type Succeeded<T> = Exclude<T, { error: string }>;
+type Succeeded<T> = Exclude<T, { error: unknown }>;
 
 export type RunActionOptions<T> = {
   /**
@@ -41,6 +48,12 @@ function errorMessage(result: unknown): string | null {
   if (result && typeof result === "object" && "error" in result) {
     const { error } = result as { error?: unknown };
     if (typeof error === "string" && error.length > 0) return error;
+    // The #1082 envelope: `{ error: { code, message } }`, where `message` is
+    // the display copy the plain-string shape used to carry directly.
+    if (error && typeof error === "object" && "message" in error) {
+      const { message } = error as { message?: unknown };
+      if (typeof message === "string" && message.length > 0) return message;
+    }
     if (error) return FALLBACK_ERROR;
   }
   return null;

@@ -279,7 +279,7 @@ export function AddDonationModal({
     startTransition(async () => {
       const result = await createDonationAction(payload);
       if ("error" in result) {
-        setError(result.error);
+        setError(result.error.message);
         return;
       }
       router.refresh();

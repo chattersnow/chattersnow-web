@@ -38,7 +38,10 @@ describe("createDonation", () => {
     const result = await createDonation(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error: "You must be signed in to record a donation.",
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to record a donation.",
+      },
     });
     expect(domainRpcCalls(supabase.rpcCalls)).toEqual([]);
   });
@@ -49,7 +52,10 @@ describe("createDonation", () => {
     const result = await createDonation(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
     expect(domainRpcCalls(supabase.rpcCalls)).toEqual([]);
   });
@@ -82,7 +88,15 @@ describe("createDonation", () => {
       donorName: "   ",
     });
 
-    expect("error" in result).toBe(true);
+    expect(result).toEqual({
+      error: {
+        code: "invalid_input",
+        message: "Donor name is required unless the donation is anonymous.",
+        fields: {
+          donorName: "Donor name is required unless the donation is anonymous.",
+        },
+      },
+    });
     expect(domainRpcCalls(supabase.rpcCalls)).toEqual([]);
   });
 
@@ -123,7 +137,10 @@ describe("createDonation", () => {
     const result = await createDonation(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error: "Could not save the donation. Please try again.",
+      error: {
+        code: "server_error",
+        message: "Could not save the donation. Please try again.",
+      },
     });
   });
 

@@ -137,7 +137,10 @@ describe("RiderProfileDialog", () => {
   test("keeps the dialog open and shows the failure inline", async () => {
     const user = userEvent.setup();
     setRegistrantRiderProfileActionMock.mockImplementation(async () => ({
-      error: "That registration no longer exists.",
+      error: {
+        code: "conflict" as const,
+        message: "That registration no longer exists.",
+      },
     }));
     let open = true;
     render(

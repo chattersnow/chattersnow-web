@@ -41,7 +41,18 @@ afterEach(() => {
   revalidatePathMock.mockClear();
 });
 
-const DENIED = { error: "You don't have permission to perform this action." };
+const DENIED = {
+  error: {
+    code: "forbidden",
+    message: "You don't have permission to perform this action.",
+  },
+} as const;
+
+// listEventRegistrantsAction is a read, and reads still answer
+// `{ error: string }` -- the #1082 envelope covers the write paths.
+const DENIED_READ = {
+  error: "You don't have permission to perform this action.",
+};
 
 // A pre-existing registration to check in, seeded straight through the
 // admin session rather than the public RPC (which adds capacity/deadline
@@ -130,7 +141,10 @@ describe("event registrant check-in actions (integration)", () => {
     currentSupabase = anonClient();
 
     expect(await checkInRegistrantAction(registrationId)).toEqual({
-      error: "You must be signed in to check in a registrant.",
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to check in a registrant.",
+      },
     });
 
     await event.cleanup();
@@ -198,7 +212,10 @@ describe("event registrant check-in actions (integration)", () => {
       success: true,
     });
     expect(await addRegistrantAction(event.id, person1, 1)).toEqual({
-      error: "This person already has a registration for this event.",
+      error: {
+        code: "conflict",
+        message: "This person already has a registration for this event.",
+      },
     });
 
     await event.cleanup();
@@ -257,7 +274,13 @@ describe("event registrant check-in actions (integration)", () => {
 
     expect(
       await createWalkInCheckInAction(event.id, walkInPerson(person.id), 0),
-    ).toEqual({ error: "Party size must be at least 1." });
+    ).toEqual({
+      error: {
+        code: "invalid_input",
+        message: "Party size must be at least 1.",
+        fields: { partySize: "Party size must be at least 1." },
+      },
+    });
 
     await event.cleanup();
     await person.cleanup();
@@ -305,7 +328,7 @@ describe("event registrant check-in actions (integration)", () => {
     const registrationId = await seedRegistration(event.id);
     currentSupabase = await signInAs(SEEDED_USERS.board);
 
-    expect(await listEventRegistrantsAction(event.id)).toEqual(DENIED);
+    expect(await listEventRegistrantsAction(event.id)).toEqual(DENIED_READ);
     expect(await checkInRegistrantAction(registrationId)).toEqual(DENIED);
 
     await event.cleanup();

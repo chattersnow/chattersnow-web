@@ -22,7 +22,10 @@ describe("recordEventDistribution", () => {
     const result = await recordEventDistribution(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error: "You must be signed in to record a distribution.",
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to record a distribution.",
+      },
     });
     expect(domainRpcCalls(supabase.rpcCalls)).toEqual([]);
   });
@@ -33,7 +36,10 @@ describe("recordEventDistribution", () => {
     const result = await recordEventDistribution(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
     expect(domainRpcCalls(supabase.rpcCalls)).toEqual([]);
   });
@@ -46,7 +52,13 @@ describe("recordEventDistribution", () => {
       inventoryItemId: "  ",
     });
 
-    expect(result).toEqual({ error: "Select an inventory item." });
+    expect(result).toEqual({
+      error: {
+        code: "invalid_input",
+        message: "Select an inventory item.",
+        fields: { inventoryItemId: "Select an inventory item." },
+      },
+    });
     expect(domainRpcCalls(supabase.rpcCalls)).toEqual([]);
   });
 
@@ -82,8 +94,11 @@ describe("recordEventDistribution", () => {
     const result = await recordEventDistribution(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error:
-        "That item has already been distributed. Refresh and pick another.",
+      error: {
+        code: "conflict",
+        message:
+          "That item has already been distributed. Refresh and pick another.",
+      },
     });
   });
 
@@ -98,7 +113,10 @@ describe("recordEventDistribution", () => {
     const result = await recordEventDistribution(supabase.client, VALID_INPUT);
 
     expect(result).toEqual({
-      error: "Could not record the distribution. Please try again.",
+      error: {
+        code: "server_error",
+        message: "Could not record the distribution. Please try again.",
+      },
     });
   });
 });

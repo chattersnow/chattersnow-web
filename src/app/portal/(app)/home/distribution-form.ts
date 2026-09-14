@@ -25,11 +25,14 @@ export function parseDistributionInput(
 ): ParseResult<DistributionRpcArgs> {
   const inventoryItemId = input.inventoryItemId.trim();
   if (!inventoryItemId) {
-    return { error: "Select an inventory item." };
+    return { error: "Select an inventory item.", field: "inventoryItemId" };
   }
 
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
-    return { error: "Quantity must be a whole number greater than zero." };
+    return {
+      error: "Quantity must be a whole number greater than zero.",
+      field: "quantity",
+    };
   }
 
   const occurredAt = input.occurredAt

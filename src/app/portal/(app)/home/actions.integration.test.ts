@@ -49,7 +49,10 @@ describe("createDonationAction (integration)", () => {
     currentSupabase = anonClient();
     const result = await createDonationAction(donationInput());
     expect(result).toEqual({
-      error: "You must be signed in to record a donation.",
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to record a donation.",
+      },
     });
   });
 
@@ -93,7 +96,10 @@ describe("createDonationAction (integration)", () => {
     const result = await createDonationAction(donationInput());
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
   });
 
@@ -102,7 +108,10 @@ describe("createDonationAction (integration)", () => {
     const result = await createDonationAction(donationInput());
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
   });
 
@@ -111,7 +120,10 @@ describe("createDonationAction (integration)", () => {
     const result = await createDonationAction(donationInput());
 
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
   });
 });
