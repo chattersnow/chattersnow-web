@@ -77,22 +77,6 @@ export function resolveDraftAndPublished(
   };
 }
 
-/** A slot's value out of a resolved `SiteContent`, whatever shape it is in. */
-export function readSlot(slot: ContentSlot, content: SiteContent): Json {
-  switch (slot.type) {
-    case "text":
-      return content.text(slot.key);
-    case "paragraphs":
-      return content.paragraphs(slot.key);
-    case "list":
-      return content.list(slot.key);
-    case "document":
-      return content.document(slot.key);
-    case "image":
-      return content.image(slot.key);
-  }
-}
-
 /**
  * One searchable line per slot, for every page at once.
  *

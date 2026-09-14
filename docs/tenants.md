@@ -208,8 +208,9 @@ Three rules, all in `public_tenant_id()`:
   whichever tenant the slug resolved to.
 
 A blank header is treated as no header, so a proxy that always sets it cannot
-take a site down. Nothing in the app sends this header yet — the versioned
-HTTP layer that will is #813 Phase 3 — and the header is no more trusted than
+take a site down. What sends it is the versioned HTTP layer at
+`/api/v1/t/{tenant}/...`, which stamps the slug from its own path — see
+[`docs/public-api.md`](public-api.md). The header is no more trusted than
 `x-tenant-host`: it picks which tenant's _public_ surface the caller is
 talking to, which is exactly what visiting that tenant's site does. Everything
 session-scoped still goes through the membership-checked
