@@ -1,5 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { PublicEvent, PublicEventProgram } from "./event-card";
+import type {
+  PublicEvent,
+  PublicEventProgram,
+  PublicEventRow,
+} from "./event-card";
 import type { PublicEventSponsor } from "./event-sponsors";
 
 /**
@@ -26,7 +30,8 @@ export async function loadEventDetail(id: string): Promise<PublicEvent | null> {
     .from("public_events")
     .select(PUBLIC_EVENT_COLUMNS)
     .eq("id", id)
-    .maybeSingle<Omit<PublicEvent, "sponsors" | "programs">>();
+    .maybeSingle()
+    .overrideTypes<PublicEventRow>();
 
   if (!event) return null;
 
@@ -35,12 +40,12 @@ export async function loadEventDetail(id: string): Promise<PublicEvent | null> {
       .from("public_event_sponsors")
       .select("sponsor_id, name, logo_url, website")
       .eq("event_id", event.id)
-      .returns<PublicEventSponsor[]>(),
+      .overrideTypes<PublicEventSponsor[]>(),
     supabase
       .from("public_event_programs")
       .select("program_id, name")
       .eq("event_id", event.id)
-      .returns<PublicEventProgram[]>(),
+      .overrideTypes<PublicEventProgram[]>(),
   ]);
 
   return { ...event, sponsors: sponsors ?? [], programs: programs ?? [] };

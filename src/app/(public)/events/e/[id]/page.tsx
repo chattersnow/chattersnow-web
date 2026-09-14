@@ -20,10 +20,7 @@ export async function generateMetadata({
     .maybeSingle();
 
   return {
-    title: publicTitle(
-      await getPublicSite(supabase),
-      event ? event.name : "Event",
-    ),
+    title: publicTitle(await getPublicSite(supabase), event?.name ?? "Event"),
   };
 }
 

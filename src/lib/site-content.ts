@@ -59,6 +59,7 @@
  * `src/lib/public-site.ts`.
  */
 
+import type { Json } from "@/lib/supabase/types";
 import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import { isPublishableHref } from "@/lib/legal-markup";
 import {
@@ -2069,7 +2070,12 @@ export type SiteContent = {
   overrides: ReadonlySet<string>;
 };
 
-export type SiteContentRow = { key: string; value: unknown };
+/**
+ * One `site_content` row as the views serve it. `value` is `Json` rather than
+ * `unknown` (#813 Phase 1): the column is `jsonb`, and `resolveSiteContent`
+ * checks each value against the slot registry before anything renders it.
+ */
+export type SiteContentRow = { key: string; value: Json };
 
 /**
  * Folds the tenant's rows over the registry defaults. Pure.

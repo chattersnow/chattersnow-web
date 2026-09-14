@@ -1,3 +1,4 @@
+import type { Json } from "@/lib/supabase/types";
 import type {
   ContentSlot,
   LegalDocumentContent,
@@ -103,6 +104,6 @@ function isSame(a: unknown, b: unknown): boolean {
  * registry default back, so the draft reverts the slot rather than storing a
  * copy of the default as if it were the tenant's own words.
  */
-export function draftValueFor(slot: ContentSlot, value: unknown): unknown {
+export function draftValueFor(slot: ContentSlot, value: Json): Json {
   return isSame(value, slot.default) ? null : value;
 }

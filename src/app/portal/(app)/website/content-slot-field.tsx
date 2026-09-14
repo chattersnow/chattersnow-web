@@ -1,5 +1,6 @@
 "use client";
 
+import type { Json } from "@/lib/supabase/types";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -174,7 +175,7 @@ export function ContentSlotField({
   images: Readonly<Record<string, string | null>>;
   dirty: boolean;
   canEdit: boolean;
-  onChange: (value: unknown) => void;
+  onChange: (value: Json) => void;
   onReset: () => void;
   /** Publish this slot on its own, rather than the whole page. */
   onPublish: () => void;

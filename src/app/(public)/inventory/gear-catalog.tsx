@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CONDITIONS, GENDERS, labelFor } from "@/lib/inventory";
+import type { NonNullColumns, Views } from "@/lib/supabase/types";
 import { GearCard } from "./gear-card";
 import { GearDetailSheet } from "./gear-detail-sheet";
 import { GearCartTray } from "./gear-cart-tray";
@@ -25,23 +26,21 @@ import type {
 
 const PAGE_SIZE = 12;
 
-export type GearItem = {
-  id: string;
-  description: string;
-  size: string | null;
-  /** Legacy free text / the "Other" category's detail -- see categoryLabelFor. */
-  type: string | null;
-  category_key: string | null;
-  category_label: string | null;
-  category_group_key: string | null;
-  category_group_label: string | null;
-  category_sort_order: number | null;
-  category_group_sort_order: number | null;
-  gender: string | null;
-  condition: string;
-  photo_url: string | null;
-  created_at: string;
-};
+/**
+ * One row of `public_gear_catalog`, derived from the generated view row (#813
+ * Phase 1).
+ *
+ * `id`, `description`, `condition` and `created_at` are `not null` on
+ * `inventory_items` and a view drops that, so they are narrowed here. The six
+ * `category_*` columns stay nullable because the view reaches them through two
+ * left joins: an item filed under no category, or a category in no group, is
+ * an ordinary row. `type` is the legacy free text / the "Other" category's
+ * detail -- see categoryLabelFor.
+ */
+export type GearItem = NonNullColumns<
+  Views<"public_gear_catalog">,
+  "id" | "description" | "condition" | "created_at"
+>;
 
 const FILTER_ALL = "all";
 

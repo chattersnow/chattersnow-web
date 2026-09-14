@@ -3,6 +3,10 @@ import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time";
 import { CommunityCalendar } from "./community-calendar";
+import type {
+  PublicCalendarCategory,
+  PublicCalendarItem,
+} from "./calendar-shared";
 
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 
@@ -23,12 +27,16 @@ export default async function CommunityCalendarPage() {
       .select(
         "id, title, starts_at, ends_at, time_zone, summary, categories, public_url",
       )
-      .order("starts_at", { ascending: true }),
+      .order("starts_at", { ascending: true })
+      // A view drops `not null`, so the narrowing is stated once here rather
+      // than checked for at every reader (#813 Phase 1).
+      .overrideTypes<PublicCalendarItem[]>(),
     // The tenant's own vocabulary, not a list compiled into the bundle (#834).
     supabase
       .from("public_calendar_categories")
       .select("key, label")
-      .order("sort_order", { ascending: true }),
+      .order("sort_order", { ascending: true })
+      .overrideTypes<PublicCalendarCategory[]>(),
   ]);
 
   return (
