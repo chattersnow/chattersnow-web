@@ -122,10 +122,15 @@ jobs:
     # was CI's critical path at ~19 min against 4-7 for every other job, and it
     # grew with every route added to src/app. A11Y_WORKERS was not the lever --
     # 6 workers measured no faster than 4 on a 4-vCPU runner -- so each runner
-    # takes every Nth route instead. ~235s of the job is fixed setup that every
-    # shard repeats (`supabase start` alone is 125s), which is what puts the
-    # useful ceiling at 4: N=2 lands ~11.5 min and N=3 ~9 min, both still over
-    # the 8 min target, and N=5 would buy 45s for a fifth Postgres.
+    # takes every Nth route instead. Fixed setup every shard repeats is what
+    # puts the useful ceiling at 4: N=2 landed ~11.5 min and N=3 ~9 min, both
+    # over the 8 min target, while N=5 buys under a minute for a fifth of
+    # everything below. That setup was 235s when #844 measured it, of which
+    # `supabase start` alone was 125s; trimming the Supabase stack (#1077) and
+    # dropping the redundant `db reset` (#1107) have since taken it to 172-187s
+    # with start at 78-101s, against a ~265s scan (run 34876464593). The
+    # conclusion is unchanged -- re-measure these before changing the count
+    # rather than trusting the numbers in this comment.
     #
     # Changing the count means changing A11Y_SHARD_TOTAL, the `shard:` matrix
     # list and this job's name together -- a matrix list can't be built from
