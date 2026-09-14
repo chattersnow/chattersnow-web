@@ -255,7 +255,7 @@ function resolveVisibility(value: unknown, defaultVisible: boolean): boolean {
  * once, and the symptom was admin toggles that looked like they refused to
  * save.
  */
-const getPublicTenantModules = cache(
+export const getPublicTenantModules = cache(
   async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
     const { data, error } = await supabase
       .from("public_tenant_modules")

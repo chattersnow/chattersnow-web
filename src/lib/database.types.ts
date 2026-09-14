@@ -7178,6 +7178,7 @@ export type Database = {
       };
       tenants: {
         Row: {
+          allowed_origins: string[];
           created_at: string;
           created_by: string | null;
           custom_domain: string | null;
@@ -7190,6 +7191,7 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          allowed_origins?: string[];
           created_at?: string;
           created_by?: string | null;
           custom_domain?: string | null;
@@ -7202,6 +7204,7 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          allowed_origins?: string[];
           created_at?: string;
           created_by?: string | null;
           custom_domain?: string | null;
@@ -8752,6 +8755,7 @@ export type Database = {
         };
         Returns: string;
       };
+      public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };
       publish_article_category: { Args: { p_id: string }; Returns: number };
       publish_site_content: { Args: { p_keys: string[] }; Returns: number };
