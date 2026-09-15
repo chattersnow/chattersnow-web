@@ -14,14 +14,9 @@ import type { PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -85,60 +80,61 @@ export function NewMilestoneDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        Add milestone
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add milestone</DialogTitle>
-          <DialogDescription>
-            Track a step toward 501(c)(3) status.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel>Owner</FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={selectedOwner}
-                onSelect={setSelectedOwner}
-                onPersonCreated={handlePersonCreated}
-              />
-            </Field>
-
-            <NonprofitStatusFormFields
-              form={form}
-              update={update}
-              idPrefix="new-milestone"
-              existingPhases={existingPhases}
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          Add milestone
+        </Button>
+      }
+      title="Add milestone"
+      description="Track a step toward 501(c)(3) status."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add milestone"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel>Owner</FieldLabel>
+          <PersonPicker
+            people={availablePeople}
+            selected={selectedOwner}
+            onSelect={setSelectedOwner}
+            onPersonCreated={handlePersonCreated}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add milestone"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <NonprofitStatusFormFields
+          form={form}
+          update={update}
+          idPrefix="new-milestone"
+          existingPhases={existingPhases}
+        />
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
