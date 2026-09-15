@@ -7988,6 +7988,18 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_person_role_labels: {
+        Row: {
+          labels: Json | null;
+        };
+        Insert: {
+          labels?: Json | null;
+        };
+        Update: {
+          labels?: Json | null;
+        };
+        Relationships: [];
+      };
       public_programs: {
         Row: {
           description: string | null;
@@ -8658,6 +8670,50 @@ export type Database = {
           module_key: string;
         }[];
       };
+      my_event_history: {
+        Args: never;
+        Returns: {
+          attended: boolean;
+          ends_at: string;
+          event_id: string;
+          event_name: string;
+          location: string;
+          party_size: number;
+          registered_at: string;
+          registration_id: string;
+          starts_at: string;
+          timezone: string;
+        }[];
+      };
+      my_gear_history: {
+        Args: never;
+        Returns: {
+          cancelled_at: string;
+          delivery_method: string;
+          fulfilled_at: string;
+          id: string;
+          items: string[];
+          kind: string;
+          note: string;
+          occurred_at: string;
+          quantity: number;
+          quoted_amount: number;
+          status: string;
+        }[];
+      };
+      my_giving_history: {
+        Args: never;
+        Returns: {
+          amount: number;
+          event_id: string;
+          event_name: string;
+          id: string;
+          items: string[];
+          kind: string;
+          received_on: string;
+        }[];
+      };
+      my_history_person_id: { Args: { p_module_key: string }; Returns: string };
       my_modules: {
         Args: never;
         Returns: {
@@ -8678,6 +8734,21 @@ export type Database = {
       my_public_person_id: { Args: never; Returns: string };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
+      my_volunteer_history: {
+        Args: never;
+        Returns: {
+          event_id: string;
+          event_name: string;
+          event_timezone: string;
+          hours: number;
+          id: string;
+          kind: string;
+          occurred_at: string;
+          occurred_on: string;
+          role: string;
+          status: string;
+        }[];
+      };
       normalize_instagram_handle: {
         Args: { p_input: string };
         Returns: string;
@@ -8858,6 +8929,10 @@ export type Database = {
           p_template_tenant_id?: string;
         };
         Returns: string;
+      };
+      public_module_enabled: {
+        Args: { p_module_key: string };
+        Returns: boolean;
       };
       public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };

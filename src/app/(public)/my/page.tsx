@@ -4,7 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import {
+  getMyHistory,
+  isHistoryEmpty,
+  EMPTY_HISTORY,
+} from "@/lib/constituent/history";
+import { DEFAULT_VOCABULARY, getPublicVocabulary } from "@/lib/person-roles";
 import { ClaimForm } from "./claim-form";
+import { MyHistorySections } from "./history";
 import { SignOutButton } from "./sign-out-button";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,6 +35,13 @@ export default async function MyPage() {
     supabase.auth.getUser(),
   ]);
 
+  // A second wave, and only for an account that has a record to read. An
+  // unlinked one would spend four round trips learning what the guard already
+  // told us, and the page it gets is the claim form either way.
+  const [history, vocabulary] = personId
+    ? await Promise.all([getMyHistory(supabase), getPublicVocabulary(supabase)])
+    : [EMPTY_HISTORY, DEFAULT_VOCABULARY];
+
   return (
     <div className="space-y-8">
       <section>
@@ -44,33 +58,43 @@ export default async function MyPage() {
         </p>
       </section>
 
-      <Card className="rainbow-surface">
-        <CardContent className="space-y-4">
-          {personId ? (
-            <>
-              <h2 className="brand-display text-xl font-semibold">
-                We have your record
-              </h2>
-              <p className="app-muted text-sm leading-relaxed">
-                Your events, volunteering, giving and gear will appear here.
-              </p>
-            </>
-          ) : pendingClaim ? (
-            <Alert>
-              <AlertTitle>We are checking your request</AlertTitle>
-              <AlertDescription>
-                Someone is matching what you told us against our records. You
-                will hear from us either way.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            // Signed in and linked to nothing. Most people who see this have
-            // just made an account, so it opens with the thing to do rather
-            // than with an explanation of what went wrong -- nothing has.
-            <ClaimForm defaultEmail={auth.user?.email ?? null} />
-          )}
-        </CardContent>
-      </Card>
+      {personId && !isHistoryEmpty(history) ? (
+        <div className="space-y-6">
+          <MyHistorySections history={history} vocabulary={vocabulary} />
+        </div>
+      ) : (
+        <Card className="rainbow-surface">
+          <CardContent className="space-y-4">
+            {personId ? (
+              // Linked, with nothing behind it yet -- the common case on a
+              // freshly approved claim. One sentence that reads as complete,
+              // rather than four empty cards that read as broken.
+              <>
+                <h2 className="brand-display text-xl font-semibold">
+                  We have your record
+                </h2>
+                <p className="app-muted text-sm leading-relaxed">
+                  Nothing on it yet. Your events, volunteering, giving and gear
+                  will appear here as they happen.
+                </p>
+              </>
+            ) : pendingClaim ? (
+              <Alert>
+                <AlertTitle>We are checking your request</AlertTitle>
+                <AlertDescription>
+                  Someone is matching what you told us against our records. You
+                  will hear from us either way.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              // Signed in and linked to nothing. Most people who see this have
+              // just made an account, so it opens with the thing to do rather
+              // than with an explanation of what went wrong -- nothing has.
+              <ClaimForm defaultEmail={auth.user?.email ?? null} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <SignOutButton />
     </div>
