@@ -20,14 +20,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -135,57 +130,55 @@ export function NewDonationDialog({
           setOpen(false);
         }}
       />
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        {withTrigger ? (
-          <DialogTrigger
-            render={
-              <Button type="button" className="shrink-0 whitespace-nowrap" />
-            }
-          >
+      <PortalFormSurface
+        open={open}
+        onOpenChange={handleOpenChange}
+        withTrigger={withTrigger}
+        trigger={
+          <Button type="button" className="shrink-0 whitespace-nowrap">
             {triggerLabel}
-          </DialogTrigger>
-        ) : null}
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add donation</DialogTitle>
-            <DialogDescription>
-              Record a monetary donation received.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <RequiredFieldsNote />
-              <DonationFormFields
-                form={form}
-                update={update}
-                events={eventOptions}
-                people={peopleOptions}
-                onPersonCreated={handlePersonCreated}
-                idPrefix="new-donation"
-              />
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+          </Button>
+        }
+        title="Add donation"
+        description="Record a monetary donation received."
+        onSubmit={handleSubmit}
+        footer={
+          <>
+            <PortalFormSurfaceClose
+              render={<Button type="button" variant="secondary" />}
+            >
+              Cancel
+            </PortalFormSurfaceClose>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add donation"
               )}
-            </FieldGroup>
+            </Button>
+          </>
+        }
+      >
+        <FieldGroup>
+          <RequiredFieldsNote />
+          <DonationFormFields
+            form={form}
+            update={update}
+            events={eventOptions}
+            people={peopleOptions}
+            onPersonCreated={handlePersonCreated}
+            idPrefix="new-donation"
+          />
 
-            <DialogFooter>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Spinner /> Saving...
-                  </>
-                ) : (
-                  "Add donation"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+      </PortalFormSurface>
     </>
   );
 }
