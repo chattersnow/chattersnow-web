@@ -104,17 +104,32 @@ comment on table public.person_claims is
 
 alter table public.person_claims enable row level security;
 
--- The claimant: their own rows, and only while they are the subject of them.
+-- The claimant: their own rows, in the tenant whose site they are on.
+--
 -- Pinned to auth.uid() rather than to a person id, because an unlinked account
--- has no person id -- that is what it is asking for.
+-- has no person id -- that is what it is asking for. The tenant half is
+-- `public_tenant_id()` and not `current_tenant_id()`, which resolves through
+-- a membership a constituent does not have; it is the same host resolution
+-- every other public-site read uses.
+--
+-- `auth.uid()` alone would already keep one claimant out of another's rows, so
+-- the tenant predicate looks redundant -- and the generated isolation suite
+-- rejects it anyway, correctly. One account may hold a claim in two tenants,
+-- and without this the organization whose site they are on would serve both.
+-- More to the point, "this predicate happens to be sufficient on its own" is
+-- the judgement that rule exists so that nobody has to make per table.
 create policy "claimant reads own claims" on public.person_claims
   for select to authenticated
-  using (auth_user_id = (select auth.uid()));
+  using (
+    tenant_id = (select public.public_tenant_id())
+    and auth_user_id = (select auth.uid())
+  );
 
 create policy "claimant opens own claim" on public.person_claims
   for insert to authenticated
   with check (
-    auth_user_id = (select auth.uid())
+    tenant_id = (select public.public_tenant_id())
+    and auth_user_id = (select auth.uid())
     and status = 'pending'
     and reviewed_by is null
     and reviewed_at is null
@@ -125,8 +140,16 @@ create policy "claimant opens own claim" on public.person_claims
 -- below, which runs as owner and is not bound by these policies.
 create policy "claimant withdraws own claim" on public.person_claims
   for update to authenticated
-  using (auth_user_id = (select auth.uid()) and status = 'pending')
-  with check (auth_user_id = (select auth.uid()) and status = 'withdrawn');
+  using (
+    tenant_id = (select public.public_tenant_id())
+    and auth_user_id = (select auth.uid())
+    and status = 'pending'
+  )
+  with check (
+    tenant_id = (select public.public_tenant_id())
+    and auth_user_id = (select auth.uid())
+    and status = 'withdrawn'
+  );
 
 create policy "reviewers read claims" on public.person_claims
   for select to authenticated
@@ -138,11 +161,16 @@ create policy "reviewers read claims" on public.person_claims
 grant select, insert, update on public.person_claims to authenticated;
 
 -- Linking an account to a person's giving history is a decision someone made,
--- the same argument that makes public_team_members audited. The claimant's own
--- prose is redacted: audit_log is kept indefinitely and a note explaining who
--- you are is personal data on the same clock as a gear request's.
+-- the same argument that makes public_team_members audited. Everything the
+-- claimant typed about themselves is redacted, not just their prose: audit_log
+-- is kept indefinitely, and an address and a handle are exactly as personal as
+-- the note beside them -- the retention suite says so, and it is right. What
+-- the trail keeps is that somebody asked, when, who decided, and which record
+-- it ended on.
 insert into public.audited_tables (table_name, pk_column, redacted_columns) values
-  ('person_claims', 'id', array['note', 'stated_phone', 'review_note']);
+  ('person_claims', 'id',
+   array['stated_name', 'stated_email', 'stated_phone',
+         'stated_instagram_handle', 'note', 'review_note']);
 
 create trigger audit_log_row after insert or update or delete on public.person_claims
   for each row execute function public.audit_log_row();
