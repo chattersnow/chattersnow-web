@@ -6,14 +6,9 @@ import { createRoleAction } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import {
   Field,
   FieldDescription,
@@ -62,75 +57,78 @@ export function NewRoleDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button type="button" />}>New role</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New role</DialogTitle>
-          <DialogDescription>
-            New roles start with no permissions on any resource. Grant access
-            from the Permissions screen once it&apos;s created.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="role-name" required>
-                Key
-              </FieldLabel>
-              <Input
-                id="role-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. program_manager"
-                required
-              />
-              <FieldDescription>
-                The identifier this role is stored under.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="role-label">Display name</FieldLabel>
-              <Input
-                id="role-label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder={name.trim() ? formatRoleLabel(name.trim()) : ""}
-              />
-              <FieldDescription>
-                What this role is called throughout the portal. Leave it empty
-                to use the key.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="role-description">Description</FieldLabel>
-              <Textarea
-                id="role-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-              />
-            </Field>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={<Button type="button">New role</Button>}
+      title="New role"
+      description="New roles start with no permissions on any resource. Grant access from the Permissions screen once it's created."
+      size="sm"
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending || !name.trim()}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create role"
             )}
-          </FieldGroup>
-          <DialogFooter className="mt-4">
-            <Button type="submit" disabled={isPending || !name.trim()}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : (
-                "Create role"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="role-name" required>
+            Key
+          </FieldLabel>
+          <Input
+            id="role-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. program_manager"
+            required
+          />
+          <FieldDescription>
+            The identifier this role is stored under.
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="role-label">Display name</FieldLabel>
+          <Input
+            id="role-label"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder={name.trim() ? formatRoleLabel(name.trim()) : ""}
+          />
+          <FieldDescription>
+            What this role is called throughout the portal. Leave it empty to
+            use the key.
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="role-description">Description</FieldLabel>
+          <Textarea
+            id="role-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+          />
+        </Field>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

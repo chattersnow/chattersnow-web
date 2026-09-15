@@ -20,14 +20,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -126,78 +121,73 @@ export function NewPersonDialog({
           setOpen(false);
         }}
       />
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger
-          render={
-            <Button type="button" className="shrink-0 whitespace-nowrap" />
-          }
-        >
-          {triggerLabel}
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add person</DialogTitle>
-            <DialogDescription>
-              Add a donor, sponsor, or volunteer to the directory.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <RequiredFieldsNote />
-              <PersonFormFields
-                form={form}
-                update={update}
-                idPrefix="new-person"
-              />
-
-              <Field>
-                <FieldLabel>
-                  Primary contact person (for an organization)
-                </FieldLabel>
-                <PersonPicker
-                  people={availablePeople}
-                  selected={contact}
-                  onSelect={setContact}
-                  onPersonCreated={handlePersonCreated}
-                  placeholder="Search by name or email..."
-                />
-              </Field>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {error}
-                    {conflict && (
-                      <>
-                        {" "}
-                        <Link
-                          href={`/portal/people/${conflict.id}`}
-                          className="underline underline-offset-4"
-                        >
-                          Open their record
-                        </Link>
-                      </>
-                    )}
-                  </AlertDescription>
-                </Alert>
+      <PortalFormSurface
+        open={open}
+        onOpenChange={handleOpenChange}
+        trigger={
+          <Button type="button" className="shrink-0 whitespace-nowrap">
+            {triggerLabel}
+          </Button>
+        }
+        title="Add person"
+        description="Add a donor, sponsor, or volunteer to the directory."
+        onSubmit={handleSubmit}
+        footer={
+          <>
+            <PortalFormSurfaceClose
+              render={<Button type="button" variant="secondary" />}
+            >
+              Cancel
+            </PortalFormSurfaceClose>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add person"
               )}
-            </FieldGroup>
+            </Button>
+          </>
+        }
+      >
+        <FieldGroup>
+          <RequiredFieldsNote />
+          <PersonFormFields form={form} update={update} idPrefix="new-person" />
 
-            <DialogFooter>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
+          <Field>
+            <FieldLabel>
+              Primary contact person (for an organization)
+            </FieldLabel>
+            <PersonPicker
+              people={availablePeople}
+              selected={contact}
+              onSelect={setContact}
+              onPersonCreated={handlePersonCreated}
+              placeholder="Search by name or email..."
+            />
+          </Field>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {error}
+                {conflict && (
                   <>
-                    <Spinner /> Saving...
+                    {" "}
+                    <Link
+                      href={`/portal/people/${conflict.id}`}
+                      className="underline underline-offset-4"
+                    >
+                      Open their record
+                    </Link>
                   </>
-                ) : (
-                  "Add person"
                 )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              </AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+      </PortalFormSurface>
     </>
   );
 }
