@@ -613,7 +613,7 @@ export async function sendEventRegistrationConfirmation(
 
 type Recipient = { person_id: string; email: string };
 
-async function notifyRoleHolders(
+export async function notifyRoleHolders(
   admin: SupabaseClient,
   options: {
     tenantId: string;

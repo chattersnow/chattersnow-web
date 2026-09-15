@@ -52,6 +52,11 @@ const SKIP: Record<string, string> = {
   // in `supabase/seed.sql` and removing these two lines is the whole change.
   "/my": "module off for the seeded tenant (#1161)",
   "/my/sign-in": "module off for the seeded tenant (#1161)",
+  // The staff side of the same module. `has_permission()` folds the module
+  // check in, so with `constituent_accounts` off this refuses even an
+  // administrator and redirects to the denied page -- which is already
+  // scanned, under its own route. Delete this line with the two above.
+  "/portal/people/claims": "module off for the seeded tenant (#1162)",
 };
 
 const APP_DIR = join(import.meta.dirname, "..", "src", "app");

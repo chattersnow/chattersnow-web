@@ -82,6 +82,19 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
     // in, and has no view of what is being asked for.
     requires: { resources: ["inventory"], level: "manage" },
   },
+  {
+    key: "person_claim",
+    label: "Account claims",
+    description:
+      "An email when somebody with a website account asks to be linked to their record, and a note to them when it is decided.",
+    // Its own resource rather than `people`, because deciding who may read a
+    // person's giving history is a different question from who may correct
+    // their phone number. It belongs to the constituent_accounts module, so on
+    // a tenant without the constituent area has_permission() is false for
+    // everyone and this switch can never produce a message -- the same reason
+    // every other entry names the permission its sender checks.
+    requires: { resources: ["constituent_claims"], level: "manage" },
+  },
 ];
 
 /**
