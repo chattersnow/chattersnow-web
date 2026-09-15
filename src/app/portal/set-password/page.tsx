@@ -4,10 +4,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicBranding } from "@/lib/branding";
-import {
-  SetPasswordForm,
-  safeSetPasswordDestination,
-} from "./set-password-form";
+import { safeSetPasswordDestination } from "@/lib/auth/next-destination";
+import { SetPasswordForm } from "./set-password-form";
 
 export const metadata: Metadata = {
   title: "Set Password",

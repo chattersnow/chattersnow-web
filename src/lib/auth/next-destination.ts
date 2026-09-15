@@ -59,3 +59,31 @@ export function safePortalDestination(next: string | null | undefined): string {
   }
   return next;
 }
+
+/**
+ * Where `/portal/set-password` sends the browser once the password is set.
+ *
+ * A parameter rather than the hardcoded `/portal/home` it used to be (#1161).
+ * That page requires a session and no role, so it already served both kinds of
+ * account -- but it always finished at the dashboard, which bounces anyone
+ * without a role straight back out to the no-access screen. A constituent
+ * resetting their password from `/my/sign-in` would have read that as the
+ * reset having failed.
+ *
+ * Narrow on purpose: the value reaches the page from a query string, so
+ * anything that is not one of the two destinations it actually serves falls
+ * back to the portal dashboard.
+ *
+ * It lives here rather than beside the form it configures because the *page*
+ * calls it, and the form is a `"use client"` module: a server component
+ * importing a plain function from a client module gets a client reference, not
+ * the function, and calling it throws at render. That failure is invisible to
+ * types and to unit tests -- it took a 500 in a browser to find.
+ */
+export type SetPasswordDestination = "/portal/home" | "/my";
+
+export function safeSetPasswordDestination(
+  next: string | null | undefined,
+): SetPasswordDestination {
+  return next === "/my" ? "/my" : "/portal/home";
+}

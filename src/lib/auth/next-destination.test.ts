@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_DESTINATION,
   safePortalDestination,
+  safeSetPasswordDestination,
   safeSiteDestination,
 } from "./next-destination";
 
@@ -78,5 +79,27 @@ describe("safeSiteDestination", () => {
       FALLBACK,
     );
     expect(safeSiteDestination("javascript:alert(1)", FALLBACK)).toBe(FALLBACK);
+  });
+});
+
+describe("safeSetPasswordDestination", () => {
+  test("sends a constituent back to their own area", () => {
+    expect(safeSetPasswordDestination("/my")).toBe("/my");
+  });
+
+  test("defaults to the portal dashboard", () => {
+    expect(safeSetPasswordDestination(null)).toBe("/portal/home");
+    expect(safeSetPasswordDestination(undefined)).toBe("/portal/home");
+    expect(safeSetPasswordDestination("/portal/home")).toBe("/portal/home");
+  });
+
+  test("refuses anything else outright", () => {
+    // An allowlist of two, because this decides where a browser goes with a
+    // freshly set password on it.
+    expect(safeSetPasswordDestination("/my/events")).toBe("/portal/home");
+    expect(safeSetPasswordDestination("//evil.example")).toBe("/portal/home");
+    expect(safeSetPasswordDestination("https://evil.example")).toBe(
+      "/portal/home",
+    );
   });
 });

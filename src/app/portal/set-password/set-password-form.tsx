@@ -9,28 +9,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { Spinner } from "@/components/ui/spinner";
-
-/**
- * Where to send the browser once the password is set.
- *
- * A parameter rather than the hardcoded `/portal/home` it used to be (#1161).
- * This page requires a session and no role, so it already served both kinds of
- * account -- but it always finished at the dashboard, which bounces anyone
- * without a role straight back out to the no-access screen. A constituent
- * resetting their password from `/my/sign-in` would have read that as the
- * reset having failed.
- *
- * Narrow on purpose: the value reaches here from a query string, so anything
- * that is not one of the two destinations this page actually serves falls back
- * to the portal dashboard.
- */
-export type SetPasswordDestination = "/portal/home" | "/my";
-
-export function safeSetPasswordDestination(
-  next: string | null | undefined,
-): SetPasswordDestination {
-  return next === "/my" ? "/my" : "/portal/home";
-}
+import type { SetPasswordDestination } from "@/lib/auth/next-destination";
 
 export function SetPasswordForm({
   destination = "/portal/home",
