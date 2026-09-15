@@ -6,14 +6,9 @@ import { createMeetingAction } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -93,96 +88,95 @@ export function NewMeetingDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        Schedule meeting
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Schedule meeting</DialogTitle>
-          <DialogDescription>
-            Basic meeting details — agenda and attendees are added separately.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="new-meeting-date" required>
-                Date &amp; time
-              </FieldLabel>
-              <Input
-                id="new-meeting-date"
-                type="datetime-local"
-                required
-                value={form.meetingDate}
-                onChange={(event) => update("meetingDate", event.target.value)}
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="new-meeting-type">Type</FieldLabel>
-                <Select
-                  value={form.meetingType}
-                  onValueChange={(value) =>
-                    update("meetingType", value ?? "board")
-                  }
-                >
-                  <SelectTrigger id="new-meeting-type">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MEETING_TYPES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="new-meeting-location">Location</FieldLabel>
-                <Input
-                  id="new-meeting-location"
-                  value={form.location}
-                  onChange={(event) => update("location", event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="new-meeting-notes">Notes</FieldLabel>
-              <Textarea
-                id="new-meeting-notes"
-                value={form.notes}
-                onChange={(event) => update("notes", event.target.value)}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          Schedule meeting
+        </Button>
+      }
+      title="Schedule meeting"
+      description="Basic meeting details — agenda and attendees are added separately."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Schedule meeting"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="new-meeting-date" required>
+            Date &amp; time
+          </FieldLabel>
+          <Input
+            id="new-meeting-date"
+            type="datetime-local"
+            required
+            value={form.meetingDate}
+            onChange={(event) => update("meetingDate", event.target.value)}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Schedule meeting"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="new-meeting-type">Type</FieldLabel>
+            <Select
+              value={form.meetingType}
+              onValueChange={(value) => update("meetingType", value ?? "board")}
+            >
+              <SelectTrigger id="new-meeting-type">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                {MEETING_TYPES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="new-meeting-location">Location</FieldLabel>
+            <Input
+              id="new-meeting-location"
+              value={form.location}
+              onChange={(event) => update("location", event.target.value)}
+            />
+          </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="new-meeting-notes">Notes</FieldLabel>
+          <Textarea
+            id="new-meeting-notes"
+            value={form.notes}
+            onChange={(event) => update("notes", event.target.value)}
+          />
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

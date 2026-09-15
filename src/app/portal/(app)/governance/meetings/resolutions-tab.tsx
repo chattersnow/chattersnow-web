@@ -24,13 +24,9 @@ import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
   PortalDataTable,
@@ -227,64 +223,65 @@ function EditResolutionDialog({
   }
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit resolution</DialogTitle>
-          <DialogDescription>
-            Update this resolution&apos;s details.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Mover</FieldLabel>
-              <PersonPicker
-                people={people}
-                selected={selectedMover}
-                onSelect={setSelectedMover}
-                onPersonCreated={onPersonCreated}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel>Seconder</FieldLabel>
-              <PersonPicker
-                people={people}
-                selected={selectedSeconder}
-                onSelect={setSelectedSeconder}
-                onPersonCreated={onPersonCreated}
-              />
-            </Field>
-
-            <ResolutionFormFields
-              form={form}
-              update={update}
-              idPrefix={`edit-resolution-tab-${resolution.id}`}
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open
+      onOpenChange={onOpenChange}
+      title="Edit resolution"
+      description="Update this resolution's details."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save changes"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel>Mover</FieldLabel>
+          <PersonPicker
+            people={people}
+            selected={selectedMover}
+            onSelect={setSelectedMover}
+            onPersonCreated={onPersonCreated}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Save changes"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel>Seconder</FieldLabel>
+          <PersonPicker
+            people={people}
+            selected={selectedSeconder}
+            onSelect={setSelectedSeconder}
+            onPersonCreated={onPersonCreated}
+          />
+        </Field>
+
+        <ResolutionFormFields
+          form={form}
+          update={update}
+          idPrefix={`edit-resolution-tab-${resolution.id}`}
+        />
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
 

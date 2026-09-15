@@ -15,14 +15,9 @@ import type { PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -113,87 +108,90 @@ export function NewResolutionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        Add resolution
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add resolution</DialogTitle>
-          <DialogDescription>Record a formal board motion.</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="resolution-meeting">Meeting</FieldLabel>
-              <Select
-                value={meetingId}
-                onValueChange={(value) => setMeetingId(value ?? NO_MEETING)}
-              >
-                <SelectTrigger id="resolution-meeting">
-                  <SelectValue placeholder="No meeting" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_MEETING}>No meeting</SelectItem>
-                  {meetings.map((meeting) => (
-                    <SelectItem key={meeting.id} value={meeting.id}>
-                      {meetingLabel(meeting)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel>Mover</FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={selectedMover}
-                onSelect={setSelectedMover}
-                onPersonCreated={handlePersonCreated}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel>Seconder</FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={selectedSeconder}
-                onSelect={setSelectedSeconder}
-                onPersonCreated={handlePersonCreated}
-              />
-            </Field>
-
-            <ResolutionFormFields
-              form={form}
-              update={update}
-              idPrefix="new-resolution"
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          Add resolution
+        </Button>
+      }
+      title="Add resolution"
+      description="Record a formal board motion."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add resolution"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="resolution-meeting">Meeting</FieldLabel>
+          <Select
+            value={meetingId}
+            onValueChange={(value) => setMeetingId(value ?? NO_MEETING)}
+          >
+            <SelectTrigger id="resolution-meeting">
+              <SelectValue placeholder="No meeting" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_MEETING}>No meeting</SelectItem>
+              {meetings.map((meeting) => (
+                <SelectItem key={meeting.id} value={meeting.id}>
+                  {meetingLabel(meeting)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add resolution"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel>Mover</FieldLabel>
+          <PersonPicker
+            people={availablePeople}
+            selected={selectedMover}
+            onSelect={setSelectedMover}
+            onPersonCreated={handlePersonCreated}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel>Seconder</FieldLabel>
+          <PersonPicker
+            people={availablePeople}
+            selected={selectedSeconder}
+            onSelect={setSelectedSeconder}
+            onPersonCreated={handlePersonCreated}
+          />
+        </Field>
+
+        <ResolutionFormFields
+          form={form}
+          update={update}
+          idPrefix="new-resolution"
+        />
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
