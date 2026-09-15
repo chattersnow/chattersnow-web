@@ -10,11 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { LinkPendingPulse } from "@/components/link-pending";
 
-import { ArtworkCallStatusBadge } from "../submission-badges";
 import type { ArtworkCall } from "../submission-types";
 import { ArtworkCallDialog } from "./call-dialog";
-import { ShareLink } from "./share-link";
-import { ViewerTime } from "@/components/viewer-time";
+import { ArtworkCallsTable } from "./calls-table";
 
 export const metadata: Metadata = {
   title: "Calls for Artwork",
@@ -105,58 +103,7 @@ export default async function ArtworkCallsPage() {
             </CardContent>
           </Card>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {calls.map((call) => (
-              <li key={call.id}>
-                <Card>
-                  <CardContent className="flex flex-col gap-3 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-medium">{call.title}</h2>
-                      <ArtworkCallStatusBadge isOpen={call.is_open} />
-                    </div>
-                    {/* The event is context now rather than identity, so it
-                        sits under the title and disappears when there isn't
-                        one, instead of a placeholder standing in for it. */}
-                    {call.event && (
-                      <p className="app-muted text-sm">For {call.event.name}</p>
-                    )}
-                    <p className="app-muted text-sm">
-                      {call.submission_count === 1
-                        ? "1 submission"
-                        : `${call.submission_count} submissions`}
-                      {" · "}
-                      {call.max_images} image
-                      {call.max_images === 1 ? "" : "s"} per artist
-                      {/* The curator's own clock, named, like every other
-                          instant in the portal (#1063). The artist still reads
-                          the call's own zone on the public page, which is why
-                          the deadline says which zone it is in on both sides
-                          rather than leaving either reader to guess. */}
-                      {call.closes_at ? (
-                        <>
-                          {" · closes "}
-                          <ViewerTime
-                            iso={call.closes_at}
-                            fallbackZone={
-                              call.timezone ?? call.event?.timezone ?? "UTC"
-                            }
-                          />
-                        </>
-                      ) : (
-                        ""
-                      )}
-                    </p>
-                    <ShareLink code={call.submission_code} />
-                    {canManage && (
-                      <div>
-                        <ArtworkCallDialog call={call} events={[]} />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
-          </ul>
+          <ArtworkCallsTable calls={calls} canManage={canManage} />
         )}
       </div>
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useState, useTransition, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -36,10 +36,17 @@ const selectClassName =
 export function ArtworkCallDialog({
   call,
   events,
+  trigger,
 }: {
   /** Absent when opening a new call. */
   call?: ArtworkCall;
   events: EventOption[];
+  /**
+   * Overrides the default button. The calls table passes an icon trigger, so
+   * the row's edit control sits beside copy and delete instead of being the
+   * one word-wide button among three icons (#1157).
+   */
+  trigger?: ReactElement;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -85,9 +92,15 @@ export function ArtworkCallDialog({
       open={open}
       onOpenChange={setOpen}
       trigger={
-        <Button type="button" variant={editing ? "ghost" : "default"} size="sm">
-          {editing ? "Edit call" : "New call"}
-        </Button>
+        trigger ?? (
+          <Button
+            type="button"
+            variant={editing ? "ghost" : "default"}
+            size="sm"
+          >
+            {editing ? "Edit call" : "New call"}
+          </Button>
+        )
       }
       title={editing ? "Edit call for artwork" : "Open a call for artwork"}
       description={
