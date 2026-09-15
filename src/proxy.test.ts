@@ -157,6 +157,73 @@ describe("resolvePortalRoute on the public hosts", () => {
   });
 });
 
+// #1145. The public site's legacy event URL and the portal's own event URL are
+// the same string, `/events/<uuid>`, and which one it is depends entirely on
+// the host -- which is why this redirect cannot live in next.config.ts, where
+// it 404'd every event in the portal. The two halves of that claim are the
+// first two cases here; the rest fence the rule off from paths that merely
+// look like it.
+describe("the legacy public event redirect", () => {
+  const EVENT = "0520fa8e-6c21-47bc-98d8-bb3b39f2accb";
+
+  test("308s the old public event URL a segment down", () => {
+    expect(resolvePortalRoute(PUBLIC, `/events/${EVENT}`)).toEqual({
+      kind: "redirect",
+      host: PUBLIC,
+      pathname: `/events/e/${EVENT}`,
+      status: 308,
+    });
+  });
+
+  test("leaves the portal's identical event URL to the portal", () => {
+    expect(resolvePortalRoute(PORTAL, `/events/${EVENT}`)).toEqual({
+      kind: "rewrite",
+      pathname: `/portal/events/${EVENT}`,
+    });
+  });
+
+  test("redirects on the tenant's own domain too", () => {
+    expect(resolvePortalRoute("second.org", `/events/${EVENT}`)).toEqual({
+      kind: "redirect",
+      host: "second.org",
+      pathname: `/events/e/${EVENT}`,
+      status: 308,
+    });
+  });
+
+  // The constraint that stops this swallowing /events/community, which is the
+  // static page the move existed to rescue in the first place.
+  test("does not touch a non-uuid segment under /events", () => {
+    expect(resolvePortalRoute(PUBLIC, "/events/community")).toEqual({
+      kind: "pass",
+    });
+  });
+
+  test("does not touch the listing or an already-moved event", () => {
+    expect(resolvePortalRoute(PUBLIC, "/events")).toEqual({ kind: "pass" });
+    expect(resolvePortalRoute(PUBLIC, `/events/e/${EVENT}`)).toEqual({
+      kind: "pass",
+    });
+  });
+
+  // The 308 went out as permanent, so a browser that followed it once keeps
+  // asking the portal for the moved URL with no request reaching us to correct.
+  // A rewrite, never a redirect back: that would meet the cached 308 head-on.
+  test("serves the portal a cached /events/e/<uuid> instead of 404ing it", () => {
+    expect(resolvePortalRoute(PORTAL, `/events/e/${EVENT}`)).toEqual({
+      kind: "rewrite",
+      pathname: `/portal/events/${EVENT}`,
+    });
+  });
+
+  test("still rewrites an unrelated bare path on the portal host", () => {
+    expect(resolvePortalRoute(PORTAL, "/events")).toEqual({
+      kind: "rewrite",
+      pathname: "/portal/events",
+    });
+  });
+});
+
 describe("resolveDeviceClass", () => {
   test("a phone user-agent gets the mobile shell", () => {
     expect(resolveDeviceClass("mobile", undefined)).toBe("mobile");
