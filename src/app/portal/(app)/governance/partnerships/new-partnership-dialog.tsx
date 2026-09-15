@@ -14,14 +14,9 @@ import type { PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -81,69 +76,70 @@ export function NewPartnershipDialog({ people }: { people: PersonListItem[] }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        Add opportunity
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add partnership opportunity</DialogTitle>
-          <DialogDescription>
-            Track a prospective partner and its next step.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Partner organization</FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={organization}
-                onSelect={setOrganization}
-                onPersonCreated={handlePersonCreated}
-                newPersonRole="is_partner"
-              />
-            </Field>
-
-            <PartnershipOpportunityFormFields
-              form={form}
-              update={update}
-              idPrefix="new-partnership"
-            />
-
-            <Field>
-              <FieldLabel>Internal owner</FieldLabel>
-              <PersonPicker
-                people={availablePeople}
-                selected={owner}
-                onSelect={setOwner}
-                onPersonCreated={handlePersonCreated}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          Add opportunity
+        </Button>
+      }
+      title="Add partnership opportunity"
+      description="Track a prospective partner and its next step."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add opportunity"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel>Partner organization</FieldLabel>
+          <PersonPicker
+            people={availablePeople}
+            selected={organization}
+            onSelect={setOrganization}
+            onPersonCreated={handlePersonCreated}
+            newPersonRole="is_partner"
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add opportunity"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <PartnershipOpportunityFormFields
+          form={form}
+          update={update}
+          idPrefix="new-partnership"
+        />
+
+        <Field>
+          <FieldLabel>Internal owner</FieldLabel>
+          <PersonPicker
+            people={availablePeople}
+            selected={owner}
+            onSelect={setOwner}
+            onPersonCreated={handlePersonCreated}
+          />
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
