@@ -7,14 +7,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,78 +65,76 @@ export function NewRoleTypeDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New role type
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create role type</DialogTitle>
-          <DialogDescription>
-            A named volunteer job type, e.g. Ride Buddy, Event Setup, Basecamp
-            Staffing.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="name" required>
-                Role name
-              </FieldLabel>
-              <Input
-                id="name"
-                required
-                value={form.name}
-                onChange={(event) => update("name", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="description">Description</FieldLabel>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(event) => update("description", event.target.value)}
-              />
-            </Field>
-
-            <Field orientation="horizontal">
-              <Checkbox
-                id="role-type-isPublic"
-                checked={form.isPublic}
-                onCheckedChange={(checked) =>
-                  update("isPublic", Boolean(checked))
-                }
-              />
-              <FieldLabel htmlFor="role-type-isPublic">
-                Show on public site
-              </FieldLabel>
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          New role type
+        </Button>
+      }
+      title="Create role type"
+      description="A named volunteer job type, e.g. Ride Buddy, Event Setup, Basecamp Staffing."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create role type"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="name" required>
+            Role name
+          </FieldLabel>
+          <Input
+            id="name"
+            required
+            value={form.name}
+            onChange={(event) => update("name", event.target.value)}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : (
-                "Create role type"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="description">Description</FieldLabel>
+          <Textarea
+            id="description"
+            value={form.description}
+            onChange={(event) => update("description", event.target.value)}
+          />
+        </Field>
+
+        <Field orientation="horizontal">
+          <Checkbox
+            id="role-type-isPublic"
+            checked={form.isPublic}
+            onCheckedChange={(checked) => update("isPublic", Boolean(checked))}
+          />
+          <FieldLabel htmlFor="role-type-isPublic">
+            Show on public site
+          </FieldLabel>
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

@@ -6,14 +6,9 @@ import { createProgramAction } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -96,95 +91,96 @@ export function NewProgramDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New program
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create program</DialogTitle>
-          <DialogDescription>
-            A named, repeatable initiative that events can be tagged to.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="name" required>
-                Program name
-              </FieldLabel>
-              <Input
-                id="name"
-                required
-                value={form.name}
-                onChange={(event) => update("name", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="description">Description</FieldLabel>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(event) => update("description", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="status">Status</FieldLabel>
-              <Select
-                value={form.status}
-                onValueChange={(value) => update("status", value ?? "pilot")}
-              >
-                <SelectTrigger id="status" className="w-full">
-                  <SelectValue placeholder="Select status">
-                    {(value: string) =>
-                      STATUSES.find((option) => option.value === value)
-                        ?.label ?? "Select status"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <ProgramPublicFields
-              idPrefix="new-program"
-              status={form.status}
-              values={form}
-              onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
-            />
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          New program
+        </Button>
+      }
+      title="Create program"
+      description="A named, repeatable initiative that events can be tagged to."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create program"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="name" required>
+            Program name
+          </FieldLabel>
+          <Input
+            id="name"
+            required
+            value={form.name}
+            onChange={(event) => update("name", event.target.value)}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : (
-                "Create program"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="description">Description</FieldLabel>
+          <Textarea
+            id="description"
+            value={form.description}
+            onChange={(event) => update("description", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="status">Status</FieldLabel>
+          <Select
+            value={form.status}
+            onValueChange={(value) => update("status", value ?? "pilot")}
+          >
+            <SelectTrigger id="status" className="w-full">
+              <SelectValue placeholder="Select status">
+                {(value: string) =>
+                  STATUSES.find((option) => option.value === value)?.label ??
+                  "Select status"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <ProgramPublicFields
+          idPrefix="new-program"
+          status={form.status}
+          values={form}
+          onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+        />
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
