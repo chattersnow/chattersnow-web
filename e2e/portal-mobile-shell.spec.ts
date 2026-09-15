@@ -4,7 +4,7 @@
 // The whole point of the `device_override` cookie is that a test forces a
 // shell without spoofing a user-agent: UA sniffing is what the cookie exists
 // to correct, so a suite that spoofed one would be testing the wrong path.
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 
@@ -305,5 +305,79 @@ test.describe("portal tables on a phone", () => {
     await expect(
       surface.getByRole("button", { name: "Record distribution" }),
     ).toBeInViewport();
+  });
+});
+
+// Issue #1117: the portal's icon buttons are 32px, which is comfortable with a
+// mouse and not with a thumb. The mobile shell expands the hit area to 44px
+// without moving the button, so these assert the invisible thing -- the
+// pseudo-element -- rather than the button's own box.
+test.describe("tap targets on a phone", () => {
+  function hitArea(target: Locator) {
+    return target.evaluate((element) => {
+      const after = getComputedStyle(element, "::after");
+      return {
+        content: after.content,
+        width: after.width,
+        height: after.height,
+      };
+    });
+  }
+
+  test("a row's disclosure is 44px to a thumb and 24px to the eye", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/governance/board-members");
+
+    // `icon-xs` is the smallest control in the portal and the one a phone hits
+    // most, since dropping columns (#1090) is what puts it there.
+    const chevron = page
+      .getByRole("button", { name: "Show more columns" })
+      .first();
+    await expect(chevron).toBeVisible();
+
+    const box = await chevron.boundingBox();
+    expect(box?.width).toBeLessThan(44);
+    const area = await hitArea(chevron);
+    expect(area.width).toBe("44px");
+    expect(area.height).toBe("44px");
+  });
+
+  test("neighbouring icon buttons do not steal each other's taps", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    const search = page.getByRole("button", { name: "Search the portal" });
+    const help = page.getByRole("button", { name: "Help for this page" });
+    const searchBox = (await search.boundingBox())!;
+    const helpBox = (await help.boundingBox())!;
+
+    // Expanded targets that overlap are worse than small ones: the later
+    // sibling paints over its neighbour's visible edge, so a tap that landed
+    // on what you aimed at runs the control beside it. Centre to centre has to
+    // clear the 44px the targets are.
+    const centres =
+      helpBox.x + helpBox.width / 2 - (searchBox.x + searchBox.width / 2);
+    expect(centres).toBeGreaterThanOrEqual(44);
+  });
+
+  test("a desktop request keeps its own targets", async ({ page }) => {
+    await signIn(page);
+    await useShell(page, "desktop");
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/portal/home");
+
+    // The density of a desktop table is why the hit area is a shell concern
+    // rather than a button one: the same control grows nothing here.
+    const search = page.getByRole("button", { name: "Search the portal" });
+    await expect(search).toBeVisible();
+    expect((await hitArea(search)).content).toBe("none");
   });
 });
