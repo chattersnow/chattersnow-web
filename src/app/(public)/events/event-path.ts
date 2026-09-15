@@ -19,9 +19,12 @@
  * actually separates them, and it settles the whole class -- no static page
  * added under /events can collide with an event id again.
  *
- * The URL events used to live at, `/events/<uuid>`, is kept alive by a 308 in
- * next.config.ts -- it went out in confirmation emails and was pasted into
- * bios, so it has to keep working.
+ * The URL events used to live at, `/events/<uuid>`, is kept alive by a 308 --
+ * it went out in confirmation emails and was pasted into bios, so it has to
+ * keep working. That 308 is issued in `src/proxy.ts`, and it is host-aware for
+ * a reason: it started out in next.config.ts, where redirects cannot see the
+ * host, and it caught the *portal's* event URL as well, which on a `portal.`
+ * host is also `/events/<uuid>` once the proxy strips the prefix (#1145).
  *
  * Use this rather than writing the path out, so the listing, the home page and
  * the revalidation call cannot drift apart.
