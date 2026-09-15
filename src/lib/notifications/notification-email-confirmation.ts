@@ -10,6 +10,7 @@ import {
   renderNotificationEmailChanged,
   renderNotificationEmailConfirmation,
 } from "@/lib/notifications/notification-email-emails";
+import type { NotificationEmailConfirmationRequest } from "@/lib/notifications/notification-email-core";
 
 /**
  * The two sends behind address verification (#1049).
@@ -29,38 +30,6 @@ import {
  * pending, which is the truthful outcome -- with nothing being sent, an
  * override has nothing to redirect.
  */
-
-/**
- * What both setters answer, and what the two Server Actions branch on.
- *
- * 'cleared' and 'unchanged' are finished when the RPC returns: nothing is sent,
- * because both land on an address somebody has already proved they hold.
- * 'pending' is the only outcome with a message behind it.
- */
-export type NotificationEmailOutcome = "cleared" | "unchanged" | "pending";
-
-/**
- * What both Server Actions hand back. The outcome rides along because the two
- * surfaces say something different for each: "waiting on a link sent to X"
- * reads as a failure if it is reported as a plain save.
- */
-export type NotificationEmailResult =
-  | { error: string }
-  | {
-      success: true;
-      outcome: NotificationEmailOutcome;
-      pendingEmail: string | null;
-    };
-
-/** One row of set_my_notification_email / set_notification_email_for_person. */
-export type SetNotificationEmailRow = {
-  outcome: NotificationEmailOutcome;
-  person_id: string;
-  tenant_id: string;
-  display_name: string | null;
-  pending_email: string | null;
-  expires_at: string | null;
-};
 
 export const NOTIFICATION_EMAIL_CONFIRMATION_KIND =
   "notification_email_confirmation";
@@ -82,17 +51,7 @@ export function changedDedupeKey(tokenHash: string): string {
 
 export async function sendNotificationEmailConfirmation(
   admin: SupabaseClient,
-  request: {
-    tenantId: string;
-    personId: string;
-    personName: string | null;
-    pendingEmail: string;
-    /** The raw token. It is not stored anywhere; this is its only use. */
-    token: string;
-    tokenHash: string;
-    expiresAt: Date;
-    fallbackOrigin: string;
-  },
+  request: NotificationEmailConfirmationRequest,
 ): Promise<DeliveryOutcome> {
   if (!(await isOrgEmailEnabled(admin, request.tenantId))) return "skipped";
 
