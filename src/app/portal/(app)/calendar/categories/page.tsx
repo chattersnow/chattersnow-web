@@ -95,7 +95,7 @@ export default async function CalendarCategoriesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Category</TableHead>
-                  <TableHead>Key</TableHead>
+                  <TableHead hideBelow="sm">Key</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead className="w-10" />
@@ -107,7 +107,10 @@ export default async function CalendarCategoriesPage() {
                     <TableCell className="font-medium">
                       {category.label}
                     </TableCell>
-                    <TableCell className="app-muted font-mono text-xs">
+                    <TableCell
+                      hideBelow="sm"
+                      className="app-muted font-mono text-xs"
+                    >
                       {category.key}
                     </TableCell>
                     <TableCell className="app-muted">

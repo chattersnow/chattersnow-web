@@ -26,7 +26,7 @@ export default function MeetingsLoading() {
                   <TableHead>Date</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Location</TableHead>
+                  <TableHead hideBelow="md">Location</TableHead>
                   <TableHead className="w-0">
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -44,7 +44,7 @@ export default function MeetingsLoading() {
                     <TableCell>
                       <Skeleton className="h-5 w-20 rounded-full" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="md">
                       <Skeleton className="h-4 w-24" />
                     </TableCell>
                     <TableCell>
