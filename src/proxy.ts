@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, userAgent, type NextRequest } from "next/server";
+import { sessionCookieOptions } from "@/lib/auth/session-cookie";
+import { isMyPathname } from "@/lib/constituent/paths";
 import {
   isPortalHost,
   isPortalPathname,
@@ -210,13 +212,19 @@ export function resolvePortalRoute(
   return { kind: "pass" };
 }
 
-// Refreshes the Supabase session for portal requests and forwards any
+// Refreshes the Supabase session for requests that carry one, and forwards any
 // rotated cookies to both the downstream request and the browser response.
 // Without this, a session refresh triggered from a Server Component (e.g.
 // getUser() in the portal layout) can't persist its own Set-Cookie writes
 // (Next.js forbids cookie writes during RSC render), which strands the
 // browser with a refresh token GoTrue has already rotated/consumed
 // server-side, so the very next request appears signed out.
+//
+// That used to mean portal requests alone, because they were the only ones
+// that could have a session. Since #1161 one account serves both surfaces, so
+// `/my` on the public host has one too and needs exactly the same treatment --
+// the bug it prevents is identical there, and would be harder to spot, since
+// a constituent signing out unexpectedly looks like an ordinary expiry.
 //
 // Uses getSession() rather than getUser(): getSession() only touches the
 // network when the access token is actually expired (which is exactly when
@@ -253,7 +261,7 @@ function forwardHeaders(
   return headers;
 }
 
-async function refreshPortalSession(
+async function refreshSession(
   request: NextRequest,
   portalPath: string | null,
   device: DeviceClass | null,
@@ -268,6 +276,10 @@ async function refreshPortalSession(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      // Must match the server and browser clients exactly: this is the writer
+      // that rotates the cookie, so a different scope here would leave the
+      // refreshed session under a name the app's own client does not read.
+      cookieOptions: sessionCookieOptions(request.headers.get("host")),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -321,8 +333,13 @@ export async function proxy(request: NextRequest) {
       )
     : null;
 
-  const refreshedResponse = isPortalRequest
-    ? await refreshPortalSession(request, portalPath, device)
+  // `/my` is a public-host route, so it is not a portal request -- it gets no
+  // portal path header and no shell -- but it is signed in, so it needs the
+  // refresh (#1161).
+  const hasSession = isPortalRequest || isMyPathname(pathname);
+
+  const refreshedResponse = hasSession
+    ? await refreshSession(request, portalPath, device)
     : NextResponse.next({
         request: { headers: forwardHeaders(request, portalPath, device) },
       });

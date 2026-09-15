@@ -155,13 +155,35 @@ To put a tenant on its domain:
    been told about. The auth/API hostname itself stays the shared Supabase
    one; a Supabase custom domain is Pro-only and not needed.
 
-4. **Add the apex to `PORTAL_REDIRECT_HOSTS`** (Vercel → Settings →
+4. **Add the apex to `NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS`** (Vercel → Settings →
    Environment Variables), a comma-separated list of apex domains:
    `chattersnow.org,example.org`. This is what makes
    `example.org/portal/home` 308 to `portal.example.org/home`. Listing the
    apex alone is enough — `www.example.org` matches without being named, and
-   the target is always `portal.<apex>`. Next inlines the value into the proxy
+   the target is always `portal.<apex>`. Next inlines the value into the
    bundle at build time, so **a change here needs a redeploy**, not a restart.
+
+   Since #1161 this list also decides **the scope of the auth session
+   cookie**, so that one account works on both of the tenant's hosts: an
+   administrator signed in at `portal.example.org` is already signed in at
+   `www.example.org/my`. Listing an apex here therefore says two things about
+   it — that `portal.<apex>` resolves, _and_ that the bare, `www.` and
+   `portal.` names are one tenant's and may share a session. Those are the
+   same fact, which is why one list answers both, but it does mean the entry
+   is no longer purely cosmetic.
+
+   Only those three names share the cookie. Any other subdomain —
+   `uat.example.org`, a preview — stays host-only, deliberately: a
+   `.example.org` cookie written on a staging host would collide with
+   production's by name and sign people in and out of the wrong one. A tenant
+   that serves its portal on the _same_ host as its public site (the demo
+   tenant's `demo.rickiecruz.com/portal`) needs nothing here at all, and must
+   not be listed: it has no second host to reach, and the shared cookie would
+   widen to a domain other tenants sit on. The older server-only
+   `PORTAL_REDIRECT_HOSTS` still works for the redirect, but only the
+   `NEXT_PUBLIC_` name can scope the cookie — the browser writes that cookie
+   too, so a value it cannot read is a value the two sides can disagree
+   about.
 
 `portal.<anything>` is a portal host: `src/proxy.ts` rewrites bare paths on
 it into the `/portal` route group, for every tenant alike.

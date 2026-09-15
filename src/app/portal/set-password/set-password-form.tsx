@@ -9,8 +9,13 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { Spinner } from "@/components/ui/spinner";
+import type { SetPasswordDestination } from "@/lib/auth/next-destination";
 
-export function SetPasswordForm() {
+export function SetPasswordForm({
+  destination = "/portal/home",
+}: {
+  destination?: SetPasswordDestination;
+} = {}) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,15 +44,13 @@ export function SetPasswordForm() {
       return;
     }
 
-    router.replace("/portal/home");
+    router.replace(destination);
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
-        <p className="app-muted text-sm">
-          Choose a password for your portal account.
-        </p>
+        <p className="app-muted text-sm">Choose a password for your account.</p>
         <RequiredFieldsNote />
         <Field>
           <FieldLabel htmlFor="password" required>

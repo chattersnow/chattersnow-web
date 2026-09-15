@@ -157,16 +157,41 @@ function unquote(literal: string): string {
 
 const entitlements = readFileSync(join(MIGRATIONS, ENTITLEMENTS), "utf8");
 
-/** key -> is_core, from the modules seed. */
+/**
+ * key -> is_core, from every migration that seeds a module.
+ *
+ * Read across the whole directory rather than out of ENTITLEMENTS alone, for
+ * the same reason `inlineModules` above is: the seed is where the catalog
+ * *started*, not where it lives. `constituent_accounts` (#1161) is the first
+ * module added in its own migration, and a reader that stopped at the seed
+ * would have called its resource an orphan pointing at a module that does not
+ * exist -- a true statement about the file it read and a false one about the
+ * database.
+ *
+ * Columns are located by name and rows split by the same quote-aware scanner
+ * the resources reader uses. The regex this replaced matched a row's fields
+ * positionally on one line, so it silently skipped any insert wrapped across
+ * lines -- which is how a module with a sentence-long description has to be
+ * written.
+ */
 const catalog = new Map<string, boolean>();
-for (const body of statementsAfter(
-  entitlements,
-  /insert into public\.modules \([^)]*\) values/g,
-)) {
-  for (const row of body.matchAll(
-    /\(\s*'([a-z0-9_]+)'\s*,.*?,\s*(?:true|false)\s*,\s*(true|false)\s*\)/g,
+for (const name of migrationFiles) {
+  const sql = readFileSync(join(MIGRATIONS, name), "utf8");
+  for (const match of sql.matchAll(
+    /insert into public\.modules \(([^)]*)\) values/g,
   )) {
-    catalog.set(row[1], row[2] === "true");
+    const columns = match[1].split(",").map((column) => column.trim());
+    const keyColumn = columns.indexOf("key");
+    const coreColumn = columns.indexOf("is_core");
+    const from = match.index + match[0].length;
+    const to = sql.indexOf(";", from);
+
+    for (const row of valueRows(sql.slice(from, to === -1 ? undefined : to))) {
+      const fields = valueFields(row);
+      const key = literal(fields[keyColumn]);
+      if (!key) continue;
+      catalog.set(key, fields[coreColumn]?.trim() === "true");
+    }
   }
 }
 
@@ -181,19 +206,22 @@ for (const body of statementsAfter(
  * and the fresh copy as wrong -- exactly backwards.
  */
 const copy = new Map<string, { label: string; description: string }>();
-for (const body of statementsAfter(
-  entitlements,
-  /insert into public\.modules \([^)]*\) values/g,
-)) {
-  for (const row of valueRows(body)) {
-    const match = row.match(
-      /'([a-z0-9_]+)'\s*,\s*'((?:[^']|'')*)'\s*,\s*'((?:[^']|'')*)'/,
-    );
-    if (match) {
-      copy.set(match[1], {
-        label: unquote(match[2]),
-        description: unquote(match[3]),
-      });
+for (const name of migrationFiles) {
+  const sql = readFileSync(join(MIGRATIONS, name), "utf8");
+  for (const body of statementsAfter(
+    sql,
+    /insert into public\.modules \([^)]*\) values/g,
+  )) {
+    for (const row of valueRows(body)) {
+      const match = row.match(
+        /'([a-z0-9_]+)'\s*,\s*'((?:[^']|'')*)'\s*,\s*'((?:[^']|'')*)'/,
+      );
+      if (match) {
+        copy.set(match[1], {
+          label: unquote(match[2]),
+          description: unquote(match[3]),
+        });
+      }
     }
   }
 }

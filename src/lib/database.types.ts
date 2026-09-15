@@ -8589,6 +8589,7 @@ export type Database = {
         }[];
       };
       my_person_id: { Args: never; Returns: string };
+      my_public_person_id: { Args: never; Returns: string };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
       notification_recipients: {
