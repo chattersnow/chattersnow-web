@@ -17,14 +17,7 @@ import {
 import { runAction } from "@/components/portal/action-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -118,166 +111,153 @@ export function RiderProfileDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Rider profile</DialogTitle>
-          <DialogDescription>
-            How {registrant?.name ?? "this registrant"} rides. Saved to their
-            person record and counted in the event&apos;s beginner figure.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="registrant-rider-discipline">
-                Do they ski or ride?
-              </FieldLabel>
-              <Select
-                value={discipline}
-                onValueChange={(value) => setDiscipline(String(value ?? ""))}
-              >
-                <SelectTrigger
-                  id="registrant-rider-discipline"
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Select one">
-                    {(value: string) => labelFor(RIDING_DISCIPLINES, value)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {RIDING_DISCIPLINES.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            {ridesSki(discipline) && (
-              <Field>
-                <FieldLabel htmlFor="registrant-rider-ski">
-                  Experience on skis
-                </FieldLabel>
-                <Select
-                  value={skiLevel}
-                  onValueChange={(value) => setSkiLevel(String(value ?? ""))}
-                >
-                  <SelectTrigger id="registrant-rider-ski" className="w-full">
-                    <SelectValue placeholder="Select one">
-                      {(value: string) => labelFor(EXPERIENCE_LEVELS, value)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPERIENCE_LEVELS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Rider profile"
+      description={
+        <>
+          How {registrant?.name ?? "this registrant"} rides. Saved to their
+          person record and counted in the event&apos;s beginner figure.
+        </>
+      }
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Save rider profile"
             )}
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="registrant-rider-discipline">
+            Do they ski or ride?
+          </FieldLabel>
+          <Select
+            value={discipline}
+            onValueChange={(value) => setDiscipline(String(value ?? ""))}
+          >
+            <SelectTrigger id="registrant-rider-discipline" className="w-full">
+              <SelectValue placeholder="Select one">
+                {(value: string) => labelFor(RIDING_DISCIPLINES, value)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {RIDING_DISCIPLINES.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-            {ridesSnowboard(discipline) && (
-              <Field>
-                <FieldLabel htmlFor="registrant-rider-snowboard">
-                  Experience on a snowboard
-                </FieldLabel>
-                <Select
-                  value={snowboardLevel}
-                  onValueChange={(value) =>
-                    setSnowboardLevel(String(value ?? ""))
-                  }
-                >
-                  <SelectTrigger
-                    id="registrant-rider-snowboard"
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Select one">
-                      {(value: string) => labelFor(EXPERIENCE_LEVELS, value)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPERIENCE_LEVELS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-
-            <Field>
-              <FieldLabel htmlFor="registrant-rider-mountain">
-                Preferred mountain
-              </FieldLabel>
-              <Select
-                value={mountain}
-                onValueChange={(value) => setMountain(String(value ?? ""))}
-              >
-                <SelectTrigger
-                  id="registrant-rider-mountain"
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Optional" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PREFERRED_MOUNTAINS.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={OTHER_MOUNTAIN}>
-                    {OTHER_MOUNTAIN}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            {mountain === OTHER_MOUNTAIN && (
-              <Field>
-                <FieldLabel htmlFor="registrant-rider-other-mountain">
-                  Which mountain?
-                </FieldLabel>
-                <Input
-                  id="registrant-rider-other-mountain"
-                  value={otherMountain}
-                  onChange={(event) => setOtherMountain(event.target.value)}
-                />
-              </Field>
-            )}
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => onOpenChange(false)}
+        {ridesSki(discipline) && (
+          <Field>
+            <FieldLabel htmlFor="registrant-rider-ski">
+              Experience on skis
+            </FieldLabel>
+            <Select
+              value={skiLevel}
+              onValueChange={(value) => setSkiLevel(String(value ?? ""))}
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Save rider profile"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <SelectTrigger id="registrant-rider-ski" className="w-full">
+                <SelectValue placeholder="Select one">
+                  {(value: string) => labelFor(EXPERIENCE_LEVELS, value)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {EXPERIENCE_LEVELS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+
+        {ridesSnowboard(discipline) && (
+          <Field>
+            <FieldLabel htmlFor="registrant-rider-snowboard">
+              Experience on a snowboard
+            </FieldLabel>
+            <Select
+              value={snowboardLevel}
+              onValueChange={(value) => setSnowboardLevel(String(value ?? ""))}
+            >
+              <SelectTrigger id="registrant-rider-snowboard" className="w-full">
+                <SelectValue placeholder="Select one">
+                  {(value: string) => labelFor(EXPERIENCE_LEVELS, value)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {EXPERIENCE_LEVELS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+
+        <Field>
+          <FieldLabel htmlFor="registrant-rider-mountain">
+            Preferred mountain
+          </FieldLabel>
+          <Select
+            value={mountain}
+            onValueChange={(value) => setMountain(String(value ?? ""))}
+          >
+            <SelectTrigger id="registrant-rider-mountain" className="w-full">
+              <SelectValue placeholder="Optional" />
+            </SelectTrigger>
+            <SelectContent>
+              {PREFERRED_MOUNTAINS.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+              <SelectItem value={OTHER_MOUNTAIN}>{OTHER_MOUNTAIN}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+
+        {mountain === OTHER_MOUNTAIN && (
+          <Field>
+            <FieldLabel htmlFor="registrant-rider-other-mountain">
+              Which mountain?
+            </FieldLabel>
+            <Input
+              id="registrant-rider-other-mountain"
+              value={otherMountain}
+              onChange={(event) => setOtherMountain(event.target.value)}
+            />
+          </Field>
+        )}
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

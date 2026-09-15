@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { createEventIncidentAction } from "./incidents-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -100,114 +92,108 @@ export function LogIncidentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0 whitespace-nowrap"
+        >
+          {triggerLabel}
+        </Button>
+      }
+      title="Log an incident"
+      description="Record an incident that occurred at this event."
+      onSubmit={handleSubmit}
+      footer={
+        <>
           <Button
             type="button"
             variant="secondary"
-            className="shrink-0 whitespace-nowrap"
-          />
-        }
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Log an incident</DialogTitle>
-          <DialogDescription>
-            Record an incident that occurred at this event.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="incident-occurredAt">When</FieldLabel>
-                <Input
-                  id="incident-occurredAt"
-                  type="datetime-local"
-                  value={occurredAt}
-                  onChange={(event) => setOccurredAt(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="incident-severity">Severity</FieldLabel>
-                <Select
-                  value={severity}
-                  onValueChange={(value) => setSeverity(value ?? "minor")}
-                >
-                  <SelectTrigger id="incident-severity" className="w-full">
-                    <SelectValue placeholder="Select severity">
-                      {(value: string) =>
-                        SEVERITIES.find((option) => option.value === value)
-                          ?.label ?? "Select severity"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SEVERITIES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="incident-description" required>
-                Description
-              </FieldLabel>
-              <Textarea
-                id="incident-description"
-                required
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="incident-peopleInvolved">
-                People involved
-              </FieldLabel>
-              <Textarea
-                id="incident-peopleInvolved"
-                value={peopleInvolved}
-                onChange={(event) => setPeopleInvolved(event.target.value)}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Log incident"
             )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="incident-occurredAt">When</FieldLabel>
+            <Input
+              id="incident-occurredAt"
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(event) => setOccurredAt(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="incident-severity">Severity</FieldLabel>
+            <Select
+              value={severity}
+              onValueChange={(value) => setSeverity(value ?? "minor")}
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Log incident"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <SelectTrigger id="incident-severity" className="w-full">
+                <SelectValue placeholder="Select severity">
+                  {(value: string) =>
+                    SEVERITIES.find((option) => option.value === value)
+                      ?.label ?? "Select severity"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {SEVERITIES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="incident-description" required>
+            Description
+          </FieldLabel>
+          <Textarea
+            id="incident-description"
+            required
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="incident-peopleInvolved">
+            People involved
+          </FieldLabel>
+          <Textarea
+            id="incident-peopleInvolved"
+            value={peopleInvolved}
+            onChange={(event) => setPeopleInvolved(event.target.value)}
+          />
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

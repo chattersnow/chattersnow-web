@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { renderWithToaster } from "../../../../../test/toast-testing";
 import userEvent from "@testing-library/user-event";
 import * as AccountActions from "./actions";
-import type { NotificationEmailResult } from "@/lib/notifications/notification-email-confirmation";
+import type { NotificationEmailResult } from "@/lib/notifications/notification-email-core";
 
 const saveMock = mock(
   async (_email: string): Promise<NotificationEmailResult> => ({

@@ -9,14 +9,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -90,97 +85,94 @@ export function NewCategoryDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New category
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {creatingGroup ? "Create group" : "Create category"}
-          </DialogTitle>
-          <DialogDescription>
-            Categories are what staff tag an item with; groups exist to organize
-            them and to roll up reports. The vocabulary is two levels deep, so a
-            group cannot itself sit inside another group.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="category-group">Group</FieldLabel>
-              <Select
-                value={form.groupId || null}
-                onValueChange={(value) =>
-                  update("groupId", (value as string) ?? "")
-                }
-              >
-                <SelectTrigger id="category-group" className="w-full">
-                  <SelectValue placeholder="Select a group" />
-                </SelectTrigger>
-                <SelectContent>
-                  {groups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.label}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={NEW_GROUP}>
-                    — Create a new group instead —
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="category-label" required>
-                {creatingGroup ? "Group name" : "Category name"}
-              </FieldLabel>
-              <Input
-                id="category-label"
-                required
-                value={form.label}
-                onChange={(event) => update("label", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="category-sort-order">Sort order</FieldLabel>
-              <Input
-                id="category-sort-order"
-                type="number"
-                min={0}
-                placeholder="0"
-                value={form.sortOrder}
-                onChange={(event) => update("sortOrder", event.target.value)}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          New category
+        </Button>
+      }
+      title={creatingGroup ? "Create group" : "Create category"}
+      description="Categories are what staff tag an item with; groups exist to organize them and to roll up reports. The vocabulary is two levels deep, so a group cannot itself sit inside another group."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : creatingGroup ? (
+              "Create group"
+            ) : (
+              "Create category"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="category-group">Group</FieldLabel>
+          <Select
+            value={form.groupId || null}
+            onValueChange={(value) =>
+              update("groupId", (value as string) ?? "")
+            }
+          >
+            <SelectTrigger id="category-group" className="w-full">
+              <SelectValue placeholder="Select a group" />
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  {group.label}
+                </SelectItem>
+              ))}
+              <SelectItem value={NEW_GROUP}>
+                — Create a new group instead —
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : creatingGroup ? (
-                "Create group"
-              ) : (
-                "Create category"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="category-label" required>
+            {creatingGroup ? "Group name" : "Category name"}
+          </FieldLabel>
+          <Input
+            id="category-label"
+            required
+            value={form.label}
+            onChange={(event) => update("label", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="category-sort-order">Sort order</FieldLabel>
+          <Input
+            id="category-sort-order"
+            type="number"
+            min={0}
+            placeholder="0"
+            value={form.sortOrder}
+            onChange={(event) => update("sortOrder", event.target.value)}
+          />
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

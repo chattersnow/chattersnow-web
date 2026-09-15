@@ -7,14 +7,9 @@ import { listProgramsAction, type Program } from "../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import {
   Field,
   FieldDescription,
@@ -156,205 +151,200 @@ export function NewEventDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {withTrigger ? (
-        <DialogTrigger
-          render={
-            <Button type="button" className="shrink-0 whitespace-nowrap" />
-          }
-        >
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
           {triggerLabel}
-        </DialogTrigger>
-      ) : null}
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create event</DialogTitle>
-          <DialogDescription>
-            Basic event details — expenses, sponsors, and giveaways are added
-            separately.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="name" required>
-                Event name
-              </FieldLabel>
-              <Input
-                id="name"
-                required
-                value={form.name}
-                onChange={(event) => update("name", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="description">Description</FieldLabel>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(event) => update("description", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel>Programs</FieldLabel>
-              <div id="programIds" className="flex flex-col gap-2">
-                {programOptions.length === 0 ? (
-                  <p className="app-muted text-sm">
-                    No programs to choose from.
-                  </p>
-                ) : (
-                  programOptions.map((program) => (
-                    <label
-                      key={program.id}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <Checkbox
-                        checked={form.programIds.includes(program.id)}
-                        onCheckedChange={() => toggleProgram(program.id)}
-                      />
-                      {program.name}
-                    </label>
-                  ))
-                )}
-              </div>
-              <FieldDescription>
-                An event can count toward more than one program; every one you
-                pick includes it in that program&apos;s impact report.
-              </FieldDescription>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="location">Location</FieldLabel>
-              <Input
-                id="location"
-                value={form.location}
-                onChange={(event) => update("location", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="flierUrl">Flier image URL</FieldLabel>
-              <Input
-                id="flierUrl"
-                type="url"
-                placeholder="https://drive.google.com/file/d/..."
-                value={form.flierUrl}
-                onChange={(event) => update("flierUrl", event.target.value)}
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="startsAt" required>
-                  Starts
-                </FieldLabel>
-                <Input
-                  id="startsAt"
-                  required
-                  type="datetime-local"
-                  value={form.startsAt}
-                  onChange={(event) => update("startsAt", event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="endsAt">Ends</FieldLabel>
-                <Input
-                  id="endsAt"
-                  type="datetime-local"
-                  value={form.endsAt}
-                  onChange={(event) => update("endsAt", event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="timezone" required>
-                Timezone
-              </FieldLabel>
-              <Input
-                id="timezone"
-                required
-                placeholder="e.g. America/Chicago"
-                value={form.timezone}
-                onChange={(event) => update("timezone", event.target.value)}
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
-                <Select
-                  value={form.visibility}
-                  onValueChange={(value) =>
-                    update("visibility", value ?? "private")
-                  }
-                >
-                  <SelectTrigger id="visibility" className="w-full">
-                    <SelectValue placeholder="Select visibility">
-                      {(value: string) =>
-                        VISIBILITIES.find((option) => option.value === value)
-                          ?.label ?? "Select visibility"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITIES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="status">Status</FieldLabel>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => update("status", value ?? "draft")}
-                >
-                  <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select status">
-                      {(value: string) =>
-                        STATUSES.find((option) => option.value === value)
-                          ?.label ?? "Select status"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+        </Button>
+      }
+      title="Create event"
+      description="Basic event details — expenses, sponsors, and giveaways are added separately."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create event"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="name" required>
+            Event name
+          </FieldLabel>
+          <Input
+            id="name"
+            required
+            value={form.name}
+            onChange={(event) => update("name", event.target.value)}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : (
-                "Create event"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="description">Description</FieldLabel>
+          <Textarea
+            id="description"
+            value={form.description}
+            onChange={(event) => update("description", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel>Programs</FieldLabel>
+          <div id="programIds" className="flex flex-col gap-2">
+            {programOptions.length === 0 ? (
+              <p className="app-muted text-sm">No programs to choose from.</p>
+            ) : (
+              programOptions.map((program) => (
+                <label
+                  key={program.id}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <Checkbox
+                    checked={form.programIds.includes(program.id)}
+                    onCheckedChange={() => toggleProgram(program.id)}
+                  />
+                  {program.name}
+                </label>
+              ))
+            )}
+          </div>
+          <FieldDescription>
+            An event can count toward more than one program; every one you pick
+            includes it in that program&apos;s impact report.
+          </FieldDescription>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="location">Location</FieldLabel>
+          <Input
+            id="location"
+            value={form.location}
+            onChange={(event) => update("location", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="flierUrl">Flier image URL</FieldLabel>
+          <Input
+            id="flierUrl"
+            type="url"
+            placeholder="https://drive.google.com/file/d/..."
+            value={form.flierUrl}
+            onChange={(event) => update("flierUrl", event.target.value)}
+          />
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="startsAt" required>
+              Starts
+            </FieldLabel>
+            <Input
+              id="startsAt"
+              required
+              type="datetime-local"
+              value={form.startsAt}
+              onChange={(event) => update("startsAt", event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="endsAt">Ends</FieldLabel>
+            <Input
+              id="endsAt"
+              type="datetime-local"
+              value={form.endsAt}
+              onChange={(event) => update("endsAt", event.target.value)}
+            />
+          </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="timezone" required>
+            Timezone
+          </FieldLabel>
+          <Input
+            id="timezone"
+            required
+            placeholder="e.g. America/Chicago"
+            value={form.timezone}
+            onChange={(event) => update("timezone", event.target.value)}
+          />
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
+            <Select
+              value={form.visibility}
+              onValueChange={(value) =>
+                update("visibility", value ?? "private")
+              }
+            >
+              <SelectTrigger id="visibility" className="w-full">
+                <SelectValue placeholder="Select visibility">
+                  {(value: string) =>
+                    VISIBILITIES.find((option) => option.value === value)
+                      ?.label ?? "Select visibility"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {VISIBILITIES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="status">Status</FieldLabel>
+            <Select
+              value={form.status}
+              onValueChange={(value) => update("status", value ?? "draft")}
+            >
+              <SelectTrigger id="status" className="w-full">
+                <SelectValue placeholder="Select status">
+                  {(value: string) =>
+                    STATUSES.find((option) => option.value === value)?.label ??
+                    "Select status"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

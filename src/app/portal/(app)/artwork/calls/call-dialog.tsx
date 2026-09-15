@@ -6,14 +6,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import {
   Field,
   FieldDescription,
@@ -86,207 +81,194 @@ export function ArtworkCallDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            type="button"
-            variant={editing ? "ghost" : "default"}
-            size="sm"
-          />
-        }
-      >
-        {editing ? "Edit call" : "New call"}
-      </DialogTrigger>
-      {/* Nine fields, each with a description under it, so the `sm:max-w-sm`
-          default leaves the help text in ribbons. Height is not set here --
-          DialogContent caps and scrolls itself since #884. */}
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? "Edit call for artwork" : "Open a call for artwork"}
-            </DialogTitle>
-            <DialogDescription>
-              {editing
-                ? "The event cannot be changed — submissions already point at it."
-                : "A call does not need an event. Its link is generated when you save."}
-            </DialogDescription>
-          </DialogHeader>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <Button type="button" variant={editing ? "ghost" : "default"} size="sm">
+          {editing ? "Edit call" : "New call"}
+        </Button>
+      }
+      title={editing ? "Edit call for artwork" : "Open a call for artwork"}
+      description={
+        editing
+          ? "The event cannot be changed — submissions already point at it."
+          : "A call does not need an event. Its link is generated when you save."
+      }
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? <Spinner /> : null}
+            {editing ? "Save call" : "Open call"}
+          </Button>
+        </>
+      }
+    >
+      <div className="py-2">
+        <FieldGroup>
+          <RequiredFieldsNote />
+          <Field>
+            <FieldLabel htmlFor="call-title" required>
+              Title
+            </FieldLabel>
+            <Input
+              id="call-title"
+              name="title"
+              required
+              maxLength={200}
+              defaultValue={call?.title ?? ""}
+            />
+            <FieldDescription>
+              The heading on the public page. Not the event&apos;s name —
+              &ldquo;Zine Vol. 2, open call&rdquo; rather than the ride it might
+              end up in.
+            </FieldDescription>
+          </Field>
 
-          <div className="px-4 py-2">
-            <FieldGroup>
-              <RequiredFieldsNote />
-              <Field>
-                <FieldLabel htmlFor="call-title" required>
-                  Title
-                </FieldLabel>
-                <Input
-                  id="call-title"
-                  name="title"
-                  required
-                  maxLength={200}
-                  defaultValue={call?.title ?? ""}
-                />
-                <FieldDescription>
-                  The heading on the public page. Not the event&apos;s name —
-                  &ldquo;Zine Vol. 2, open call&rdquo; rather than the ride it
-                  might end up in.
-                </FieldDescription>
-              </Field>
-
-              {editing ? null : (
-                <Field>
-                  <FieldLabel htmlFor="call-event">Event</FieldLabel>
-                  <select
-                    id="call-event"
-                    name="eventId"
-                    className={selectClassName}
-                  >
-                    {/* First, and selected by default: standing on its own is
+          {editing ? null : (
+            <Field>
+              <FieldLabel htmlFor="call-event">Event</FieldLabel>
+              <select
+                id="call-event"
+                name="eventId"
+                className={selectClassName}
+              >
+                {/* First, and selected by default: standing on its own is
                         the ordinary case for a zine issue or an open inbox,
                         and making it the default is what stops a curator
                         attaching an unrelated event just to get past the
                         field. */}
-                    <option value="">No event — this call stands alone</option>
-                    {events.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldDescription>
-                    Attaching one shows its date and place on the page, and
-                    files the submissions against it. Still one call per event.
-                  </FieldDescription>
-                </Field>
-              )}
+                <option value="">No event — this call stands alone</option>
+                {events.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <FieldDescription>
+                Attaching one shows its date and place on the page, and files
+                the submissions against it. Still one call per event.
+              </FieldDescription>
+            </Field>
+          )}
 
-              <Field>
-                <FieldLabel htmlFor="call-timezone">
-                  Show the deadline in
-                </FieldLabel>
-                <select
-                  id="call-timezone"
-                  name="timezone"
-                  defaultValue={call?.timezone ?? ""}
-                  className={selectClassName}
-                >
-                  <option value="">From the event, or UTC</option>
-                  {TIMEZONE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <FieldDescription>
-                  The zone artists read the deadline in on the public page. It
-                  does not change what the times below mean — you type those in
-                  your own timezone. Leave it alone for a call attached to an
-                  event and it will use the event&apos;s.
-                </FieldDescription>
-              </Field>
+          <Field>
+            <FieldLabel htmlFor="call-timezone">
+              Show the deadline in
+            </FieldLabel>
+            <select
+              id="call-timezone"
+              name="timezone"
+              defaultValue={call?.timezone ?? ""}
+              className={selectClassName}
+            >
+              <option value="">From the event, or UTC</option>
+              {TIMEZONE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <FieldDescription>
+              The zone artists read the deadline in on the public page. It does
+              not change what the times below mean — you type those in your own
+              timezone. Leave it alone for a call attached to an event and it
+              will use the event&apos;s.
+            </FieldDescription>
+          </Field>
 
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="call-open"
-                  name="isOpen"
-                  defaultChecked={call?.is_open ?? true}
-                />
-                <FieldLabel htmlFor="call-open">
-                  Accepting submissions
-                </FieldLabel>
-              </Field>
+          <Field orientation="horizontal">
+            <Checkbox
+              id="call-open"
+              name="isOpen"
+              defaultChecked={call?.is_open ?? true}
+            />
+            <FieldLabel htmlFor="call-open">Accepting submissions</FieldLabel>
+          </Field>
 
-              <Field>
-                <FieldLabel htmlFor="call-opens">Opens</FieldLabel>
-                <Input
-                  id="call-opens"
-                  name="opensAt"
-                  type="datetime-local"
-                  defaultValue={utcIsoToDatetimeLocalInBrowser(call?.opens_at)}
-                />
-              </Field>
+          <Field>
+            <FieldLabel htmlFor="call-opens">Opens</FieldLabel>
+            <Input
+              id="call-opens"
+              name="opensAt"
+              type="datetime-local"
+              defaultValue={utcIsoToDatetimeLocalInBrowser(call?.opens_at)}
+            />
+          </Field>
 
-              <Field>
-                <FieldLabel htmlFor="call-closes">Closes</FieldLabel>
-                <Input
-                  id="call-closes"
-                  name="closesAt"
-                  type="datetime-local"
-                  defaultValue={utcIsoToDatetimeLocalInBrowser(call?.closes_at)}
-                />
-                <FieldDescription>
-                  Times are in your computer&apos;s timezone. Leave both empty
-                  to let the switch above decide.
-                </FieldDescription>
-              </Field>
+          <Field>
+            <FieldLabel htmlFor="call-closes">Closes</FieldLabel>
+            <Input
+              id="call-closes"
+              name="closesAt"
+              type="datetime-local"
+              defaultValue={utcIsoToDatetimeLocalInBrowser(call?.closes_at)}
+            />
+            <FieldDescription>
+              Times are in your computer&apos;s timezone. Leave both empty to
+              let the switch above decide.
+            </FieldDescription>
+          </Field>
 
-              <Field>
-                <FieldLabel htmlFor="call-max">
-                  Images per submission
-                </FieldLabel>
-                <Input
-                  id="call-max"
-                  name="maxImages"
-                  type="number"
-                  min={1}
-                  max={5}
-                  defaultValue={call?.max_images ?? 3}
-                />
-              </Field>
+          <Field>
+            <FieldLabel htmlFor="call-max">Images per submission</FieldLabel>
+            <Input
+              id="call-max"
+              name="maxImages"
+              type="number"
+              min={1}
+              max={5}
+              defaultValue={call?.max_images ?? 3}
+            />
+          </Field>
 
-              <Field>
-                <FieldLabel htmlFor="call-intro">
-                  What to tell the artist
-                </FieldLabel>
-                <Textarea
-                  id="call-intro"
-                  name="intro"
-                  rows={5}
-                  maxLength={4000}
-                  defaultValue={call?.intro ?? ""}
-                />
-                <FieldDescription>
-                  Shown above the form as prose: what you are looking for and
-                  the theme. Credit and rights go in the next field, where they
-                  get a heading of their own.
-                </FieldDescription>
-              </Field>
+          <Field>
+            <FieldLabel htmlFor="call-intro">
+              What to tell the artist
+            </FieldLabel>
+            <Textarea
+              id="call-intro"
+              name="intro"
+              rows={5}
+              maxLength={4000}
+              defaultValue={call?.intro ?? ""}
+            />
+            <FieldDescription>
+              Shown above the form as prose: what you are looking for and the
+              theme. Credit and rights go in the next field, where they get a
+              heading of their own.
+            </FieldDescription>
+          </Field>
 
-              <Field>
-                <FieldLabel htmlFor="call-rights">Rights and credit</FieldLabel>
-                <Textarea
-                  id="call-rights"
-                  name="rightsNote"
-                  rows={3}
-                  maxLength={500}
-                  defaultValue={call?.rights_note ?? ""}
-                />
-                <FieldDescription>
-                  One or two lines on what we may do with a piece and how the
-                  artist is credited. Leave it empty and the brief simply
-                  doesn&apos;t mention rights — better than a promise nobody has
-                  agreed to.
-                </FieldDescription>
-              </Field>
+          <Field>
+            <FieldLabel htmlFor="call-rights">Rights and credit</FieldLabel>
+            <Textarea
+              id="call-rights"
+              name="rightsNote"
+              rows={3}
+              maxLength={500}
+              defaultValue={call?.rights_note ?? ""}
+            />
+            <FieldDescription>
+              One or two lines on what we may do with a piece and how the artist
+              is credited. Leave it empty and the brief simply doesn&apos;t
+              mention rights — better than a promise nobody has agreed to.
+            </FieldDescription>
+          </Field>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </FieldGroup>
-          </div>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <Spinner /> : null}
-              {editing ? "Save call" : "Open call"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+      </div>
+    </PortalFormSurface>
   );
 }

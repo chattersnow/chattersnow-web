@@ -1,19 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -105,6 +101,49 @@ export function PlatformTenants({
     setDomain(tenant.custom_domain ?? "");
     setFormError(null);
   };
+
+  function handleProvision(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setFormError(null);
+    run(
+      () =>
+        provisionTenantAction({
+          name: String(form.get("name") ?? ""),
+          slug: String(form.get("slug") ?? ""),
+          customDomain: String(form.get("domain") ?? ""),
+          plan: String(form.get("plan") ?? "white_label"),
+          adminEmail: String(form.get("admin") ?? ""),
+          packKeys,
+        }),
+      {
+        success: "Organization provisioned.",
+        description: (result) =>
+          result.link
+            ? undefined
+            : "No invite link: no first admin was given, or that address already has an account — they sign in with it and their access is waiting.",
+        onError: setFormError,
+        onSuccess: (result) => {
+          setInvite(result.link);
+          router.refresh();
+        },
+      },
+    );
+  }
+
+  function handleSetDomain(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    setFormError(null);
+    run(() => setTenantDomainAction(editing.id, domain), {
+      success: `Domain updated for ${editing.name}.`,
+      onError: setFormError,
+      onSuccess: () => {
+        setEditing(null);
+        router.refresh();
+      },
+    });
+  }
 
   return (
     <>
@@ -239,242 +278,182 @@ export function PlatformTenants({
         </CardContent>
       </Card>
 
-      <Dialog
+      <PortalFormSurface
         open={provisioning}
         onOpenChange={(open) => !open && setProvisioning(false)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Provision an organization</DialogTitle>
-            <DialogDescription>
-              Creates the organization with the five seeded roles, the platform
-              permission matrix, the catalog defaults and its own retention
-              rules — then stages the first admin&rsquo;s access and mints their
-              link. Nothing is emailed; send it to them yourself.
-            </DialogDescription>
-          </DialogHeader>
-
-          {invite ? (
-            <div className="flex flex-col gap-3">
-              <Alert>
-                <AlertDescription>
-                  Provisioned. This link expires in about an hour and is the
-                  only copy — send it now, or mint another from the
-                  organization&rsquo;s Users page.
-                </AlertDescription>
-              </Alert>
-              <textarea
-                readOnly
-                aria-label="First admin invite link"
-                value={invite}
-                className="h-24 w-full rounded-md border border-[var(--line)] bg-[var(--background)] p-2 font-mono text-xs"
-              />
-            </div>
+        title="Provision an organization"
+        description="Creates the organization with the five seeded roles, the platform permission matrix, the catalog defaults and its own retention rules — then stages the first admin’s access and mints their link. Nothing is emailed; send it to them yourself."
+        onSubmit={handleProvision}
+        footer={
+          invite ? (
+            <Button type="button" onClick={() => setProvisioning(false)}>
+              Done
+            </Button>
           ) : (
-            <form
-              id="provision-tenant"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                setFormError(null);
-                run(
-                  () =>
-                    provisionTenantAction({
-                      name: String(form.get("name") ?? ""),
-                      slug: String(form.get("slug") ?? ""),
-                      customDomain: String(form.get("domain") ?? ""),
-                      plan: String(form.get("plan") ?? "white_label"),
-                      adminEmail: String(form.get("admin") ?? ""),
-                      packKeys,
-                    }),
-                  {
-                    success: "Organization provisioned.",
-                    description: (result) =>
-                      result.link
-                        ? undefined
-                        : "No invite link: no first admin was given, or that address already has an account — they sign in with it and their access is waiting.",
-                    onError: setFormError,
-                    onSuccess: (result) => {
-                      setInvite(result.link);
-                      router.refresh();
-                    },
-                  },
-                );
-              }}
-            >
-              <FieldGroup>
-                <RequiredFieldsNote />
-                {formError ? (
-                  <Alert variant="destructive">
-                    <AlertDescription>{formError}</AlertDescription>
-                  </Alert>
-                ) : null}
-                <Field>
-                  <FieldLabel htmlFor="tenant-name" required>
-                    Name
-                  </FieldLabel>
-                  <Input id="tenant-name" name="name" required />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="tenant-slug" required>
-                    Slug
-                  </FieldLabel>
-                  <Input
-                    id="tenant-slug"
-                    name="slug"
-                    required
-                    placeholder="example-nonprofit"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="tenant-domain">Domain</FieldLabel>
-                  <Input
-                    id="tenant-domain"
-                    name="domain"
-                    placeholder="example.org"
-                  />
-                  <DomainChecklist domain="" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="tenant-plan">Plan</FieldLabel>
-                  <select
-                    id="tenant-plan"
-                    name="plan"
-                    defaultValue="white_label"
-                    className="h-9 rounded-md border border-[var(--line)] bg-[var(--background)] px-3 text-sm"
-                  >
-                    {TENANT_PLANS.map((plan) => (
-                      <option key={plan} value={plan}>
-                        {PLAN_LABEL[plan]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="tenant-admin">
-                    First admin&rsquo;s email
-                  </FieldLabel>
-                  <Input id="tenant-admin" name="admin" type="email" />
-                </Field>
-                {offeredPacks.length > 0 && (
-                  <fieldset className="space-y-2">
-                    <legend className="text-sm font-medium">
-                      Content packs
-                    </legend>
-                    <p className="app-muted text-sm">
-                      Copied in as drafts. The organization reads them and
-                      publishes what it wants; nothing goes on its public site
-                      here.
-                    </p>
-                    {offeredPacks.map((pack) => (
-                      <Field key={pack.key} orientation="horizontal">
-                        <Checkbox
-                          id={`provision-pack-${pack.key}`}
-                          checked={packKeys.includes(pack.key)}
-                          onCheckedChange={(checked) =>
-                            setPackKeys((keys) =>
-                              checked
-                                ? [...keys, pack.key]
-                                : keys.filter((key) => key !== pack.key),
-                            )
-                          }
-                        />
-                        <FieldLabel
-                          htmlFor={`provision-pack-${pack.key}`}
-                          className="font-normal"
-                        >
-                          {pack.name}
-                        </FieldLabel>
-                      </Field>
-                    ))}
-                  </fieldset>
-                )}
-              </FieldGroup>
-            </form>
-          )}
-
-          <DialogFooter>
-            {invite ? (
-              <Button onClick={() => setProvisioning(false)}>Done</Button>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setProvisioning(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  form="provision-tenant"
-                  disabled={isPending}
-                >
-                  Provision
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={editing !== null}
-        onOpenChange={(open) => !open && setEditing(null)}
+            <>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setProvisioning(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                Provision
+              </Button>
+            </>
+          )
+        }
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Domain for {editing?.name}</DialogTitle>
-            <DialogDescription>
-              The host is what decides which organization a public request is
-              for. One domain covers its <code>www.</code> and{" "}
-              <code>portal.</code> subdomains too. Leave it blank to take the
-              organization off its domain.
-            </DialogDescription>
-          </DialogHeader>
-
+        {invite ? (
+          <div className="flex flex-col gap-3">
+            <Alert>
+              <AlertDescription>
+                Provisioned. This link expires in about an hour and is the only
+                copy — send it now, or mint another from the
+                organization&rsquo;s Users page.
+              </AlertDescription>
+            </Alert>
+            <textarea
+              readOnly
+              aria-label="First admin invite link"
+              value={invite}
+              className="h-24 w-full rounded-md border border-[var(--line)] bg-[var(--background)] p-2 font-mono text-xs"
+            />
+          </div>
+        ) : (
           <FieldGroup>
+            <RequiredFieldsNote />
             {formError ? (
               <Alert variant="destructive">
                 <AlertDescription>{formError}</AlertDescription>
               </Alert>
             ) : null}
             <Field>
-              <FieldLabel htmlFor="edit-domain">Domain</FieldLabel>
+              <FieldLabel htmlFor="tenant-name" required>
+                Name
+              </FieldLabel>
+              <Input id="tenant-name" name="name" required />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="tenant-slug" required>
+                Slug
+              </FieldLabel>
               <Input
-                id="edit-domain"
-                value={domain}
-                onChange={(event) => setDomain(event.target.value)}
+                id="tenant-slug"
+                name="slug"
+                required
+                placeholder="example-nonprofit"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="tenant-domain">Domain</FieldLabel>
+              <Input
+                id="tenant-domain"
+                name="domain"
                 placeholder="example.org"
               />
-              <DomainChecklist domain={domain.trim().toLowerCase()} />
+              <DomainChecklist domain="" />
             </Field>
+            <Field>
+              <FieldLabel htmlFor="tenant-plan">Plan</FieldLabel>
+              <select
+                id="tenant-plan"
+                name="plan"
+                defaultValue="white_label"
+                className="h-9 rounded-md border border-[var(--line)] bg-[var(--background)] px-3 text-sm"
+              >
+                {TENANT_PLANS.map((plan) => (
+                  <option key={plan} value={plan}>
+                    {PLAN_LABEL[plan]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="tenant-admin">
+                First admin&rsquo;s email
+              </FieldLabel>
+              <Input id="tenant-admin" name="admin" type="email" />
+            </Field>
+            {offeredPacks.length > 0 && (
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Content packs</legend>
+                <p className="app-muted text-sm">
+                  Copied in as drafts. The organization reads them and publishes
+                  what it wants; nothing goes on its public site here.
+                </p>
+                {offeredPacks.map((pack) => (
+                  <Field key={pack.key} orientation="horizontal">
+                    <Checkbox
+                      id={`provision-pack-${pack.key}`}
+                      checked={packKeys.includes(pack.key)}
+                      onCheckedChange={(checked) =>
+                        setPackKeys((keys) =>
+                          checked
+                            ? [...keys, pack.key]
+                            : keys.filter((key) => key !== pack.key),
+                        )
+                      }
+                    />
+                    <FieldLabel
+                      htmlFor={`provision-pack-${pack.key}`}
+                      className="font-normal"
+                    >
+                      {pack.name}
+                    </FieldLabel>
+                  </Field>
+                ))}
+              </fieldset>
+            )}
           </FieldGroup>
+        )}
+      </PortalFormSurface>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={isPending}
-              onClick={() => {
-                if (!editing) return;
-                setFormError(null);
-                run(() => setTenantDomainAction(editing.id, domain), {
-                  success: `Domain updated for ${editing.name}.`,
-                  onError: setFormError,
-                  onSuccess: () => {
-                    setEditing(null);
-                    router.refresh();
-                  },
-                });
-              }}
+      <PortalFormSurface
+        open={editing !== null}
+        onOpenChange={(open) => !open && setEditing(null)}
+        title={`Domain for ${editing?.name ?? ""}`}
+        description={
+          <>
+            The host is what decides which organization a public request is for.
+            One domain covers its <code>www.</code> and <code>portal.</code>{" "}
+            subdomains too. Leave it blank to take the organization off its
+            domain.
+          </>
+        }
+        onSubmit={handleSetDomain}
+        footer={
+          <>
+            <PortalFormSurfaceClose
+              render={<Button type="button" variant="outline" />}
             >
+              Cancel
+            </PortalFormSurfaceClose>
+            <Button type="submit" disabled={isPending}>
               Save
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <FieldGroup>
+          {formError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="edit-domain">Domain</FieldLabel>
+            <Input
+              id="edit-domain"
+              value={domain}
+              onChange={(event) => setDomain(event.target.value)}
+              placeholder="example.org"
+            />
+            <DomainChecklist domain={domain.trim().toLowerCase()} />
+          </Field>
+        </FieldGroup>
+      </PortalFormSurface>
 
       {/* Mounted per organization, so the dialog's own state -- what it has
           loaded, what is awaiting confirmation -- starts fresh each time

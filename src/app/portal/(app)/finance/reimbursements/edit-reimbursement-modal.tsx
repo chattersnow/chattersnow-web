@@ -38,13 +38,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
@@ -579,53 +575,54 @@ export function EditReimbursementModal({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog
+      <PortalFormSurface
         open={rejectDialogOpen}
         onOpenChange={(next) => {
           setRejectDialogOpen(next);
           if (!next) setRejectReason("");
         }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reject reimbursement</DialogTitle>
-            <DialogDescription>
-              Explain why this reimbursement is being rejected.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleReject}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="reject-reimbursement-reason" required>
-                  Reason
-                </FieldLabel>
-                <Textarea
-                  id="reject-reimbursement-reason"
-                  required
-                  value={rejectReason}
-                  onChange={(event) => setRejectReason(event.target.value)}
-                />
-              </Field>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+        title="Reject reimbursement"
+        description="Explain why this reimbursement is being rejected."
+        size="md"
+        onSubmit={handleReject}
+        footer={
+          <>
+            <PortalFormSurfaceClose
+              render={<Button type="button" variant="secondary" />}
+            >
+              Cancel
+            </PortalFormSurfaceClose>
+            <Button type="submit" variant="destructive" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Rejecting...
+                </>
+              ) : (
+                "Reject reimbursement"
               )}
-            </FieldGroup>
-            <DialogFooter>
-              <Button type="submit" variant="destructive" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Spinner /> Rejecting...
-                  </>
-                ) : (
-                  "Reject reimbursement"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </Button>
+          </>
+        }
+      >
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="reject-reimbursement-reason" required>
+              Reason
+            </FieldLabel>
+            <Textarea
+              id="reject-reimbursement-reason"
+              required
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+            />
+          </Field>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+      </PortalFormSurface>
     </>
   );
 }

@@ -4,15 +4,9 @@ import { useState, type FormEvent, type ReactElement } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { MAX_CUSTOM_DESCRIPTION } from "../sale-form";
@@ -95,73 +89,69 @@ export function CustomItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Custom item</DialogTitle>
-          <DialogDescription>
-            Something that is not in the catalog. It is priced here, and it
-            moves no stock.
-          </DialogDescription>
-        </DialogHeader>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={trigger}
+      title="Custom item"
+      description="Something that is not in the catalog. It is priced here, and it moves no stock."
+      size="md"
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="outline" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit">Add to cart</Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="custom-item-description">Description</FieldLabel>
+          <Input
+            id="custom-item-description"
+            value={description}
+            maxLength={MAX_CUSTOM_DESCRIPTION}
+            placeholder="Donated print"
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </Field>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="custom-item-description">
-                Description
-              </FieldLabel>
-              <Input
-                id="custom-item-description"
-                value={description}
-                maxLength={MAX_CUSTOM_DESCRIPTION}
-                placeholder="Donated print"
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </Field>
+        <Field>
+          <FieldLabel htmlFor="custom-item-price">Price</FieldLabel>
+          <Input
+            id="custom-item-price"
+            // Decimal rather than number: on a phone this is the numeric
+            // pad with a separator, which is what the Discount field uses
+            // for the same reason.
+            inputMode="decimal"
+            placeholder="0.00"
+            value={priceInput}
+            onChange={(event) => setPriceInput(event.target.value)}
+          />
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="custom-item-price">Price</FieldLabel>
-              <Input
-                id="custom-item-price"
-                // Decimal rather than number: on a phone this is the numeric
-                // pad with a separator, which is what the Discount field uses
-                // for the same reason.
-                inputMode="decimal"
-                placeholder="0.00"
-                value={priceInput}
-                onChange={(event) => setPriceInput(event.target.value)}
-              />
-            </Field>
+        <Field>
+          <FieldLabel htmlFor="custom-item-quantity">Quantity</FieldLabel>
+          <Input
+            id="custom-item-quantity"
+            type="number"
+            min="1"
+            step="1"
+            value={quantityInput}
+            onChange={(event) => setQuantityInput(event.target.value)}
+          />
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="custom-item-quantity">Quantity</FieldLabel>
-              <Input
-                id="custom-item-quantity"
-                type="number"
-                min="1"
-                step="1"
-                value={quantityInput}
-                onChange={(event) => setQuantityInput(event.target.value)}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>
-              Cancel
-            </DialogClose>
-            <Button type="submit">Add to cart</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

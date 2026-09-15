@@ -13,14 +13,9 @@ import { PersonPicker, type PickedPerson } from "../../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -142,165 +137,161 @@ export function LogHoursDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {withTrigger ? (
-        <DialogTrigger
-          render={
-            <Button type="button" className="shrink-0 whitespace-nowrap" />
-          }
-        >
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
           {triggerLabel}
-        </DialogTrigger>
-      ) : null}
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Log volunteer hours</DialogTitle>
-          <DialogDescription>
-            Record hours contributed, optionally tied to an event.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              {lockedToSelf && selfPerson ? (
-                <ReadOnlyField label="Volunteer" htmlFor="hours-volunteer">
-                  {selfPerson.name ?? "—"}
-                </ReadOnlyField>
-              ) : (
-                <>
-                  <FieldLabel required>Volunteer</FieldLabel>
-                  <PersonPicker
-                    required
-                    people={people}
-                    selected={selectedPerson}
-                    onSelect={setSelectedPerson}
-                    onPersonCreated={(person) =>
-                      setPeople((prev) => [...prev, person])
-                    }
-                    newPersonRole="is_volunteer"
-                  />
-                </>
-              )}
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="hours-hours" required>
-                  Hours
-                </FieldLabel>
-                <Input
-                  id="hours-hours"
-                  required
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  value={form.hours}
-                  onChange={(event) => update("hours", event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="hours-loggedDate" required>
-                  Date
-                </FieldLabel>
-                <Input
-                  id="hours-loggedDate"
-                  required
-                  type="date"
-                  value={form.loggedDate}
-                  onChange={(event) => update("loggedDate", event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="hours-event">Event</FieldLabel>
-              <Select
-                value={form.eventId}
-                onValueChange={(value) =>
-                  update("eventId", value ?? NONE_VALUE)
-                }
-              >
-                <SelectTrigger id="hours-event" className="w-full">
-                  <SelectValue placeholder="No event">
-                    {(value: string) =>
-                      value === NONE_VALUE
-                        ? "No event"
-                        : (events.find((option) => option.id === value)?.name ??
-                          "No event")
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE_VALUE}>No event</SelectItem>
-                  {events.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="hours-role-type">Role type</FieldLabel>
-              <Select
-                value={form.volunteerRoleTypeId}
-                onValueChange={(value) =>
-                  update("volunteerRoleTypeId", value ?? NONE_VALUE)
-                }
-              >
-                <SelectTrigger id="hours-role-type" className="w-full">
-                  <SelectValue placeholder="No role type">
-                    {(value: string) =>
-                      value === NONE_VALUE
-                        ? "No role type"
-                        : (roleTypes.find((option) => option.id === value)
-                            ?.name ?? "No role type")
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE_VALUE}>No role type</SelectItem>
-                  {roleTypes.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="hours-notes">Notes</FieldLabel>
-              <Textarea
-                id="hours-notes"
-                value={form.notes}
-                onChange={(event) => update("notes", event.target.value)}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+        </Button>
+      }
+      title="Log volunteer hours"
+      description="Record hours contributed, optionally tied to an event."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Log hours"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          {lockedToSelf && selfPerson ? (
+            <ReadOnlyField label="Volunteer" htmlFor="hours-volunteer">
+              {selfPerson.name ?? "—"}
+            </ReadOnlyField>
+          ) : (
+            <>
+              <FieldLabel required>Volunteer</FieldLabel>
+              <PersonPicker
+                required
+                people={people}
+                selected={selectedPerson}
+                onSelect={setSelectedPerson}
+                onPersonCreated={(person) =>
+                  setPeople((prev) => [...prev, person])
+                }
+                newPersonRole="is_volunteer"
+              />
+            </>
+          )}
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Log hours"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="hours-hours" required>
+              Hours
+            </FieldLabel>
+            <Input
+              id="hours-hours"
+              required
+              type="number"
+              min="0"
+              step="0.25"
+              value={form.hours}
+              onChange={(event) => update("hours", event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="hours-loggedDate" required>
+              Date
+            </FieldLabel>
+            <Input
+              id="hours-loggedDate"
+              required
+              type="date"
+              value={form.loggedDate}
+              onChange={(event) => update("loggedDate", event.target.value)}
+            />
+          </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="hours-event">Event</FieldLabel>
+          <Select
+            value={form.eventId}
+            onValueChange={(value) => update("eventId", value ?? NONE_VALUE)}
+          >
+            <SelectTrigger id="hours-event" className="w-full">
+              <SelectValue placeholder="No event">
+                {(value: string) =>
+                  value === NONE_VALUE
+                    ? "No event"
+                    : (events.find((option) => option.id === value)?.name ??
+                      "No event")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>No event</SelectItem>
+              {events.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="hours-role-type">Role type</FieldLabel>
+          <Select
+            value={form.volunteerRoleTypeId}
+            onValueChange={(value) =>
+              update("volunteerRoleTypeId", value ?? NONE_VALUE)
+            }
+          >
+            <SelectTrigger id="hours-role-type" className="w-full">
+              <SelectValue placeholder="No role type">
+                {(value: string) =>
+                  value === NONE_VALUE
+                    ? "No role type"
+                    : (roleTypes.find((option) => option.id === value)?.name ??
+                      "No role type")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>No role type</SelectItem>
+              {roleTypes.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="hours-notes">Notes</FieldLabel>
+          <Textarea
+            id="hours-notes"
+            value={form.notes}
+            onChange={(event) => update("notes", event.target.value)}
+          />
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

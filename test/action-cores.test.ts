@@ -24,12 +24,15 @@ const CORES = [
   "src/app/portal/(app)/home/donation-core.ts",
   "src/app/portal/(app)/home/distribution-core.ts",
   "src/app/portal/(app)/events/registrant-core.ts",
+  "src/lib/notifications/notification-email-core.ts",
 ];
 
 const WRAPPERS = [
   "src/app/portal/(app)/home/actions.ts",
   "src/app/portal/(app)/home/distribution-actions.ts",
   "src/app/portal/(app)/events/registrants-actions.ts",
+  "src/app/portal/(app)/account/actions.ts",
+  "src/app/portal/(app)/people/actions.ts",
 ];
 
 const IMPORT_PATTERN = /(?:from|import)\s*["']([^"']+)["']/g;
