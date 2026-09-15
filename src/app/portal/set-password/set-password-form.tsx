@@ -10,7 +10,33 @@ import { Input } from "@/components/ui/input";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { Spinner } from "@/components/ui/spinner";
 
-export function SetPasswordForm() {
+/**
+ * Where to send the browser once the password is set.
+ *
+ * A parameter rather than the hardcoded `/portal/home` it used to be (#1161).
+ * This page requires a session and no role, so it already served both kinds of
+ * account -- but it always finished at the dashboard, which bounces anyone
+ * without a role straight back out to the no-access screen. A constituent
+ * resetting their password from `/my/sign-in` would have read that as the
+ * reset having failed.
+ *
+ * Narrow on purpose: the value reaches here from a query string, so anything
+ * that is not one of the two destinations this page actually serves falls back
+ * to the portal dashboard.
+ */
+export type SetPasswordDestination = "/portal/home" | "/my";
+
+export function safeSetPasswordDestination(
+  next: string | null | undefined,
+): SetPasswordDestination {
+  return next === "/my" ? "/my" : "/portal/home";
+}
+
+export function SetPasswordForm({
+  destination = "/portal/home",
+}: {
+  destination?: SetPasswordDestination;
+} = {}) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,15 +65,13 @@ export function SetPasswordForm() {
       return;
     }
 
-    router.replace("/portal/home");
+    router.replace(destination);
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
-        <p className="app-muted text-sm">
-          Choose a password for your portal account.
-        </p>
+        <p className="app-muted text-sm">Choose a password for your account.</p>
         <RequiredFieldsNote />
         <Field>
           <FieldLabel htmlFor="password" required>

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveDestination } from "./route";
+import { resolveDestination, resolveFailureDestination } from "./route";
 
 const ORIGIN = "https://chattersnow.example";
 
@@ -30,5 +30,33 @@ describe("resolveDestination", () => {
 
   test("rejects a malformed URL", () => {
     expect(resolveDestination("http://", ORIGIN)).toBe("/portal/home");
+  });
+});
+
+describe("resolveFailureDestination", () => {
+  // A constituent sent to the portal login would be answered with a screen
+  // they hold no role for -- a failed sign-in followed by a second dead end.
+  test("sends a constituent back to their own sign-in", () => {
+    expect(resolveFailureDestination("/my")).toBe(
+      "/my/sign-in?error=oauth_failed",
+    );
+    expect(resolveFailureDestination("/my/events")).toBe(
+      "/my/sign-in?error=oauth_failed",
+    );
+  });
+
+  test("sends everyone else to the portal login, as before", () => {
+    expect(resolveFailureDestination("/portal/home")).toBe(
+      "/portal/login?error=oauth_failed",
+    );
+    expect(resolveFailureDestination("/portal/events")).toBe(
+      "/portal/login?error=oauth_failed",
+    );
+  });
+
+  test("is not fooled by a path that merely starts with the prefix", () => {
+    expect(resolveFailureDestination("/mystery")).toBe(
+      "/portal/login?error=oauth_failed",
+    );
   });
 });

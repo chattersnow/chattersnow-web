@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
+import { sessionCookieOptions } from "@/lib/auth/session-cookie";
 import type { Db } from "@/lib/supabase/types";
 
 /**
@@ -71,6 +72,12 @@ export const createSupabaseServerClient = cache(
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
       {
         global: host ? { headers: { [TENANT_HOST_HEADER]: host } } : undefined,
+        // Scoped to the tenant's apex where one is configured, so a session
+        // established on `portal.<apex>` is sent to `www.<apex>` too (#1161).
+        // Derived from the *raw* Host header rather than `host` above:
+        // TENANT_HOST_OVERRIDE names which tenant a preview serves, which says
+        // nothing about where the browser will send its cookies back.
+        cookieOptions: sessionCookieOptions(headerStore.get("host")),
         cookies: {
           getAll() {
             return cookieStore.getAll();
