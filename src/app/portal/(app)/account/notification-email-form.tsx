@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
 import { formatInstantDate } from "@/lib/format";
-import type { NotificationEmailResult } from "@/lib/notifications/notification-email-confirmation";
+import type { NotificationEmailResult } from "@/lib/notifications/notification-email-core";
 import {
   resendMyNotificationEmailConfirmationAction,
   updateMyNotificationEmailAction,
