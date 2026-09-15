@@ -8,7 +8,17 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import {
+  checkInRegistrant,
+  undoCheckIn,
+  type RegistrantActionResult,
+} from "./registrant-core";
 import { parseRiderProfileForm } from "@/lib/rider-profile-form";
+import {
+  actionError,
+  fromGuard,
+  fromParseError,
+} from "@/lib/portal/action-result";
 
 /**
  * The rider level recorded when this registrant was checked in, alongside the
@@ -115,56 +125,32 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
   };
 }
 
-export type RegistrantActionResult = { error: string } | { success: true };
+export type { RegistrantActionResult } from "./registrant-core";
 
+/**
+ * Web transport for `checkInRegistrant` (#1082 Phase 1). The decision lives in
+ * registrant-core.ts, which has no Next imports.
+ */
 export async function checkInRegistrantAction(
   id: string,
 ): Promise<RegistrantActionResult> {
   const supabase = await createSupabaseServerClient();
-  const userResult = await checkUser(
-    supabase,
-    "You must be signed in to check in a registrant.",
-  );
-  if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
-
-  const { error } = await supabase
-    .from("event_registrations")
-    .update({ checked_in_at: new Date().toISOString() })
-    .eq("id", id);
-
-  if (error) {
-    return { error: "Could not check in this registrant. Please try again." };
-  }
+  const result = await checkInRegistrant(supabase, id);
+  if ("error" in result) return result;
 
   revalidatePath("/portal/events");
-  return { success: true };
+  return result;
 }
 
 export async function undoCheckInAction(
   id: string,
 ): Promise<RegistrantActionResult> {
   const supabase = await createSupabaseServerClient();
-  const userResult = await checkUser(
-    supabase,
-    "You must be signed in to undo a check-in.",
-  );
-  if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
-
-  const { error } = await supabase
-    .from("event_registrations")
-    .update({ checked_in_at: null })
-    .eq("id", id);
-
-  if (error) {
-    return { error: "Could not undo this check-in. Please try again." };
-  }
+  const result = await undoCheckIn(supabase, id);
+  if ("error" in result) return result;
 
   revalidatePath("/portal/events");
-  return { success: true };
+  return result;
 }
 
 // Door-side rider capture (issue #653). The public prompt only reaches people
@@ -179,16 +165,16 @@ export async function setRegistrantRiderProfileAction(
   formData: FormData,
 ): Promise<RegistrantActionResult> {
   const parsed = parseRiderProfileForm(formData);
-  if ("error" in parsed) return parsed;
+  if ("error" in parsed) return fromParseError(parsed);
 
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
     supabase,
     "You must be signed in to edit a rider profile.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase.rpc("set_registrant_rider_profile", {
     p_registration_id: registrationId,
@@ -199,12 +185,12 @@ export async function setRegistrantRiderProfileAction(
   });
 
   if (error) {
-    return {
-      error:
-        error.message === "REGISTRANT_NOT_FOUND"
-          ? "That registration no longer exists."
-          : "Could not save this rider profile. Please try again.",
-    };
+    return error.message === "REGISTRANT_NOT_FOUND"
+      ? actionError("conflict", "That registration no longer exists.")
+      : actionError(
+          "server_error",
+          "Could not save this rider profile. Please try again.",
+        );
   }
 
   revalidatePath("/portal/events");
@@ -231,12 +217,14 @@ export async function addRegistrantAction(
     supabase,
     "You must be signed in to add a registrant.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: "Party size must be at least 1." };
+    return actionError("invalid_input", "Party size must be at least 1.", {
+      partySize: "Party size must be at least 1.",
+    });
   }
 
   const { error } = await supabase.from("event_registrations").insert({
@@ -250,11 +238,15 @@ export async function addRegistrantAction(
 
   if (error) {
     if (error.code === "23505") {
-      return {
-        error: "This person already has a registration for this event.",
-      };
+      return actionError(
+        "conflict",
+        "This person already has a registration for this event.",
+      );
     }
-    return { error: "Could not add this registrant. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not add this registrant. Please try again.",
+    );
   }
 
   revalidatePath("/portal/events");
@@ -276,12 +268,14 @@ export async function createWalkInCheckInAction(
     supabase,
     "You must be signed in to check in a walk-in.",
   );
-  if ("error" in userResult) return userResult;
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
-  if (permissionError) return permissionError;
+  if (permissionError) return fromGuard("forbidden", permissionError);
 
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: "Party size must be at least 1." };
+    return actionError("invalid_input", "Party size must be at least 1.", {
+      partySize: "Party size must be at least 1.",
+    });
   }
 
   const { error } = await supabase.from("event_registrations").insert({
@@ -296,12 +290,15 @@ export async function createWalkInCheckInAction(
 
   if (error) {
     if (error.code === "23505") {
-      return {
-        error:
-          "This person already has a registration for this event. Check them in from the existing row instead.",
-      };
+      return actionError(
+        "conflict",
+        "This person already has a registration for this event. Check them in from the existing row instead.",
+      );
     }
-    return { error: "Could not check in this walk-in. Please try again." };
+    return actionError(
+      "server_error",
+      "Could not check in this walk-in. Please try again.",
+    );
   }
 
   revalidatePath("/portal/events");

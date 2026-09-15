@@ -47,16 +47,25 @@ test.describe("portal people directory", () => {
       .locator('[data-slot="card"]')
       .filter({ hasText: "Profile" });
     await expect(profile.getByText("priya.n@example.test")).toBeVisible();
-    await expect(profile.getByText("Volunteer", { exact: true })).toBeVisible();
+    // The role badges sit beside the name rather than inside the Profile card
+    // since #1108: they say what the record *is*, and in the card they were a
+    // scroll away and vanished while anyone was editing.
+    await expect(
+      page.getByText("Volunteer", { exact: true }).first(),
+    ).toBeVisible();
   });
 
   test("shows only the history cards for the roles a person holds", async ({
     page,
   }) => {
-    // The detail page builds its cards from the aspect registry, keyed on the
-    // person's role flags -- which are derived from the records behind them
+    // The detail page builds its sections from the aspect registry, keyed on
+    // the person's role flags -- which are derived from the records behind them
     // (20260903010000). Before that, every card rendered for everybody, so a
     // person who had never donated still got an empty Donations card.
+    //
+    // Since #1108 the sections share one tab strip instead of taking a card
+    // each, and only the open one is mounted. Both people below hold their
+    // asserted role first in registry order, so it is the one that opens.
     const card = (name: string) =>
       page.locator('[data-slot="card"]').filter({ hasText: name });
 
@@ -69,6 +78,23 @@ test.describe("portal people directory", () => {
     await page.getByRole("button", { name: "View Jamie Rivera" }).click();
     await expect(card("Donations")).toBeVisible();
     await expect(card("Volunteer activity")).toHaveCount(0);
+  });
+
+  test("reaches a second role's history through the activity tabs", async ({
+    page,
+  }) => {
+    // Priya is a volunteer and staff on seeded events, so her record is the
+    // one that proves the strip actually reaches the roles it no longer gives
+    // a card of their own.
+    await page.goto("/portal/people?search=Priya");
+    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
+
+    await page.getByRole("tab", { name: "Staff Member" }).click();
+
+    await expect(
+      page.locator('[data-slot="card"]').filter({ hasText: "Assignments" }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/[?&]activity=is_staff/);
   });
 
   test("searches the directory by name", async ({ page }) => {

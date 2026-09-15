@@ -129,6 +129,8 @@ The host is what decides which tenant a public request is for
 `tenants.custom_domain`, exactly or as a parent domain, longest match wins.
 So `custom_domain = 'example.org'` covers `www.example.org` and
 `portal.example.org` too, and one column serves both the site and the portal.
+(A request with no meaningful Host can name its tenant instead — see
+"Naming the tenant instead of the host" below.)
 
 To put a tenant on its domain:
 
@@ -176,6 +178,43 @@ This used to be two literals in `src/lib/portal/paths.ts`, `PORTAL_HOST =
 "portal.chattersnow.org"` and `PUBLIC_HOSTS = {chattersnow.org,
 www.chattersnow.org}`, which made one tenant's DNS the platform's routing
 table and sent _every_ public host to that tenant's subdomain (#795 Phase 2).
+
+### Naming the tenant instead of the host (#813 Phase 2)
+
+A request can also say which tenant it is for outright, with an
+`x-tenant-slug` header carrying `tenants.slug`:
+
+```
+x-tenant-slug: example-nonprofit
+```
+
+This exists for a consumer that is not this app on that tenant's domain — an
+events embed on a customer's own site, a mobile app, a per-tenant static build
+— whose `Host` names its own origin and so resolves to nothing. The slug was
+chosen over a per-tenant API key because it already exists, is already unique
+and stable, needs no issuance UI, and is what an embed snippet would hardcode
+anyway.
+
+Three rules, all in `public_tenant_id()`:
+
+- **The slug wins.** A request carrying both headers gets the slug's tenant.
+- **A slug that names nobody resolves to nothing.** It does not fall through to
+  the host, and it does not fall through to the sole-active-tenant fallback —
+  so a typo in an embed snippet renders an empty site rather than quietly
+  serving the template tenant's sample data.
+- **Status still decides.** `resolve_tenant_id_from_slug()` requires
+  `status = 'active'`, so a suspended or archived tenant is as unreachable by
+  slug as it is by domain, and module entitlements (#902) are read for
+  whichever tenant the slug resolved to.
+
+A blank header is treated as no header, so a proxy that always sets it cannot
+take a site down. What sends it is the versioned HTTP layer at
+`/api/v1/t/{tenant}/...`, which stamps the slug from its own path — see
+[`docs/public-api.md`](public-api.md). The header is no more trusted than
+`x-tenant-host`: it picks which tenant's _public_ surface the caller is
+talking to, which is exactly what visiting that tenant's site does. Everything
+session-scoped still goes through the membership-checked
+`current_tenant_id()`.
 
 ## Sending mail as a tenant
 

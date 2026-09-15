@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, development]
 
+# One run per workflow per ref. A second push to a branch cancels the first
+# run still working on the superseded commit, whose result nobody will read.
+# `main` is exempt: that run is the deploy gate, and a push landing behind it
+# must not leave the branch with no verdict at all.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   quality:
     name: Lint, Type-check, Format, Test, Build
@@ -75,14 +83,28 @@ jobs:
         # supabase-js's http(s):// validation).
         run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
 
-      - name: Reset DB (migrate + seed)
-        run: supabase db reset
+      - name: Verify the database is migrated and seeded
+        uses: ./.github/actions/verify-db-ready
+
+      # The committed schema types are generated from this stack, so they are
+      # checked here rather than in the quality job, which has no database
+      # (#813 Phase 1). A stale file is how a renamed column stops being a
+      # compile error and becomes `undefined` in a page at runtime.
+      - name: Database types match the migrations
+        run: |
+          bun run db:types
+          if ! git diff --quiet -- src/lib/database.types.ts; then
+            echo "::error::src/lib/database.types.ts is out of date. Run 'bun run db:types' and commit the result."
+            git --no-pager diff -- src/lib/database.types.ts
+            exit 1
+          fi
 
       # plpgsql static analysis over the migrated schema — unresolved
       # identifiers, type mismatches, and dead code in functions and RLS
-      # policy expressions, which `supabase db reset` alone will not surface
-      # because Postgres only checks function bodies at execution time.
-      # Reuses this job's already-running stack rather than starting another.
+      # policy expressions, which applying the migrations does not surface on
+      # its own because Postgres only checks function bodies at execution
+      # time. Reuses this job's already-running stack rather than starting
+      # another; the schema it reads is the one `supabase start` built.
       - name: Lint database schema
         run: supabase db lint --level warning --fail-on error
 
@@ -161,8 +183,8 @@ jobs:
       - name: Load Supabase env
         run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
 
-      - name: Reset DB (migrate + seed)
-        run: supabase db reset
+      - name: Verify the database is migrated and seeded
+        uses: ./.github/actions/verify-db-ready
 
       - name: Drop the unused Google Chrome apt source
         uses: ./.github/actions/drop-google-apt-source

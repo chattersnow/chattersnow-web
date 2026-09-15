@@ -1,4 +1,5 @@
 import "server-only";
+import type { SupabaseClient as UntypedSupabaseClient } from "@supabase/supabase-js";
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -30,7 +31,15 @@ export const detailTitle = cache(async function detailTitle({
   fallback: string;
 }): Promise<string> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // Deliberately dynamic, and the one place in the app that is: `table` and
+    // `column` are this helper's arguments, so there is no literal for the
+    // generated types to check them against (#813 Phase 1). The schema-typed
+    // client is widened back to an untyped one here rather than each caller
+    // being made to prove its table name, and the row is read defensively
+    // below -- anything unexpected, including a table that does not exist,
+    // answers `fallback`.
+    const supabase =
+      (await createSupabaseServerClient()) as unknown as UntypedSupabaseClient;
     const { data } = await supabase
       .from(table)
       .select(column)

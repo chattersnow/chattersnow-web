@@ -2,6 +2,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { broadcastSignOut } from "@/lib/auth/idle-timeout";
 import { safePortalDestination } from "@/lib/auth/next-destination";
+import { clearPortalCaches } from "@/lib/pwa/service-worker";
 
 /**
  * The one browser sign-out path: end the session, leave the shell, and drop
@@ -29,6 +30,15 @@ export async function signOutAndRedirect(
   } catch {
     // Swallowed deliberately -- see the redirect below.
   } finally {
+    // Nothing authenticated is ever cached (see public/sw.js), so this drops
+    // immutable chunks and the offline page rather than anything private --
+    // but an installed app is a shared phone away from the question being
+    // asked in earnest, and "everything this session cached is gone" is worth
+    // being able to say plainly (#1083). The worker refills the cache with the
+    // login page's own public chunks on the way out, which is the point: what
+    // it holds afterwards belongs to nobody. Awaited before the redirect so
+    // the clear is not racing a navigation, and it never rejects.
+    await clearPortalCaches();
     // Even a failed sign-out has to leave the portal. Letting a network blip
     // strand someone on an authenticated-looking shell with no error is worse
     // than redirecting to a login page they may still hold a session for.

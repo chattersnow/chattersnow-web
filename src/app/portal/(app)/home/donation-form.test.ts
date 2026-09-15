@@ -18,6 +18,7 @@ describe("parseDonationInput", () => {
   test("requires a donor name unless anonymous", () => {
     expect(parseDonationInput({ ...validInput, donorName: "" })).toEqual({
       error: "Donor name is required unless the donation is anonymous.",
+      field: "donorName",
     });
   });
 
@@ -34,6 +35,7 @@ describe("parseDonationInput", () => {
     expect(parseDonationInput({ ...validInput, sourceType: "crypto" })).toEqual(
       {
         error: "Select a valid donor source.",
+        field: "sourceType",
       },
     );
   });
@@ -41,6 +43,7 @@ describe("parseDonationInput", () => {
   test("requires at least one item", () => {
     expect(parseDonationInput({ ...validInput, items: [] })).toEqual({
       error: "Add at least one item to the donation.",
+      field: "items",
     });
   });
 
@@ -50,7 +53,10 @@ describe("parseDonationInput", () => {
         ...validInput,
         items: [{ ...validItem, description: "" }],
       }),
-    ).toEqual({ error: "Item 1: description is required." });
+    ).toEqual({
+      error: "Item 1: description is required.",
+      field: "items.0.description",
+    });
   });
 
   test("requires each item's category", () => {
@@ -59,7 +65,10 @@ describe("parseDonationInput", () => {
         ...validInput,
         items: [{ ...validItem, categoryKey: "" }],
       }),
-    ).toEqual({ error: "Item 1: category is required." });
+    ).toEqual({
+      error: "Item 1: category is required.",
+      field: "items.0.categoryKey",
+    });
   });
 
   test("requires the free-text detail when an item's category is Other", () => {
@@ -70,6 +79,7 @@ describe("parseDonationInput", () => {
       }),
     ).toEqual({
       error: "Item 1: describe the item when the category is Other.",
+      field: "items.0.categoryDetail",
     });
   });
 
@@ -92,7 +102,10 @@ describe("parseDonationInput", () => {
         ...validInput,
         items: [{ ...validItem, condition: "mint" }],
       }),
-    ).toEqual({ error: "Item 1: select a valid condition." });
+    ).toEqual({
+      error: "Item 1: select a valid condition.",
+      field: "items.0.condition",
+    });
   });
 
   test("rejects a negative item face value", () => {
@@ -101,7 +114,10 @@ describe("parseDonationInput", () => {
         ...validInput,
         items: [{ ...validItem, faceValue: -5 }],
       }),
-    ).toEqual({ error: "Item 1: face value must be a positive number." });
+    ).toEqual({
+      error: "Item 1: face value must be a positive number.",
+      field: "items.0.faceValue",
+    });
   });
 
   test("rejects an invalid item intended use", () => {
@@ -110,7 +126,10 @@ describe("parseDonationInput", () => {
         ...validInput,
         items: [{ ...validItem, intendedUse: "sale" }],
       }),
-    ).toEqual({ error: "Item 1: select a valid intended use." });
+    ).toEqual({
+      error: "Item 1: select a valid intended use.",
+      field: "items.0.intendedUse",
+    });
   });
 
   test("defaults an omitted intended use to the gear library", () => {
@@ -126,7 +145,10 @@ describe("parseDonationInput", () => {
         ...validInput,
         items: [validItem, { ...validItem, description: "" }],
       }),
-    ).toEqual({ error: "Item 2: description is required." });
+    ).toEqual({
+      error: "Item 2: description is required.",
+      field: "items.1.description",
+    });
   });
 
   test("maps valid input to rpc args", () => {
@@ -203,6 +225,7 @@ describe("parseDonationInput", () => {
       }),
     ).toEqual({
       error: "Item 2: the photo link must start with http:// or https://.",
+      field: "items.1.photoUrl",
     });
   });
 });

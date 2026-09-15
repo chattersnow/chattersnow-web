@@ -4,10 +4,17 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { contentSlot, isValidSlotValue } from "@/lib/site-content";
+import type { Json } from "@/lib/supabase/types";
 
 export type SiteContentActionResult = { error: string } | { success: true };
 
-export type SiteContentEntry = { key: string; value: unknown };
+/**
+ * `value` is `Json` rather than `unknown` (#813 Phase 1): the slot's value is
+ * on its way into a `jsonb` column, so the type that describes what that
+ * column holds is the honest one. The registry still checks the *shape* --
+ * `Json` only rules out what JSON cannot carry at all.
+ */
+export type SiteContentEntry = { key: string; value: Json };
 
 /**
  * Stages the slots the editor changed as drafts (#793).

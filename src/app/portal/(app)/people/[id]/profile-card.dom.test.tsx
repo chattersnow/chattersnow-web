@@ -66,11 +66,21 @@ describe("ProfileCard", () => {
     updatePersonActionMock.mockImplementation(async () => ({ success: true }));
   });
 
-  test("shows the person's details and roles in view mode", () => {
+  test("shows the person's details in view mode", () => {
     render(<ProfileCard person={person} people={[]} canManage={true} />);
 
     expect(screen.getByText("jane@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Donor")).toBeInTheDocument();
+  });
+
+  // The role badges moved to the page header in #1108: they answer what this
+  // record *is*, which is a question about the person rather than about this
+  // card, and inside the card they disappeared the moment anyone started
+  // editing. The page renders them from `rolesFor`, which people-shared.test.ts
+  // covers -- including the role it declines to name.
+  test("does not render the role badges, which now sit beside the name", () => {
+    render(<ProfileCard person={person} people={[]} canManage={true} />);
+
+    expect(screen.queryByText("Donor")).not.toBeInTheDocument();
   });
 
   test("hides the edit action when the user cannot manage people", () => {
@@ -78,6 +88,24 @@ describe("ProfileCard", () => {
 
     expect(
       screen.queryByRole("button", { name: "Edit profile" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // Merging was a card of its own until #1108. It is gated on the same
+  // people:manage the edit action is, and losing that gate in the move would
+  // put a destructive, one-way operation in front of a read-only viewer.
+  test("offers the merge dialog only to someone who can manage people", () => {
+    const { unmount } = render(
+      <ProfileCard person={person} people={[]} canManage={true} />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Merge a duplicate" }),
+    ).toBeInTheDocument();
+    unmount();
+
+    render(<ProfileCard person={person} people={[]} canManage={false} />);
+    expect(
+      screen.queryByRole("button", { name: "Merge a duplicate" }),
     ).not.toBeInTheDocument();
   });
 

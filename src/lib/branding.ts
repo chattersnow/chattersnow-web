@@ -76,20 +76,41 @@ export type Branding = {
   accentStops: string[] | null;
   /** Resolved, renderable logo URL, or null for the stylesheet's mark. */
   logoUrl: string | null;
+  /**
+   * Resolved square app-icon URL, or null to draw the generated initials
+   * icon (#1083). See `APP_ICON_URL_TOKEN`.
+   */
+  appIconUrl: string | null;
 };
 
 export const EMPTY_BRANDING: Branding = {
   colors: {},
   accentStops: null,
   logoUrl: null,
+  appIconUrl: null,
 };
 
 /** The reserved `app_settings` namespace these rows live in (#888). */
 export const BRAND_PREFIX = "brand.";
 
-/** The two `brand.*` tokens that are not colours. */
+/** The `brand.*` tokens that are not colours. */
 export const ACCENT_STOPS_TOKEN = "accent_stops";
 export const LOGO_URL_TOKEN = "logo_url";
+/**
+ * The square home-screen icon, uploaded separately from the logo (#1083).
+ *
+ * Its own field rather than a reuse of `logo_url`, because the two have
+ * different jobs and different shapes. A logo is whatever aspect ratio the
+ * organization has -- usually a wide wordmark, often transparent -- while a
+ * home-screen icon is a square raster that has to survive being masked into a
+ * circle. Installing a transparent wordmark as an app icon produces a smudge
+ * that reads as a bug rather than as a setting nobody filled in.
+ *
+ * Unset is the normal state and is not a gap: `/api/app-icon/<size>` draws the
+ * organization's initials on its own brand colour, correctly padded, for every
+ * tenant that has uploaded nothing.
+ */
+export const APP_ICON_URL_TOKEN = "app_icon_url";
 
 /**
  * Every token the registry knows, colours and the two above. `brand.` is a
@@ -100,6 +121,7 @@ export const BRAND_TOKENS: readonly string[] = [
   ...BRAND_COLOR_TOKENS.map((token) => token.key),
   ACCENT_STOPS_TOKEN,
   LOGO_URL_TOKEN,
+  APP_ICON_URL_TOKEN,
 ];
 
 export function brandSettingKey(token: string): string {
@@ -122,7 +144,12 @@ export type BrandingRow = { token: string; value: unknown };
 
 /** Folds the `brand.*` rows into a Branding, dropping anything malformed. */
 export function brandingFromRows(rows: readonly BrandingRow[]): Branding {
-  const branding: Branding = { colors: {}, accentStops: null, logoUrl: null };
+  const branding: Branding = {
+    colors: {},
+    accentStops: null,
+    logoUrl: null,
+    appIconUrl: null,
+  };
   for (const row of rows) {
     if (row.token === ACCENT_STOPS_TOKEN) {
       if (Array.isArray(row.value)) {
@@ -134,6 +161,12 @@ export function brandingFromRows(rows: readonly BrandingRow[]): Branding {
     if (row.token === LOGO_URL_TOKEN) {
       if (typeof row.value === "string" && row.value.trim()) {
         branding.logoUrl = resolveImageUrl(row.value.trim());
+      }
+      continue;
+    }
+    if (row.token === APP_ICON_URL_TOKEN) {
+      if (typeof row.value === "string" && row.value.trim()) {
+        branding.appIconUrl = resolveImageUrl(row.value.trim());
       }
       continue;
     }

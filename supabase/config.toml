@@ -84,15 +84,24 @@ allowed_cidrs_v6 = ["::/0"]
 # [db.ssl_enforcement]
 # enabled = true
 
+# Disabled (#1077): nothing subscribes to it. `grep -rn "\.channel(\|postgres_changes" src/`
+# is empty -- the app reads through PostgREST and server actions, never a realtime
+# channel. Its image is 124MB of the pull every CI job pays for. Turn this back on in
+# the same breath as the first `.channel()` call.
 [realtime]
-enabled = true
+enabled = false
 # Bind realtime via either IPv4 or IPv6. (default: IPv4)
 # ip_version = "IPv6"
 # The maximum length in bytes of HTTP request headers. (default: 4096)
 # max_header_length = 4096
 
+# Disabled (#1077): Studio is a browser UI, and no job opens a browser at 54323. It is
+# the single largest thing CI pulls -- 329MB, and it drags postgres-meta's 108MB in
+# behind it. Off locally too, so local and CI run the same stack: reach for `psql
+# "$(supabase status -o env | ...)"`, `supabase db diff/lint`, or the Postgres MCP
+# server on 54321/mcp instead of the web UI.
 [studio]
-enabled = true
+enabled = false
 # Port to use for Supabase Studio.
 port = 54323
 # External URL of the API server that frontend connects to.
@@ -125,8 +134,11 @@ file_size_limit = "50MiB"
 # objects_path = "./images"
 
 # Allow connections via S3 compatible clients
+# Disabled (#1077): the app talks to storage through supabase-js
+# (src/lib/storage/gear-photos.ts), never an S3 client -- there is no S3Client or
+# aws-sdk import in the tree. Storage itself stays enabled above.
 [storage.s3_protocol]
-enabled = true
+enabled = false
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
@@ -144,8 +156,10 @@ max_catalogs = 2
 # [storage.analytics.buckets.my-warehouse]
 
 # Store vector embeddings in S3 for large and durable datasets
+# Disabled (#1077): no embeddings anywhere in the app, and the buckets this serves are
+# a Pro-plan feature this project does not have.
 [storage.vector]
-enabled = true
+enabled = false
 max_buckets = 10
 max_indexes = 5
 
@@ -375,8 +389,15 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Disabled (#1077): there is no `supabase/functions` directory and nothing calls
+# `functions.invoke()` or hits `/functions/v1`. Note what this does and does not buy:
+# the container is no longer created or health-checked, but the CLI still pulls the
+# 391MB image -- measured on run 34872747458, after the seed rather than with the other
+# images, costing ~6s. That is a CLI behaviour, not something config.toml can reach.
+# Re-enable this together with the first edge function; `supabase functions new` will
+# need it back.
 [edge_runtime]
-enabled = true
+enabled = false
 # Supported request policies: `oneshot`, `per_worker`.
 # `per_worker` (default) — enables hot reload during local development.
 # `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
@@ -389,8 +410,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Disabled (#1077): this starts two more containers, Logflare and Vector, purely to
+# collect local logs -- 332MB of pull between them, and nothing in CI or local
+# development ever opens 54327. When a service misbehaves, `docker logs
+# supabase_<service>_chattersnow-web` says the same thing.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

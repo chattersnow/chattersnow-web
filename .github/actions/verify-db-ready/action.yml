@@ -1,0 +1,62 @@
+name: Verify the database is migrated and seeded
+description: >-
+  Asserts that `supabase start` left this job with every migration applied and
+  seed.sql loaded, in place of the `supabase db reset` that used to rebuild
+  what start had already built.
+
+runs:
+  using: composite
+  steps:
+    # `supabase start` is not just "start containers": on a volume it has not
+    # seen before it initialises the schema, applies every migration in
+    # supabase/migrations, and runs seed.sql. A CI runner is always that case,
+    # so the `supabase db reset` that used to follow it spent ~44s per job
+    # dropping that database and building the identical one again -- ten jobs
+    # in a PR run, about seven minutes (#1107). Measured locally, a snapshot of
+    # applied migrations, buckets, policies, functions and the row count of
+    # every public table was byte-identical before and after the reset.
+    #
+    # What the reset did give was a guarantee rather than an assumption, so
+    # this asserts the end state instead of recreating it. If a future CLI
+    # skips migrations at start -- or a runner somehow inherits a volume --
+    # this fails here, naming the missing migrations, rather than surfacing as
+    # a puzzling test failure several steps later.
+    - name: Compare applied migrations against supabase/migrations
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        db=$(docker ps --quiet --filter name=supabase_db)
+        if [ -z "$db" ] || [ "$(printf '%s\n' "$db" | wc -l)" -ne 1 ]; then
+          echo "::error::Expected exactly one running supabase_db container, found: ${db:-none}"
+          exit 1
+        fi
+
+        # psql inside the Postgres container rather than on the runner: the
+        # container is guaranteed to have a client that matches its server,
+        # and this stays correct if the runner image drops postgresql-client.
+        query() {
+          docker exec -i "$db" psql -U postgres -d postgres -tAc "$1"
+        }
+
+        ls supabase/migrations/*.sql \
+          | sed -E 's|.*/([0-9]+)_.*|\1|' | sort > /tmp/migrations-on-disk
+        query "select version from supabase_migrations.schema_migrations order by 1" \
+          | sed '/^$/d' | sort > /tmp/migrations-applied
+
+        missing=$(comm -23 /tmp/migrations-on-disk /tmp/migrations-applied)
+        if [ -n "$missing" ]; then
+          echo "::error::supabase start did not apply every migration. Missing:"
+          printf '%s\n' "$missing"
+          exit 1
+        fi
+
+        # seed.sql is the only thing that writes auth.users -- no migration
+        # creates a user -- so a non-empty auth.users means the seed ran.
+        seeded=$(query "select count(*) from auth.users")
+        if [ "$seeded" -eq 0 ]; then
+          echo "::error::auth.users is empty, so supabase/seed.sql did not run."
+          exit 1
+        fi
+
+        echo "$(wc -l < /tmp/migrations-on-disk | tr -d ' ') migrations applied, ${seeded} seeded auth users."

@@ -83,7 +83,7 @@ export function CheckInWalkInDialog({
         size,
       );
       if ("error" in result) {
-        setError(result.error);
+        setError(result.error.message);
         return;
       }
       handleOpenChange(false);

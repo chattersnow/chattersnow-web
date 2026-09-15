@@ -18,6 +18,8 @@ import { BrandLogoProvider } from "@/components/brand-logo-context";
 import { SkipLink } from "@/components/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LexiconProvider } from "@/components/lexicon-context";
+import { OfflineBanner } from "@/components/portal/offline-banner";
+import { ServiceWorkerRegistrar } from "@/components/portal/service-worker-registrar";
 import { CommandPalette } from "../command-palette";
 import { HelpButton } from "../help/help-button";
 import { IdleTimeout } from "../idle-timeout";
@@ -139,6 +141,10 @@ export async function PortalShellDesktop({
           </div>
         </header>
         {isDemo && <DemoBanner />}
+        {/* Not a phone-only concern (#1083): a laptop on a venue's wifi drops
+            the same connection, and the banner is what keeps a write that went
+            nowhere from looking like one that landed. */}
+        <OfflineBanner />
         <main
           id="portal-main"
           // Focusable only as a skip-link target, so focus actually lands
@@ -176,6 +182,7 @@ export async function PortalShellDesktop({
             past the signed-in guard above, which is what keeps the timeout
             off the login page and off every public route. */}
         <IdleTimeout />
+        <ServiceWorkerRegistrar />
         {/* One viewport for the whole portal: the sidebar quick actions
             save from every route, so the confirmation has to live above
             the page rather than inside it. */}

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { getSiteImageUrls } from "@/lib/site-images";
-import { GearCatalog } from "../gear-catalog";
+import { GearCatalog, type GearItem } from "../gear-catalog";
 
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
@@ -32,7 +32,10 @@ export default async function GearLibraryPage() {
       .select(
         "id, description, size, type, gender, condition, photo_url, created_at, category_key, category_label, category_group_key, category_group_label, category_sort_order, category_group_sort_order",
       )
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      // A view drops `not null`, so the four columns the catalog treats as
+      // always-present are narrowed once here (#813 Phase 1).
+      .overrideTypes<GearItem[]>(),
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
     // The guide is gated on its own slot, so the CTA has to be too -- a

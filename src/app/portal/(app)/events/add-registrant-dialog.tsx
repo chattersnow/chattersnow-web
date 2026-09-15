@@ -79,7 +79,7 @@ export function AddRegistrantDialog({
     startTransition(async () => {
       const result = await addRegistrantAction(eventId, selectedPerson, size);
       if ("error" in result) {
-        setError(result.error);
+        setError(result.error.message);
         return;
       }
       handleOpenChange(false);

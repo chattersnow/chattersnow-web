@@ -77,25 +77,32 @@ export function parseDonationInput(
   if (!input.isAnonymous && !donorName) {
     return {
       error: "Donor name is required unless the donation is anonymous.",
+      field: "donorName",
     };
   }
   if (
     !SOURCE_TYPES.includes(input.sourceType as (typeof SOURCE_TYPES)[number])
   ) {
-    return { error: "Select a valid donor source." };
+    return { error: "Select a valid donor source.", field: "sourceType" };
   }
   if (!input.items.length) {
-    return { error: "Add at least one item to the donation." };
+    return { error: "Add at least one item to the donation.", field: "items" };
   }
 
   for (let i = 0; i < input.items.length; i++) {
     const item = input.items[i];
     const label = `Item ${i + 1}`;
     if (!item.description.trim()) {
-      return { error: `${label}: description is required.` };
+      return {
+        error: `${label}: description is required.`,
+        field: `items.${i}.description`,
+      };
     }
     if (!item.categoryKey.trim()) {
-      return { error: `${label}: category is required.` };
+      return {
+        error: `${label}: category is required.`,
+        field: `items.${i}.categoryKey`,
+      };
     }
     if (
       item.categoryKey === OTHER_CATEGORY_KEY &&
@@ -103,16 +110,23 @@ export function parseDonationInput(
     ) {
       return {
         error: `${label}: describe the item when the category is Other.`,
+        field: `items.${i}.categoryDetail`,
       };
     }
     if (!CONDITIONS.includes(item.condition as (typeof CONDITIONS)[number])) {
-      return { error: `${label}: select a valid condition.` };
+      return {
+        error: `${label}: select a valid condition.`,
+        field: `items.${i}.condition`,
+      };
     }
     if (
       item.faceValue != null &&
       (Number.isNaN(item.faceValue) || item.faceValue < 0)
     ) {
-      return { error: `${label}: face value must be a positive number.` };
+      return {
+        error: `${label}: face value must be a positive number.`,
+        field: `items.${i}.faceValue`,
+      };
     }
     if (
       item.intendedUse != null &&
@@ -120,7 +134,10 @@ export function parseDonationInput(
         item.intendedUse as (typeof INTENDED_USES)[number],
       )
     ) {
-      return { error: `${label}: select a valid intended use.` };
+      return {
+        error: `${label}: select a valid intended use.`,
+        field: `items.${i}.intendedUse`,
+      };
     }
     // Same rule as `events.flier_url`'s check constraint, applied here because
     // an unvalidated value ends up in next/image's `new URL()` at render, which
@@ -129,6 +146,7 @@ export function parseDonationInput(
     if (item.photoUrl?.trim() && !/^https?:\/\//i.test(item.photoUrl.trim())) {
       return {
         error: `${label}: the photo link must start with http:// or https://.`,
+        field: `items.${i}.photoUrl`,
       };
     }
   }

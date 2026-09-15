@@ -125,7 +125,7 @@ export function RecordDistributionModal({
         recipientPersonId: recipient?.id,
       });
       if ("error" in result) {
-        setError(result.error);
+        setError(result.error.message);
         return;
       }
       handleOpenChange(false);

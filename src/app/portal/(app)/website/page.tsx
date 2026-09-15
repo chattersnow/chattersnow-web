@@ -19,6 +19,7 @@ import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   CONTENT_PAGES,
+  readSlot,
   sectionsForPage,
   slotsForPage,
 } from "@/lib/site-content";
@@ -26,7 +27,6 @@ import { deviceClass } from "@/lib/portal/device";
 import { ContentEditor } from "./content-editor";
 import {
   buildOutline,
-  readSlot,
   resolveDraftAndPublished,
   type EditorSlot,
   type SiteContentDraftRow,

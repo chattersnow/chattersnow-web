@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import type { Json } from "@/lib/supabase/types";
 import {
   writeAppSetting,
   type SettingActionResult,
 } from "@/lib/settings/write-app-setting";
 import {
+  APP_ICON_URL_TOKEN,
   BRAND_COLOR_TOKENS,
   MAX_ACCENT_STOPS,
   brandSettingKey,
@@ -63,7 +65,7 @@ const SETTINGS_PATH = "/portal/administration/organization-settings";
  */
 export async function updateAppSettingAction(
   key: string,
-  value: unknown,
+  value: Json,
 ): Promise<SettingActionResult> {
   return writeAppSetting(key, value, [SETTINGS_PATH]);
 }
@@ -315,7 +317,7 @@ export async function updateBrandingAction(
   );
   if (permissionError) return permissionError;
 
-  const rows: { key: string; value: unknown }[] = [];
+  const rows: { key: string; value: Json }[] = [];
   for (const token of BRAND_COLOR_TOKENS) {
     const raw = String(formData.get(token.key) ?? "").trim();
     if (!raw) {
@@ -355,6 +357,13 @@ export async function updateBrandingAction(
     key: brandSettingKey("logo_url"),
     value: String(formData.get("logo_url") ?? "").trim(),
   });
+  // Not validated beyond the trim, same as the logo: it is a URL an admin
+  // pasted, and `/api/app-icon` refuses anything that does not come back as a
+  // raster image and draws the generated initials instead (#1083).
+  rows.push({
+    key: brandSettingKey(APP_ICON_URL_TOKEN),
+    value: String(formData.get(APP_ICON_URL_TOKEN) ?? "").trim(),
+  });
 
   const { error } = await supabase
     .from("app_settings")
@@ -393,7 +402,7 @@ export async function updateLexiconAction(
   );
   if (permissionError) return permissionError;
 
-  const rows: { key: string; value: unknown }[] = [];
+  const rows: { key: string; value: Json }[] = [];
   for (const term of LEXICON_TERMS) {
     const value = String(formData.get(term.key) ?? "").trim();
     if (value.length > MAX_LEXICON_TERM_LENGTH) {

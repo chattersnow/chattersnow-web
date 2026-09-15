@@ -59,6 +59,7 @@
  * `src/lib/public-site.ts`.
  */
 
+import type { Json } from "@/lib/supabase/types";
 import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import { isPublishableHref } from "@/lib/legal-markup";
 import {
@@ -2069,7 +2070,12 @@ export type SiteContent = {
   overrides: ReadonlySet<string>;
 };
 
-export type SiteContentRow = { key: string; value: unknown };
+/**
+ * One `site_content` row as the views serve it. `value` is `Json` rather than
+ * `unknown` (#813 Phase 1): the column is `jsonb`, and `resolveSiteContent`
+ * checks each value against the slot registry before anything renders it.
+ */
+export type SiteContentRow = { key: string; value: Json };
 
 /**
  * Folds the tenant's rows over the registry defaults. Pure.
@@ -2114,3 +2120,25 @@ export function resolveSiteContent(
 
 /** The content with nothing set: the site as shipped. */
 export const DEFAULT_SITE_CONTENT: SiteContent = resolveSiteContent([]);
+
+/**
+ * A slot's value out of a resolved `SiteContent`, whatever shape it is in.
+ *
+ * Lives here rather than beside the Site Content editor because the public API
+ * serves the same slots (#813 Phase 3) and a second copy of this switch is a
+ * second place for a new slot type to be forgotten.
+ */
+export function readSlot(slot: ContentSlot, content: SiteContent): Json {
+  switch (slot.type) {
+    case "text":
+      return content.text(slot.key);
+    case "paragraphs":
+      return content.paragraphs(slot.key);
+    case "list":
+      return content.list(slot.key);
+    case "document":
+      return content.document(slot.key);
+    case "image":
+      return content.image(slot.key);
+  }
+}

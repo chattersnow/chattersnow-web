@@ -63,7 +63,10 @@ describe("recordEventDistributionAction (integration)", () => {
       distributionInput(crypto.randomUUID()),
     );
     expect(result).toEqual({
-      error: "You must be signed in to record a distribution.",
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to record a distribution.",
+      },
     });
   });
 
@@ -124,7 +127,10 @@ describe("recordEventDistributionAction (integration)", () => {
       distributionInput(itemIds[0]),
     );
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
     expect(await getInventoryItemStatus(itemIds[0])).toBe("available");
 
@@ -139,7 +145,10 @@ describe("recordEventDistributionAction (integration)", () => {
       distributionInput(itemIds[0]),
     );
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
 
     await cleanup();
@@ -153,7 +162,10 @@ describe("recordEventDistributionAction (integration)", () => {
       distributionInput(itemIds[0]),
     );
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
 
     await cleanup();
@@ -167,7 +179,10 @@ describe("recordEventDistributionAction (integration)", () => {
       distributionInput(itemIds[0]),
     );
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
 
     await cleanup();
@@ -181,7 +196,10 @@ describe("recordEventDistributionAction (integration)", () => {
       distributionInput(itemIds[0]),
     );
     expect(result).toEqual({
-      error: "You don't have permission to perform this action.",
+      error: {
+        code: "forbidden",
+        message: "You don't have permission to perform this action.",
+      },
     });
 
     await cleanup();
@@ -426,8 +444,11 @@ describe("recordEventDistributionAction under concurrency", () => {
     expect(results.filter((result) => "success" in result)).toHaveLength(1);
     expect(results.filter((result) => "error" in result)).toEqual([
       {
-        error:
-          "That item has already been distributed. Refresh and pick another.",
+        error: {
+          code: "conflict",
+          message:
+            "That item has already been distributed. Refresh and pick another.",
+        },
       },
     ]);
     expect(await distributedMovements(itemId)).toHaveLength(1);

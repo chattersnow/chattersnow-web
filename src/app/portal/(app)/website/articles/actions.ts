@@ -1,5 +1,6 @@
 "use server";
 
+import type { Json } from "@/lib/supabase/types";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
@@ -28,7 +29,9 @@ export type CategoryDraftInput = {
 export type ArticleDraftInput = {
   id?: string;
   anchor: string;
-  value: unknown;
+  /** `Json` rather than `unknown`: it lands in a `jsonb` column, and
+   * `isValidArticleBody` narrows it to a body before it is written. */
+  value: Json;
 };
 
 const ARTICLES_PATH = "/portal/website/articles";

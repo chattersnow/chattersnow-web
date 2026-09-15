@@ -5,7 +5,7 @@ import { nowMs } from "@/lib/time";
 import { EventList } from "./event-list";
 import { PUBLIC_EVENT_COLUMNS } from "./event-detail-data";
 import type { PublicEventSponsor } from "./event-sponsors";
-import type { PublicEventProgram } from "./event-card";
+import type { PublicEventProgram, PublicEventRow } from "./event-card";
 
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 
@@ -26,15 +26,20 @@ export default async function EventsPage() {
     supabase
       .from("public_events")
       .select(PUBLIC_EVENT_COLUMNS)
-      .order("starts_at", { ascending: true }),
+      .order("starts_at", { ascending: true })
+      // The view's columns are all nullable to the generator; PublicEventRow
+      // narrows the five that are `not null` underneath (#813 Phase 1). The
+      // override merges into the inferred row rather than replacing it, so a
+      // column that disappears still fails to compile.
+      .overrideTypes<PublicEventRow[]>(),
     supabase
       .from("public_event_sponsors")
       .select("sponsor_id, event_id, name, logo_url, website")
-      .returns<(PublicEventSponsor & { event_id: string })[]>(),
+      .overrideTypes<(PublicEventSponsor & { event_id: string })[]>(),
     supabase
       .from("public_event_programs")
       .select("event_id, program_id, name")
-      .returns<(PublicEventProgram & { event_id: string })[]>(),
+      .overrideTypes<(PublicEventProgram & { event_id: string })[]>(),
     getPublicSite(supabase),
   ]);
 

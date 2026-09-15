@@ -2,95 +2,34 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  parseDonationInput,
-  type CreateDonationInput,
-  type DonationItemInput,
-} from "./donation-form";
-import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
-import { checkUser } from "@/lib/auth/current-user";
+import type { CreateDonationInput, DonationItemInput } from "./donation-form";
+import { createDonation, type CreateDonationResult } from "./donation-core";
+import { checkPermission } from "@/lib/auth/permissions";
 
 export type { CreateDonationInput, DonationItemInput };
+export type {
+  CreateDonationResult,
+  DonationGiveawayGrant,
+  GiveawayTicketTotal,
+} from "./donation-core";
 
-/** Per-colour ticket counts to hand to the donor, when the donation was
- *  recorded against an event whose giveaway has tiers configured. */
-export type GiveawayTicketTotal = {
-  tier_id: string;
-  tier_key: string;
-  tier_label: string;
-  tier_rank: number;
-  quantity: number;
-};
-
-export type DonationGiveawayGrant = {
-  giveawayId: string;
-  totals: GiveawayTicketTotal[];
-  /** Items no tier could be resolved for. These earned nothing, so the UI asks
-   *  the staffer to classify them rather than quietly under-granting. */
-  untieredItemIds: string[];
-};
-
-export type CreateDonationResult =
-  { error: string } | { success: true; giveaway: DonationGiveawayGrant | null };
-
+/**
+ * Web transport for `createDonation` (#1082 Phase 1). Everything that decides
+ * whether the donation is recorded lives in donation-core.ts, which has no
+ * Next imports; this adds the one thing that is Next's and only Next's.
+ */
 export async function createDonationAction(
   input: CreateDonationInput,
 ): Promise<CreateDonationResult> {
   const supabase = await createSupabaseServerClient();
-  const userResult = await checkUser(
-    supabase,
-    "You must be signed in to record a donation.",
-  );
-  if ("error" in userResult) return userResult;
-  const permissionError = await checkAnyPermission(supabase, [
-    { resource: "finance", level: "manage" },
-    { resource: "inventory_intake", level: "manage" },
-  ]);
-  if (permissionError) return permissionError;
-
-  const parsed = parseDonationInput(input);
-  if ("error" in parsed) return parsed;
-
-  const { data, error } = await supabase.rpc(
-    "create_donation_with_items",
-    parsed.data,
-  );
-
-  if (error) {
-    return { error: "Could not save the donation. Please try again." };
-  }
+  const result = await createDonation(supabase, input);
+  if ("error" in result) return result;
 
   revalidatePath("/portal/home");
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/events");
 
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | {
-        donation_id: string;
-        giveaway_id: string | null;
-        untiered_item_ids: string[] | null;
-      }
-    | undefined;
-
-  // The donation itself is saved either way, so a failure to read back the
-  // ticket totals must not read as a failed donation. Fall back to no grant
-  // and let the staffer check the giveaway tab.
-  if (!row?.giveaway_id) return { success: true, giveaway: null };
-
-  const { data: totals } = await supabase.rpc("giveaway_ticket_totals", {
-    p_giveaway_id: row.giveaway_id,
-    p_donation_id: row.donation_id,
-    p_sale_id: null,
-  });
-
-  return {
-    success: true,
-    giveaway: {
-      giveawayId: row.giveaway_id,
-      totals: (totals ?? []) as GiveawayTicketTotal[],
-      untieredItemIds: row.untiered_item_ids ?? [],
-    },
-  };
+  return result;
 }
 
 export type GiveawayTierOption = {

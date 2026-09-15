@@ -70,7 +70,10 @@ export default async function InventoryReportsPage({
       .from("inventory_items_with_category")
       .select(
         "type, category_key, category_label, category_group_label, status, face_value",
-      ),
+      )
+      // `status` is `not null` on `inventory_items`; a view drops that, so the
+      // generator reports it nullable (#813 Phase 1).
+      .overrideTypes<{ status: string }[]>(),
     supabase
       .from("inventory_movements")
       .select(

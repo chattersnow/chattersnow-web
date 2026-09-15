@@ -1,8 +1,8 @@
 # Applies supabase/migrations/** to the hosted Supabase project.
 #
-# Nothing used to do this. CI only ever ran `supabase db reset` against a
-# throwaway local database, so a merged migration was applied everywhere except
-# the database the deployed site actually reads from. Issue #584 shipped that
+# Nothing used to do this. CI only ever applied them to the throwaway local
+# database it stands up per job, so a merged migration was applied everywhere
+# except the database the deployed site actually reads from. Issue #584 shipped that
 # way: `public_page_visibility` existed locally and in CI but not in production,
 # every read of it 404'd, and the board's page-visibility toggles looked like
 # they simply refused to save.
@@ -24,6 +24,13 @@ on:
   workflow_dispatch:
 
 # Two pushes applying migrations at once would race on the same database.
+#
+# Note what this group does *not* do: `cancel-in-progress: false` protects a
+# run that is already running, not one that is pending. GitHub keeps a single
+# pending run per group, so with the `Production` gate in the way a newer push
+# silently cancels the older waiting one, jobs never started (#1058). What
+# makes that survivable is `--include-all` on the push below, which lets the
+# next run apply whatever the cancelled one would have.
 concurrency:
   group: db-migrate
   cancel-in-progress: false
@@ -77,6 +84,22 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # The list above shows local against remote; this shows what the push
+      # will actually do, which since #1058 is not the same question -- with
+      # `--include-all` the push also picks up any migration whose version
+      # sorts before the last one applied, typically one a cancelled run left
+      # behind. The reviewer at the gate should be approving the real set,
+      # including anything arriving out of order.
+      - name: Show exactly what the push would apply
+        run: |
+          set -o pipefail
+          {
+            echo '## Would be applied'
+            echo '```'
+            supabase db push --include-all --dry-run
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   push:
     name: Push migrations to Supabase
     needs: plan
@@ -99,8 +122,30 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
+      # `--include-all` applies any migration the remote has not recorded,
+      # including one whose version sorts before the last one applied. Without
+      # it the CLI refuses the whole push -- "Found local migration files to be
+      # inserted before the last migration on remote database" -- and that
+      # refusal is sticky: nothing retries, and every later migration is
+      # blocked until someone renumbers by hand.
+      #
+      # A migration gets left behind more easily than it looks (#1058). The
+      # push job waits on the `Production` gate, so a run spends nearly all its
+      # life *pending*, and `cancel-in-progress: false` does not protect a
+      # pending run -- GitHub keeps only one per concurrency group and cancels
+      # the older one outright when a newer arrives, with no job ever started
+      # and nothing on the run page but `cancelled`. That is how
+      # 20260913000000_distribute_inventory_on_giveaway_winner.sql was skipped
+      # in #1051: two merges eighteen minutes apart, one unattended approval.
+      #
+      # So this makes the push self-healing rather than removing the gate: a
+      # displaced migration is simply applied by the next run. The cost is that
+      # it can be applied after a migration written later than it, which is
+      # what "out of order" means here -- acceptable because these migrations
+      # are independent DDL, and far better than a schema deploy that stays
+      # wedged until a human notices.
       - name: Push migrations
-        run: supabase db push
+        run: supabase db push --include-all
 
       - name: Applied migrations
         run: |

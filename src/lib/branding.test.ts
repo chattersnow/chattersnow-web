@@ -53,6 +53,7 @@ describe("brandingCss", () => {
       colors: { primary: "#112233", primary_deep: "#001122" },
       accentStops: ["#aabbcc", "#ddeeff"],
       logoUrl: null,
+      appIconUrl: null,
     });
     expect(css).toContain("--purple: #112233;");
     expect(css).toContain("--purple-deep: #001122;");
@@ -79,6 +80,7 @@ describe("brandingCss", () => {
       },
       accentStops: null,
       logoUrl: null,
+      appIconUrl: null,
     });
     expect(css).toContain(":root:not(.dark) {");
     expect(css).not.toContain(":root {");
@@ -98,6 +100,7 @@ describe("brandingCss", () => {
       colors: { primary: "#70419a", primary_deep: "#32134f" },
       accentStops: null,
       logoUrl: null,
+      appIconUrl: null,
     });
     expect(css).toContain(
       "--purple: oklch(from #70419a 0.783 min(c, 0.098) h);",
@@ -116,6 +119,7 @@ describe("brandingCss", () => {
       colors: {},
       accentStops: ["#aabbcc", "#ddeeff"],
       logoUrl: null,
+      appIconUrl: null,
     });
     const dark = css.slice(css.indexOf(".dark {"));
     expect(dark).toContain(
@@ -129,6 +133,7 @@ describe("brandingCss", () => {
       colors: {},
       accentStops: ["#aabbcc"],
       logoUrl: null,
+      appIconUrl: null,
     });
     expect(css).toContain("linear-gradient(90deg, #aabbcc 0%, #aabbcc 0%)");
   });

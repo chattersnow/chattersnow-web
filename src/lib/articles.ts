@@ -1,3 +1,4 @@
+import type { Json } from "@/lib/supabase/types";
 /**
  * The article collection behind /learn (#894).
  *
@@ -170,10 +171,16 @@ export function isValidArticleSlug(value: string): boolean {
   return ARTICLE_SLUG_PATTERN.test(value);
 }
 
-/** One `article_categories` or `articles` row as the public views serve it. */
+/**
+ * One `article_categories` or `articles` row as the public views serve it.
+ *
+ * `value` is `Json` rather than `unknown` (#813 Phase 1): it is a `jsonb`
+ * column both ways -- read from the view, written back through
+ * `save_article_drafts` -- and `isValidArticleBody` narrows it to a body.
+ */
 export type ArticleRow = {
   id: string;
-  value: unknown;
+  value: Json;
 };
 
 export type ArticleCategoryRow = ArticleRow & { slug: string };

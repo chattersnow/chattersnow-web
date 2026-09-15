@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
+import type { Db } from "@/lib/supabase/types";
 
 /**
  * Header that carries the host the browser asked for through to Postgres.
@@ -65,7 +66,7 @@ export const createSupabaseServerClient = cache(
     // deployment, which is what TENANT_HOST_OVERRIDE is for.
     const host = tenantHost(headerStore.get("host"));
 
-    return createServerClient(
+    return createServerClient<Db>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
       {

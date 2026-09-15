@@ -125,7 +125,20 @@ export default async function InventoryPage({
     query = query.eq("intended_use", intendedUseFilter);
 
   const { offset, to } = pageRange(page, perPage);
-  const { data: items, count } = await query.range(offset, to);
+  const { data: items, count } = await query
+    .range(offset, to)
+    // `inventory_items_with_category` is a view, and Postgres drops `not null`
+    // through one, so the generator reports every column nullable (#813
+    // Phase 1). These five are `not null` on `inventory_items`.
+    .overrideTypes<
+      {
+        id: string;
+        description: string;
+        condition: string;
+        status: string;
+        intended_use: string;
+      }[]
+    >();
 
   const reservedIds = (items ?? [])
     .filter((item) => item.status === "reserved")

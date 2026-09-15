@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
 import {
+  APP_ICON_URL_TOKEN,
   BRAND_COLOR_TOKENS,
   DEFAULT_ACCENT_STOPS,
   MAX_ACCENT_STOPS,
@@ -43,6 +44,7 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
     branding.accentStops?.join(", ") ?? "",
   );
   const [logoUrl, setLogoUrl] = useState(branding.logoUrl ?? "");
+  const [appIconUrl, setAppIconUrl] = useState(branding.appIconUrl ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -57,6 +59,7 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
       : DEFAULT_ACCENT_STOPS
   ).join(", ")})`;
   const logoPreview = resolveImageUrl(logoUrl.trim() || null);
+  const appIconPreview = resolveImageUrl(appIconUrl.trim() || null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,6 +81,7 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
     setColors(Object.fromEntries(BRAND_COLOR_TOKENS.map((t) => [t.key, ""])));
     setAccentStops("");
     setLogoUrl("");
+    setAppIconUrl("");
   }
 
   return (
@@ -185,6 +189,47 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
                 <FieldDescription>
                   A Google Drive link or any image URL. Shown in the site header
                   and footer and in the portal sidebar.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>App icon</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              {appIconPreview && (
+                <div className="relative size-20 overflow-hidden rounded-[22%] bg-muted">
+                  <Image
+                    src={appIconPreview}
+                    alt="App icon preview"
+                    fill
+                    sizes="5rem"
+                    className="object-contain"
+                  />
+                </div>
+              )}
+              <Field>
+                <FieldLabel htmlFor="brand-app-icon-url">
+                  App icon URL
+                </FieldLabel>
+                <Input
+                  id="brand-app-icon-url"
+                  name={APP_ICON_URL_TOKEN}
+                  type="url"
+                  placeholder="https://drive.google.com/file/d/..."
+                  value={appIconUrl}
+                  onChange={(event) => setAppIconUrl(event.target.value)}
+                />
+                <FieldDescription>
+                  A <strong>square</strong> image, at least 512&times;512, used
+                  when someone installs the portal on a phone. Leave this blank
+                  and the home screen shows your initials on your brand colour
+                  &mdash; which is usually better than a wide logo, since a
+                  phone crops an app icon to a circle.
                 </FieldDescription>
               </Field>
             </FieldGroup>
