@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { createCalendarCategoryAction } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -67,78 +59,71 @@ export function NewCalendarCategoryDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New category
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create category</DialogTitle>
-          <DialogDescription>
-            Calendar items are tagged with these, and visitors filter the public
-            community calendar by them. The name is yours to choose; a key is
-            derived from it once and then left alone, so a later rename never
-            disturbs the items already tagged.
-          </DialogDescription>
-        </DialogHeader>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          New category
+        </Button>
+      }
+      title="Create category"
+      description="Calendar items are tagged with these, and visitors filter the public community calendar by them. The name is yours to choose; a key is derived from it once and then left alone, so a later rename never disturbs the items already tagged."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => handleOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? <Spinner /> : null}
+            Create category
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            {error ? (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
+        <Field>
+          <FieldLabel htmlFor="calendar-category-label" required>
+            Name
+          </FieldLabel>
+          <Input
+            id="calendar-category-label"
+            name="label"
+            value={form.label}
+            onChange={(event) => update("label", event.target.value)}
+            placeholder="e.g. Our events"
+            required
+          />
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="calendar-category-label" required>
-                Name
-              </FieldLabel>
-              <Input
-                id="calendar-category-label"
-                name="label"
-                value={form.label}
-                onChange={(event) => update("label", event.target.value)}
-                placeholder="e.g. Our events"
-                required
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="calendar-category-sort-order">
-                Sort order
-              </FieldLabel>
-              <Input
-                id="calendar-category-sort-order"
-                name="sortOrder"
-                type="number"
-                min={0}
-                value={form.sortOrder}
-                onChange={(event) => update("sortOrder", event.target.value)}
-                placeholder="0"
-              />
-            </Field>
-          </FieldGroup>
-
-          <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <Spinner /> : null}
-              Create category
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="calendar-category-sort-order">
+            Sort order
+          </FieldLabel>
+          <Input
+            id="calendar-category-sort-order"
+            name="sortOrder"
+            type="number"
+            min={0}
+            value={form.sortOrder}
+            onChange={(event) => update("sortOrder", event.target.value)}
+            placeholder="0"
+          />
+        </Field>
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
