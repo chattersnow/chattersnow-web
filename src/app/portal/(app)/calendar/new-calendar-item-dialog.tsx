@@ -18,14 +18,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -163,397 +158,382 @@ export function NewCalendarItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New calendar item
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Create calendar item</DialogTitle>
-          <DialogDescription>
-            Your own events, community observances, campaigns, and content
-            opportunities all share this shape.
-          </DialogDescription>
-        </DialogHeader>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          New calendar item
+        </Button>
+      }
+      title="Create calendar item"
+      description="Your own events, community observances, campaigns, and content opportunities all share this shape."
+      size="xl"
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create calendar item"
+            )}
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="title" required>
+            Title
+          </FieldLabel>
+          <Input
+            id="title"
+            required
+            value={form.title}
+            onChange={(event) => update("title", event.target.value)}
+          />
+        </Field>
 
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="title" required>
-                Title
-              </FieldLabel>
-              <Input
-                id="title"
-                required
-                value={form.title}
-                onChange={(event) => update("title", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="itemType">Item type</FieldLabel>
-              <Select
-                value={form.itemType}
-                onValueChange={(value) =>
-                  update("itemType", value ?? form.itemType)
+        <Field>
+          <FieldLabel htmlFor="itemType">Item type</FieldLabel>
+          <Select
+            value={form.itemType}
+            onValueChange={(value) =>
+              update("itemType", value ?? form.itemType)
+            }
+          >
+            <SelectTrigger id="itemType" className="w-full">
+              <SelectValue placeholder="Select item type">
+                {(value: string) =>
+                  ITEM_TYPES.find((option) => option.value === value)?.label
                 }
-              >
-                <SelectTrigger id="itemType" className="w-full">
-                  <SelectValue placeholder="Select item type">
-                    {(value: string) =>
-                      ITEM_TYPES.find((option) => option.value === value)?.label
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ITEM_TYPES.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {ITEM_TYPES.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-            <Field>
-              <FieldLabel htmlFor="summary">Summary</FieldLabel>
-              <Textarea
-                id="summary"
-                value={form.summary}
-                onChange={(event) => update("summary", event.target.value)}
-              />
-            </Field>
+        <Field>
+          <FieldLabel htmlFor="summary">Summary</FieldLabel>
+          <Textarea
+            id="summary"
+            value={form.summary}
+            onChange={(event) => update("summary", event.target.value)}
+          />
+        </Field>
 
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="startsAt" required>
-                  Starts
-                </FieldLabel>
-                <Input
-                  id="startsAt"
-                  required
-                  type="datetime-local"
-                  value={form.startsAt}
-                  onChange={(event) => update("startsAt", event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="endsAt">Ends</FieldLabel>
-                <Input
-                  id="endsAt"
-                  type="datetime-local"
-                  value={form.endsAt}
-                  onChange={(event) => update("endsAt", event.target.value)}
-                />
-              </Field>
-            </Field>
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="startsAt" required>
+              Starts
+            </FieldLabel>
+            <Input
+              id="startsAt"
+              required
+              type="datetime-local"
+              value={form.startsAt}
+              onChange={(event) => update("startsAt", event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="endsAt">Ends</FieldLabel>
+            <Input
+              id="endsAt"
+              type="datetime-local"
+              value={form.endsAt}
+              onChange={(event) => update("endsAt", event.target.value)}
+            />
+          </Field>
+        </Field>
 
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="timeZone" required>
-                  Time zone
-                </FieldLabel>
-                <Input
-                  id="timeZone"
-                  required
-                  placeholder="e.g. America/Denver"
-                  value={form.timeZone}
-                  onChange={(event) => update("timeZone", event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="recurrenceRule">Recurrence</FieldLabel>
-                <Input
-                  id="recurrenceRule"
-                  placeholder="e.g. Annual, March 31"
-                  value={form.recurrenceRule}
-                  onChange={(event) =>
-                    update("recurrenceRule", event.target.value)
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="timeZone" required>
+              Time zone
+            </FieldLabel>
+            <Input
+              id="timeZone"
+              required
+              placeholder="e.g. America/Denver"
+              value={form.timeZone}
+              onChange={(event) => update("timeZone", event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="recurrenceRule">Recurrence</FieldLabel>
+            <Input
+              id="recurrenceRule"
+              placeholder="e.g. Annual, March 31"
+              value={form.recurrenceRule}
+              onChange={(event) => update("recurrenceRule", event.target.value)}
+            />
+          </Field>
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="priorityTier">Priority</FieldLabel>
+            <Select
+              value={form.priorityTier}
+              onValueChange={(value) => update("priorityTier", value ?? "3")}
+            >
+              <SelectTrigger id="priorityTier" className="w-full">
+                <SelectValue placeholder="Select priority">
+                  {(value: string) =>
+                    PRIORITY_TIERS.find((option) => option.value === value)
+                      ?.label
                   }
-                />
-              </Field>
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="priorityTier">Priority</FieldLabel>
-                <Select
-                  value={form.priorityTier}
-                  onValueChange={(value) =>
-                    update("priorityTier", value ?? "3")
-                  }
-                >
-                  <SelectTrigger id="priorityTier" className="w-full">
-                    <SelectValue placeholder="Select priority">
-                      {(value: string) =>
-                        PRIORITY_TIERS.find((option) => option.value === value)
-                          ?.label
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRIORITY_TIERS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="calendarStatus">
-                  Calendar status
-                </FieldLabel>
-                <Select
-                  value={form.calendarStatus}
-                  onValueChange={(value) =>
-                    update("calendarStatus", value ?? "idea")
-                  }
-                >
-                  <SelectTrigger id="calendarStatus" className="w-full">
-                    <SelectValue placeholder="Select status">
-                      {(value: string) =>
-                        CALENDAR_STATUSES.find(
-                          (option) => option.value === value,
-                        )?.label
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CALENDAR_STATUSES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="priorityRationale">
-                Priority rationale
-              </FieldLabel>
-              <Textarea
-                id="priorityRationale"
-                placeholder="Why this tier?"
-                value={form.priorityRationale}
-                onChange={(event) =>
-                  update("priorityRationale", event.target.value)
-                }
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
-                <Select
-                  value={form.visibility}
-                  onValueChange={(value) =>
-                    update("visibility", value ?? "internal")
-                  }
-                >
-                  <SelectTrigger id="visibility" className="w-full">
-                    <SelectValue placeholder="Select visibility">
-                      {(value: string) =>
-                        VISIBILITIES.find((option) => option.value === value)
-                          ?.label
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITIES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="ownerId">Owner</FieldLabel>
-                <PersonSelect
-                  id="ownerId"
-                  people={ownerOptions(owners)}
-                  value={form.ownerId || null}
-                  onChange={(personId) => update("ownerId", personId ?? "")}
-                  noneLabel="No owner"
-                />
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="categories-group">Categories</FieldLabel>
-              <div id="categories-group" className="flex flex-col gap-2">
-                {categoryVocabulary.map((category) => (
-                  <label
-                    key={category.value}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={form.categories.includes(category.value)}
-                      onCheckedChange={() =>
-                        toggleListValue("categories", category.value)
-                      }
-                    />
-                    {category.label}
-                  </label>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_TIERS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
                 ))}
-              </div>
-            </Field>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="calendarStatus">Calendar status</FieldLabel>
+            <Select
+              value={form.calendarStatus}
+              onValueChange={(value) =>
+                update("calendarStatus", value ?? "idea")
+              }
+            >
+              <SelectTrigger id="calendarStatus" className="w-full">
+                <SelectValue placeholder="Select status">
+                  {(value: string) =>
+                    CALENDAR_STATUSES.find((option) => option.value === value)
+                      ?.label
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {CALENDAR_STATUSES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </Field>
 
-            {programs.length > 0 && (
-              <Field>
-                <FieldLabel htmlFor="programs-group">
-                  Related programs
-                </FieldLabel>
-                {(() => {
-                  const suggestedIds = suggestedProgramIds(
-                    programSuggestionRules,
-                    form.itemType,
-                    form.categories,
-                    form.programIds,
-                  );
-                  const suggested = suggestedIds
-                    .map((id) => programs.find((program) => program.id === id))
-                    .filter((program): program is CalendarProgram =>
-                      Boolean(program),
-                    );
-                  if (suggested.length === 0) return null;
-                  return (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="app-muted text-xs">Suggested:</span>
-                      {suggested.map((program) => (
-                        <button
-                          key={program.id}
-                          type="button"
-                          onClick={() =>
-                            toggleListValue("programIds", program.id)
-                          }
-                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
-                        >
-                          + {program.name}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
-                <div id="programs-group" className="flex flex-col gap-2">
-                  {programs.map((program) => (
-                    <label
+        <Field>
+          <FieldLabel htmlFor="priorityRationale">
+            Priority rationale
+          </FieldLabel>
+          <Textarea
+            id="priorityRationale"
+            placeholder="Why this tier?"
+            value={form.priorityRationale}
+            onChange={(event) =>
+              update("priorityRationale", event.target.value)
+            }
+          />
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
+            <Select
+              value={form.visibility}
+              onValueChange={(value) =>
+                update("visibility", value ?? "internal")
+              }
+            >
+              <SelectTrigger id="visibility" className="w-full">
+                <SelectValue placeholder="Select visibility">
+                  {(value: string) =>
+                    VISIBILITIES.find((option) => option.value === value)?.label
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {VISIBILITIES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="ownerId">Owner</FieldLabel>
+            <PersonSelect
+              id="ownerId"
+              people={ownerOptions(owners)}
+              value={form.ownerId || null}
+              onChange={(personId) => update("ownerId", personId ?? "")}
+              noneLabel="No owner"
+            />
+          </Field>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="categories-group">Categories</FieldLabel>
+          <div id="categories-group" className="flex flex-col gap-2">
+            {categoryVocabulary.map((category) => (
+              <label
+                key={category.value}
+                className="flex items-center gap-2 text-sm"
+              >
+                <Checkbox
+                  checked={form.categories.includes(category.value)}
+                  onCheckedChange={() =>
+                    toggleListValue("categories", category.value)
+                  }
+                />
+                {category.label}
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        {programs.length > 0 && (
+          <Field>
+            <FieldLabel htmlFor="programs-group">Related programs</FieldLabel>
+            {(() => {
+              const suggestedIds = suggestedProgramIds(
+                programSuggestionRules,
+                form.itemType,
+                form.categories,
+                form.programIds,
+              );
+              const suggested = suggestedIds
+                .map((id) => programs.find((program) => program.id === id))
+                .filter((program): program is CalendarProgram =>
+                  Boolean(program),
+                );
+              if (suggested.length === 0) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="app-muted text-xs">Suggested:</span>
+                  {suggested.map((program) => (
+                    <button
                       key={program.id}
-                      className="flex items-center gap-2 text-sm"
+                      type="button"
+                      onClick={() => toggleListValue("programIds", program.id)}
+                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
                     >
-                      <Checkbox
-                        checked={form.programIds.includes(program.id)}
-                        onCheckedChange={() =>
-                          toggleListValue("programIds", program.id)
-                        }
-                      />
-                      {program.name}
-                    </label>
+                      + {program.name}
+                    </button>
                   ))}
                 </div>
-              </Field>
-            )}
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="decision">Decision</FieldLabel>
-                <Select
-                  value={form.decision || "none"}
-                  onValueChange={(value) =>
-                    update("decision", value === "none" ? "" : (value ?? ""))
-                  }
+              );
+            })()}
+            <div id="programs-group" className="flex flex-col gap-2">
+              {programs.map((program) => (
+                <label
+                  key={program.id}
+                  className="flex items-center gap-2 text-sm"
                 >
-                  <SelectTrigger id="decision" className="w-full">
-                    <SelectValue placeholder="No decision yet">
-                      {(value: string) =>
-                        value && value !== "none"
-                          ? DECISIONS.find((option) => option.value === value)
-                              ?.label
-                          : "No decision yet"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No decision yet</SelectItem>
-                    {DECISIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="decisionNote">Decision note</FieldLabel>
-                <Input
-                  id="decisionNote"
-                  placeholder={
-                    form.decision === "skip" ? "Reason (required)" : "Optional"
+                  <Checkbox
+                    checked={form.programIds.includes(program.id)}
+                    onCheckedChange={() =>
+                      toggleListValue("programIds", program.id)
+                    }
+                  />
+                  {program.name}
+                </label>
+              ))}
+            </div>
+          </Field>
+        )}
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="decision">Decision</FieldLabel>
+            <Select
+              value={form.decision || "none"}
+              onValueChange={(value) =>
+                update("decision", value === "none" ? "" : (value ?? ""))
+              }
+            >
+              <SelectTrigger id="decision" className="w-full">
+                <SelectValue placeholder="No decision yet">
+                  {(value: string) =>
+                    value && value !== "none"
+                      ? DECISIONS.find((option) => option.value === value)
+                          ?.label
+                      : "No decision yet"
                   }
-                  value={form.decisionNote}
-                  onChange={(event) =>
-                    update("decisionNote", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No decision yet</SelectItem>
+                {DECISIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="decisionNote">Decision note</FieldLabel>
+            <Input
+              id="decisionNote"
+              placeholder={
+                form.decision === "skip" ? "Reason (required)" : "Optional"
+              }
+              value={form.decisionNote}
+              onChange={(event) => update("decisionNote", event.target.value)}
+            />
+          </Field>
+        </Field>
 
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.isSensitiveTopic}
-                onCheckedChange={(checked) =>
-                  update("isSensitiveTopic", checked === true)
-                }
-              />
-              Sensitive topic (requires reviewer sign-off distinct from content
-              approval)
-            </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.isSensitiveTopic}
+            onCheckedChange={(checked) =>
+              update("isSensitiveTopic", checked === true)
+            }
+          />
+          Sensitive topic (requires reviewer sign-off distinct from content
+          approval)
+        </label>
 
-            {form.isSensitiveTopic && (
-              <Field>
-                <FieldLabel htmlFor="toneGuidance">Tone guidance</FieldLabel>
-                <Textarea
-                  id="toneGuidance"
-                  placeholder="How should staff write about this moment?"
-                  value={form.toneGuidance}
-                  onChange={(event) =>
-                    update("toneGuidance", event.target.value)
-                  }
-                />
-              </Field>
-            )}
+        {form.isSensitiveTopic && (
+          <Field>
+            <FieldLabel htmlFor="toneGuidance">Tone guidance</FieldLabel>
+            <Textarea
+              id="toneGuidance"
+              placeholder="How should staff write about this moment?"
+              value={form.toneGuidance}
+              onChange={(event) => update("toneGuidance", event.target.value)}
+            />
+          </Field>
+        )}
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {warning && (
-              <Alert>
-                <AlertDescription>{warning}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : (
-                "Create calendar item"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {warning && (
+          <Alert>
+            <AlertDescription>{warning}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

@@ -8,14 +8,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,99 +74,98 @@ export function NewTemplateDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={<Button type="button" className="shrink-0 whitespace-nowrap" />}
-      >
-        New template
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Create content brief template</DialogTitle>
-          <DialogDescription>
-            Defines the structure a brief starts from when staff pick this
-            template — it never publishes content on its own.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="template-key" required>
-                  Key
-                </FieldLabel>
-                <Input
-                  id="template-key"
-                  required
-                  placeholder="e.g. community_spotlight"
-                  value={form.key}
-                  onChange={(event) => update("key", event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="template-name" required>
-                  Name
-                </FieldLabel>
-                <Input
-                  id="template-name"
-                  required
-                  value={form.name}
-                  onChange={(event) => update("name", event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="template-description">
-                Description
-              </FieldLabel>
-              <Textarea
-                id="template-description"
-                value={form.description}
-                onChange={(event) => update("description", event.target.value)}
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="template-fields">Fields</FieldLabel>
-              <div id="template-fields">
-                <TemplateFieldsEditor fields={fields} onChange={setFields} />
-              </div>
-            </Field>
-
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.requiresConsent}
-                onCheckedChange={(checked) =>
-                  update("requiresConsent", checked === true)
-                }
-              />
-              Requires recorded consent before approval (e.g. a community-story
-              spotlight)
-            </label>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button type="button" className="shrink-0 whitespace-nowrap">
+          New template
+        </Button>
+      }
+      title="Create content brief template"
+      description="Defines the structure a brief starts from when staff pick this template — it never publishes content on its own."
+      size="2xl"
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <PortalFormSurfaceClose
+            render={<Button type="button" variant="secondary" />}
+          >
+            Cancel
+          </PortalFormSurfaceClose>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create template"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="template-key" required>
+              Key
+            </FieldLabel>
+            <Input
+              id="template-key"
+              required
+              placeholder="e.g. community_spotlight"
+              value={form.key}
+              onChange={(event) => update("key", event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="template-name" required>
+              Name
+            </FieldLabel>
+            <Input
+              id="template-name"
+              required
+              value={form.name}
+              onChange={(event) => update("name", event.target.value)}
+            />
+          </Field>
+        </Field>
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Creating...
-                </>
-              ) : (
-                "Create template"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="template-description">Description</FieldLabel>
+          <Textarea
+            id="template-description"
+            value={form.description}
+            onChange={(event) => update("description", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="template-fields">Fields</FieldLabel>
+          <div id="template-fields">
+            <TemplateFieldsEditor fields={fields} onChange={setFields} />
+          </div>
+        </Field>
+
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.requiresConsent}
+            onCheckedChange={(checked) =>
+              update("requiresConsent", checked === true)
+            }
+          />
+          Requires recorded consent before approval (e.g. a community-story
+          spotlight)
+        </label>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
