@@ -4,15 +4,7 @@ import { FormEvent, useState, useTransition } from "react";
 import { createDiscountCodesAction } from "./discount-codes-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,91 +59,85 @@ export function AddDiscountCodesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0 whitespace-nowrap"
+        >
+          {triggerLabel}
+        </Button>
+      }
+      title="Add discount codes"
+      description="Add a batch of discount codes for this event."
+      onSubmit={handleSubmit}
+      footer={
+        <>
           <Button
             type="button"
             variant="secondary"
-            className="shrink-0 whitespace-nowrap"
-          />
-        }
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add discount codes</DialogTitle>
-          <DialogDescription>
-            Add a batch of discount codes for this event.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="discount-codes-batch">
-                Codes (one per line)
-              </FieldLabel>
-              <Textarea
-                id="discount-codes-batch"
-                placeholder={"SPRING10\nSPRING11\nSPRING12"}
-                value={codes}
-                onChange={(event) => setCodes(event.target.value)}
-                rows={6}
-              />
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="discount-codes-description">
-                  Discount description
-                </FieldLabel>
-                <Input
-                  id="discount-codes-description"
-                  placeholder="e.g. $10 off"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="discount-codes-source">Source</FieldLabel>
-                <Input
-                  id="discount-codes-source"
-                  placeholder="e.g. ACME Vendor"
-                  value={source}
-                  onChange={(event) => setSource(event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Add codes"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="discount-codes-batch">
+            Codes (one per line)
+          </FieldLabel>
+          <Textarea
+            id="discount-codes-batch"
+            placeholder={"SPRING10\nSPRING11\nSPRING12"}
+            value={codes}
+            onChange={(event) => setCodes(event.target.value)}
+            rows={6}
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Add codes"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="discount-codes-description">
+              Discount description
+            </FieldLabel>
+            <Input
+              id="discount-codes-description"
+              placeholder="e.g. $10 off"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="discount-codes-source">Source</FieldLabel>
+            <Input
+              id="discount-codes-source"
+              placeholder="e.g. ACME Vendor"
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+            />
+          </Field>
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }
