@@ -117,7 +117,7 @@ export default async function InventoryCategoriesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Category</TableHead>
-                  <TableHead>Key</TableHead>
+                  <TableHead hideBelow="sm">Key</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead className="w-10" />
@@ -146,7 +146,7 @@ export default async function InventoryCategoriesPage() {
                             <TableCell className="pl-8">
                               {category.label}
                             </TableCell>
-                            <TableCell className="app-muted">
+                            <TableCell hideBelow="sm" className="app-muted">
                               {category.key}
                             </TableCell>
                             <TableCell>{row.item_count}</TableCell>

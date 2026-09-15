@@ -94,6 +94,7 @@ export function InventoryTable({
                   {SORT_COLUMNS.map((column) => (
                     <TableHead
                       key={column.key}
+                      hideBelow={column.hideBelow}
                       sortDirection={sort === column.key ? dir : null}
                     >
                       <SortHeaderLink
@@ -118,18 +119,20 @@ export function InventoryTable({
                       {item.description}
                     </TableCell>
                     <TableCell>{categoryLabelFor(item)}</TableCell>
-                    <TableCell>{item.size ?? "—"}</TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="md">{item.size ?? "—"}</TableCell>
+                    <TableCell hideBelow="lg">
                       {labelFor(GENDERS, item.gender) ?? "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="lg">
                       {labelFor(CONDITIONS, item.condition)}
                     </TableCell>
-                    <TableCell>{formatFaceValue(item.face_value)}</TableCell>
+                    <TableCell hideBelow="md">
+                      {formatFaceValue(item.face_value)}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={item.status} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="lg">
                       <IntendedUseBadge intendedUse={item.intended_use} />
                     </TableCell>
                     <TableCell>

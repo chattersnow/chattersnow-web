@@ -19,8 +19,11 @@ test.describe("portal administration audit log", () => {
     await expect(
       page.getByRole("columnheader", { name: "Occurred at" }),
     ).toBeVisible();
+    // Not "Actor": the table keeps only Occurred at and Action on a phone and
+    // hands the rest to the row's detail sheet (#1116), and this suite runs a
+    // mobile project too.
     await expect(
-      page.getByRole("columnheader", { name: "Actor" }),
+      page.getByRole("columnheader", { name: "Action" }),
     ).toBeVisible();
   });
 

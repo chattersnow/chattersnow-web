@@ -203,7 +203,7 @@ export function NonprofitStatusChecklist({
                     <TableRow>
                       <TableHead>Status</TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Owner</TableHead>
+                      <TableHead hideBelow="sm">Owner</TableHead>
                       <TableHead>Due date</TableHead>
                       <TableHead className="w-0">
                         <span className="sr-only">Actions</span>
@@ -223,7 +223,7 @@ export function NonprofitStatusChecklist({
                         <TableCell className="max-w-md whitespace-normal">
                           {milestone.description}
                         </TableCell>
-                        <TableCell className="app-muted">
+                        <TableCell hideBelow="sm" className="app-muted">
                           {personDisplayName(milestone.owner)}
                         </TableCell>
                         <TableCell className="app-muted">

@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import {
   buildHref,
@@ -76,11 +77,11 @@ function isSortColumn(value: string | undefined): value is SortColumn {
   return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
 }
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
+const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
   { key: "name", label: "Name" },
-  { key: "email", label: "Email" },
-  { key: "role_interest", label: "Role interest" },
-  { key: "created_at", label: "Submitted" },
+  { key: "email", label: "Email", hideBelow: "md" },
+  { key: "role_interest", label: "Role interest", hideBelow: "lg" },
+  { key: "created_at", label: "Submitted", hideBelow: "sm" },
   // Sorts alphabetically rather than by where a status sits in the workflow,
   // which is what the column holds. Grouping like with like is the point.
   { key: "status", label: "Status" },
@@ -299,6 +300,7 @@ export default async function VolunteerApplicationsPage({
                         {COLUMNS.map((column) => (
                           <TableHead
                             key={column.key}
+                            hideBelow={column.hideBelow}
                             sortDirection={sort === column.key ? dir : null}
                           >
                             <SortHeaderLink
@@ -319,13 +321,16 @@ export default async function VolunteerApplicationsPage({
                           <TableCell className="font-medium">
                             {application.name}
                           </TableCell>
-                          <TableCell className="app-muted">
+                          <TableCell hideBelow="md" className="app-muted">
                             {application.email}
                           </TableCell>
-                          <TableCell className="app-muted max-w-sm truncate">
+                          <TableCell
+                            hideBelow="lg"
+                            className="app-muted max-w-sm truncate"
+                          >
                             {application.role_interest || "—"}
                           </TableCell>
-                          <TableCell className="app-muted">
+                          <TableCell hideBelow="sm" className="app-muted">
                             <ViewerTime
                               iso={application.created_at}
                               fallbackZone="UTC"

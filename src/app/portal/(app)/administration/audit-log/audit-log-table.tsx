@@ -7,6 +7,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { ActionBadge, TABLE_LABELS } from "./audit-log-badges";
@@ -18,9 +19,9 @@ import type { AuditLogEntry } from "./audit-log-query";
 import type { SortColumn } from "./audit-log-params";
 import { formatDateTime } from "@/lib/format";
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
+const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
   { key: "occurred_at", label: "Occurred at" },
-  { key: "table_name", label: "Table" },
+  { key: "table_name", label: "Table", hideBelow: "md" },
   { key: "action", label: "Action" },
 ];
 
@@ -70,6 +71,7 @@ export function AuditLogTable({
                   {COLUMNS.map((column) => (
                     <TableHead
                       key={column.key}
+                      hideBelow={column.hideBelow}
                       sortDirection={sort === column.key ? dir : null}
                     >
                       <SortHeaderLink
@@ -79,8 +81,8 @@ export function AuditLogTable({
                       />
                     </TableHead>
                   ))}
-                  <TableHead>Record</TableHead>
-                  <TableHead>Actor</TableHead>
+                  <TableHead hideBelow="lg">Record</TableHead>
+                  <TableHead hideBelow="sm">Actor</TableHead>
                   <TableHead className="w-px" />
                 </TableRow>
               </TableHeader>
@@ -102,16 +104,16 @@ export function AuditLogTable({
                   return (
                     <TableRow key={entry.id}>
                       <TableCell>{formatDateTime(entry.occurred_at)}</TableCell>
-                      <TableCell>
+                      <TableCell hideBelow="md">
                         {TABLE_LABELS[entry.table_name] ?? entry.table_name}
                       </TableCell>
                       <TableCell>
                         <ActionBadge action={entry.action} />
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell hideBelow="lg" className="font-mono text-xs">
                         {entry.record_id.slice(0, 8)}
                       </TableCell>
-                      <TableCell className="app-muted">
+                      <TableCell hideBelow="sm" className="app-muted">
                         {auditRow.actor_label}
                       </TableCell>
                       <TableCell className="text-right">

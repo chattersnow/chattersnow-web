@@ -594,7 +594,7 @@ export function SponsorsTab({
               <TableHead>Sponsor</TableHead>
               <TableHead>Support</TableHead>
               <TableHead>Value</TableHead>
-              <TableHead>Public</TableHead>
+              <TableHead hideBelow="sm">Public</TableHead>
               <TableHead className="w-px" />
             </TableRow>
           </TableHeader>
@@ -642,7 +642,7 @@ export function SponsorsTab({
                   <TableCell>
                     {formatCurrency(sponsor.contribution_value)}
                   </TableCell>
-                  <TableCell className="app-muted">
+                  <TableCell hideBelow="sm" className="app-muted">
                     {sponsor.is_public ? "Yes" : "No"}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">

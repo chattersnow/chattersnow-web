@@ -16,6 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  type HideBelow,
 } from "@/components/ui/table";
 import {
   buildHref,
@@ -67,12 +68,12 @@ type EventsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
+const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
   { key: "name", label: "Event" },
   { key: "starts_at", label: "Starts" },
-  { key: "location", label: "Location" },
+  { key: "location", label: "Location", hideBelow: "md" },
   { key: "status", label: "Status" },
-  { key: "visibility", label: "Visibility" },
+  { key: "visibility", label: "Visibility", hideBelow: "sm" },
 ];
 
 export const metadata: Metadata = {
@@ -340,6 +341,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                   {COLUMNS.map((column) => (
                     <TableHead
                       key={column.key}
+                      hideBelow={column.hideBelow}
                       sortDirection={sort === column.key ? dir : null}
                     >
                       <SortHeaderLink
@@ -368,6 +370,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                       />
                     </TableCell>
                     <TableCell
+                      hideBelow="md"
                       className="app-muted max-w-xs truncate"
                       title={event.location ?? undefined}
                     >
@@ -376,7 +379,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                     <TableCell>
                       <StatusBadge status={event.status} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="sm">
                       <VisibilityBadge visibility={event.visibility} />
                     </TableCell>
                     <TableCell className="text-right">

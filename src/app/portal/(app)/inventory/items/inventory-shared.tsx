@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { HideBelow } from "@/components/ui/table";
 import {
   CONDITIONS,
   categoryLabelFor,
@@ -66,15 +67,22 @@ export type SortColumn =
   | "status"
   | "intended_use";
 
-export const SORT_COLUMNS: { key: SortColumn; label: string }[] = [
+// Eight columns is a desk table. Description, category and status are what the
+// list is read for; the rest come back in the item's own edit modal, and the
+// gallery view is the other way to read an item on a phone.
+export const SORT_COLUMNS: {
+  key: SortColumn;
+  label: string;
+  hideBelow?: HideBelow;
+}[] = [
   { key: "description", label: "Description" },
   { key: "category", label: "Category" },
-  { key: "size", label: "Size" },
-  { key: "gender", label: "Gender" },
-  { key: "condition", label: "Condition" },
-  { key: "face_value", label: "Face value" },
+  { key: "size", label: "Size", hideBelow: "md" },
+  { key: "gender", label: "Gender", hideBelow: "lg" },
+  { key: "condition", label: "Condition", hideBelow: "lg" },
+  { key: "face_value", label: "Face value", hideBelow: "md" },
   { key: "status", label: "Status" },
-  { key: "intended_use", label: "Intended use" },
+  { key: "intended_use", label: "Intended use", hideBelow: "lg" },
 ];
 
 export function isSortColumn(value: string | undefined): value is SortColumn {

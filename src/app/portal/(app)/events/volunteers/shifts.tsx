@@ -298,7 +298,7 @@ export function ShiftsSection({
             <TableRow>
               <TableHead>Duty / location</TableHead>
               <TableHead>Time</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead hideBelow="md">Role</TableHead>
               <TableHead>Signed up</TableHead>
               <TableHead className="w-px" />
             </TableRow>
@@ -340,7 +340,7 @@ export function ShiftsSection({
                   <TableCell className="app-muted">
                     {formatShiftRange(shift)}
                   </TableCell>
-                  <TableCell className="app-muted">
+                  <TableCell hideBelow="md" className="app-muted">
                     {shift.role_type?.name ?? "—"}
                   </TableCell>
                   <TableCell
