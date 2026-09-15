@@ -35,6 +35,7 @@ import {
 } from "@/components/portal/list-preview-sheet";
 import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { runAction } from "@/components/portal/action-toast";
 
 /**
  * What the door sees in the Rides column.
@@ -123,12 +124,24 @@ export function RegistrantsTab({
     (registrant: EventRegistrant) => {
       setPendingId(registrant.id);
       startTransition(async () => {
-        const action = registrant.checked_in_at
-          ? undoCheckInAction
-          : checkInRegistrantAction;
-        await action(registrant.id);
+        const undo = registrant.checked_in_at !== null;
+        await runAction(
+          () =>
+            undo
+              ? undoCheckInAction(registrant.id)
+              : checkInRegistrantAction(registrant.id),
+          {
+            success: undo
+              ? `Undid ${registrant.name}'s check-in.`
+              : `${registrant.name} checked in.`,
+            // Only a success refreshes. This is the door: an expired session or
+            // an account without `events: manage` both leave the row exactly as
+            // it was, and repainting it unchanged is what made a refusal look
+            // like a completed check-in (#1124).
+            onSuccess: refreshAll,
+          },
+        );
         setPendingId(null);
-        refreshAll();
       });
     },
     [refreshAll],

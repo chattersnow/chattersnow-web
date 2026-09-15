@@ -6,7 +6,10 @@ import * as RegistrantsActions from "./registrants-actions";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import type { TabData } from "@/hooks/use-tab-data";
 
-type ActionResult = { error: string } | { success: true };
+// The #1082 Phase 2 envelope these actions answer with: `message` is the
+// display copy the tab is expected to put in front of the operator.
+type ActionResult =
+  { error: { code: string; message: string } } | { success: true };
 
 const registrants: EventRegistrant[] = [
   {
@@ -80,6 +83,18 @@ mock.module("./registrants-actions", () => ({
   undoCheckInAction: undoCheckInActionMock,
 }));
 
+const toastErrorMock = mock<(message: string) => string>(() => "");
+const toastSuccessMock = mock<(message: string) => string>(() => "");
+
+mock.module("@/components/ui/toast", () => ({
+  toast: {
+    error: toastErrorMock,
+    success: toastSuccessMock,
+    close: mock(() => {}),
+  },
+  Toaster: () => null,
+}));
+
 const { RegistrantsTab } = await import("./registrants-tab");
 
 // The card no longer fetches -- the phase provider does (event-shared-data.tsx)
@@ -108,7 +123,11 @@ function slices(): {
 describe("RegistrantsTab", () => {
   beforeEach(() => {
     checkInRegistrantActionMock.mockClear();
+    checkInRegistrantActionMock.mockResolvedValue({ success: true });
     undoCheckInActionMock.mockClear();
+    undoCheckInActionMock.mockResolvedValue({ success: true });
+    toastErrorMock.mockClear();
+    toastSuccessMock.mockClear();
     refreshRegistrants.mockClear();
     refreshDerived.mockClear();
   });
@@ -167,6 +186,61 @@ describe("RegistrantsTab", () => {
     await user.click(screen.getByRole("button", { name: "Undo check-in" }));
 
     expect(undoCheckInActionMock).toHaveBeenCalledWith("reg-2");
+  });
+
+  // The door's failure mode: an expired session or an account without
+  // `events: manage` leaves the row unchanged, so the refusal has to be said
+  // out loud instead of being swallowed by a refresh (#1124).
+  test("a refused check-in shows the action's message and skips the refresh", async () => {
+    checkInRegistrantActionMock.mockResolvedValue({
+      error: {
+        code: "forbidden",
+        message: "You do not have permission to manage events.",
+      },
+    });
+    const user = userEvent.setup();
+    render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
+    await screen.findByText("Jamie Rivera");
+
+    await user.click(screen.getByRole("button", { name: "Check in" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "You do not have permission to manage events.",
+    );
+    expect(refreshRegistrants).not.toHaveBeenCalled();
+    expect(refreshDerived).not.toHaveBeenCalled();
+  });
+
+  test("a refused undo shows the action's message", async () => {
+    undoCheckInActionMock.mockResolvedValue({
+      error: {
+        code: "unauthenticated",
+        message: "You must be signed in to undo a check-in.",
+      },
+    });
+    const user = userEvent.setup();
+    render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
+    await screen.findByText("Alex Chen");
+
+    await user.click(screen.getByRole("button", { name: "Undo check-in" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "You must be signed in to undo a check-in.",
+    );
+    expect(refreshRegistrants).not.toHaveBeenCalled();
+  });
+
+  test("a successful check-in leaves a receipt naming the registrant", async () => {
+    const user = userEvent.setup();
+    render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
+    await screen.findByText("Jamie Rivera");
+
+    await user.click(screen.getByRole("button", { name: "Check in" }));
+
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Jamie Rivera checked in.",
+      expect.anything(),
+    );
   });
   test("caps the card at previewRows and defers the rest to a sheet", async () => {
     render(
