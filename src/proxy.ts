@@ -25,6 +25,44 @@ import {
 const ROOT_PATH_PREFIXES = ["/auth/", "/api/"];
 
 /**
+ * The public site's event URLs, for the legacy `/events/<uuid>` 308 (#1003).
+ *
+ * This redirect lived in `next.config.ts` until it took the portal down
+ * (#1145). Events moved a segment down to `/events/e/<uuid>` because the
+ * intercepting sheet matched every single segment under /events, and the old
+ * URL had to keep working -- but `next.config.ts` redirects are host-blind and
+ * are applied ahead of this proxy, and on a `portal.` host the portal's own
+ * visible event URL *is* `/events/<uuid>`, because the `/portal` prefix is
+ * stripped here. So the two collided: a click on the portal's event list went
+ * `/portal/events/<uuid>` -> 307 `/events/<uuid>` -> 308 `/events/e/<uuid>`,
+ * which this proxy then rewrote to `/portal/events/e/<uuid>` -- no such route,
+ * 404. It reproduced on the portal hosts alone, which is why previews, the
+ * demo tenant (`/portal` is a real path segment there) and every local run
+ * looked fine.
+ *
+ * Living here rather than in `next.config.ts` is the fix: this is the one
+ * module that already knows what a portal host is, so the public site's
+ * redirects cannot be written in ignorance of the portal's paths again. It is
+ * still a real 308 issued before any rendering, which is what a crawler needs
+ * to move the link equity over.
+ */
+const PUBLIC_EVENT_PATH = /^\/events\/([0-9a-fA-F-]{36})\/?$/;
+
+/**
+ * The same URL one segment down -- what a browser that cached the 308 above
+ * asks the portal for, possibly forever.
+ *
+ * The redirect went out as `permanent`, so fixing the collision is not enough
+ * on its own: every browser that has already followed it has
+ * `/events/<uuid>` -> `/events/e/<uuid>` burned into its cache, and would keep
+ * 404ing on a portal host long after this deploy. Absorbing that path here
+ * serves those browsers the event they asked for. It has to be a rewrite and
+ * not a redirect back: redirecting to `/events/<uuid>` would meet the cached
+ * 308 coming the other way and spin.
+ */
+const PORTAL_CACHED_EVENT_PATH = /^\/events\/e\/([0-9a-fA-F-]{36})\/?$/;
+
+/**
  * Header carrying the portal path the browser actually asked for.
  *
  * The portal layout redirects signed-out users to the login page, but a
@@ -133,6 +171,13 @@ export function resolvePortalRoute(
           };
     }
 
+    // Ahead of the blanket rewrite below, which would send this to
+    // `/portal/events/e/<uuid>` -- the 404 that #1145 was.
+    const cached = PORTAL_CACHED_EVENT_PATH.exec(pathname);
+    if (cached) {
+      return { kind: "rewrite", pathname: `/portal/events/${cached[1]}` };
+    }
+
     return { kind: "rewrite", pathname: `/portal${pathname}` };
   }
 
@@ -145,6 +190,19 @@ export function resolvePortalRoute(
       kind: "redirect",
       host: portalHost,
       pathname: stripPortalPrefix(pathname),
+      status: 308,
+    };
+  }
+
+  // The public site's legacy event URL. Deliberately after the portal branch
+  // above, so it can never fire on a host where `/events/<uuid>` is a portal
+  // page rather than a public one.
+  const legacyEvent = PUBLIC_EVENT_PATH.exec(pathname);
+  if (legacyEvent) {
+    return {
+      kind: "redirect",
+      host: hostname,
+      pathname: `/events/e/${legacyEvent[1]}`,
       status: 308,
     };
   }
