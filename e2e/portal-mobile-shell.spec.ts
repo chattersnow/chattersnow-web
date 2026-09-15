@@ -49,10 +49,38 @@ test.describe("the portal's two shells", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
+    // Sections arrive collapsed, so the sheet opens on a list of sections
+    // rather than on every page in the portal at once.
+    await expect(sheet.getByRole("link", { name: "Users" })).toHaveCount(0);
+
     // Administration is nobody's tab-bar entry, so if it is reachable the
     // sheet is doing the job the navigation rules require of it.
-    await sheet.getByRole("link", { name: "Administration" }).first().click();
-    await expect(page).toHaveURL(/\/portal\/administration/);
+    await sheet.getByRole("button", { name: "Administration" }).click();
+    await sheet.getByRole("link", { name: "Users" }).click();
+    await expect(page).toHaveURL(/\/portal\/administration\/users/);
+  });
+
+  // The other half of the same complaint: the account, theme and log out rows
+  // used to trail the tree, so reaching log out meant scrolling past every
+  // section in the portal.
+  test("the account rows stay on screen however far the menu scrolls", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    await page.getByRole("button", { name: "More" }).click();
+    const sheet = page.getByRole("dialog");
+    const logOut = sheet.getByRole("button", { name: "Log out" });
+    await expect(logOut).toBeInViewport();
+
+    // Expanded, Governance alone is longer than the sheet, which is what put
+    // the footer off the bottom before.
+    await sheet.getByRole("button", { name: "Governance" }).click();
+    await sheet.getByRole("link", { name: "Grants" }).scrollIntoViewIfNeeded();
+    await expect(logOut).toBeInViewport();
   });
 
   // Issue #1096: every other modal surface in the app offers a visible exit --
@@ -230,5 +258,52 @@ test.describe("portal tables on a phone", () => {
     // saying `mobile`.
     await page.reload();
     await expect(itemsTable).toBeVisible();
+  });
+  // Issue #1115: a form is a sheet on a phone and a dialog at a desk, decided
+  // on the server. Layout is the one thing a className unit test cannot check
+  // -- `portal-form-surface.dom.test.tsx` asserts the classes are present, and
+  // only a real layout says whether they did anything -- so this is the only
+  // e2e the primitive gets.
+  test("a form fills the width of a phone and pins its submit button", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/inventory/distribution");
+
+    // Only one button carries this name until the surface opens; the submit
+    // button inside it shares the label, so every assertion below is scoped.
+    await page.getByRole("button", { name: "Record distribution" }).click();
+    const surface = page.getByRole("dialog");
+    await expect(surface).toBeVisible();
+
+    // Polled rather than read once: the sheet enters on a 200ms transition
+    // from `translate-y-[2.5rem]`, so a single `boundingBox()` catches it 40px
+    // low and reports a sheet hanging off the bottom of the screen.
+    await expect
+      .poll(async () => {
+        const box = await surface.boundingBox();
+        if (!box) return null;
+        return {
+          x: box.x,
+          width: box.width,
+          bottom: Math.round(box.y + box.height),
+        };
+      })
+      // Flush to both edges and anchored to the bottom -- the dead space
+      // either side of a centred dialog is the thing this replaced.
+      .toEqual({ x: 0, width: 390, bottom: 844 });
+
+    // Not the whole screen: the strip of backdrop left showing is what says
+    // the sheet is dismissible rather than a page you navigated to.
+    const settled = await surface.boundingBox();
+    expect(settled?.y ?? 0).toBeGreaterThan(0);
+
+    // The submit button is on screen without scrolling the form, which is what
+    // the pinned footer is for.
+    await expect(
+      surface.getByRole("button", { name: "Record distribution" }),
+    ).toBeInViewport();
   });
 });

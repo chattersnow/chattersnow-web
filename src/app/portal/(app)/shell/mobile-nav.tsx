@@ -3,8 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, UserRound, X } from "lucide-react";
+import { ChevronRight, LogOut, Menu, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Sheet,
   SheetClose,
@@ -62,6 +67,18 @@ export function MobileNav({
   // `/portal/...` paths, so normalize before matching.
   const pathname = toPortalPathname(usePathname());
   const activeSection = activeSectionFor(pathname) ?? null;
+
+  // One section expanded at a time, the way the desktop sidebar behaves, and
+  // the section owning the current route is the one open when the sheet is
+  // first opened. Re-synced on navigation so reopening the sheet after moving
+  // around never leaves a stale section expanded over the current one.
+  const [openSection, setOpenSection] = useState<string | null>(activeSection);
+  const [syncedSection, setSyncedSection] = useState(activeSection);
+
+  if (activeSection !== syncedSection) {
+    setSyncedSection(activeSection);
+    setOpenSection(activeSection);
+  }
 
   const items = visibleNavItems(permissions, lexicon);
   const tabs = primaryNavItems(items);
@@ -122,15 +139,21 @@ export function MobileNav({
       </nav>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        {/* Three bands rather than one long scrolling column: the header and
+            the account footer stay put and only the module list moves, so the
+            way out of the menu -- and the account, theme and log out rows --
+            are always on screen instead of a whole tree's scroll away.
+            `gap-0` because each band carries its own padding and the sheet's
+            default gap would push the footer's border off its rows. */}
         <SheetContent
           side="right"
-          className="w-[85%] overflow-y-auto p-0"
+          className="w-[85%] gap-0 overflow-hidden p-0"
           // The sheet's own X is `size-8`, and this is the one surface in the
           // portal where touch is the only input -- 44px is the target the
           // tab bar, the theme toggle and the hamburger already meet (#1096).
           showCloseButton={false}
         >
-          <SheetHeader className="flex-row items-start gap-2 space-y-0 px-3 pt-3">
+          <SheetHeader className="shrink-0 flex-row items-start gap-2 space-y-0 px-3 pt-3 pb-2">
             <SheetClose
               render={
                 <Button
@@ -151,11 +174,17 @@ export function MobileNav({
               </SheetDescription>
             </div>
           </SheetHeader>
-          {/* Every section and every sub-item, flat and scrollable rather than
-              collapsed: this is the surface that has to make good on "no real
-              destination appears in no navigation surface", so hiding half of
-              it behind another tap would defeat the point. */}
-          <div className="px-2 pb-24">
+          {/* Sections collapse, one open at a time: expanded in full this tree
+              runs several phone screens long, so the section you are looking
+              for is off the bottom before you have read a heading. A section
+              with a single reachable page stays a plain link -- there is
+              nothing to expand, and a disclosure that reveals one row is a
+              wasted tap.
+
+              `min-h-0` is what actually lets this band scroll: without it a
+              flex item's automatic minimum size is its content, so the list
+              would stretch the popup instead of overflowing inside it. */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
             {navGroups(items).map((group) => (
               <div key={group.label ?? "ungrouped"} className="py-2">
                 {group.label && (
@@ -166,84 +195,158 @@ export function MobileNav({
                 <ul>
                   {group.items.map((item) => {
                     const Icon = sectionIcon(item.value);
+                    const isSectionActive = activeSection === item.value;
+                    const collapsible = Boolean(
+                      item.subItems && item.subItems.length > 1,
+                    );
+                    const isOpen = collapsible && openSection === item.value;
+                    const rowClass = cn(
+                      "flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-base",
+                      isSectionActive &&
+                        "bg-[var(--purple-soft)] font-semibold text-[var(--purple-deep)]",
+                    );
+
+                    if (!collapsible) {
+                      return (
+                        <li key={item.value}>
+                          <Link
+                            href={item.href}
+                            onClick={() => setSheetOpen(false)}
+                            aria-current={isSectionActive ? "page" : undefined}
+                            className={rowClass}
+                          >
+                            <Icon className="size-4 shrink-0" aria-hidden />
+                            {item.label}
+                          </Link>
+                        </li>
+                      );
+                    }
+
                     return (
                       <li key={item.value}>
-                        <Link
-                          href={item.href}
-                          onClick={() => setSheetOpen(false)}
-                          aria-current={
-                            activeSection === item.value ? "page" : undefined
+                        {/* `aria-expanded`/`aria-controls` are left to the Base
+                            UI trigger, which emits both itself. */}
+                        <Collapsible
+                          open={isOpen}
+                          onOpenChange={() =>
+                            setOpenSection((prev) =>
+                              prev === item.value ? null : item.value,
+                            )
                           }
-                          className={cn(
-                            "flex min-h-11 items-center gap-3 rounded-md px-3 text-base",
-                            activeSection === item.value &&
-                              "bg-[var(--purple-soft)] font-semibold text-[var(--purple-deep)]",
-                          )}
                         >
-                          <Icon className="size-4 shrink-0" aria-hidden />
-                          {item.label}
-                        </Link>
-                        {item.subItems && item.subItems.length > 1 && (
-                          <ul className="mb-1 ml-7 border-l border-[var(--line)] pl-3">
-                            {item.subItems.map((sub) => (
-                              <li key={sub.value}>
-                                <Link
-                                  href={sub.href}
-                                  onClick={() => setSheetOpen(false)}
-                                  aria-current={
-                                    pathname === sub.href ? "page" : undefined
-                                  }
-                                  className={cn(
-                                    "flex min-h-10 items-center rounded-md px-2 text-sm",
-                                    pathname === sub.href &&
-                                      "font-semibold text-[var(--purple-deep)]",
-                                  )}
-                                >
-                                  {sub.label}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                          <CollapsibleTrigger
+                            // Pinned only while this section is open, so a
+                            // ten-item section like Governance keeps saying
+                            // which section you are reading. `bg-popover` is
+                            // not optional: the sheet paints its background
+                            // further up, so without it the rows being
+                            // scrolled show straight through the header.
+                            className={cn(
+                              rowClass,
+                              isOpen && "sticky top-0 z-10 bg-popover",
+                            )}
+                          >
+                            <Icon className="size-4 shrink-0" aria-hidden />
+                            {item.label}
+                            <ChevronRight
+                              className={cn(
+                                "ml-auto size-4 shrink-0 transition-transform",
+                                isOpen && "rotate-90",
+                              )}
+                              aria-hidden
+                            />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent
+                            // Clears the sticky trigger above, which is one
+                            // min-h-11 row.
+                            className="scroll-mt-11"
+                            // On transitionend rather than in an effect: at the
+                            // moment the state flips the panel is still at
+                            // height 0, so anything measuring then scrolls to
+                            // the wrong offset. Opening the last section in the
+                            // sheet otherwise reveals its pages below the fold,
+                            // which is the scrolling this change exists to
+                            // remove.
+                            onTransitionEnd={(event) => {
+                              if (
+                                event.target !== event.currentTarget ||
+                                event.propertyName !== "height" ||
+                                !isOpen
+                              ) {
+                                return;
+                              }
+                              event.currentTarget.scrollIntoView({
+                                block: "nearest",
+                              });
+                            }}
+                          >
+                            <ul className="mb-1 ml-7 border-l border-[var(--line)] pl-3">
+                              {item.subItems?.map((sub) => (
+                                <li key={sub.value}>
+                                  <Link
+                                    href={sub.href}
+                                    onClick={() => setSheetOpen(false)}
+                                    aria-current={
+                                      pathname === sub.href ? "page" : undefined
+                                    }
+                                    className={cn(
+                                      "flex min-h-10 items-center rounded-md px-2 text-sm",
+                                      pathname === sub.href &&
+                                        "font-semibold text-[var(--purple-deep)]",
+                                    )}
+                                  >
+                                    {sub.label}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </CollapsibleContent>
+                        </Collapsible>
                       </li>
                     );
                   })}
                 </ul>
               </div>
             ))}
+          </div>
 
-            {/* Not part of the permission-scoped module nav, the same way the
-                desktop sidebar keeps them in its footer. The theme toggle
-                joins them here rather than in the header: it is a preference
-                set once, not a question about the page you are on. */}
-            <div className="mt-2 border-t border-[var(--line)] pt-2">
-              <Link
-                href="/portal/account"
-                onClick={() => setSheetOpen(false)}
-                className={ACCOUNT_ROW_CLASS}
-              >
-                <UserRound className="size-4 shrink-0" aria-hidden />
-                My Account
-              </Link>
-              <div className="flex min-h-11 items-center gap-1 px-1">
-                <ThemeToggle className="size-11 rounded-md" />
-                <span className="text-base">Appearance</span>
-              </div>
-              {/* Here rather than in the header or on the dashboard (#1083):
-                  installing is a thing you do once, from the same menu that
-                  holds the account and the theme, and it renders nothing at
-                  all on a browser that cannot install or has already. */}
-              <InstallAppItem className={ACCOUNT_ROW_CLASS} />
-              <button
-                type="button"
-                disabled={isSigningOut}
-                onClick={() => setConfirmLogout(true)}
-                className={ACCOUNT_ROW_CLASS}
-              >
-                <LogOut className="size-4 shrink-0" aria-hidden />
-                {isSigningOut ? "Signing out..." : "Log out"}
-              </button>
+          {/* Not part of the permission-scoped module nav, the same way the
+              desktop sidebar keeps them in its footer. The theme toggle
+              joins them here rather than in the header: it is a preference
+              set once, not a question about the page you are on.
+
+              Pinned below the scrolling list rather than trailing it, so log
+              out in particular is one tap from anywhere in the menu. The
+              bottom padding matches the tab bar's, and for the same reason:
+              `env()` resolves to 0 without `viewport-fit=cover`, so the
+              constant is what clears the home indicator today. */}
+          <div className="shrink-0 border-t border-[var(--line)] px-2 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+            <Link
+              href="/portal/account"
+              onClick={() => setSheetOpen(false)}
+              className={ACCOUNT_ROW_CLASS}
+            >
+              <UserRound className="size-4 shrink-0" aria-hidden />
+              My Account
+            </Link>
+            <div className="flex min-h-11 items-center gap-1 px-1">
+              <ThemeToggle className="size-11 rounded-md" />
+              <span className="text-base">Appearance</span>
             </div>
+            {/* Here rather than in the header or on the dashboard (#1083):
+                installing is a thing you do once, from the same menu that
+                holds the account and the theme, and it renders nothing at
+                all on a browser that cannot install or has already. */}
+            <InstallAppItem className={ACCOUNT_ROW_CLASS} />
+            <button
+              type="button"
+              disabled={isSigningOut}
+              onClick={() => setConfirmLogout(true)}
+              className={ACCOUNT_ROW_CLASS}
+            >
+              <LogOut className="size-4 shrink-0" aria-hidden />
+              {isSigningOut ? "Signing out..." : "Log out"}
+            </button>
           </div>
         </SheetContent>
       </Sheet>
