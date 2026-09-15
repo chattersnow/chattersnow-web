@@ -9311,6 +9311,7 @@ export type Database = {
         Args: {
           p_email?: string;
           p_instagram_handle?: string;
+          p_ip_address?: unknown;
           p_name: string;
           p_note?: string;
           p_phone?: string;

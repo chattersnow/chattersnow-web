@@ -308,7 +308,8 @@ create function public.submit_person_claim(
   p_email text default null,
   p_phone text default null,
   p_instagram_handle text default null,
-  p_note text default null
+  p_note text default null,
+  p_ip_address inet default null
 )
 returns void
 language plpgsql
@@ -319,6 +320,16 @@ declare
   v_tenant_id uuid := public.public_tenant_id();
   v_user_id uuid := auth.uid();
 begin
+  -- The one thing this function *will* say out loud, and the only safe thing
+  -- to say: that the caller is going too fast. It is a statement about their
+  -- own behaviour, not about who is in the directory, so it can be an error
+  -- where every other branch is silence. Without it the matcher runs on
+  -- attacker-supplied input as fast as they can post, and even a matcher that
+  -- answers nothing is work worth capping.
+  if not public.check_rate_limit('submit_person_claim', p_ip_address, 5, interval '15 minutes') then
+    raise exception 'RATE_LIMITED';
+  end if;
+
   if v_user_id is null or v_tenant_id is null then
     return;
   end if;
@@ -368,11 +379,11 @@ begin
 end;
 $$;
 
-comment on function public.submit_person_claim(text, text, text, text, text) is
+comment on function public.submit_person_claim(text, text, text, text, text, inet) is
   'Opens a claim for the signed-in account in the host''s tenant (#1162). Returns nothing in every case -- matched, unmatched, already claimed, already linked -- so the claimant cannot use it to ask whether an address or a name is in the directory.';
 
-revoke execute on function public.submit_person_claim(text, text, text, text, text) from public, anon;
-grant execute on function public.submit_person_claim(text, text, text, text, text) to authenticated;
+revoke execute on function public.submit_person_claim(text, text, text, text, text, inet) from public, anon;
+grant execute on function public.submit_person_claim(text, text, text, text, text, inet) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 5. Reviewing a claim

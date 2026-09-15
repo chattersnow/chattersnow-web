@@ -103,6 +103,14 @@ export async function PeopleDirectory({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
+  // Its own permission, and its own module: on a tenant without the
+  // constituent area, `has_permission()` is false for everyone here and the
+  // link never renders (#1162).
+  const canReviewClaims = hasPermission(
+    permissions,
+    "constituent_claims",
+    "manage",
+  );
   // Every word this page shows -- the heading, the New button, the role facet,
   // the Roles column, both empty states -- is the tenant's (#911). The keys it
   // filters and sorts on are not.
@@ -256,6 +264,19 @@ export async function PeopleDirectory({
                 render={<Link href="/portal/people/duplicates" />}
               >
                 <LinkPendingPulse>Find duplicates</LinkPendingPulse>
+              </Button>
+            )}
+
+            {/* Beside Find duplicates and for the same reason: a claim is
+              matched against the whole directory, so the queue belongs on the
+              page that lists all of it. */}
+            {canReviewClaims && segment.isAllPeople && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/portal/people/claims" />}
+              >
+                <LinkPendingPulse>Account claims</LinkPendingPulse>
               </Button>
             )}
 

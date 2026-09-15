@@ -23,6 +23,7 @@ import {
   serviceRoleClient,
   signIn,
   uniqueEmail,
+  uniqueIp,
 } from "../../../test/integration-setup";
 
 const service = serviceRoleClient();
@@ -225,6 +226,27 @@ describe("submitting a claim", () => {
         { onConflict: "tenant_id,module_key" },
       );
     }
+  });
+
+  // Five per IP per fifteen minutes, like the other public intake routes. The
+  // fixtures above share one IP, so this runs last in its describe and uses a
+  // fresh one to avoid capping the tests that follow it.
+  test("caps how fast one address may ask", async () => {
+    const ip = uniqueIp();
+    const results: (string | null)[] = [];
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const claimant = await makeConstituent(
+        uniqueEmail(`burst-${attempt}-${run}`),
+      );
+      createdUsers.push(claimant.userId);
+      const { error } = await claimant.client.rpc("submit_person_claim", {
+        p_name: `Burst ${attempt}`,
+        p_ip_address: ip,
+      });
+      results.push(error?.message ?? null);
+    }
+    expect(results.slice(0, 5).every((message) => message === null)).toBe(true);
+    expect(results[5]).toContain("RATE_LIMITED");
   });
 
   test("is refused to a visitor with no session", async () => {

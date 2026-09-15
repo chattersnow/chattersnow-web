@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getClientIp } from "@/lib/get-client-ip";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 
 export type ClaimActionResult = { error: string } | { submitted: true };
@@ -37,6 +38,7 @@ export async function submitClaimAction(
   }
 
   const { error } = await supabase.rpc("submit_person_claim", {
+    p_ip_address: await getClientIp(),
     p_name: name,
     p_email: String(formData.get("email") ?? "").trim() || undefined,
     p_phone: String(formData.get("phone") ?? "").trim() || undefined,
@@ -46,6 +48,14 @@ export async function submitClaimAction(
   });
 
   if (error) {
+    // The one thing the RPC says out loud, and the only thing it safely can:
+    // that this caller is going too fast. Every other branch is silent, so
+    // there is exactly one message to translate here.
+    if (error.message.includes("RATE_LIMITED")) {
+      return {
+        error: "Too many requests just now. Try again in a little while.",
+      };
+    }
     return { error: "We could not send that just now. Please try again." };
   }
 
