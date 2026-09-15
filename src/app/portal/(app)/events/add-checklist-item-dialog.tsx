@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import { createEventChecklistItemAction } from "./checklist-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -62,56 +54,51 @@ export function AddChecklistItemDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0 whitespace-nowrap"
+        >
+          {triggerLabel}
+        </Button>
+      }
+      title="Add checklist item"
+      description="Add a task to this event's checklist."
+      size="md"
+      onSubmit={handleSubmit}
+      footer={
+        <>
           <Button
             type="button"
             variant="secondary"
-            className="shrink-0 whitespace-nowrap"
-          />
-        }
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add checklist item</DialogTitle>
-          <DialogDescription>
-            Add a task to this event&apos;s checklist.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-2">
-            <Input
-              autoFocus
-              placeholder="Checklist item"
-              aria-label="Checklist item title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? <Spinner /> : "Add"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? <Spinner /> : "Add"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-2">
+        <Input
+          autoFocus
+          placeholder="Checklist item"
+          aria-label="Checklist item title"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </div>
+    </PortalFormSurface>
   );
 }

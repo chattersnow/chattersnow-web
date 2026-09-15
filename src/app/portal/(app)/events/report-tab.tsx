@@ -20,13 +20,9 @@ import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
@@ -221,55 +217,55 @@ export function ReportTab({
           )}
         </FieldGroup>
 
-        <Dialog
+        <PortalFormSurface
           open={reopenDialogOpen}
           onOpenChange={(next) => {
             setReopenDialogOpen(next);
             if (!next) setReopenReason("");
           }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Reopen report</DialogTitle>
-              <DialogDescription>
-                Explain why this submitted report is being reopened. Overview,
-                Planning, and Report will become editable again.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleReopen}>
-              <FieldGroup>
-                <RequiredFieldsNote />
-                <Field>
-                  <FieldLabel htmlFor="reopen-report-reason" required>
-                    Reason
-                  </FieldLabel>
-                  <Textarea
-                    id="reopen-report-reason"
-                    required
-                    value={reopenReason}
-                    onChange={(event) => setReopenReason(event.target.value)}
-                  />
-                </Field>
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+          title="Reopen report"
+          description="Explain why this submitted report is being reopened. Overview, Planning, and Report will become editable again."
+          size="md"
+          onSubmit={handleReopen}
+          footer={
+            <>
+              <PortalFormSurfaceClose
+                render={<Button type="button" variant="secondary" />}
+              >
+                Cancel
+              </PortalFormSurfaceClose>
+              <Button type="submit" disabled={isReopening}>
+                {isReopening ? (
+                  <>
+                    <Spinner /> Reopening...
+                  </>
+                ) : (
+                  "Reopen report"
                 )}
-              </FieldGroup>
-              <DialogFooter>
-                <Button type="submit" disabled={isReopening}>
-                  {isReopening ? (
-                    <>
-                      <Spinner /> Reopening...
-                    </>
-                  ) : (
-                    "Reopen report"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </Button>
+            </>
+          }
+        >
+          <FieldGroup>
+            <RequiredFieldsNote />
+            <Field>
+              <FieldLabel htmlFor="reopen-report-reason" required>
+                Reason
+              </FieldLabel>
+              <Textarea
+                id="reopen-report-reason"
+                required
+                value={reopenReason}
+                onChange={(event) => setReopenReason(event.target.value)}
+              />
+            </Field>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </FieldGroup>
+        </PortalFormSurface>
       </>
     );
   }
