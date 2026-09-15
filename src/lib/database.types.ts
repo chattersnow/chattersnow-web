@@ -5581,6 +5581,92 @@ export type Database = {
           },
         ];
       };
+      person_claims: {
+        Row: {
+          auth_user_id: string;
+          claimed_person_id: string | null;
+          created_at: string;
+          id: string;
+          note: string | null;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          stated_email: string | null;
+          stated_instagram_handle: string | null;
+          stated_name: string;
+          stated_phone: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          auth_user_id: string;
+          claimed_person_id?: string | null;
+          created_at?: string;
+          id?: string;
+          note?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          stated_email?: string | null;
+          stated_instagram_handle?: string | null;
+          stated_name: string;
+          stated_phone?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          auth_user_id?: string;
+          claimed_person_id?: string | null;
+          created_at?: string;
+          id?: string;
+          note?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          stated_email?: string | null;
+          stated_instagram_handle?: string | null;
+          stated_name?: string;
+          stated_phone?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "person_claims_person_in_tenant";
+            columns: ["tenant_id", "claimed_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_claims_person_in_tenant";
+            columns: ["tenant_id", "claimed_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_claims_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_claims_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       person_merges: {
         Row: {
           id: string;
@@ -8592,6 +8678,10 @@ export type Database = {
       my_public_person_id: { Args: never; Returns: string };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
+      normalize_instagram_handle: {
+        Args: { p_input: string };
+        Returns: string;
+      };
       notification_recipients: {
         Args: { p_kinds: Json };
         Returns: {
@@ -8620,6 +8710,19 @@ export type Database = {
         }[];
       };
       permission_rank: { Args: { p_level: string }; Returns: number };
+      person_claim_candidates: {
+        Args: { p_claim_id: string };
+        Returns: {
+          already_linked: boolean;
+          email: string;
+          instagram_handle: string;
+          name: string;
+          person_id: string;
+          preferred_name: string;
+          score: number;
+          tier: string;
+        }[];
+      };
       person_last_activity_at: {
         Args: { p_person_id: string };
         Returns: string;
@@ -9038,6 +9141,15 @@ export type Database = {
           table_name: string;
         }[];
       };
+      review_person_claim: {
+        Args: {
+          p_approve: boolean;
+          p_claim_id: string;
+          p_person_id?: string;
+          p_review_note?: string;
+        };
+        Returns: string;
+      };
       revoke_support_access: {
         Args: { p_membership_id: string };
         Returns: undefined;
@@ -9165,6 +9277,8 @@ export type Database = {
         Args: { p_mode: string; p_policy_key: string };
         Returns: undefined;
       };
+      show_limit: { Args: never; Returns: number };
+      show_trgm: { Args: { "": string }; Returns: string[] };
       submit_artwork: {
         Args: {
           p_code: string;
@@ -9192,6 +9306,16 @@ export type Database = {
           p_topic: string;
         };
         Returns: string;
+      };
+      submit_person_claim: {
+        Args: {
+          p_email?: string;
+          p_instagram_handle?: string;
+          p_name: string;
+          p_note?: string;
+          p_phone?: string;
+        };
+        Returns: undefined;
       };
       submit_volunteer_application: {
         Args: {

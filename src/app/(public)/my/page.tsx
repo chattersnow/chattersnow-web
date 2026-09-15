@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { ClaimForm } from "./claim-form";
 import { SignOutButton } from "./sign-out-button";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,7 +15,18 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function MyPage() {
   const { personId } = await requireConstituentSession();
   const supabase = await createSupabaseServerClient();
-  const { name } = await getPublicSite(supabase);
+  const [{ name }, { data: pendingClaim }, { data: auth }] = await Promise.all([
+    getPublicSite(supabase),
+    // Read through the claimant's own select policy, which is pinned to
+    // auth.uid() -- so this is their claim or nothing, never a count of
+    // anyone else's.
+    supabase
+      .from("person_claims")
+      .select("id, status, created_at")
+      .eq("status", "pending")
+      .maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -43,19 +55,19 @@ export default async function MyPage() {
                 Your events, volunteering, giving and gear will appear here.
               </p>
             </>
-          ) : (
-            // Signed in, but no `people` row carries this account's id. The
-            // claim and its review are #1162; until then this says so plainly
-            // rather than implying the account is broken. It is also the
-            // correct answer for a brand-new sign-up, which is most of them.
+          ) : pendingClaim ? (
             <Alert>
-              <AlertTitle>We have not linked you to a record yet</AlertTitle>
+              <AlertTitle>We are checking your request</AlertTitle>
               <AlertDescription>
-                Your account is set up, but it is not yet connected to your
-                history with us. Ask us to link it and your events, volunteering
-                and giving will show up here.
+                Someone is matching what you told us against our records. You
+                will hear from us either way.
               </AlertDescription>
             </Alert>
+          ) : (
+            // Signed in and linked to nothing. Most people who see this have
+            // just made an account, so it opens with the thing to do rather
+            // than with an explanation of what went wrong -- nothing has.
+            <ClaimForm defaultEmail={auth.user?.email ?? null} />
           )}
         </CardContent>
       </Card>
