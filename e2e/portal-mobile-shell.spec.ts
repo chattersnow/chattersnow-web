@@ -49,10 +49,38 @@ test.describe("the portal's two shells", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
 
+    // Sections arrive collapsed, so the sheet opens on a list of sections
+    // rather than on every page in the portal at once.
+    await expect(sheet.getByRole("link", { name: "Users" })).toHaveCount(0);
+
     // Administration is nobody's tab-bar entry, so if it is reachable the
     // sheet is doing the job the navigation rules require of it.
-    await sheet.getByRole("link", { name: "Administration" }).first().click();
-    await expect(page).toHaveURL(/\/portal\/administration/);
+    await sheet.getByRole("button", { name: "Administration" }).click();
+    await sheet.getByRole("link", { name: "Users" }).click();
+    await expect(page).toHaveURL(/\/portal\/administration\/users/);
+  });
+
+  // The other half of the same complaint: the account, theme and log out rows
+  // used to trail the tree, so reaching log out meant scrolling past every
+  // section in the portal.
+  test("the account rows stay on screen however far the menu scrolls", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await useShell(page, "mobile");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/portal/home");
+
+    await page.getByRole("button", { name: "More" }).click();
+    const sheet = page.getByRole("dialog");
+    const logOut = sheet.getByRole("button", { name: "Log out" });
+    await expect(logOut).toBeInViewport();
+
+    // Expanded, Governance alone is longer than the sheet, which is what put
+    // the footer off the bottom before.
+    await sheet.getByRole("button", { name: "Governance" }).click();
+    await sheet.getByRole("link", { name: "Grants" }).scrollIntoViewIfNeeded();
+    await expect(logOut).toBeInViewport();
   });
 
   // Issue #1096: every other modal surface in the app offers a visible exit --
