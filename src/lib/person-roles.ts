@@ -1,4 +1,5 @@
-import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { DEFAULT_LEXICON, getPublicLexicon, type Lexicon } from "@/lib/lexicon";
 
 /**
  * The words an organization uses for the seven roles a person can hold (#911).
@@ -282,3 +283,51 @@ export const DEFAULT_VOCABULARY: Lexicon = withPersonRoleTerms(
   DEFAULT_LEXICON,
   DEFAULT_PERSON_ROLE_LABELS,
 );
+
+/**
+ * The host tenant's words for the roles, for a public-site surface (#1163).
+ *
+ * The host-resolved half of the split `tenant-lexicon.ts` describes: the
+ * session-resolved read lives in `src/lib/tenant-person-roles.ts` and answers
+ * for `current_tenant_id()`, which a constituent -- who holds no tenant
+ * membership -- does not have. Read through `public_person_role_labels` for the
+ * same reason its portal sibling reads through a view: `app_settings`' select
+ * policy requires one of six `manage` permissions, and the audience here holds
+ * none at all.
+ *
+ * Lives beside the registry rather than with the portal read because this file
+ * is the one client components import, and `getPublicLexicon` is already here.
+ */
+export async function getPublicPersonRoleLabels(
+  supabase: SupabaseClient,
+): Promise<PersonRoleLabels> {
+  const { data, error } = await supabase
+    .from("public_person_role_labels")
+    .select("labels")
+    .maybeSingle();
+  if (error) {
+    console.error(
+      "[person-roles] could not read public_person_role_labels; the site is using the platform's own words",
+      error,
+    );
+    return DEFAULT_PERSON_ROLE_LABELS;
+  }
+  return personRoleLabelsFromValue(data?.labels);
+}
+
+/**
+ * Everything a `{term}` template on the public site can name: what this
+ * organization lends, and what it calls the people it works with.
+ *
+ * The host-resolved counterpart of `getPortalVocabulary`, so a heading in the
+ * constituent area says "Crew activity" wherever the portal would.
+ */
+export async function getPublicVocabulary(
+  supabase: SupabaseClient,
+): Promise<Lexicon> {
+  const [lexicon, labels] = await Promise.all([
+    getPublicLexicon(supabase),
+    getPublicPersonRoleLabels(supabase),
+  ]);
+  return withPersonRoleTerms(lexicon, labels);
+}
