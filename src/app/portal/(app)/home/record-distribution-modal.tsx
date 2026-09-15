@@ -13,15 +13,7 @@ import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -136,158 +128,146 @@ export function RecordDistributionModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {withTrigger ? (
-        <DialogTrigger
-          render={
-            <Button
-              type="button"
-              variant="secondary"
-              className="shrink-0 whitespace-nowrap"
-            />
-          }
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
+      trigger={
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0 whitespace-nowrap"
         >
           {triggerLabel}
-        </DialogTrigger>
-      ) : null}
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Record a distribution</DialogTitle>
-          <DialogDescription>
-            Record gear being handed out from inventory.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor="dist-item" required>
-                Inventory item
-              </FieldLabel>
-              <Select
-                value={inventoryItemId || null}
-                onValueChange={(value) => setInventoryItemId(value ?? "")}
-              >
-                <SelectTrigger
-                  id="dist-item"
-                  aria-required="true"
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Select an available item">
-                    {(value: string) => {
-                      const item = availableItems.find(
-                        (candidate) => candidate.id === value,
-                      );
-                      return item
-                        ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
-                        : "Select an available item";
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.description} (
-                      {categoryLabelFor(flattenCategory(item))})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="dist-quantity" required>
-                  Quantity
-                </FieldLabel>
-                <Input
-                  id="dist-quantity"
-                  required
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={quantity}
-                  onChange={(event) => setQuantity(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="dist-occurredAt">
-                  Date &amp; time
-                </FieldLabel>
-                <Input
-                  id="dist-occurredAt"
-                  type="datetime-local"
-                  value={occurredAt}
-                  onChange={(event) => setOccurredAt(event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            {showRecipientField && (
-              <Field>
-                <FieldLabel>Recipient</FieldLabel>
-                <PersonPicker
-                  people={people}
-                  selected={recipient}
-                  onSelect={setRecipient}
-                  onPersonCreated={(person) =>
-                    setPeople((prev) => [...prev, person])
-                  }
-                  placeholder="Search recipient by name or email..."
-                />
-              </Field>
+        </Button>
+      }
+      title="Record a distribution"
+      description="Record gear being handed out from inventory."
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Saving...
+              </>
+            ) : (
+              "Record distribution"
             )}
-
-            <Field>
-              <FieldLabel htmlFor="dist-reason">Reason / notes</FieldLabel>
-              <Textarea
-                id="dist-reason"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
-            </Field>
-
-            <Field orientation="horizontal">
-              <Checkbox
-                id="dist-markDistributed"
-                checked={markDistributed}
-                onCheckedChange={(checked) =>
-                  setMarkDistributed(Boolean(checked))
-                }
-              />
-              <FieldLabel htmlFor="dist-markDistributed">
-                Mark item as distributed
-              </FieldLabel>
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <RequiredFieldsNote />
+        <Field>
+          <FieldLabel htmlFor="dist-item" required>
+            Inventory item
+          </FieldLabel>
+          <Select
+            value={inventoryItemId || null}
+            onValueChange={(value) => setInventoryItemId(value ?? "")}
+          >
+            <SelectTrigger
+              id="dist-item"
+              aria-required="true"
+              className="w-full"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Record distribution"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <SelectValue placeholder="Select an available item">
+                {(value: string) => {
+                  const item = availableItems.find(
+                    (candidate) => candidate.id === value,
+                  );
+                  return item
+                    ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
+                    : "Select an available item";
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {availableItems.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.description} ({categoryLabelFor(flattenCategory(item))})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="dist-quantity" required>
+              Quantity
+            </FieldLabel>
+            <Input
+              id="dist-quantity"
+              required
+              type="number"
+              min={1}
+              step={1}
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="dist-occurredAt">Date &amp; time</FieldLabel>
+            <Input
+              id="dist-occurredAt"
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(event) => setOccurredAt(event.target.value)}
+            />
+          </Field>
+        </Field>
+
+        {showRecipientField && (
+          <Field>
+            <FieldLabel>Recipient</FieldLabel>
+            <PersonPicker
+              people={people}
+              selected={recipient}
+              onSelect={setRecipient}
+              onPersonCreated={(person) =>
+                setPeople((prev) => [...prev, person])
+              }
+              placeholder="Search recipient by name or email..."
+            />
+          </Field>
+        )}
+
+        <Field>
+          <FieldLabel htmlFor="dist-reason">Reason / notes</FieldLabel>
+          <Textarea
+            id="dist-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </Field>
+
+        <Field orientation="horizontal">
+          <Checkbox
+            id="dist-markDistributed"
+            checked={markDistributed}
+            onCheckedChange={(checked) => setMarkDistributed(Boolean(checked))}
+          />
+          <FieldLabel htmlFor="dist-markDistributed">
+            Mark item as distributed
+          </FieldLabel>
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

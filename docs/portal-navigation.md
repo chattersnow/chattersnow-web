@@ -118,6 +118,33 @@ moved the website into a section of its own.)
   (`src/components/portal/breadcrumbs.tsx`). If it is a destination, it belongs
   in at least one of them.
 
+## Overlays: a form, a confirm, a preview
+
+Three surfaces, three answers, decided once so no call site re-opens them.
+
+- **A form is a `PortalFormSurface`** (`src/components/portal/portal-form-surface.tsx`,
+  #1115) — a full-height sheet up from the bottom on a phone, the centred dialog
+  at a desk, chosen from `deviceClass()` on the server. Not `Dialog` directly:
+  on a 390px screen a centred dialog leaves dead space above and below and
+  scrolls the form inside a box that is itself inside a scrolling page. Like
+  `PortalRail`'s, the device comes from the server and never from
+  `useIsMobile()`, which answers `false` during SSR and reintroduces the flash
+  #1079 removed. The surface owns the `<form>`, the scrolling body and the
+  footer, because a dialog pins its footer with `sticky` and a sheet pins it
+  with `mt-auto` inside a fixed-height column — incompatible layouts that a
+  call site should not have to pick between.
+- **A destructive confirm is an `AlertDialog`, centred on both.** It is a
+  question, not a task. Giving two lines 92% of a phone screen overstates it,
+  and it lands "Delete" under the thumb that was on "Cancel" a moment ago.
+- **A preview, picker or read-only detail stays whatever it is** — `Dialog` for
+  the short ones, `Sheet` for the long ones, `ListPreviewSheet`
+  (`src/components/portal/list-preview-sheet.tsx`) for the overflow half of a
+  capped list. `PortalFormSurface`'s whole value is form wiring; nothing else
+  gains from it.
+
+The migration of the remaining dialogs onto the surface is tracked under #1115.
+A new portal form should be written on it rather than added to that backlog.
+
 ## Page titles
 
 `metadata.title` names **the page**, matching its `h1` — not the section it
