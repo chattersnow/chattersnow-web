@@ -1,7 +1,11 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { notifyPersonClaimDecision } from "@/lib/notifications/person-claim-notifications";
 
 export type ClaimCandidate = {
   person_id: string;
@@ -60,6 +64,18 @@ export async function reviewClaimAction(input: {
   });
 
   if (error) return { error: error.message };
+
+  // The form promised the claimant they would hear either way, so both
+  // outcomes send. After the response, like every other event-triggered send:
+  // the decision is committed, and a mail provider having a bad minute must
+  // not make an approval look as though it failed.
+  const siteUrl = await getRequestOrigin();
+  after(async () => {
+    await notifyPersonClaimDecision(createSupabaseAdminClient(), {
+      claimId: input.claimId,
+      siteUrl,
+    });
+  });
 
   revalidatePath("/portal/people/claims");
   revalidatePath("/portal/people");

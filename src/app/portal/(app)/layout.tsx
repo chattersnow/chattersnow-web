@@ -157,6 +157,14 @@ export default async function PortalAppLayout({
     "view",
   );
   const canSeeGearRequests = hasPermission(permissions, "inventory", "view");
+  // Its own resource, and one that carries the constituent_accounts module
+  // gate with it -- so this is false for everyone on a tenant without the
+  // constituent area (#1162).
+  const canSeePersonClaims = hasPermission(
+    permissions,
+    "constituent_claims",
+    "view",
+  );
   const canSeeContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -207,13 +215,15 @@ export default async function PortalAppLayout({
     canSeeContactMessages ||
     canSeeEventCheckins ||
     canSeeArtworkSubmissions ||
-    canSeeGearRequests
+    canSeeGearRequests ||
+    canSeePersonClaims
       ? getOpsInboxSummary(supabase, {
           canSeeVolunteerApplications,
           canSeeContactMessages,
           canSeeEventCheckins,
           canSeeArtworkSubmissions,
           canSeeGearRequests,
+          canSeePersonClaims,
         })
       : { items: [] },
     canSeeContentCalendar

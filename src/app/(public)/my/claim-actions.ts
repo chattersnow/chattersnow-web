@@ -1,8 +1,12 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { notifyNewPersonClaim } from "@/lib/notifications/person-claim-notifications";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 
 export type ClaimActionResult = { error: string } | { submitted: true };
@@ -57,6 +61,34 @@ export async function submitClaimAction(
       };
     }
     return { error: "We could not send that just now. Please try again." };
+  }
+
+  // The RPC returns void on purpose -- every branch has to look the same from
+  // out here -- so the id comes from reading the claim back through the
+  // claimant's own select policy, which is pinned to auth.uid(). No row means
+  // nothing was created (the module is off, they are already linked, or a
+  // claim was already open), and so nothing to tell anyone about.
+  const { data: claim } = await supabase
+    .from("person_claims")
+    .select("id")
+    .eq("status", "pending")
+    .maybeSingle();
+
+  // Read before after(), which runs once the response is on its way and may no
+  // longer have the request's headers. Only a fallback: a tenant's own domain
+  // wins where it has one (#860).
+  const siteUrl = await getRequestOrigin();
+
+  if (claim) {
+    // After the response, never before it (#742): telling the reviewers is the
+    // organization's business, and a slow mail provider must not hold up
+    // "thanks, we have your request".
+    after(async () => {
+      await notifyNewPersonClaim(createSupabaseAdminClient(), {
+        claimId: claim.id,
+        siteUrl,
+      });
+    });
   }
 
   revalidatePath(MY_PATH_PREFIX);

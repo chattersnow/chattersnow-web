@@ -134,6 +134,7 @@ export async function getOpsInboxSummary(
     canSeeEventCheckins: boolean;
     canSeeArtworkSubmissions: boolean;
     canSeeGearRequests: boolean;
+    canSeePersonClaims: boolean;
   },
   nowIso: string = new Date().toISOString(),
 ): Promise<PendingApprovalsSummary> {
@@ -153,6 +154,27 @@ export async function getOpsInboxSummary(
         label: "New item requests",
         count: count ?? 0,
         href: "/portal/inventory/requests?status=new",
+        severity: "info",
+      });
+    }
+  }
+
+  // #1162. A plain RLS-scoped count like the rest of this function: the
+  // person_claims select policy already admits only constituent_claims:view
+  // holders in the caller's own tenant, and that permission carries the
+  // constituent_accounts module gate with it -- so on a tenant without the
+  // area this is zero for everyone rather than needing a check of its own.
+  if (options.canSeePersonClaims) {
+    const { count } = await supabase
+      .from("person_claims")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    if ((count ?? 0) > 0) {
+      items.push({
+        key: "person_claims_pending",
+        label: "Account claims",
+        count: count ?? 0,
+        href: "/portal/people/claims",
         severity: "info",
       });
     }

@@ -25,6 +25,7 @@ import {
   uniqueEmail,
   uniqueIp,
 } from "../../../test/integration-setup";
+import { getOpsInboxSummary } from "@/lib/portal/attention-items";
 
 const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
@@ -382,6 +383,40 @@ describe("candidate matching", () => {
       });
       expect(data ?? []).toEqual([]);
     }
+  });
+});
+
+describe("the queue asks to be noticed", () => {
+  test("a pending claim reaches the ops inbox, and only for a reviewer", async () => {
+    const claimant = await makeConstituent(uniqueEmail(`attention-${run}`));
+    createdUsers.push(claimant.userId);
+    await claimant.client.rpc("submit_person_claim", {
+      p_name: "Waiting For Review",
+    });
+
+    const flags = {
+      canSeeVolunteerApplications: false,
+      canSeeContactMessages: false,
+      canSeeEventCheckins: false,
+      canSeeArtworkSubmissions: false,
+      canSeeGearRequests: false,
+      canSeePersonClaims: true,
+    };
+
+    const mine = await getOpsInboxSummary(adminClient, flags);
+    const item = mine.items.find((row) => row.key === "person_claims_pending");
+    expect(item?.count).toBeGreaterThan(0);
+    expect(item?.href).toBe("/portal/people/claims");
+
+    // The flag forced on for an account that holds no such permission: the
+    // count has to come back empty from the database, not from the flag.
+    const theirs = await getOpsInboxSummary(
+      await signIn(SEEDED_USERS.volunteer),
+      flags,
+    );
+    expect(
+      theirs.items.some((row) => row.key === "person_claims_pending"),
+    ).toBe(false);
   });
 });
 
