@@ -19,14 +19,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -120,63 +115,62 @@ export function NewReimbursementDialog({
           setOpen(false);
         }}
       />
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger
-          render={
-            <Button type="button" className="shrink-0 whitespace-nowrap" />
-          }
-        >
-          New Reimbursement
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add reimbursement</DialogTitle>
-            <DialogDescription>
-              Record a new reimbursement request.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <RequiredFieldsNote />
-              <Field>
-                <FieldLabel>Requester</FieldLabel>
-                <PersonPicker
-                  people={availablePeople}
-                  selected={selectedPerson}
-                  onSelect={setSelectedPerson}
-                  onPersonCreated={handlePersonCreated}
-                />
-              </Field>
-
-              <ReimbursementFormFields
-                form={form}
-                update={update}
-                events={events}
-                idPrefix="new-reimbursement"
-              />
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+      <PortalFormSurface
+        open={open}
+        onOpenChange={handleOpenChange}
+        trigger={
+          <Button type="button" className="shrink-0 whitespace-nowrap">
+            New Reimbursement
+          </Button>
+        }
+        title="Add reimbursement"
+        description="Record a new reimbursement request."
+        onSubmit={handleSubmit}
+        footer={
+          <>
+            <PortalFormSurfaceClose
+              render={<Button type="button" variant="secondary" />}
+            >
+              Cancel
+            </PortalFormSurfaceClose>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add reimbursement"
               )}
-            </FieldGroup>
+            </Button>
+          </>
+        }
+      >
+        <FieldGroup>
+          <RequiredFieldsNote />
+          <Field>
+            <FieldLabel>Requester</FieldLabel>
+            <PersonPicker
+              people={availablePeople}
+              selected={selectedPerson}
+              onSelect={setSelectedPerson}
+              onPersonCreated={handlePersonCreated}
+            />
+          </Field>
 
-            <DialogFooter>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Spinner /> Saving...
-                  </>
-                ) : (
-                  "Add reimbursement"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          <ReimbursementFormFields
+            form={form}
+            update={update}
+            events={events}
+            idPrefix="new-reimbursement"
+          />
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+      </PortalFormSurface>
     </>
   );
 }

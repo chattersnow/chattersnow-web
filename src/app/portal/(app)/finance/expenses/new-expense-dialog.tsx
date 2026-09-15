@@ -20,14 +20,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  PortalFormSurface,
+  PortalFormSurfaceClose,
+} from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
@@ -148,65 +143,65 @@ export function NewExpenseDialog({
           setOpen(false);
         }}
       />
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        {withTrigger ? (
-          <DialogTrigger
-            render={
-              <Button type="button" className="shrink-0 whitespace-nowrap" />
-            }
-          >
+      <PortalFormSurface
+        open={open}
+        onOpenChange={handleOpenChange}
+        withTrigger={withTrigger}
+        trigger={
+          <Button type="button" className="shrink-0 whitespace-nowrap">
             {triggerLabel}
-          </DialogTrigger>
-        ) : null}
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add expense</DialogTitle>
-            <DialogDescription>Record a new expense.</DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <RequiredFieldsNote />
-              <Field>
-                <FieldLabel>Paid by</FieldLabel>
-                <PersonPicker
-                  people={people}
-                  selected={selectedPayer}
-                  onSelect={setSelectedPayer}
-                  onPersonCreated={handlePersonCreated}
-                  placeholder="Search if someone personally fronted this..."
-                />
-              </Field>
-
-              <ExpenseFormFields
-                form={form}
-                update={update}
-                events={eventOptions}
-                lockEventSelection={lockEventSelection}
-                idPrefix="new-expense"
-              />
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+          </Button>
+        }
+        title="Add expense"
+        description="Record a new expense."
+        onSubmit={handleSubmit}
+        footer={
+          <>
+            <PortalFormSurfaceClose
+              render={<Button type="button" variant="secondary" />}
+            >
+              Cancel
+            </PortalFormSurfaceClose>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Add expense"
               )}
-            </FieldGroup>
+            </Button>
+          </>
+        }
+      >
+        <FieldGroup>
+          <RequiredFieldsNote />
+          <Field>
+            <FieldLabel>Paid by</FieldLabel>
+            <PersonPicker
+              people={people}
+              selected={selectedPayer}
+              onSelect={setSelectedPayer}
+              onPersonCreated={handlePersonCreated}
+              placeholder="Search if someone personally fronted this..."
+            />
+          </Field>
 
-            <DialogFooter>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Spinner /> Saving...
-                  </>
-                ) : (
-                  "Add expense"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          <ExpenseFormFields
+            form={form}
+            update={update}
+            events={eventOptions}
+            lockEventSelection={lockEventSelection}
+            idPrefix="new-expense"
+          />
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
+      </PortalFormSurface>
     </>
   );
 }
