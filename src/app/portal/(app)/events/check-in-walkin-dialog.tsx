@@ -7,15 +7,7 @@ import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -94,79 +86,73 @@ export function CheckInWalkInDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
+    <PortalFormSurface
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button
+          type="button"
+          variant="secondary"
+          className="shrink-0 whitespace-nowrap"
+        >
+          {triggerLabel}
+        </Button>
+      }
+      title="Check in a walk-in"
+      description="Check in someone who didn't pre-register."
+      onSubmit={handleSubmit}
+      footer={
+        <>
           <Button
             type="button"
             variant="secondary"
-            className="shrink-0 whitespace-nowrap"
-          />
-        }
-      >
-        {triggerLabel}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Check in a walk-in</DialogTitle>
-          <DialogDescription>
-            Check in someone who didn&apos;t pre-register.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Walk-in</FieldLabel>
-              <PersonPicker
-                people={people}
-                selected={selectedPerson}
-                onSelect={setSelectedPerson}
-                onPersonCreated={handlePersonCreated}
-                newPersonRole="is_attendee"
-                placeholder="Search by name or email..."
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="walkin-party-size">Party size</FieldLabel>
-              <Input
-                id="walkin-party-size"
-                type="number"
-                min={1}
-                step={1}
-                value={partySize}
-                onChange={(event) => setPartySize(event.target.value)}
-              />
-            </Field>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+            onClick={() => handleOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner /> Checking in...
+              </>
+            ) : (
+              "Check in walk-in"
             )}
-          </FieldGroup>
+          </Button>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel>Walk-in</FieldLabel>
+          <PersonPicker
+            people={people}
+            selected={selectedPerson}
+            onSelect={setSelectedPerson}
+            onPersonCreated={handlePersonCreated}
+            newPersonRole="is_attendee"
+            placeholder="Search by name or email..."
+          />
+        </Field>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => handleOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Spinner /> Checking in...
-                </>
-              ) : (
-                "Check in walk-in"
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Field>
+          <FieldLabel htmlFor="walkin-party-size">Party size</FieldLabel>
+          <Input
+            id="walkin-party-size"
+            type="number"
+            min={1}
+            step={1}
+            value={partySize}
+            onChange={(event) => setPartySize(event.target.value)}
+          />
+        </Field>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
+    </PortalFormSurface>
   );
 }

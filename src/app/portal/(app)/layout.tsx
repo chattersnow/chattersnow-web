@@ -28,6 +28,7 @@ import {
   isDemoTenant,
 } from "@/lib/portal/tenants";
 import { deviceClass } from "@/lib/portal/device";
+import { PortalDeviceProvider } from "@/lib/portal/device-context";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
@@ -301,13 +302,19 @@ export default async function PortalAppLayout({
           Snow's; not once they are the platform's neutral default (#795 Phase
           3), which would leave every tenant a grey portal. */}
       <BrandStyle branding={branding} />
-      <PortalHelpProvider>
-        {device === "mobile" ? (
-          <PortalShellMobile {...shellProps} />
-        ) : (
-          <PortalShellDesktop {...shellProps} />
-        )}
-      </PortalHelpProvider>
+      {/* Above the fork, so both shells and everything they render can ask
+          (#1115). A form's own component almost never knows what it is being
+          rendered on, and `deviceClass()` is a server function it cannot call
+          -- see the note in `@/lib/portal/device-context`. */}
+      <PortalDeviceProvider device={device}>
+        <PortalHelpProvider>
+          {device === "mobile" ? (
+            <PortalShellMobile {...shellProps} />
+          ) : (
+            <PortalShellDesktop {...shellProps} />
+          )}
+        </PortalHelpProvider>
+      </PortalDeviceProvider>
       {/* Corrects the shell on the next request when the user-agent got the
           viewport wrong -- a phone in desktop mode, or a narrow window. */}
       <DeviceProbe device={device} />
