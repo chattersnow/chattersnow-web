@@ -48,7 +48,11 @@ export function PortalShellMobile({
     )?.name ?? "Operations Portal";
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    /* `data-portal-shell` is what the tap-target rule in globals.css keys off
+       (#1117). It is matched through `:root:has(...)` rather than as an
+       ancestor, because dialogs, sheets and dropdown menus portal to
+       `document.body` and would otherwise keep desktop-sized targets. */
+    <div data-portal-shell="mobile" className="flex min-h-dvh flex-col">
       <SkipLink href="#portal-main" />
       <header className="sticky top-0 z-20 flex h-(--portal-header-height) items-center gap-2 border-b border-[var(--line)] bg-[var(--background)] px-4">
         <Link

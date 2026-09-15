@@ -51,6 +51,10 @@ function Button({
     <ButtonPrimitive
       data-slot="button"
       data-variant={variant}
+      // Read by the mobile shell's tap-target rule in globals.css (#1117): the
+      // hit area a phone gets is decided by the size variant, and CSS cannot
+      // see a `cva` argument.
+      data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

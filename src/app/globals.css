@@ -362,6 +362,56 @@ body {
   }
 }
 
+/* Thumb-sized targets on the portal's mobile shell (#1117).
+
+   The portal's icon buttons are 32px (24px for a row's disclosure chevron).
+   That clears WCAG 2.5.8 AA at 24px but not 2.5.5 AAA at 44px, and 32px is
+   uncomfortable one-handed at a check-in table. The hit area grows to 44px;
+   the button itself does not, so a desktop table keeps its row density and a
+   phone's rows keep their height.
+
+   Keyed off the shell rather than a media query because the shell is the
+   decision -- the proxy makes it from the request (#1079) -- and a second
+   derivation from the viewport is how the two answers drift apart. Matched
+   through `:root:has()` rather than as a descendant because dialogs, sheets
+   and dropdown menus portal to `document.body`, outside the shell's tree.
+
+   `data-size` alone, with no `[data-slot="button"]` beside it: a Button handed
+   to a Base UI `render` prop keeps its size but inherits the trigger's
+   `data-slot`, so the pair matched the command palette's button and missed the
+   help and bell beside it. Nothing else in the app sets a `data-size` starting
+   with "icon" -- Card and AlertDialog use `default` and `sm`. */
+@layer components {
+  :root:has([data-portal-shell="mobile"]) [data-size^="icon"] {
+    /* Layered, unlike the gap rule below, so a call site that positions a
+       button with `absolute` still wins. */
+    position: relative;
+  }
+  :root:has([data-portal-shell="mobile"]) [data-size^="icon"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+  }
+}
+
+/* Two 32px buttons 4px apart have 44px hit areas that overlap by 8px, and the
+   later sibling paints over its neighbour's visible edge -- aiming at "edit"
+   would delete. Spacing adjacent icon buttons to 12px makes the hit areas
+   tile instead: 32 + 12 is 44 from centre to centre.
+
+   Unlayered on purpose. This has to beat Tailwind's `gap-*` utilities, and a
+   layered rule loses to a utility whatever its specificity. `column-gap`
+   rather than `gap`, so a vertical stack is left alone, and the `:has()` only
+   matches a container that actually holds two adjacent icon buttons. */
+:root:has([data-portal-shell="mobile"])
+  :has(> [data-size^="icon"] + [data-size^="icon"]) {
+  column-gap: 0.75rem;
+}
+
 /* Reduced motion was honoured by exactly one animation -- the header bell --
    while every dialog and sheet still zoomed and slid, every card and button
    still ran `transition-all`, and the theme toggle still crossfaded the whole
