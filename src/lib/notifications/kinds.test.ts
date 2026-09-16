@@ -9,6 +9,7 @@ import {
   notificationKindDefault,
   notificationKindEnabled,
 } from "./kinds";
+import { STAFF_MESSAGE_KIND } from "@/lib/outbound-messages";
 
 describe("the registry", () => {
   test("every kind says who it is for", () => {
@@ -65,5 +66,16 @@ describe("the registry", () => {
   test("a key nobody registered is off", () => {
     expect(notificationKindDefault("made_up")).toBe(false);
     expect(isNotificationKind("made_up")).toBe(false);
+  });
+
+  test("staff_message is deliberately not a kind (#1203)", () => {
+    // Load-bearing absence, not an oversight. hasOptedOut() only consults
+    // person_notification_preferences for a registered kind, so leaving this
+    // one out is what lets staff answer somebody who switched their receipts
+    // off -- a reply about a request you made yourself is correspondence, not
+    // a subscription. Registering it here to "finish the set" would silently
+    // start suppressing those replies.
+    expect(isNotificationKind(STAFF_MESSAGE_KIND)).toBe(false);
+    expect(notificationKindDefault(STAFF_MESSAGE_KIND)).toBe(false);
   });
 });

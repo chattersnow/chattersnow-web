@@ -15,6 +15,23 @@ import {
   type GearRequestStatus,
   type PaymentMethod,
 } from "@/lib/gear-requests";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { personDisplayName } from "@/lib/format";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { sendStaffMessage } from "@/lib/notifications/staff-message";
+import { recordOutboundMessage } from "@/lib/notifications/outbound-messages";
+import {
+  gearRequestConfirmationDedupeKey,
+  sendGearRequestConfirmation,
+} from "@/lib/notifications/submission-notifications";
+import { GEAR_REQUEST_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
+import {
+  GEAR_REQUEST_RECORD_TYPE,
+  MAX_MESSAGE_BODY_LENGTH,
+  MAX_MESSAGE_SUBJECT_LENGTH,
+  resendDedupeSuffix,
+} from "@/lib/outbound-messages";
 
 export type GearRequestActionResult = { error: string } | { success: true };
 
@@ -191,5 +208,215 @@ export async function updateGearRequestSettingsAction(
   revalidatePath(REQUESTS_PATH);
   // The public form reads two of these through public_gear_request_settings.
   revalidatePath("/inventory/library");
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Messaging the requester (#1203)
+// ---------------------------------------------------------------------------
+
+const MESSAGE_ERRORS = {
+  SIGNED_OUT: "You must be signed in to message a requester.",
+  NOT_FOUND: "This request could not be found.",
+  NO_EMAIL:
+    "This request has no email address to write to — the requester's record was cleared or never carried one.",
+  SUBJECT_REQUIRED: "Write a subject.",
+  BODY_REQUIRED: "Write a message.",
+  SUBJECT_TOO_LONG: `Keep the subject to ${MAX_MESSAGE_SUBJECT_LENGTH} characters or fewer.`,
+  BODY_TOO_LONG: `Keep the message to ${MAX_MESSAGE_BODY_LENGTH} characters or fewer.`,
+  MESSAGE_ID_INVALID: "Reopen the message and try again.",
+  ALREADY_SENT:
+    "That message has already gone out. Reopen the composer to send another.",
+  EMAIL_OFF:
+    "Outbound email is switched off for this organization, so nothing was sent.",
+  FAILED: "The message could not be sent. Please try again.",
+} as const;
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type RequesterRow = {
+  tenant_id: string;
+  person_id: string | null;
+  requester: {
+    name: string | null;
+    preferred_name: string | null;
+    email: string | null;
+  } | null;
+};
+
+const REQUESTER_SELECT =
+  "tenant_id, person_id, requester:people(name, preferred_name, email)";
+
+/**
+ * Write to the person who made this request.
+ *
+ * The recipient is resolved here from the request, never taken from the
+ * client. Accepting an address as an argument would make this action a relay
+ * that sends anything to anyone behind `inventory:manage`, which is a much
+ * larger thing than the button that calls it.
+ *
+ * The send is awaited rather than deferred with `after()` the way the
+ * event-triggered sends are: a staffer is standing in front of the dialog and
+ * has to be told whether their message went.
+ */
+export async function sendGearRequestMessageAction(input: {
+  messageId: string;
+  requestId: string;
+  subject: string;
+  body: string;
+}): Promise<GearRequestActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase, MESSAGE_ERRORS.SIGNED_OUT);
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "inventory",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (!UUID_PATTERN.test(input.messageId)) {
+    return { error: MESSAGE_ERRORS.MESSAGE_ID_INVALID };
+  }
+  const subject = input.subject.trim();
+  const body = input.body.trim();
+  if (!subject) return { error: MESSAGE_ERRORS.SUBJECT_REQUIRED };
+  if (!body) return { error: MESSAGE_ERRORS.BODY_REQUIRED };
+  if (subject.length > MAX_MESSAGE_SUBJECT_LENGTH) {
+    return { error: MESSAGE_ERRORS.SUBJECT_TOO_LONG };
+  }
+  if (body.length > MAX_MESSAGE_BODY_LENGTH) {
+    return { error: MESSAGE_ERRORS.BODY_TOO_LONG };
+  }
+
+  // Read under the caller's own session, so a request in another tenant is
+  // not found rather than being mailed.
+  const { data, error } = await supabase
+    .from("gear_requests")
+    .select(REQUESTER_SELECT)
+    .eq("id", input.requestId)
+    .maybeSingle<RequesterRow>();
+
+  if (error) return { error: MESSAGE_ERRORS.FAILED };
+  if (!data) return { error: MESSAGE_ERRORS.NOT_FOUND };
+  const toEmail = data.requester?.email?.trim();
+  // Both branches of the same sentence: a request whose requester the
+  // retention purge cleared has no person_id, and one taken through the
+  // honeypot has no address.
+  if (!toEmail) return { error: MESSAGE_ERRORS.NO_EMAIL };
+
+  const outcome = await sendStaffMessage(createSupabaseAdminClient(), {
+    messageId: input.messageId,
+    tenantId: data.tenant_id,
+    personId: data.person_id,
+    toEmail,
+    recipientName: personDisplayName(data.requester, ""),
+    module: "inventory",
+    recordType: GEAR_REQUEST_RECORD_TYPE,
+    recordId: input.requestId,
+    subject,
+    body,
+    sentBy: userResult.user.id,
+    fallbackOrigin: await getRequestOrigin(),
+  });
+
+  if (outcome === "skipped") {
+    // Two ways to get here and they are not the same news: the organization's
+    // switch is off, or this message id has already been spent.
+    const enabled = await getOrgEmailEnabled(supabase);
+    return {
+      error: enabled ? MESSAGE_ERRORS.ALREADY_SENT : MESSAGE_ERRORS.EMAIL_OFF,
+    };
+  }
+  if (outcome === "failed") return { error: MESSAGE_ERRORS.FAILED };
+
+  revalidatePath(`${REQUESTS_PATH}/${input.requestId}`);
+  return { success: true };
+}
+
+/**
+ * Send the confirmation again.
+ *
+ * For the requests taken before the confirmation existed (#1032), and for the
+ * ones where it went to a mailbox the requester no longer reads. It re-renders
+ * through the original sender rather than a copy, so a resent receipt says
+ * exactly what a fresh one would -- including the tenant's current meetup or
+ * shipping instructions, which is the point of reading them at send time.
+ */
+export async function resendGearRequestConfirmationAction(
+  requestId: string,
+): Promise<GearRequestActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase, MESSAGE_ERRORS.SIGNED_OUT);
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "inventory",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("gear_requests")
+    .select(REQUESTER_SELECT)
+    .eq("id", requestId)
+    .maybeSingle<RequesterRow>();
+
+  if (error) return { error: MESSAGE_ERRORS.FAILED };
+  if (!data) return { error: MESSAGE_ERRORS.NOT_FOUND };
+  // sendGearRequestConfirmation() answers `skipped` for both of these, which
+  // would read to the staffer as "already sent". Say what is actually wrong.
+  if (!data.person_id || !data.requester?.email?.trim()) {
+    return { error: MESSAGE_ERRORS.NO_EMAIL };
+  }
+
+  const admin = createSupabaseAdminClient();
+  const dedupeSuffix = resendDedupeSuffix();
+  // An object rather than a `let`: TypeScript narrows a variable a callback
+  // assigns to its initial type, and this one is only ever read afterwards.
+  const sent: { subject?: string } = {};
+
+  const outcome = await sendGearRequestConfirmation(admin, {
+    requestId,
+    siteUrl: await getRequestOrigin(),
+    dedupeSuffix,
+    onRendered: (email) => {
+      sent.subject = email.subject;
+    },
+  });
+
+  if (outcome === "skipped") {
+    const enabled = await getOrgEmailEnabled(supabase);
+    return {
+      error: enabled
+        ? "The confirmation has already been resent in the last minute."
+        : MESSAGE_ERRORS.EMAIL_OFF,
+    };
+  }
+  if (outcome === "failed") {
+    return { error: "The confirmation could not be resent. Please try again." };
+  }
+
+  // The resend joins the history like any other send, so the card explains a
+  // second copy the requester may ask about. The body is empty on purpose:
+  // the organization wrote this one, and the renderer is where it lives.
+  await recordOutboundMessage(admin, {
+    messageId: crypto.randomUUID(),
+    tenantId: data.tenant_id,
+    personId: data.person_id,
+    toEmail: data.requester.email!.trim(),
+    module: "inventory",
+    recordType: GEAR_REQUEST_RECORD_TYPE,
+    recordId: requestId,
+    subject: sent.subject ?? "Your gear request",
+    body: "",
+    kind: GEAR_REQUEST_CONFIRMATION_KIND,
+    dedupeKey: gearRequestConfirmationDedupeKey(requestId, dedupeSuffix),
+    status: outcome,
+    sentBy: userResult.user.id,
+  });
+
+  revalidatePath(`${REQUESTS_PATH}/${requestId}`);
   return { success: true };
 }
