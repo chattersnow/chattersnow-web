@@ -92,6 +92,9 @@ export function parseDonationInput(
   for (let i = 0; i < input.items.length; i++) {
     const item = input.items[i];
     const label = `Item ${i + 1}`;
+    // Also a check constraint since #1122 (inventory_items_description_not_blank):
+    // create_donation_with_items is reachable over PostgREST without this
+    // parser, and an item nothing names is a row nobody can act on.
     if (!item.description.trim()) {
       return {
         error: `${label}: description is required.`,
