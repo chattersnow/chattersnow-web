@@ -295,6 +295,44 @@ export function gearRequestStanding(status: string | null): Standing {
 }
 
 /**
+ * The four sections, in the order the page renders them.
+ *
+ * Named here rather than in the component because two surfaces now have to
+ * agree on the list: the sections themselves, and the summary strip above them
+ * that links into each one.
+ */
+export const MY_SECTIONS = [
+  "events",
+  "volunteering",
+  "giving",
+  "gear",
+] as const;
+
+export type MySectionId = (typeof MY_SECTIONS)[number];
+
+/** The DOM id a section carries, so a summary stat can link to it. */
+export function mySectionAnchor(section: MySectionId): string {
+  return `my-${section}`;
+}
+
+/**
+ * Which sections have rows, and so which ones the page renders.
+ *
+ * The same rule `MyHistorySections` applies -- a section with no rows is not
+ * rendered -- said once, because the strip is gated on how many sections there
+ * are and must not answer that question differently from the sections.
+ */
+export function visibleSections(history: MyHistory): MySectionId[] {
+  const rows: Record<MySectionId, number> = {
+    events: history.events.length,
+    volunteering: history.volunteering.length,
+    giving: history.giving.length,
+    gear: history.gear.length,
+  };
+  return MY_SECTIONS.filter((section) => rows[section] > 0);
+}
+
+/**
  * Whether there is anything at all to show.
  *
  * The common case on a freshly linked account, and the page says so in one
@@ -302,10 +340,5 @@ export function gearRequestStanding(status: string | null): Standing {
  * one event should get a page that reads as complete, not as broken.
  */
 export function isHistoryEmpty(history: MyHistory): boolean {
-  return (
-    history.events.length === 0 &&
-    history.volunteering.length === 0 &&
-    history.giving.length === 0 &&
-    history.gear.length === 0
-  );
+  return visibleSections(history).length === 0;
 }
