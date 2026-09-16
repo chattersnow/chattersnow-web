@@ -19,16 +19,18 @@ import { afterAll } from "bun:test";
  * formatters per call.
  */
 export function pinTimezone(zone: string): void {
-  const original = process.env.TZ;
+  // Resolved rather than read, because `TZ` is usually unset -- on CI as well
+  // as locally -- and the way back has to be an assignment. `delete
+  // process.env.TZ` leaves the pinned zone in force (measured on Bun 1.3.14:
+  // set Sydney, delete, and the process is still in Sydney), and a `delete`
+  // poisons the assignment after it, so restoring that way silently does
+  // nothing at all -- which is how the first attempt at this left #1170's
+  // shard 2 failing exactly as it had before.
+  const original =
+    process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   process.env.TZ = zone;
 
   afterAll(() => {
-    // Assigning `undefined` would leave the string "undefined" behind, which
-    // is not a zone anything can parse.
-    if (original === undefined) {
-      delete process.env.TZ;
-    } else {
-      process.env.TZ = original;
-    }
+    process.env.TZ = original;
   });
 }
