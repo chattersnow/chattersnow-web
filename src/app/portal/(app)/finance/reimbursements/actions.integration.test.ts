@@ -41,7 +41,15 @@ const userIdCache = new Map<string, string>();
 async function userId(email: string): Promise<string> {
   const cached = userIdCache.get(email);
   if (cached) return cached;
-  const { data, error } = await serviceRoleClient.auth.admin.listUsers();
+  // One page big enough to hold the whole stack. `listUsers()` has no
+  // by-email filter and defaults to 50, so on a local database that has run a
+  // few suites -- or in one CI run where another file created accounts -- the
+  // seeded users fall off page one and this throws "seeded user ... not found"
+  // in a file that created no users at all. `demo-actions.ts` and the
+  // administration users suite already page for the same reason.
+  const { data, error } = await serviceRoleClient.auth.admin.listUsers({
+    perPage: 1000,
+  });
   if (error) throw error;
   const user = data.users.find((u) => u.email === email);
   if (!user) throw new Error(`seeded user ${email} not found`);

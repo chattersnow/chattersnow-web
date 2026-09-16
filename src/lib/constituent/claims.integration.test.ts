@@ -101,18 +101,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Back to on, not gone. `supabase/seed.sql` has shipped this row enabled
-  // since #1175, so deleting it here left the database in a state the seed
-  // never creates -- and every later file in the same run saw the module off,
-  // which is how `accounts.integration.test.ts` first failed (#1193).
-  await service.from("tenant_modules").upsert(
-    {
-      tenant_id: tenantId,
-      module_key: "constituent_accounts",
-      enabled: true,
-    },
-    { onConflict: "tenant_id,module_key" },
-  );
+  await service
+    .from("tenant_modules")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("module_key", "constituent_accounts");
   await service.from("person_claims").delete().in("auth_user_id", createdUsers);
   await service.from("people").delete().in("id", createdPeople);
   // auth.users rows are left: audit_log references them, and the seed is reset

@@ -1,4 +1,11 @@
-import { afterEach, beforeAll, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import {
   SEEDED_USERS,
   adminClient,
@@ -14,28 +21,35 @@ import {
  *
  * Both rest on things that cannot be checked without a database: a computed
  * column that is `security definer` and therefore gated in its own body, and an
- * RPC whose whole job is to refuse three different callers. `constituent_accounts`
- * is enabled for the seeded tenant (`supabase/seed.sql`, #1175), so
- * `constituent_claims` is a live permission here rather than a module-gated
- * `none`.
+ * RPC whose whole job is to refuse three different callers.
+ *
+ * The module fixture is `claims.integration.test.ts`'s, and so is the tidying
+ * up: turn `constituent_accounts` on for the duration, take the row away again
+ * afterwards, and delete the accounts this file made. Both halves matter to
+ * files that run later in the same process -- `guard.integration.test.ts` reads
+ * "a tenant that has said nothing" off the absence of that row, and the seeded
+ * users have to stay inside the first page `auth.admin.listUsers()` returns,
+ * which is how several finance tests find `finance@example.test`.
  */
 const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
 
-// Stated rather than assumed. The seed ships the module on for this tenant, but
-// a file that ran earlier in the same process may have turned it off to test
-// its own gate, and `has_permission()` folds the module check in -- so with it
-// off, every assertion below would fail for a reason that has nothing to do
-// with what it is testing.
+let tenantId: string;
+
+// Stated rather than assumed: `constituent_accounts` is the one module that
+// defaults to off (20260916050000), and `has_permission()` folds the module
+// check in -- so with it off, every assertion below would fail for a reason
+// that has nothing to do with what it is testing.
 beforeAll(async () => {
   const { data: tenant } = await service
     .from("tenants")
     .select("id")
     .eq("slug", "example-nonprofit")
     .single();
+  tenantId = tenant!.id as string;
   const { error } = await service.from("tenant_modules").upsert(
     {
-      tenant_id: tenant!.id,
+      tenant_id: tenantId,
       module_key: "constituent_accounts",
       enabled: true,
     },
@@ -44,9 +58,26 @@ beforeAll(async () => {
   if (error) throw new Error(`enable module: ${error.message}`);
 });
 
+afterAll(async () => {
+  await service
+    .from("tenant_modules")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("module_key", "constituent_accounts");
+});
+
 const cleanups: Array<() => Promise<void>> = [];
+const createdUsers: string[] = [];
 afterEach(async () => {
   while (cleanups.length) await cleanups.pop()!();
+  // The people rows go first: `people.auth_user_id` references these. Unlike
+  // `claims.integration.test.ts`, which leaves its accounts behind because
+  // `person_claims` rows point at them, nothing here outlives the test -- and
+  // every account left behind pushes a seeded one off the first page of
+  // `auth.admin.listUsers()`, which other suites rely on to find their users.
+  while (createdUsers.length) {
+    await service.auth.admin.deleteUser(createdUsers.pop()!);
+  }
 });
 
 /**
@@ -63,6 +94,7 @@ async function makeConstituent(tag: string) {
     email_confirm: true,
   });
   if (error) throw error;
+  createdUsers.push(data.user!.id);
   return { email, userId: data.user!.id, client: await signIn(email) };
 }
 
