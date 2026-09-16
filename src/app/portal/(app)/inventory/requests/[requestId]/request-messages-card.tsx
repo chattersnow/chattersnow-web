@@ -64,6 +64,8 @@ export function RequestMessagesCard({
   disabledReason?: string;
 }) {
   const actorById = new Map(actors.map((actor) => [actor.user_id, actor]));
+  const sender = (message: RequestMessageRow) =>
+    message.sent_by ? actorById.get(message.sent_by) : undefined;
 
   return (
     <Card className="mt-6">
@@ -86,14 +88,13 @@ export function RequestMessagesCard({
             <TableRow>
               <TableHead>Sent</TableHead>
               <TableHead>Subject</TableHead>
-              <TableHead hideBelow="sm">By</TableHead>
               <TableHead>Delivery</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {messages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="app-muted text-sm">
+                <TableCell colSpan={3} className="app-muted text-sm">
                   Nothing has been sent to this requester from the portal. The
                   confirmation they received when they asked is not listed here
                   — it was sent by the request itself.
@@ -107,18 +108,16 @@ export function RequestMessagesCard({
                   </TableCell>
                   <TableCell className="font-medium">
                     {message.subject}
-                    {message.kind !== "staff_message" ? (
-                      <span className="app-muted block text-xs">
-                        Receipt, resent by hand
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell hideBelow="sm" className="app-muted">
-                    {actorDisplayName(
-                      message.sent_by
-                        ? actorById.get(message.sent_by)
-                        : undefined,
-                    )}
+                    {/* Who sent it goes under the subject rather than in a
+                        column of its own: four columns do not fit a phone
+                        (#1090), and a column hidden below `sm` would put the
+                        one fact a reader is chasing -- "who answered this?"
+                        -- out of reach exactly where they are reading it. */}
+                    <span className="app-muted block text-xs font-normal">
+                      {message.kind === "staff_message"
+                        ? `Sent by ${actorDisplayName(sender(message), "a staff member")}`
+                        : `Receipt, resent by ${actorDisplayName(sender(message), "a staff member")}`}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <StatusBadge
