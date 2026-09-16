@@ -16,14 +16,19 @@ import { Spinner } from "@/components/ui/spinner";
 import { signOutAndRedirect } from "@/lib/auth/sign-out";
 
 /**
- * Shown instead of the portal shell when a signed-in account belongs to no
- * tenant (#707 Phase 1).
+ * Shown instead of the portal shell when a signed-in account holds a
+ * membership but no *live* one (#707 Phase 1): every organization it belongs
+ * to is suspended, or its support grant has expired. `my_tenant_ids()` filters
+ * on both, so the account reads zero tenants while the membership row is still
+ * there.
  *
- * Unreachable today: ensure_tenant_membership() joins any account to the one
- * tenant that exists. It becomes reachable the moment a second is provisioned,
- * because that auto-join deliberately stops -- a stray signup must not land in
- * somebody else's organization. Building it now means the first white-label
- * deployment gets an explanation rather than an empty shell.
+ * It does not cover an account that belongs to nothing at all. That used to be
+ * unreachable -- ensure_tenant_membership() joined any membership-less account
+ * to the tenant the host resolved to -- and #1191 removed the join rather than
+ * let a constituent with a public-site account (#1161) collect a membership by
+ * opening /portal. The layout sends that case to
+ * /portal/login?error=no_access instead, which is addressed to someone who has
+ * not been granted access rather than to someone waiting on an invitation.
  *
  * Its sibling, ChooseTenant, covers the other empty state: several
  * memberships and no selection yet, where has_permission() answers "none" for
@@ -47,10 +52,9 @@ export function NoTenant() {
           </EmptyMedia>
           <EmptyTitle>No organization available</EmptyTitle>
           <EmptyDescription>
-            Your sign-in worked, but there is no active organization for this
-            account — either it has not been added to one yet, or the one it
-            belongs to is not currently active. Whoever invited you can sort
-            this out.
+            Your sign-in worked, but the organization this account belongs to is
+            not currently active, so there is nothing here to show you. An
+            administrator there can sort this out.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

@@ -38,6 +38,7 @@ function context(overrides: Partial<TenantContext> = {}): TenantContext {
     currentTenantId: CHATTER_SNOW,
     hostTenant: null,
     resolved: true,
+    hasMembership: true,
     ...overrides,
   };
 }
@@ -180,8 +181,84 @@ describe("getTenantContext", () => {
     expect(calls.indexOf("rpc:claim_pending_role_grants")).toBeLessThan(
       calls.indexOf("from:tenants"),
     );
-    expect(calls.indexOf("rpc:ensure_tenant_membership")).toBeLessThan(
+    expect(calls.indexOf("rpc:has_tenant_membership")).toBeLessThan(
       calls.indexOf("from:tenants"),
     );
+  });
+
+  test("never asks to be joined to a tenant", async () => {
+    // #1191: the preamble used to call ensure_tenant_membership(), which wrote
+    // a membership row for any account that held none. A constituent signs in
+    // with the same account as a staffer (#1161), so opening the portal made
+    // members of the public members of the organization. The replacement only
+    // reads.
+    const calls: string[] = [];
+    const client = {
+      rpc(name: string) {
+        calls.push(name);
+        return Promise.resolve({ data: null, error: null });
+      },
+      from() {
+        return {
+          select: () => ({
+            order: () => Promise.resolve({ data: [], error: null }),
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    await getTenantContext(client);
+
+    expect(calls).not.toContain("ensure_tenant_membership");
+  });
+
+  test("reports a membership when the read fails, so a blip is not a refusal", async () => {
+    // hasMembership picks which refusal a zero-tenant account gets, and only
+    // one of the two is a redirect away from the portal. A database blip must
+    // land on the page that explains itself, not on a login screen telling a
+    // legitimate member their access was never granted.
+    const client = {
+      rpc(name: string) {
+        if (name === "has_tenant_membership") {
+          return Promise.resolve({ data: null, error: { message: "boom" } });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      from() {
+        return {
+          select: () => ({
+            order: () => Promise.resolve({ data: [], error: null }),
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    const context = await getTenantContext(client);
+
+    expect(context.resolved).toBe(true);
+    expect(context.hasMembership).toBe(true);
+  });
+
+  test("reports no membership when the database says so", async () => {
+    const client = {
+      rpc(name: string) {
+        if (name === "has_tenant_membership") {
+          return Promise.resolve({ data: false, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      from() {
+        return {
+          select: () => ({
+            order: () => Promise.resolve({ data: [], error: null }),
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    expect((await getTenantContext(client)).hasMembership).toBe(false);
   });
 });

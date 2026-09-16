@@ -93,7 +93,7 @@ export function fakeSupabase(options: FakeSupabaseOptions = {}): FakeSupabase {
 
 /** The RPC names every permission check makes, which tests ignore. */
 export const PERMISSION_RPCS = [
-  "ensure_tenant_membership",
+  "has_tenant_membership",
   "claim_pending_role_grants",
   "my_permissions",
 ];

@@ -1,5 +1,5 @@
 // Integration coverage for tenant identity (#707 Phase 1): my_tenant_ids(),
-// current_tenant_id(), set_current_tenant(), ensure_tenant_membership(), and
+// current_tenant_id(), set_current_tenant(), has_tenant_membership(), and
 // the RLS on the three tables behind them, against a real local Supabase
 // stack.
 //
@@ -12,11 +12,13 @@
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
   serviceRoleClient,
   signIn,
   signInAs,
+  uniqueEmail,
 } from "../../../test/integration-setup";
 import { SEEDED_USER_IDS } from "../../../test/seed-fixtures";
 
@@ -412,83 +414,99 @@ describe("a signed-in request on another tenant's host", () => {
   });
 });
 
-describe("ensure_tenant_membership", () => {
+describe("has_tenant_membership", () => {
+  // #1191. The function this replaced, ensure_tenant_membership(), *wrote* a
+  // membership for any account that held none -- which was right while only a
+  // staffer could have an account, and wrong the moment a constituent shared
+  // the same one across both hosts (#1161). What the portal needs from the
+  // table now is only the question it was really asking: does this account
+  // belong to anything at all.
+  const constituentEmail = uniqueEmail("no-auto-join");
+  let constituentId: string;
+  let constituent: SupabaseClient;
+
+  beforeAll(async () => {
+    const { data, error } = await service.auth.admin.createUser({
+      email: constituentEmail,
+      password: "password123",
+      email_confirm: true,
+    });
+    if (error) throw error;
+    constituentId = data.user!.id;
+    constituent = await signIn(constituentEmail);
+  });
+
   afterAll(async () => {
+    await service
+      .from("tenant_memberships")
+      .delete()
+      .eq("user_id", constituentId);
+    await service.auth.admin.deleteUser(constituentId);
     await service
       .from("tenants")
       .update({ status: "active" })
       .in("id", [secondTenantId, chatterTenantId]);
-    // Restores what seed.sql gave this account. The last test may already have
-    // re-created it, hence upsert rather than insert.
-    await service.from("tenant_memberships").upsert(
-      {
-        user_id: SEEDED_USER_IDS.noAccess,
-        tenant_id: chatterTenantId,
-        kind: "member",
-      },
-      { onConflict: "user_id,tenant_id", ignoreDuplicates: true },
-    );
   });
 
-  test("does not auto-join anyone once a second tenant exists", async () => {
-    // This is the guard that keeps the single-tenant stopgap safe: a stray
-    // signup on a multi-tenant database must not land inside somebody else's
-    // organisation. Phase 3 replaces the fallback with host resolution.
-    const noAccess = await signInAs(SEEDED_USERS.noAccess);
-    await service
-      .from("tenant_memberships")
-      .delete()
-      .eq("user_id", SEEDED_USER_IDS.noAccess);
+  test("the function that joined an account to a tenant is gone", async () => {
+    // Pinned as a function, not as a behaviour: leaving it in the schema while
+    // the app stopped calling it would leave the join one `grant execute` and
+    // one forgotten caller away from coming back.
+    const { error } = await constituent.rpc(
+      "ensure_tenant_membership" as never,
+    );
+    expect(error).not.toBeNull();
+  });
 
-    const { data, error } = await noAccess.rpc("ensure_tenant_membership");
-    expect(error).toBeNull();
-    expect(data).toBeNull();
+  test("a constituent opening the portal leaves no membership behind", async () => {
+    // The acceptance case. These are the two RPCs readTenantContext() issues
+    // on every portal request, in the same order, which is as close as an
+    // integration test gets to "opened /portal".
+    const [membership, claim] = await Promise.all([
+      constituent.rpc("has_tenant_membership"),
+      constituent.rpc("claim_pending_role_grants"),
+    ]);
+    expect(membership.error).toBeNull();
+    expect(membership.data).toBe(false);
+    expect(claim.error).toBeNull();
 
     const { data: memberships } = await service
       .from("tenant_memberships")
       .select("id")
-      .eq("user_id", SEEDED_USER_IDS.noAccess);
+      .eq("user_id", constituentId);
     expect(memberships).toHaveLength(0);
+
+    // And the refusal still holds from the other side: no tenant is visible,
+    // so the layout has nothing to render a shell for.
+    const { data: tenants } = await constituent.from("tenants").select("id");
+    expect(tenants).toHaveLength(0);
   });
 
-  test("joins the sole active tenant when there is exactly one", async () => {
-    const noAccess = await signInAs(SEEDED_USERS.noAccess);
-    await service
-      .from("tenants")
-      .update({ status: "archived" })
-      .eq("id", secondTenantId);
-
-    const { data, error } = await noAccess.rpc("ensure_tenant_membership");
+  test("answers true for a member", async () => {
+    const finance = await signInAs(SEEDED_USERS.finance);
+    const { data, error } = await finance.rpc("has_tenant_membership");
     expect(error).toBeNull();
-    expect(data).toBe(chatterTenantId);
+    expect(data).toBe(true);
   });
 
-  test("does not move a member of a suspended tenant into the active one", async () => {
-    // The guard has to read the raw membership table, not my_tenant_ids():
-    // that view filters to live memberships in *active* tenants, so a member
-    // of a suspended tenant looks membership-less. Checking the filtered view
-    // meant suspending a tenant handed every one of its users a permanent
-    // membership in whichever other tenant happened to be the only active one.
-    await service
-      .from("tenants")
-      .update({ status: "active" })
-      .eq("id", secondTenantId);
+  test("still answers true when the account's only tenant is suspended", async () => {
+    // The distinction the whole function exists for, and why it reads the raw
+    // membership table rather than my_tenant_ids(): that view filters to
+    // active tenants, so a member of a suspended one looks membership-less --
+    // and the portal owes them "your organization is not active", not "you
+    // were never granted access".
     await service
       .from("tenants")
       .update({ status: "suspended" })
       .eq("id", chatterTenantId);
 
     const finance = await signInAs(SEEDED_USERS.finance);
-    const { data, error } = await finance.rpc("ensure_tenant_membership");
-    expect(error).toBeNull();
-    expect(data).toBeNull();
+    const { data: visible } = await finance.from("tenants").select("id");
+    expect(visible).toHaveLength(0);
 
-    const { data: leaked } = await service
-      .from("tenant_memberships")
-      .select("id")
-      .eq("user_id", SEEDED_USER_IDS.finance)
-      .eq("tenant_id", secondTenantId);
-    expect(leaked).toHaveLength(0);
+    const { data, error } = await finance.rpc("has_tenant_membership");
+    expect(error).toBeNull();
+    expect(data).toBe(true);
 
     await service
       .from("tenants")
