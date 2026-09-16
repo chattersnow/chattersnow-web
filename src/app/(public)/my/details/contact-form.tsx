@@ -1,15 +1,16 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
-  FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -30,27 +31,61 @@ import {
   ridesSnowboard,
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
-import type { MyContactDetails } from "@/lib/constituent/contact";
+import type {
+  ContactFieldErrors,
+  ContactFieldName,
+  MyContactDetails,
+} from "@/lib/constituent/contact";
 import { saveMyContactDetailsAction } from "./actions";
 
-/**
- * The allowlist, as a form (#1164).
- *
- * Fully controlled rather than read off the DOM at submit: three of these
- * fields are Selects, and two of them appear and disappear with the answer to
- * a third, so a `new FormData(form)` would carry whichever ones happened to be
- * mounted. Building the payload from state keeps what is sent equal to what
- * the person sees.
- *
- * Every field is optional and nothing here is required, which is deliberate.
- * A person arriving to fix a phone number must not be held up by a postal
- * address the organization has never needed.
- *
- * Email is not on this form. It moves through EmailChangeForm, because it
- * moves only once a link sent to the new address comes back.
- */
-export function ContactForm({ details }: { details: MyContactDetails }) {
-  const [form, setForm] = useState({
+/** The id of each field an error can be pinned to, and its in-page anchor. */
+const FIELD_IDS: Record<ContactFieldName, string> = {
+  pronouns: "my-pronouns",
+  instagramHandle: "my-instagramHandle",
+  ridingDiscipline: "my-ridingDiscipline",
+};
+
+/** What the summary calls each field, matching its label on screen. */
+const FIELD_LABELS: Record<ContactFieldName, string> = {
+  pronouns: "Pronouns",
+  instagramHandle: "Instagram",
+  ridingDiscipline: "Rides",
+};
+
+/** Reading order, which is the order to list problems and to focus in. */
+const FIELD_ORDER: ContactFieldName[] = [
+  "pronouns",
+  "instagramHandle",
+  "ridingDiscipline",
+];
+
+function errorId(name: ContactFieldName): string {
+  return `${FIELD_IDS[name]}-error`;
+}
+
+/** The legend does the job a CardTitle does on the card above it. */
+const LEGEND_CLASS =
+  "brand-display mb-3 font-semibold data-[variant=legend]:text-lg";
+
+type ContactFormValues = {
+  preferredName: string;
+  phone: string;
+  pronouns: string;
+  instagramHandle: string;
+  preferredMountain: string;
+  ridingDiscipline: string;
+  skiExperienceLevel: string;
+  snowboardExperienceLevel: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressCity: string;
+  addressRegion: string;
+  addressPostalCode: string;
+  addressCountry: string;
+};
+
+function valuesOf(details: MyContactDetails): ContactFormValues {
+  return {
     preferredName: details.preferred_name ?? "",
     phone: details.phone ?? "",
     pronouns: details.pronouns ?? "",
@@ -65,19 +100,81 @@ export function ContactForm({ details }: { details: MyContactDetails }) {
     addressRegion: details.address_region ?? "",
     addressPostalCode: details.address_postal_code ?? "",
     addressCountry: details.address_country ?? "",
-  });
+  };
+}
+
+/**
+ * The allowlist, as a form (#1164), in the shape the record itself has (#1181).
+ *
+ * Fully controlled rather than read off the DOM at submit: three of these
+ * fields are Selects, and two of them appear and disappear with the answer to
+ * a third, so a `new FormData(form)` would carry whichever ones happened to be
+ * mounted. Building the payload from state keeps what is sent equal to what
+ * the person sees.
+ *
+ * Every field is optional and nothing here is required, which is deliberate.
+ * A person arriving to fix a phone number must not be held up by a postal
+ * address the organization has never needed.
+ *
+ * Email is not on this form. It moves through EmailChangeForm, because it
+ * moves only once a link sent to the new address comes back.
+ *
+ * Three groups, three cards, one form. Fourteen fields under a card called
+ * "Everything else" was the complaint (#1181), and the grouping that answers
+ * it already existed one level down as these three legends -- so the cards
+ * take no CardHeader and each legend is the visible heading. One `<form>` and
+ * one save across all three because `set_my_contact_details()` writes the
+ * whole allowlist in one call: a per-card payload would blank the columns it
+ * did not send.
+ */
+export function ContactForm({ details }: { details: MyContactDetails }) {
+  const [form, setForm] = useState<ContactFormValues>(() => valuesOf(details));
+  // What the form last agreed with the record: the values it loaded, and then
+  // the values it sent successfully. Save is gated on differing from this, so
+  // a button at the foot of a long page is never a live control somebody
+  // scrolled to for nothing -- the same gate, for the same reason, as
+  // portal/account's AccountForm.
+  const [baseline, setBaseline] = useState<ContactFormValues>(() =>
+    valuesOf(details),
+  );
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
   const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  function update(key: keyof typeof form, value: string) {
+  const isDirty = useMemo(
+    () =>
+      (Object.keys(baseline) as (keyof ContactFormValues)[]).some(
+        (key) => form[key] !== baseline[key],
+      ),
+    [form, baseline],
+  );
+
+  const invalidFields = useMemo(
+    () => FIELD_ORDER.filter((name) => fieldErrors[name]),
+    [fieldErrors],
+  );
+
+  function update(key: keyof ContactFormValues, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
     setSaved(false);
+    // A field stops being marked the moment it is edited. Leaving the mark up
+    // while somebody types the correction says the correction is wrong too.
+    if (key in FIELD_IDS) {
+      setFieldErrors((current) => {
+        const name = key as ContactFieldName;
+        if (!current[name]) return current;
+        const next = { ...current };
+        delete next[name];
+        return next;
+      });
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setFieldErrors({});
     setIsSaving(true);
 
     const payload = new FormData();
@@ -88,274 +185,372 @@ export function ContactForm({ details }: { details: MyContactDetails }) {
 
     if ("error" in result) {
       setError(result.error);
+      setFieldErrors(result.fieldErrors ?? {});
+      // Take somebody who pressed Save at the foot of the page to the problem,
+      // rather than telling them one exists somewhere above. getElementById
+      // rather than a ref because one of the three is a Select whose trigger
+      // this component does not hold; the id is the handle all three share.
+      const firstInvalid = FIELD_ORDER.find(
+        (name) => result.fieldErrors?.[name],
+      );
+      if (firstInvalid) {
+        document.getElementById(FIELD_IDS[firstInvalid])?.focus();
+      }
       return;
     }
+    setBaseline(form);
     setSaved(true);
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <FieldGroup>
-        <FieldSet>
-          <FieldLegend>How to reach you</FieldLegend>
-          <FieldGroup>
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="my-preferredName">
-                  The name you go by
-                </FieldLabel>
-                <Input
-                  id="my-preferredName"
-                  value={form.preferredName}
-                  onChange={(event) =>
-                    update("preferredName", event.target.value)
-                  }
-                />
-                <FieldDescription>
-                  What we call you. We keep{" "}
-                  {details.name ? `“${details.name}”` : "your full name"} on the
-                  record itself — tell us if that needs correcting.
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="my-phone">Phone</FieldLabel>
-                <Input
-                  id="my-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  value={form.phone}
-                  onChange={(event) => update("phone", event.target.value)}
-                />
-              </Field>
-            </Field>
-
-            <Field orientation="responsive">
-              <PronounsField
-                id="my-pronouns"
-                value={form.pronouns}
-                onChange={(value) => update("pronouns", value)}
-              />
-              <Field>
-                <FieldLabel htmlFor="my-instagramHandle">Instagram</FieldLabel>
-                <Input
-                  id="my-instagramHandle"
-                  placeholder="handle, without the @"
-                  value={form.instagramHandle}
-                  onChange={(event) =>
-                    update("instagramHandle", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
-          </FieldGroup>
-        </FieldSet>
-
-        <FieldSeparator />
-
-        <FieldSet>
-          <FieldLegend>Where to send things</FieldLegend>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="my-addressLine1">Address</FieldLabel>
-              <Input
-                id="my-addressLine1"
-                autoComplete="address-line1"
-                value={form.addressLine1}
-                onChange={(event) => update("addressLine1", event.target.value)}
-              />
-              <Input
-                aria-label="Address line 2"
-                autoComplete="address-line2"
-                value={form.addressLine2}
-                onChange={(event) => update("addressLine2", event.target.value)}
-              />
-            </Field>
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="my-addressCity">City</FieldLabel>
-                <Input
-                  id="my-addressCity"
-                  autoComplete="address-level2"
-                  value={form.addressCity}
-                  onChange={(event) =>
-                    update("addressCity", event.target.value)
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="my-addressRegion">
-                  State or region
-                </FieldLabel>
-                <Input
-                  id="my-addressRegion"
-                  autoComplete="address-level1"
-                  value={form.addressRegion}
-                  onChange={(event) =>
-                    update("addressRegion", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="my-addressPostalCode">
-                  Postal code
-                </FieldLabel>
-                <Input
-                  id="my-addressPostalCode"
-                  autoComplete="postal-code"
-                  value={form.addressPostalCode}
-                  onChange={(event) =>
-                    update("addressPostalCode", event.target.value)
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="my-addressCountry">Country</FieldLabel>
-                <Input
-                  id="my-addressCountry"
-                  autoComplete="country-name"
-                  value={form.addressCountry}
-                  onChange={(event) =>
-                    update("addressCountry", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
-          </FieldGroup>
-        </FieldSet>
-
-        <FieldSeparator />
-
-        <FieldSet>
-          <FieldLegend>What you ride</FieldLegend>
-          <FieldGroup>
-            <Field orientation="responsive">
-              <Field>
-                <FieldLabel htmlFor="my-ridingDiscipline">Rides</FieldLabel>
-                <Select
-                  value={form.ridingDiscipline}
-                  onValueChange={(value) =>
-                    update("ridingDiscipline", String(value ?? ""))
-                  }
-                >
-                  <SelectTrigger id="my-ridingDiscipline" className="w-full">
-                    <SelectValue placeholder="Not recorded">
-                      {(value: string) => ridingDisciplineLabel(value)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RIDING_DISCIPLINES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="my-preferredMountain">
-                  Preferred mountain
-                </FieldLabel>
-                <Input
-                  id="my-preferredMountain"
-                  value={form.preferredMountain}
-                  onChange={(event) =>
-                    update("preferredMountain", event.target.value)
-                  }
-                />
-              </Field>
-            </Field>
-
-            {(ridesSki(form.ridingDiscipline) ||
-              ridesSnowboard(form.ridingDiscipline)) && (
+    <form onSubmit={handleSubmit} noValidate className="space-y-8">
+      <Card>
+        <CardContent>
+          <FieldSet>
+            <FieldLegend className={LEGEND_CLASS}>How to reach you</FieldLegend>
+            <FieldGroup>
               <Field orientation="responsive">
-                {ridesSki(form.ridingDiscipline) && (
-                  <Field>
-                    <FieldLabel htmlFor="my-skiExperienceLevel">
-                      Ski experience
-                    </FieldLabel>
-                    <Select
-                      value={form.skiExperienceLevel}
-                      onValueChange={(value) =>
-                        update("skiExperienceLevel", String(value ?? ""))
-                      }
-                    >
-                      <SelectTrigger
-                        id="my-skiExperienceLevel"
-                        className="w-full"
-                      >
-                        <SelectValue placeholder="Not recorded">
-                          {(value: string) => experienceLevelLabel(value)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPERIENCE_LEVELS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-                {ridesSnowboard(form.ridingDiscipline) && (
-                  <Field>
-                    <FieldLabel htmlFor="my-snowboardExperienceLevel">
-                      Snowboard experience
-                    </FieldLabel>
-                    <Select
-                      value={form.snowboardExperienceLevel}
-                      onValueChange={(value) =>
-                        update("snowboardExperienceLevel", String(value ?? ""))
-                      }
-                    >
-                      <SelectTrigger
-                        id="my-snowboardExperienceLevel"
-                        className="w-full"
-                      >
-                        <SelectValue placeholder="Not recorded">
-                          {(value: string) => experienceLevelLabel(value)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPERIENCE_LEVELS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
+                <Field>
+                  <FieldLabel htmlFor="my-preferredName">
+                    The name you go by
+                  </FieldLabel>
+                  <Input
+                    id="my-preferredName"
+                    value={form.preferredName}
+                    onChange={(event) =>
+                      update("preferredName", event.target.value)
+                    }
+                  />
+                  <FieldDescription>
+                    What we call you. We keep{" "}
+                    {details.name ? `“${details.name}”` : "your full name"} on
+                    the record itself — tell us if that needs correcting.
+                  </FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="my-phone">Phone</FieldLabel>
+                  <Input
+                    id="my-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    value={form.phone}
+                    onChange={(event) => update("phone", event.target.value)}
+                  />
+                </Field>
               </Field>
-            )}
-          </FieldGroup>
-        </FieldSet>
 
+              <Field orientation="responsive">
+                <PronounsField
+                  id="my-pronouns"
+                  value={form.pronouns}
+                  onChange={(value) => update("pronouns", value)}
+                  error={fieldErrors.pronouns}
+                  errorId={errorId("pronouns")}
+                />
+                <Field>
+                  <FieldLabel htmlFor="my-instagramHandle">
+                    Instagram
+                  </FieldLabel>
+                  <Input
+                    id="my-instagramHandle"
+                    placeholder="handle, without the @"
+                    value={form.instagramHandle}
+                    aria-invalid={
+                      fieldErrors.instagramHandle ? true : undefined
+                    }
+                    aria-describedby={
+                      fieldErrors.instagramHandle
+                        ? errorId("instagramHandle")
+                        : undefined
+                    }
+                    onChange={(event) =>
+                      update("instagramHandle", event.target.value)
+                    }
+                  />
+                  {fieldErrors.instagramHandle && (
+                    <FieldError id={errorId("instagramHandle")}>
+                      {fieldErrors.instagramHandle}
+                    </FieldError>
+                  )}
+                </Field>
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <FieldSet>
+            <FieldLegend className={LEGEND_CLASS}>
+              Where to send things
+            </FieldLegend>
+            <FieldGroup>
+              {/* Two Fields, not one Field holding two inputs: the second line
+                  carried only an aria-label, so a sighted person got an
+                  unexplained box and anyone using speech got a label that
+                  never appears on screen (#1181). */}
+              <Field>
+                <FieldLabel htmlFor="my-addressLine1">
+                  Street address
+                </FieldLabel>
+                <Input
+                  id="my-addressLine1"
+                  autoComplete="address-line1"
+                  value={form.addressLine1}
+                  onChange={(event) =>
+                    update("addressLine1", event.target.value)
+                  }
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="my-addressLine2">
+                  Apartment, suite, etc.
+                </FieldLabel>
+                <Input
+                  id="my-addressLine2"
+                  autoComplete="address-line2"
+                  value={form.addressLine2}
+                  onChange={(event) =>
+                    update("addressLine2", event.target.value)
+                  }
+                />
+              </Field>
+              <Field orientation="responsive">
+                <Field>
+                  <FieldLabel htmlFor="my-addressCity">City</FieldLabel>
+                  <Input
+                    id="my-addressCity"
+                    autoComplete="address-level2"
+                    value={form.addressCity}
+                    onChange={(event) =>
+                      update("addressCity", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="my-addressRegion">
+                    State or region
+                  </FieldLabel>
+                  <Input
+                    id="my-addressRegion"
+                    autoComplete="address-level1"
+                    value={form.addressRegion}
+                    onChange={(event) =>
+                      update("addressRegion", event.target.value)
+                    }
+                  />
+                </Field>
+              </Field>
+              <Field orientation="responsive">
+                <Field>
+                  <FieldLabel htmlFor="my-addressPostalCode">
+                    Postal code
+                  </FieldLabel>
+                  <Input
+                    id="my-addressPostalCode"
+                    autoComplete="postal-code"
+                    value={form.addressPostalCode}
+                    onChange={(event) =>
+                      update("addressPostalCode", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="my-addressCountry">Country</FieldLabel>
+                  <Input
+                    id="my-addressCountry"
+                    autoComplete="country-name"
+                    value={form.addressCountry}
+                    onChange={(event) =>
+                      update("addressCountry", event.target.value)
+                    }
+                  />
+                </Field>
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <FieldSet>
+            <FieldLegend className={LEGEND_CLASS}>What you ride</FieldLegend>
+            <FieldGroup>
+              <Field orientation="responsive">
+                <Field>
+                  <FieldLabel htmlFor="my-ridingDiscipline">Rides</FieldLabel>
+                  <Select
+                    value={form.ridingDiscipline}
+                    onValueChange={(value) =>
+                      update("ridingDiscipline", String(value ?? ""))
+                    }
+                  >
+                    <SelectTrigger
+                      id="my-ridingDiscipline"
+                      className="w-full"
+                      aria-invalid={
+                        fieldErrors.ridingDiscipline ? true : undefined
+                      }
+                      aria-describedby={
+                        fieldErrors.ridingDiscipline
+                          ? errorId("ridingDiscipline")
+                          : undefined
+                      }
+                    >
+                      <SelectValue placeholder="Not recorded">
+                        {(value: string) => ridingDisciplineLabel(value)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RIDING_DISCIPLINES.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldErrors.ridingDiscipline && (
+                    <FieldError id={errorId("ridingDiscipline")}>
+                      {fieldErrors.ridingDiscipline}
+                    </FieldError>
+                  )}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="my-preferredMountain">
+                    Preferred mountain
+                  </FieldLabel>
+                  <Input
+                    id="my-preferredMountain"
+                    value={form.preferredMountain}
+                    onChange={(event) =>
+                      update("preferredMountain", event.target.value)
+                    }
+                  />
+                </Field>
+              </Field>
+
+              {(ridesSki(form.ridingDiscipline) ||
+                ridesSnowboard(form.ridingDiscipline)) && (
+                <Field orientation="responsive">
+                  {ridesSki(form.ridingDiscipline) && (
+                    <Field>
+                      <FieldLabel htmlFor="my-skiExperienceLevel">
+                        Ski experience
+                      </FieldLabel>
+                      <Select
+                        value={form.skiExperienceLevel}
+                        onValueChange={(value) =>
+                          update("skiExperienceLevel", String(value ?? ""))
+                        }
+                      >
+                        <SelectTrigger
+                          id="my-skiExperienceLevel"
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Not recorded">
+                            {(value: string) => experienceLevelLabel(value)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPERIENCE_LEVELS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                  {ridesSnowboard(form.ridingDiscipline) && (
+                    <Field>
+                      <FieldLabel htmlFor="my-snowboardExperienceLevel">
+                        Snowboard experience
+                      </FieldLabel>
+                      <Select
+                        value={form.snowboardExperienceLevel}
+                        onValueChange={(value) =>
+                          update(
+                            "snowboardExperienceLevel",
+                            String(value ?? ""),
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          id="my-snowboardExperienceLevel"
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Not recorded">
+                            {(value: string) => experienceLevelLabel(value)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPERIENCE_LEVELS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                </Field>
+              )}
+            </FieldGroup>
+          </FieldSet>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
         {error && (
           <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {error}
+              {/* The fields are hundreds of pixels above this alert on a page
+                  this long, so the summary carries a way back to each one. A
+                  plain fragment link is enough: every target is an input or a
+                  button, and the browser moves focus to a focusable target. */}
+              {invalidFields.length > 0 && (
+                <ul className="mt-2 flex list-disc flex-col gap-1 pl-4">
+                  {invalidFields.map((name) => (
+                    <li key={name}>
+                      <a href={`#${FIELD_IDS[name]}`}>{FIELD_LABELS[name]}</a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 
-        <div className="flex items-center gap-3">
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Spinner /> Saving...
-              </>
-            ) : (
-              "Save"
-            )}
-          </Button>
-          {saved && (
-            <p className="app-muted text-sm" role="status">
-              Saved.
-            </p>
+        {/* The public forms replace themselves with this alert on success.
+            This one must not: it is an edit form, and the record it edits has
+            to stay on screen for the next correction. The accent and the
+            wording follow the convention; only the replacing does not. */}
+        {saved && (
+          <Alert role="status">
+            <div className="rainbow-accent mb-2 w-10" />
+            <AlertDescription>
+              Saved. Your details are up to date.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Button
+          type="submit"
+          disabled={isSaving || !isDirty}
+          className="w-full sm:w-fit"
+        >
+          {isSaving ? (
+            <>
+              <Spinner /> Saving...
+            </>
+          ) : (
+            "Save"
           )}
-        </div>
-      </FieldGroup>
+        </Button>
+      </div>
     </form>
   );
 }

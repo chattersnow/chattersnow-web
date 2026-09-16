@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseMyContactForm } from "@/lib/constituent/contact";
+import {
+  parseMyContactForm,
+  type ContactFieldErrors,
+} from "@/lib/constituent/contact";
 import {
   requestMyEmailChange,
   type EmailChangeResult,
@@ -12,7 +15,8 @@ import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 
 const MY_DETAILS_PATH = `${MY_PATH_PREFIX}/details`;
 
-export type SaveContactDetailsResult = { error: string } | { saved: true };
+export type SaveContactDetailsResult =
+  { error: string; fieldErrors?: ContactFieldErrors } | { saved: true };
 
 /**
  * Saves the allowlisted fields of the caller's own record (#1164).
@@ -33,6 +37,9 @@ export async function saveMyContactDetailsAction(
   formData: FormData,
 ): Promise<SaveContactDetailsResult> {
   const parsed = parseMyContactForm(formData);
+  // The field errors travel with the sentence so the form can put each one
+  // beside the input it is about (#1181), rather than hundreds of pixels below
+  // it next to the save button.
   if ("error" in parsed) return parsed;
 
   const supabase = await createSupabaseServerClient();
@@ -43,6 +50,7 @@ export async function saveMyContactDetailsAction(
     // or the tenant has the area off -- and for a value its own checks refuse.
     // Neither is worth echoing verbatim: the first is a state this page cannot
     // be in without a stale tab, and the second is already caught above.
+    // No fieldErrors: there is no one field to blame for either.
     return { error: "Could not save your details. Please try again." };
   }
 

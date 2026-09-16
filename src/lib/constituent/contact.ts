@@ -66,13 +66,43 @@ export type ContactDetailsArgs = {
   p_address_country: string | null;
 };
 
+/**
+ * The form fields a parse error can be pinned to, named as the form names them
+ * rather than as the RPC does (#1181).
+ *
+ * The three here are the three this module can refuse. Everything else on the
+ * allowlist is free text the database takes as given, so there is nothing to
+ * say about it before the round trip.
+ */
+export type ContactFieldName =
+  "pronouns" | "instagramHandle" | "ridingDiscipline";
+
+export type ContactFieldErrors = Partial<Record<ContactFieldName, string>>;
+
+export type ParsedMyContactForm =
+  | { error: string; fieldErrors: ContactFieldErrors }
+  | { args: ContactDetailsArgs };
+
+/**
+ * The summary when more than one field is wrong. A single problem is its own
+ * summary, because repeating one sentence twice on the same screen reads as
+ * two problems.
+ */
+export const MULTIPLE_CONTACT_PROBLEMS_ERROR =
+  "Some of what you entered cannot be saved. Check the fields marked below.";
+
+export const INSTAGRAM_HANDLE_ERROR =
+  "An Instagram handle can only contain letters, numbers, periods and underscores.";
+
+export const RIDING_DISCIPLINE_ERROR = "Select a valid riding discipline.";
+
 function field(formData: FormData, name: string): string {
   return String(formData.get(name) ?? "").trim();
 }
 
 /**
- * Turns the form into the RPC's arguments, or into the one sentence that says
- * what to fix.
+ * Turns the form into the RPC's arguments, or into the problems to put beside
+ * the fields that have them.
  *
  * Every field is optional. This is a record somebody else created about a
  * person, and a form that refuses to save until they have filled in a postal
@@ -83,27 +113,37 @@ function field(formData: FormData, name: string): string {
  * people_ski_level_requires_ski check would otherwise turn into an error about
  * a field the person never touched.
  */
-export function parseMyContactForm(
-  formData: FormData,
-): { error: string } | { args: ContactDetailsArgs } {
+export function parseMyContactForm(formData: FormData): ParsedMyContactForm {
+  // Every problem is collected rather than returned at the first one: the form
+  // marks the fields it names, and a person who fixes the handle only to be
+  // told about the pronouns has been sent round the loop twice for one visit.
+  const fieldErrors: ContactFieldErrors = {};
+
   const pronouns = parsePronouns(formData.get("pronouns"));
-  if ("error" in pronouns) return pronouns;
+  if ("error" in pronouns) fieldErrors.pronouns = pronouns.error;
+  const pronounsValue = "error" in pronouns ? null : pronouns.pronouns;
 
   const instagramHandle = field(formData, "instagramHandle").replace(/^@/, "");
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
-    return {
-      error:
-        "An Instagram handle can only contain letters, numbers, periods and underscores.",
-    };
+    fieldErrors.instagramHandle = INSTAGRAM_HANDLE_ERROR;
   }
 
   const ridingDisciplineRaw = field(formData, "ridingDiscipline");
   if (ridingDisciplineRaw && !isRidingDiscipline(ridingDisciplineRaw)) {
-    return { error: "Select a valid riding discipline." };
+    fieldErrors.ridingDiscipline = RIDING_DISCIPLINE_ERROR;
   }
   const ridingDiscipline = isRidingDiscipline(ridingDisciplineRaw)
     ? ridingDisciplineRaw
     : null;
+
+  const messages = Object.values(fieldErrors);
+  if (messages.length > 0) {
+    return {
+      error:
+        messages.length === 1 ? messages[0] : MULTIPLE_CONTACT_PROBLEMS_ERROR,
+      fieldErrors,
+    };
+  }
 
   const skiLevel = field(formData, "skiExperienceLevel");
   const snowboardLevel = field(formData, "snowboardExperienceLevel");
@@ -112,7 +152,7 @@ export function parseMyContactForm(
     args: {
       p_preferred_name: field(formData, "preferredName") || null,
       p_phone: field(formData, "phone") || null,
-      p_pronouns: pronouns.pronouns,
+      p_pronouns: pronounsValue,
       p_instagram_handle: instagramHandle || null,
       p_preferred_mountain: field(formData, "preferredMountain") || null,
       p_riding_discipline: ridingDiscipline,
