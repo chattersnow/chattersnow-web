@@ -178,6 +178,20 @@ So `calendar/categories`, `inventory/categories`, `volunteers/roles` and
 and branding stay in Administration. When a setting could plausibly go either
 way, ask whether a reader who never opens that feature would still need it.
 
+**"Identity" means authority, not accounts** (#1198). The word was doing all the
+work in that sentence and was never qualified, so both readings fitted it and
+account-shaped work landed wherever it was written first. The rule:
+**Administration → Users answers who may act on the organization's behalf.
+People answers who the organization knows, and whether they can see their own
+record.** A constituent account is not a grant of authority — it is read access
+to one person's own record at `/my` — so it is a property of a directory row and
+lives with the row, in People › Accounts. The reasoning, and the alternatives
+weighed against it, are in
+`planning/coven/design/2026-09-16-staff-users-vs-constituent-accounts-ia.md`.
+Because the two lists answer neighbouring questions, each names the other: the
+Users page links to the Accounts segment where `constituent_claims:view` allows
+it, and the segment links back where `administration:manage` does.
+
 **The public website is a feature in this sense** (#990). Layout, Page
 visibility and Legal documents were System Settings tabs until the website got
 a section of its own in #944; they configure one feature, and they now live in
@@ -202,7 +216,9 @@ identifier in `role_permissions` rows in every environment, not a label.
 Per-user preferences are not configuration in this sense: they live at
 `/portal/account`, which every signed-in user can reach. Where an org-wide
 default and a per-user override both exist — notifications is the current case —
-each surface should name the other.
+each surface should name the other. The same holds wherever one question is
+answered by two screens; the staff/constituent account pair above is the second
+case.
 
 ## Invariants
 

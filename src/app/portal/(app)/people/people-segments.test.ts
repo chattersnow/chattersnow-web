@@ -209,3 +209,32 @@ describe("visibleSegments", () => {
     ]);
   });
 });
+
+/**
+ * The line under the Accounts heading (#1198). Its wording and its gate are
+ * exercised in `segment-counterpart-note.dom.test.tsx`; what belongs here is
+ * that it is Accounts alone that carries one, and that it points where the
+ * navigation doc says it should.
+ */
+describe("counterpart", () => {
+  test("only Accounts has one, and it names Administration › Users", () => {
+    expect(
+      PEOPLE_SEGMENTS.filter((segment) => segment.counterpart).map(
+        (segment) => segment.value,
+      ),
+    ).toEqual(["accounts"]);
+    expect(ACCOUNTS_SEGMENT.counterpart?.crossSurface).toMatchObject({
+      href: "/portal/administration/users",
+      access: [{ resource: "administration", level: "manage" }],
+    });
+  });
+
+  // The strip's words are the tenant's (#911); these two are not, so
+  // `resolveSegment` must leave them exactly as written rather than hunt for
+  // `{term}` placeholders that are not there.
+  test("survives resolution unchanged", () => {
+    expect(named(ACCOUNTS_SEGMENT).counterpart).toEqual(
+      ACCOUNTS_SEGMENT.counterpart!,
+    );
+  });
+});
