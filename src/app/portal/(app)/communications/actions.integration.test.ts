@@ -34,10 +34,22 @@ mock.module("server-only", () => ({}));
 const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
 const serviceRoleClient = createSupabaseAdminClient();
 
-const { updateContactMessageStatusAction } = await import("./actions");
+const { updateContactMessageStatusAction, sendContactMessageReplyAction } =
+  await import("./actions");
+const { CONTACT_MESSAGE_RECORD_TYPE } = await import("@/lib/outbound-messages");
 
-afterEach(() => {
+afterEach(async () => {
   revalidatePathMock.mockClear();
+  // Only the service role may clear these: outbound_messages has no delete
+  // policy at all, and notification_deliveries none for `authenticated`.
+  await serviceRoleClient
+    .from("outbound_messages")
+    .delete()
+    .eq("record_type", "contact_message");
+  await serviceRoleClient
+    .from("notification_deliveries")
+    .delete()
+    .eq("kind", "staff_message");
 });
 
 const DENIED = { error: "You don't have permission to perform this action." };
@@ -294,6 +306,137 @@ describe("contact_messages table RLS (integration)", () => {
 
     // Still there: submissions are retained until a purge path exists.
     expect((await readMessage(message.id)).id).toBe(message.id);
+
+    await message.cleanup();
+  });
+});
+
+// #1204: replying from the portal. This is the one adopting queue whose
+// recipient has no `people` row -- `contact_messages` carries an address and
+// nothing else -- so it is the case `outbound_messages.person_id` was made
+// nullable for, and the only place that nullability is exercised end to end.
+function reply(
+  contactMessageId: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    messageId: crypto.randomUUID(),
+    contactMessageId,
+    subject: "Re: General enquiry",
+    body: "Thanks for writing in — we meet on Tuesdays.",
+    ...overrides,
+  };
+}
+
+describe("sendContactMessageReplyAction (integration)", () => {
+  test("requires a signed-in user", async () => {
+    currentSupabase = anonClient();
+    expect(
+      await sendContactMessageReplyAction(reply(crypto.randomUUID())),
+    ).toEqual({ error: "You must be signed in to reply to a message." });
+  });
+
+  test.each(ROLES_WITHOUT_COMMUNICATIONS)(
+    "refuses %s",
+    async (_label, email) => {
+      currentSupabase = await signIn(email);
+      expect(
+        await sendContactMessageReplyAction(reply(crypto.randomUUID())),
+      ).toEqual(DENIED);
+    },
+  );
+
+  test("a communications manager replies, and the reply carries no person", async () => {
+    const message = await createContactMessage();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    const input = reply(message.id);
+    expect(await sendContactMessageReplyAction(input)).toEqual({
+      success: true,
+    });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/portal/communications");
+
+    const { data } = await serviceRoleClient
+      .from("outbound_messages")
+      .select("id, module, record_type, record_id, person_id, to_email, status")
+      .eq("record_id", message.id)
+      .single();
+    expect(data).toMatchObject({
+      id: input.messageId,
+      module: "communications",
+      record_type: CONTACT_MESSAGE_RECORD_TYPE,
+      to_email: message.email,
+      status: "sent",
+    });
+    // Nobody who wrote in once becomes a person in the directory.
+    expect(data!.person_id).toBeNull();
+    const { data: people } = await serviceRoleClient
+      .from("people")
+      .select("id")
+      .eq("email", message.email);
+    expect(people).toEqual([]);
+
+    await message.cleanup();
+  });
+
+  test("replying leaves the message's status alone", async () => {
+    const message = await createContactMessage();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    expect(await sendContactMessageReplyAction(reply(message.id))).toEqual({
+      success: true,
+    });
+
+    // A reply that asks a question is not the matter being handled, so the
+    // queue keeps saying what it said.
+    expect((await readMessage(message.id)).status).toBe("new");
+
+    await message.cleanup();
+  });
+
+  test("says what is wrong instead of sending nothing quietly", async () => {
+    const message = await createContactMessage();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    expect(
+      await sendContactMessageReplyAction(reply(message.id, { body: "\n" })),
+    ).toEqual({ error: "Write a message." });
+    expect(
+      await sendContactMessageReplyAction(
+        reply(message.id, { messageId: "not-a-uuid" }),
+      ),
+    ).toEqual({ error: "Reopen the message and try again." });
+    expect(
+      await sendContactMessageReplyAction(reply(crypto.randomUUID())),
+    ).toEqual({ error: "This message could not be found." });
+
+    const { data } = await serviceRoleClient
+      .from("outbound_messages")
+      .select("id")
+      .eq("record_type", CONTACT_MESSAGE_RECORD_TYPE);
+    expect(data).toEqual([]);
+
+    await message.cleanup();
+  });
+
+  test("one composition sends one email, whatever the client does", async () => {
+    const message = await createContactMessage();
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    const input = reply(message.id);
+
+    expect(await sendContactMessageReplyAction(input)).toEqual({
+      success: true,
+    });
+    expect(await sendContactMessageReplyAction(input)).toEqual({
+      error:
+        "That message has already gone out. Reopen the composer to send another.",
+    });
+
+    const { count } = await serviceRoleClient
+      .from("outbound_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("record_id", message.id);
+    expect(count).toBe(1);
 
     await message.cleanup();
   });

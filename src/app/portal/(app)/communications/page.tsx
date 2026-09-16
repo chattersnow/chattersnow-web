@@ -4,6 +4,12 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import {
+  CONTACT_MESSAGE_RECORD_TYPE,
+  NO_RECORD_MESSAGES,
+} from "@/lib/outbound-messages";
+import { loadRecordMessages } from "@/lib/portal/record-messages";
 import { MessagesTable } from "./messages-table";
 import {
   CONTACT_MESSAGE_STATUSES,
@@ -56,6 +62,30 @@ export default async function CommunicationsPage({
     .select("id, name, email, topic, message, status, created_at")
     .order("created_at", { ascending: false });
 
+  const messageRows = (messages ?? []) as ContactMessage[];
+
+  // What has been replied to each of these from the portal (#1204), in one
+  // query rather than one per sheet. RLS answers with nothing at all without
+  // communications:manage, so the check here only saves the round trips.
+  const [recordMessages, orgEmailEnabled, orgMail] = await Promise.all([
+    canManage
+      ? loadRecordMessages(
+          supabase,
+          CONTACT_MESSAGE_RECORD_TYPE,
+          messageRows.map((row) => row.id),
+        )
+      : NO_RECORD_MESSAGES,
+    canManage ? getOrgEmailEnabled(supabase) : false,
+    // The Reply-To the composer quotes, through the view that exists because
+    // app_settings itself is closed to a communications manager.
+    canManage
+      ? supabase
+          .from("org_notification_settings")
+          .select("reply_to")
+          .maybeSingle()
+      : { data: null },
+  ]);
+
   return (
     <>
       <div className="w-fit">
@@ -75,10 +105,13 @@ export default async function CommunicationsPage({
           </p>
         ) : (
           <MessagesTable
-            messages={(messages ?? []) as ContactMessage[]}
+            messages={messageRows}
             canManage={canManage}
             initialStatusFilter={initialStatusFilter}
             linkedMessageId={linkedMessageId}
+            recordMessages={recordMessages}
+            replyTo={(orgMail.data?.reply_to as string | null) ?? null}
+            orgEmailEnabled={orgEmailEnabled}
           />
         )}
       </div>
