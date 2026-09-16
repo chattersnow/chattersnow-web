@@ -70,8 +70,17 @@ export async function recordOutboundMessage(
   });
 
   if (error) {
+    // The record the message is about reaches this through a route param, so
+    // it is passed as an argument rather than interpolated into the format
+    // string: a value carrying %s or a newline would otherwise garble the
+    // line or forge a second one (CWE-117, CWE-134).
     console.error(
-      `[outbound-message] the email went out but its history row did not: ${message.kind} about ${message.recordType} ${message.recordId}`,
+      "[outbound-message] the email went out but its history row did not",
+      {
+        kind: message.kind,
+        recordType: message.recordType,
+        recordId: message.recordId,
+      },
       error,
     );
   }
