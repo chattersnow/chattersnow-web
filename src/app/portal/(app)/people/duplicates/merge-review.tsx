@@ -30,6 +30,12 @@ const FIELD_LABELS: Record<MergeableField, string> = {
   person_type: "Type",
   source_type: "Source",
   preferred_mountain: "Preferred mountain",
+  address_line1: "Address line 1",
+  address_line2: "Address line 2",
+  address_city: "City",
+  address_region: "State or region",
+  address_postal_code: "Postal code",
+  address_country: "Country",
 };
 
 type Side = "survivor" | "duplicate";

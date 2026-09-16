@@ -68,7 +68,7 @@ import { PeopleSegmentNav } from "./people-segment-nav";
  * which is what typed it before the generated types existed either.
  */
 const PERSON_COLUMNS: string =
-  "id, name, preferred_name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+  "id, name, preferred_name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, address_line1, address_line2, address_city, address_region, address_postal_code, address_country, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 /**
  * The shared body behind /portal/people and its role segments. Donors,

@@ -151,6 +151,12 @@ describe("parsePersonForm", () => {
         ski_experience_level: null,
         snowboard_experience_level: null,
         preferred_mountain: null,
+        address_line1: null,
+        address_line2: null,
+        address_city: null,
+        address_region: null,
+        address_postal_code: null,
+        address_country: null,
       },
     });
   });

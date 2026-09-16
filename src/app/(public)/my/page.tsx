@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireConstituentSession } from "@/lib/constituent/guard";
+import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import {
@@ -56,6 +59,23 @@ export default async function MyPage() {
             ? `Your record with ${name}, and what you have done together.`
             : "Your record, and what you have done together."}
         </p>
+        {/* The only navigation this area has, and it earns a place here rather
+            than in a nav bar of one: keeping your record current (#1164) is a
+            different job from reading it, and a real destination that appears
+            in no navigation surface is the one thing
+            docs/portal-navigation.md forbids outright. Only for an account
+            with a record -- there is nothing to edit until a claim is
+            approved, and the page below is the claim form. */}
+        {personId && (
+          <p className="mt-4">
+            <Link
+              href={`${MY_PATH_PREFIX}/details`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Edit your details
+            </Link>
+          </p>
+        )}
       </section>
 
       {personId && !isHistoryEmpty(history) ? (

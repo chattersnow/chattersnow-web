@@ -79,6 +79,13 @@ export type PersonRow = {
   ski_experience_level: string | null;
   snowboard_experience_level: string | null;
   preferred_mountain: string | null;
+  /** The postal address (#1164), which the person may also correct themselves. */
+  address_line1: string | null;
+  address_line2: string | null;
+  address_city: string | null;
+  address_region: string | null;
+  address_postal_code: string | null;
+  address_country: string | null;
 };
 
 export type OrganizationMembership = {

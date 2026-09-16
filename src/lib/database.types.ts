@@ -5461,10 +5461,19 @@ export type Database = {
       };
       people: {
         Row: {
+          address_city: string | null;
+          address_country: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          address_postal_code: string | null;
+          address_region: string | null;
           auth_user_id: string | null;
           created_at: string;
           created_by: string | null;
           email: string | null;
+          email_pending: string | null;
+          email_token: string | null;
+          email_token_expires_at: string | null;
           id: string;
           instagram_handle: string | null;
           is_anonymous: boolean;
@@ -5491,10 +5500,19 @@ export type Database = {
           website: string | null;
         };
         Insert: {
+          address_city?: string | null;
+          address_country?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          address_postal_code?: string | null;
+          address_region?: string | null;
           auth_user_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           email?: string | null;
+          email_pending?: string | null;
+          email_token?: string | null;
+          email_token_expires_at?: string | null;
           id?: string;
           instagram_handle?: string | null;
           is_anonymous?: boolean;
@@ -5521,10 +5539,19 @@ export type Database = {
           website?: string | null;
         };
         Update: {
+          address_city?: string | null;
+          address_country?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          address_postal_code?: string | null;
+          address_region?: string | null;
           auth_user_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           email?: string | null;
+          email_pending?: string | null;
+          email_token?: string | null;
+          email_token_expires_at?: string | null;
           id?: string;
           instagram_handle?: string | null;
           is_anonymous?: boolean;
@@ -7682,10 +7709,19 @@ export type Database = {
       };
       people_with_roles: {
         Row: {
+          address_city: string | null;
+          address_country: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          address_postal_code: string | null;
+          address_region: string | null;
           auth_user_id: string | null;
           created_at: string | null;
           created_by: string | null;
           email: string | null;
+          email_pending: string | null;
+          email_token: string | null;
+          email_token_expires_at: string | null;
           id: string | null;
           instagram_handle: string | null;
           is_anonymous: boolean | null;
@@ -7718,10 +7754,19 @@ export type Database = {
           updated_by: string | null;
           website: string | null;
           primary_contact: {
+            address_city: string | null;
+            address_country: string | null;
+            address_line1: string | null;
+            address_line2: string | null;
+            address_postal_code: string | null;
+            address_region: string | null;
             auth_user_id: string | null;
             created_at: string;
             created_by: string | null;
             email: string | null;
+            email_pending: string | null;
+            email_token: string | null;
+            email_token_expires_at: string | null;
             id: string;
             instagram_handle: string | null;
             is_anonymous: boolean;
@@ -8287,6 +8332,17 @@ export type Database = {
         Args: { p_current_release?: string };
         Returns: undefined;
       };
+      confirm_email_change: {
+        Args: { p_ip_address: unknown; p_token_hash: string };
+        Returns: {
+          confirmed_email: string;
+          display_name: string;
+          outcome: string;
+          person_id: string;
+          previous_email: string;
+          tenant_id: string;
+        }[];
+      };
       confirm_notification_email: {
         Args: { p_ip_address: unknown; p_token_hash: string };
         Returns: {
@@ -8575,6 +8631,10 @@ export type Database = {
           user_id: string;
         }[];
       };
+      log_person_self_edit: {
+        Args: { p_after: Json; p_before: Json; p_person_id: string };
+        Returns: undefined;
+      };
       lookup_volunteer_application_status: {
         Args: {
           p_email: string;
@@ -8670,6 +8730,31 @@ export type Database = {
           module_key: string;
         }[];
       };
+      my_contact_details: {
+        Args: never;
+        Returns: {
+          address_city: string;
+          address_country: string;
+          address_line1: string;
+          address_line2: string;
+          address_postal_code: string;
+          address_region: string;
+          email: string;
+          email_pending: string;
+          email_pending_expires_at: string;
+          instagram_handle: string;
+          name: string;
+          person_id: string;
+          phone: string;
+          preferred_mountain: string;
+          preferred_name: string;
+          pronouns: string;
+          riding_discipline: string;
+          ski_experience_level: string;
+          snowboard_experience_level: string;
+        }[];
+      };
+      my_contact_person_id: { Args: never; Returns: string };
       my_event_history: {
         Args: never;
         Returns: {
@@ -8827,6 +8912,10 @@ export type Database = {
           is_volunteer: boolean;
         }[];
       };
+      person_self_edit_snapshot: {
+        Args: { p: Database["public"]["Tables"]["people"]["Row"] };
+        Returns: Json;
+      };
       platform_export_tenant: { Args: { p_tenant_id: string }; Returns: Json };
       platform_list_tenant_modules: {
         Args: { p_tenant_id: string };
@@ -8882,10 +8971,19 @@ export type Database = {
       primary_contact: {
         Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
         Returns: {
+          address_city: string | null;
+          address_country: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          address_postal_code: string | null;
+          address_region: string | null;
           auth_user_id: string | null;
           created_at: string;
           created_by: string | null;
           email: string | null;
+          email_pending: string | null;
+          email_token: string | null;
+          email_token_expires_at: string | null;
           id: string;
           instagram_handle: string | null;
           is_anonymous: boolean;
@@ -9144,6 +9242,17 @@ export type Database = {
         Returns: string;
       };
       request_host: { Args: never; Returns: string };
+      request_my_email_change: {
+        Args: { p_email: string; p_token_hash: string };
+        Returns: {
+          display_name: string;
+          expires_at: string;
+          outcome: string;
+          pending_email: string;
+          person_id: string;
+          tenant_id: string;
+        }[];
+      };
       request_tenant_slug: { Args: never; Returns: string };
       require_platform_operator: { Args: never; Returns: undefined };
       reserve_inventory_item_for_giveaway: {
@@ -9296,6 +9405,25 @@ export type Database = {
           p_quoted_amount?: number;
           p_request_id: string;
           p_status: string;
+        };
+        Returns: undefined;
+      };
+      set_my_contact_details: {
+        Args: {
+          p_address_city: string;
+          p_address_country: string;
+          p_address_line1: string;
+          p_address_line2: string;
+          p_address_postal_code: string;
+          p_address_region: string;
+          p_instagram_handle: string;
+          p_phone: string;
+          p_preferred_mountain: string;
+          p_preferred_name: string;
+          p_pronouns: string;
+          p_riding_discipline: string;
+          p_ski_experience_level: string;
+          p_snowboard_experience_level: string;
         };
         Returns: undefined;
       };
