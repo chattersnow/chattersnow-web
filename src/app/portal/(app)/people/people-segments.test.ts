@@ -1,10 +1,13 @@
 // The People directory's empty states point at other sections, and since #903
 // they may only point at sections this reader can reach.
 //
-// These segments are role filters on `people` -- a core module -- so every one
-// of them stays reachable whatever a tenant was sold. What did not stay
+// Nearly all of these segments are role filters on `people` -- a core module --
+// so they stay reachable whatever a tenant was sold. What did not stay
 // reachable was the advice: "or approve an application from Volunteers >
 // Applications" is a dead end for a tenant whose Volunteers module is off.
+//
+// Accounts (#1193) is the exception: it is the one segment that can be absent,
+// so `visibleSegments` is tested here too.
 import { describe, expect, test } from "bun:test";
 import type { PermissionMap } from "@/lib/auth/permissions";
 import { DEFAULT_LEXICON } from "@/lib/lexicon";
@@ -14,15 +17,18 @@ import {
   withPersonRoleTerms,
 } from "@/lib/person-roles";
 import {
+  ACCOUNTS_SEGMENT,
   ATTENDEES_SEGMENT,
   DONORS_SEGMENT,
   PARTNERS_SEGMENT,
   PEOPLE_SEGMENT,
   STAFF_SEGMENT,
   VOLUNTEERS_SEGMENT,
+  PEOPLE_SEGMENTS,
   emptyManageDescription,
   resolveSegment,
   resolveStats,
+  visibleSegments,
 } from "./people-segments";
 
 const EVERYTHING: PermissionMap = {
@@ -141,14 +147,8 @@ describe("resolveSegment", () => {
 
   test("every segment resolves with nothing left standing", () => {
     const unresolved = /\{[a-z_]+(:lower)?\}/;
-    for (const segment of [
-      PEOPLE_SEGMENT,
-      DONORS_SEGMENT,
-      PARTNERS_SEGMENT,
-      STAFF_SEGMENT,
-      ATTENDEES_SEGMENT,
-      VOLUNTEERS_SEGMENT,
-    ]) {
+    // Every one of them, so a segment added later cannot be forgotten here.
+    for (const segment of PEOPLE_SEGMENTS) {
       const resolved = named(segment);
       for (const value of [
         resolved.title,
@@ -165,5 +165,47 @@ describe("resolveSegment", () => {
         );
       }
     }
+  });
+});
+
+/**
+ * The strip's first gated entry (#1193).
+ *
+ * `constituent_claims:view` carries the `constituent_accounts` module
+ * entitlement with it (20260910010000), so these two cases are also "the tenant
+ * bought the constituent area" and "it did not".
+ */
+describe("visibleSegments", () => {
+  test("a claims reviewer sees Accounts", () => {
+    const values = visibleSegments({
+      people: "view",
+      constituent_claims: "view",
+    }).map((segment) => segment.value);
+
+    expect(values).toContain("accounts");
+    expect(values).toHaveLength(PEOPLE_SEGMENTS.length);
+  });
+
+  test("everybody else sees the strip exactly as it was", () => {
+    const values = visibleSegments({ people: "manage" }).map(
+      (segment) => segment.value,
+    );
+
+    expect(values).not.toContain("accounts");
+    expect(values).toEqual(
+      PEOPLE_SEGMENTS.filter((segment) => segment.value !== "accounts").map(
+        (segment) => segment.value,
+      ),
+    );
+  });
+
+  // The gate is the segment's own, not a side effect of ordering it last.
+  test("Accounts is the only segment that can go missing", () => {
+    expect(
+      PEOPLE_SEGMENTS.filter((segment) => segment.access).map((s) => s.value),
+    ).toEqual(["accounts"]);
+    expect(ACCOUNTS_SEGMENT.access).toEqual([
+      { resource: "constituent_claims", level: "view" },
+    ]);
   });
 });

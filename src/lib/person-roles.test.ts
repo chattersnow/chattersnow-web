@@ -182,6 +182,10 @@ describe("the People segment strip", () => {
       "Staff",
       "Partners",
       "Organizations",
+      // Not a relationship the tenant names, so it is not renamed below either
+      // (#1193): an account is a fact about a login, not about what somebody is
+      // to the organization.
+      "Accounts",
     ]);
   });
 
@@ -195,6 +199,7 @@ describe("the People segment strip", () => {
       "Crew",
       "Suppliers",
       "Organizations",
+      "Accounts",
     ]);
   });
 

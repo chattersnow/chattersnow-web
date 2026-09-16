@@ -101,11 +101,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await service
-    .from("tenant_modules")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("module_key", "constituent_accounts");
+  // Back to on, not gone. `supabase/seed.sql` has shipped this row enabled
+  // since #1175, so deleting it here left the database in a state the seed
+  // never creates -- and every later file in the same run saw the module off,
+  // which is how `accounts.integration.test.ts` first failed (#1193).
+  await service.from("tenant_modules").upsert(
+    {
+      tenant_id: tenantId,
+      module_key: "constituent_accounts",
+      enabled: true,
+    },
+    { onConflict: "tenant_id,module_key" },
+  );
   await service.from("person_claims").delete().in("auth_user_id", createdUsers);
   await service.from("people").delete().in("id", createdPeople);
   // auth.users rows are left: audit_log references them, and the seed is reset
@@ -622,5 +629,94 @@ describe("reviewing a claim", () => {
       .eq("table_name", "person_claims")
       .eq("record_id", claim.claimId);
     expect((data ?? []).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The queue keeps its own past (#1193).
+ *
+ * Before this the page filtered to `status = 'pending'` and a decided claim
+ * left it, so "who was rejected", "who approved that" and "was this ever looked
+ * at" had no answer anywhere in the portal. Nothing in the schema had to change
+ * -- `"reviewers read claims"` was already written against every status -- which
+ * is exactly why it is worth a test: the read the page now runs is the one that
+ * was always permitted and never made.
+ */
+describe("claim history", () => {
+  async function decidedClaim(label: string, approve: boolean, note: string) {
+    const claimant = await makeConstituent(uniqueEmail(`${label}-${run}`));
+    createdUsers.push(claimant.userId);
+    await claimant.client.rpc("submit_person_claim", {
+      p_name: `${label} Person`,
+    });
+    const { data } = await service
+      .from("person_claims")
+      .select("id")
+      .eq("auth_user_id", claimant.userId)
+      .single();
+    const claimId = data!.id as string;
+    const { error } = await adminClient.rpc("review_person_claim", {
+      p_claim_id: claimId,
+      p_approve: approve,
+      p_review_note: note,
+    });
+    expect(error).toBeNull();
+    return { ...claimant, claimId };
+  }
+
+  test("a reviewer can read a decided claim, its reviewer and its note", async () => {
+    const rejected = await decidedClaim(
+      "history-rejected",
+      false,
+      "Could not confirm this was the same person.",
+    );
+    const {
+      data: { user: reviewer },
+    } = await adminClient.auth.getUser();
+
+    // The read the page runs once the reader asks for anything but pending.
+    const { data, error } = await adminClient
+      .from("person_claims")
+      .select("id, status, reviewed_by, reviewed_at, review_note")
+      .eq("id", rejected.claimId)
+      .single();
+    expect(error).toBeNull();
+    expect(data).toMatchObject({
+      status: "rejected",
+      reviewed_by: reviewer!.id,
+      review_note: "Could not confirm this was the same person.",
+    });
+    expect(data?.reviewed_at).not.toBeNull();
+  });
+
+  test("the pending filter no longer hides the decision", async () => {
+    const approved = await decidedClaim("history-approved", true, "Verified.");
+
+    const { data: pending } = await adminClient
+      .from("person_claims")
+      .select("id")
+      .eq("status", "pending")
+      .eq("id", approved.claimId);
+    expect(pending ?? []).toEqual([]);
+
+    const { data: all } = await adminClient
+      .from("person_claims")
+      .select("id, status")
+      .eq("id", approved.claimId);
+    expect(all).toHaveLength(1);
+    expect(all![0].status).toBe("approved");
+  });
+
+  // Widening the staff read must not widen the claimant's: they see their own
+  // claim and nobody else's, decided or not.
+  test("a constituent still reads only their own", async () => {
+    const mine = await decidedClaim("history-mine", false, "Not this one.");
+    await decidedClaim("history-theirs", false, "Nor this one.");
+
+    const { data } = await mine.client
+      .from("person_claims")
+      .select("id, review_note");
+    expect(data).toHaveLength(1);
+    expect(data![0].id).toBe(mine.claimId);
   });
 });

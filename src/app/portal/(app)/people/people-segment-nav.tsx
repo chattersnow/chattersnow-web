@@ -2,7 +2,7 @@ import { ListLink } from "@/components/portal/list-navigation";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { cn } from "@/lib/utils";
 import type { Lexicon } from "@/lib/lexicon";
-import { PEOPLE_SEGMENTS, segmentNavLabel } from "./people-segments";
+import { segmentNavLabel, type PeopleSegment } from "./people-segments";
 
 /**
  * The strip that turns eight sidebar entries into one page (#957).
@@ -22,9 +22,17 @@ import { PEOPLE_SEGMENTS, segmentNavLabel } from "./people-segments";
  * once the reader has asked for Staff.
  */
 export function PeopleSegmentNav({
+  segments,
   active,
   vocabulary,
 }: {
+  /**
+   * The segments this reader may see, already filtered by `visibleSegments`.
+   * Passed in rather than read from the module because Accounts is gated on
+   * `constituent_claims:view` (#1193) and only the caller holds the permission
+   * map.
+   */
+  segments: readonly PeopleSegment[];
   /** The `value` of the segment being shown. */
   active: string;
   vocabulary: Lexicon;
@@ -34,7 +42,7 @@ export function PeopleSegmentNav({
       aria-label="People segments"
       className="mt-6 flex flex-wrap items-center gap-1 rounded-xl border border-[var(--line)] p-2"
     >
-      {PEOPLE_SEGMENTS.map((segment) => {
+      {segments.map((segment) => {
         const current = segment.value === active;
         return (
           <ListLink
@@ -43,7 +51,7 @@ export function PeopleSegmentNav({
             aria-current={current ? "page" : undefined}
             className={cn(
               // py-2 keeps every chip past the 24px minimum target size on
-              // mobile, where eight of them sit close together.
+              // mobile, where nine of them sit close together.
               "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               current
                 ? "bg-[var(--purple-soft)] text-foreground"
