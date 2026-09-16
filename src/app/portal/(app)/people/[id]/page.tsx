@@ -55,7 +55,7 @@ export async function generateMetadata({
  * rather than left as a literal (#813 Phase 1).
  */
 const PERSON_DETAIL_COLUMNS: string =
-  "id, name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+  "id, name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, address_line1, address_line2, address_city, address_region, address_postal_code, address_country, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 export default async function PersonDetailPage({
   params,

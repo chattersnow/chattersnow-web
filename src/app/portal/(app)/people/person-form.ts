@@ -61,6 +61,12 @@ export type PersonFormData = {
   ski_experience_level: ExperienceLevel | null;
   snowboard_experience_level: ExperienceLevel | null;
   preferred_mountain: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_city: string | null;
+  address_region: string | null;
+  address_postal_code: string | null;
+  address_country: string | null;
 };
 
 export function parsePersonForm(
@@ -117,6 +123,16 @@ export function parsePersonForm(
   const preferredMountain = String(
     formData.get("preferredMountain") ?? "",
   ).trim();
+  // The postal address (#1164). Trimmed and nothing else: a format check here
+  // is a way to refuse a real address, and the columns cap length themselves.
+  const addressLine1 = String(formData.get("addressLine1") ?? "").trim();
+  const addressLine2 = String(formData.get("addressLine2") ?? "").trim();
+  const addressCity = String(formData.get("addressCity") ?? "").trim();
+  const addressRegion = String(formData.get("addressRegion") ?? "").trim();
+  const addressPostalCode = String(
+    formData.get("addressPostalCode") ?? "",
+  ).trim();
+  const addressCountry = String(formData.get("addressCountry") ?? "").trim();
 
   if (!name) return { error: "Name is required." };
   if (!isPersonType(personTypeRaw)) {
@@ -200,6 +216,12 @@ export function parsePersonForm(
           ? snowboardLevel
           : null,
       preferred_mountain: preferredMountain || null,
+      address_line1: addressLine1 || null,
+      address_line2: addressLine2 || null,
+      address_city: addressCity || null,
+      address_region: addressRegion || null,
+      address_postal_code: addressPostalCode || null,
+      address_country: addressCountry || null,
     },
   };
 }

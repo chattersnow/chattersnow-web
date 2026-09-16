@@ -25,6 +25,7 @@ import {
   ridesSnowboard,
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
+import { formatAddress } from "@/lib/postal-address";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -95,6 +96,12 @@ function formStateFor(
     skiExperienceLevel: person.ski_experience_level ?? "",
     snowboardExperienceLevel: person.snowboard_experience_level ?? "",
     preferredMountain: person.preferred_mountain ?? "",
+    addressLine1: person.address_line1 ?? "",
+    addressLine2: person.address_line2 ?? "",
+    addressCity: person.address_city ?? "",
+    addressRegion: person.address_region ?? "",
+    addressPostalCode: person.address_postal_code ?? "",
+    addressCountry: person.address_country ?? "",
   };
 }
 
@@ -234,6 +241,13 @@ export function ProfileCard({
             <p>
               <span className="app-muted">Website:</span>{" "}
               {person.website ?? "—"}
+            </p>
+            {/* One block rather than six lines (#1164): an address is read as
+                an address, and six "—" for a record that has never had one is
+                noise on every person in the directory. */}
+            <p>
+              <span className="app-muted">Address:</span>{" "}
+              {formatAddress(person) ?? "—"}
             </p>
             {/* An organization's logo is what the public sees on the sponsor
                 wall and on an event's page (#1024), and until #1036 it was

@@ -52,6 +52,18 @@ export type PersonFormState = {
   skiExperienceLevel: string;
   snowboardExperienceLevel: string;
   preferredMountain: string;
+  /**
+   * The postal address (#1164). Staff-editable here and self-editable on
+   * `/my/details`, which is the only pair of surfaces that write it -- the
+   * person's own form carries exactly these six fields, so a correction they
+   * make and one a staffer makes are the same change to the same columns.
+   */
+  addressLine1: string;
+  addressLine2: string;
+  addressCity: string;
+  addressRegion: string;
+  addressPostalCode: string;
+  addressCountry: string;
 };
 
 export function emptyPersonForm(
@@ -83,6 +95,12 @@ export function emptyPersonForm(
     skiExperienceLevel: "",
     snowboardExperienceLevel: "",
     preferredMountain: "",
+    addressLine1: "",
+    addressLine2: "",
+    addressCity: "",
+    addressRegion: "",
+    addressPostalCode: "",
+    addressCountry: "",
   };
 }
 
@@ -200,6 +218,69 @@ export function PersonFormFields({
           value={form.instagramHandle}
           onChange={(event) => update("instagramHandle", event.target.value)}
         />
+      </Field>
+
+      {/* The postal address (#1164). Two lines under one label, like every
+          address form: the second line is optional and naming it "Address line
+          2" above its own box is a label nobody reads. */}
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-addressLine1`}>Address</FieldLabel>
+        <Input
+          id={`${idPrefix}-addressLine1`}
+          value={form.addressLine1}
+          onChange={(event) => update("addressLine1", event.target.value)}
+        />
+        <Input
+          aria-label="Address line 2"
+          value={form.addressLine2}
+          onChange={(event) => update("addressLine2", event.target.value)}
+        />
+      </Field>
+
+      <Field orientation="responsive">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-addressCity`}>City</FieldLabel>
+          <Input
+            id={`${idPrefix}-addressCity`}
+            value={form.addressCity}
+            onChange={(event) => update("addressCity", event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-addressRegion`}>
+            State or region
+          </FieldLabel>
+          <Input
+            id={`${idPrefix}-addressRegion`}
+            value={form.addressRegion}
+            onChange={(event) => update("addressRegion", event.target.value)}
+          />
+        </Field>
+      </Field>
+
+      <Field orientation="responsive">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-addressPostalCode`}>
+            Postal code
+          </FieldLabel>
+          <Input
+            id={`${idPrefix}-addressPostalCode`}
+            value={form.addressPostalCode}
+            onChange={(event) =>
+              update("addressPostalCode", event.target.value)
+            }
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}-addressCountry`}>
+            Country
+          </FieldLabel>
+          <Input
+            id={`${idPrefix}-addressCountry`}
+            value={form.addressCountry}
+            onChange={(event) => update("addressCountry", event.target.value)}
+          />
+        </Field>
       </Field>
 
       <Field>
@@ -501,5 +582,11 @@ export function packPersonFormData(form: PersonFormState) {
   formData.set("skiExperienceLevel", form.skiExperienceLevel);
   formData.set("snowboardExperienceLevel", form.snowboardExperienceLevel);
   formData.set("preferredMountain", form.preferredMountain);
+  formData.set("addressLine1", form.addressLine1);
+  formData.set("addressLine2", form.addressLine2);
+  formData.set("addressCity", form.addressCity);
+  formData.set("addressRegion", form.addressRegion);
+  formData.set("addressPostalCode", form.addressPostalCode);
+  formData.set("addressCountry", form.addressCountry);
   return formData;
 }
