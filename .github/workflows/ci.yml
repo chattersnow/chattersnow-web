@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, Type-check, Format, Test, Build
+    name: Lint, Type-check, Format, Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,11 +47,61 @@ jobs:
       - name: Format check
         run: bun run format:check
 
-      - name: Unit tests
-        run: bun run test --coverage
-
       - name: Build
         run: bun run build
+
+  unit:
+    name: Unit tests ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    # Its own job since #1170. The suite was 5m40s of the quality job's 7m38s,
+    # so a lint error and a failing assertion both cost seven minutes to learn
+    # about and neither result arrived until the other had finished. It had
+    # also started killing the job outright: on 3ffa2da1 and #1169 the step
+    # exited 1 with 289 files run and zero failures, dying partway through
+    # writing the coverage table at a point that moved between runs.
+    #
+    # Sharded four ways: each process holds a quarter of the files, which is
+    # the fix if the ceiling is runner memory and, if it isn't, at least names
+    # the quarter that died. `bun test --shard=i/N` is Bun's own (1.3.14), so
+    # unlike the a11y scan this needs no shard script -- and the shards are
+    # disjoint and complete by construction, so no equivalent of
+    # test/a11y-shard.test.ts is needed either. 4 is where the a11y job starts,
+    # not a measured optimum; ~11s per shard is fixed setup, so the useful
+    # ceiling here is higher and the first few runs say whether to move.
+    #
+    # Changing the count means changing the `shard:` matrix list and this job's
+    # name together -- a matrix list can't be built from `env`, and neither can
+    # a job name.
+    strategy:
+      # A regression in shard 2 must not cancel shards 3 and 4: the run would
+      # then report one failing file and stay silent about the three quarters
+      # that never ran.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # No --coverage. It used to be passed here and nothing consumed it: no
+      # Codecov upload, no threshold in bunfig.toml, no artifact -- the table
+      # was printed into the log and read by nobody, while being the thing the
+      # job died inside. Per-shard tables would have been worse than useless
+      # (each covers only the files its quarter happened to import, and reads
+      # like a whole-repo number), and merging lcov across shards is a moving
+      # part to maintain for a number nothing gates on. If coverage is ever
+      # wanted, it needs a consumer first. --isolate and the ignore patterns
+      # stay in the `test` script, so `bun run test` locally is unchanged.
+      - name: Unit tests
+        run: bun run test --shard=${{ matrix.shard }}/4
 
   integration:
     name: Integration tests (Supabase)
