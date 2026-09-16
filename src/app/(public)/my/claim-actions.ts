@@ -41,10 +41,20 @@ export async function submitClaimAction(
     return { error: "Please sign in again." };
   }
 
+  // The form no longer prefills the Email field with the verified address
+  // (#1182) -- prefilling implied that typing an address is what matches you,
+  // when `person_claim_candidates()` reads the address from `auth.users` and
+  // never looks at this one. But `stated_email` is also the only address that
+  // lands on a record `review_person_claim()` creates from scratch, so a blank
+  // field must not leave a newly enrolled person with no way to be reached.
+  // Falling back to the verified address keeps exactly what was stored before.
+  const statedEmail =
+    String(formData.get("email") ?? "").trim() || user.email || undefined;
+
   const { error } = await supabase.rpc("submit_person_claim", {
     p_ip_address: await getClientIp(),
     p_name: name,
-    p_email: String(formData.get("email") ?? "").trim() || undefined,
+    p_email: statedEmail,
     p_phone: String(formData.get("phone") ?? "").trim() || undefined,
     p_instagram_handle:
       String(formData.get("instagram") ?? "").trim() || undefined,

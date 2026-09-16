@@ -139,7 +139,10 @@ export function ContactForm({ details }: { details: MyContactDetails }) {
                 <FieldLabel htmlFor="my-instagramHandle">Instagram</FieldLabel>
                 <Input
                   id="my-instagramHandle"
-                  placeholder="handle, without the @"
+                  // normalize_instagram_handle() strips a leading @, so the
+                  // placeholder says so rather than asking for a form the
+                  // code does not care about (#1182).
+                  placeholder="handle, with or without the @"
                   value={form.instagramHandle}
                   onChange={(event) =>
                     update("instagramHandle", event.target.value)
