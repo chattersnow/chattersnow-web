@@ -7,7 +7,8 @@ afterEach(cleanup);
 
 // Bun's 5s default is sized for pure-logic tests. A DOM test that renders a
 // React tree, drives it through userEvent and then polls with waitFor runs
-// several times slower on a CI runner under `--coverage` than it does locally
+// several times slower on a CI runner than it does locally (measured while CI
+// still passed `--coverage`, dropped in #1170; the runner is the slow part)
 // -- content-editor.dom.test.tsx's "saving stores a draft" case takes ~0.2s
 // here and has hit the 5s wall twice on CI, on `development` as well as on a
 // PR branch. The work is bounded either way, so the deadline only needs to be

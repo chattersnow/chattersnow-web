@@ -1,10 +1,4 @@
-// Pinned before anything constructs a Date, because these defaults are read in
-// the *browser's* zone (#1055) and would otherwise assert whatever zone the
-// machine running the suite happens to be in. New York is deliberately not the
-// event's own zone: that is what makes the expectations below evidence of
-// which of the two zones won.
-process.env.TZ = "America/New_York";
-
+import { pinTimezone } from "../../../../../test/timezone";
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -13,6 +7,13 @@ import { ShiftForm } from "./volunteers/shifts";
 import { WinnerForm } from "./giveaway/winners";
 import type { GiveawayPrize } from "./giveaway-actions";
 import { labelText } from "../../../../../test/labels";
+
+// Pinned before the first Date is constructed, because these defaults are read
+// in the *browser's* zone (#1055) and would otherwise assert whatever zone the
+// machine running the suite happens to be in. New York is deliberately not the
+// event's own zone: that is what makes the expectations below evidence of
+// which of the two zones won.
+pinTimezone("America/New_York");
 
 // 18:00 on the 14th in Denver, the event's own zone; 20:00 on the 14th in New
 // York, the reader's; the 15th in UTC. Three different answers from one

@@ -1,8 +1,18 @@
+import { pinTimezone } from "../../../../../test/timezone";
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventRow } from "./event-badges";
 import * as EventsActions from "./actions";
+
+// The deadline field is a datetime-local input, so every expectation below is
+// the fixture's instant read in the *process* zone, and the fixture is written
+// as New York wall-clock times. This file never said so: until #1170 it
+// inherited the zone from event-date-defaults.dom.test.tsx, which pinned New
+// York and never handed it back, and the two happened to land in that order.
+// Sharding the suite separated them and every assertion here came out four
+// hours off.
+pinTimezone("America/New_York");
 
 type ActionResult = { error: string } | { success: true };
 
