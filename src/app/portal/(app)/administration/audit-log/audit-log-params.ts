@@ -13,6 +13,7 @@ export const TABLE_VALUES = [
   "services",
   "assets",
   "access_grants",
+  "people",
 ] as const;
 
 export const ACTION_VALUES = ["insert", "update", "delete"] as const;

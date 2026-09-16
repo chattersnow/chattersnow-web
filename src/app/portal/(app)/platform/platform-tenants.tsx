@@ -167,11 +167,13 @@ export function PlatformTenants({
               <TableHeader>
                 <TableRow>
                   <TableHead>Organization</TableHead>
-                  <TableHead>Domain</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Members</TableHead>
+                  <TableHead hideBelow="lg">Domain</TableHead>
+                  <TableHead hideBelow="md">Plan</TableHead>
+                  <TableHead hideBelow="md">Members</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-0 text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -181,15 +183,15 @@ export function PlatformTenants({
                       <div className="font-medium">{tenant.name}</div>
                       <div className="app-muted text-xs">{tenant.slug}</div>
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell hideBelow="lg" className="text-sm">
                       {tenant.custom_domain ?? (
                         <span className="app-muted">Not set</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell hideBelow="md" className="text-sm">
                       {PLAN_LABEL[tenant.plan] ?? tenant.plan}
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell hideBelow="md" className="text-sm">
                       {tenant.member_count}
                       {tenant.support_grant_count > 0 ? (
                         <span className="app-muted">

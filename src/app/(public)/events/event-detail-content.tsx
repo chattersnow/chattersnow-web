@@ -1,14 +1,19 @@
+import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { formatDateTimeInZone } from "@/lib/time";
+import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
 import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
 import { EventSponsors } from "./event-sponsors";
+import { MyEventRegistrationForm } from "./my-registration-form";
+import { loadEventViewer, type EventViewer } from "./my-registration";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -76,9 +81,11 @@ function EventFlier({
 function EventDetailBody({
   event,
   variant,
+  viewer,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
+  viewer: EventViewer | null;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -116,10 +123,47 @@ function EventDetailBody({
             </h3>
           )}
           <div className="mt-4">
-            {registrationWindow.open ? (
-              <EventRegistrationForm eventId={event.id} />
-            ) : (
+            {viewer?.registration ? (
+              /* Already signed up. Showing the state instead of a second form
+                 is the point of knowing who is reading: the database would
+                 refuse the duplicate anyway, and being told "you are already
+                 registered" after filling a form in is a worse way to learn
+                 it.
+
+                 There is no "cancel" here, and deliberately not. #1165 made
+                 that conditional on the existing model supporting it, and it
+                 does not: `event_registrations` has no cancelled state and no
+                 delete path anywhere in the application, staff included, so
+                 the only thing a button could do is destroy the row -- taking
+                 the attendance figure and the discount code with it. Changing
+                 your mind is a message to the organization until there is a
+                 model for it. */
+              <div className="space-y-2">
+                <Alert>
+                  <div className="rainbow-accent mb-2 w-10" />
+                  <AlertDescription>
+                    You&apos;re registered
+                    {viewer.registration.party_size > 1
+                      ? `, for ${viewer.registration.party_size} of you`
+                      : ""}
+                    . If you can no longer make it, let us know.
+                  </AlertDescription>
+                </Alert>
+                <p className="app-muted text-sm">
+                  <Link href={MY_PATH_PREFIX} className="underline">
+                    See this on your account
+                  </Link>
+                </p>
+              </div>
+            ) : !registrationWindow.open ? (
               <p className="app-muted text-sm">{registrationWindow.reason}</p>
+            ) : viewer ? (
+              <MyEventRegistrationForm
+                eventId={event.id}
+                person={viewer.person}
+              />
+            ) : (
+              <EventRegistrationForm eventId={event.id} />
             )}
           </div>
         </section>
@@ -138,13 +182,19 @@ function EventDetailBody({
  * expects to be inside a `SheetContent`, which is where `SheetTitle` gets the
  * dialog context it needs to become the sheet's accessible name.
  */
-export function EventDetailContent({
+export async function EventDetailContent({
   event,
   variant,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
 }) {
+  // Loaded here rather than by each caller, so the page and the sheet cannot
+  // drift into showing a signed-in visitor two different things about the same
+  // registration. Null for everyone who is not a linked constituent, which is
+  // most visitors and costs them one `getUser()`.
+  const viewer = await loadEventViewer(event.id);
+
   if (variant === "sheet") {
     return (
       <>
@@ -156,7 +206,7 @@ export function EventDetailContent({
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           <EventFlier event={event} variant="sheet" />
-          <EventDetailBody event={event} variant="sheet" />
+          <EventDetailBody event={event} variant="sheet" viewer={viewer} />
         </div>
       </>
     );
@@ -174,7 +224,7 @@ export function EventDetailContent({
           {formatWhen(event)}
         </p>
       </section>
-      <EventDetailBody event={event} variant="page" />
+      <EventDetailBody event={event} variant="page" viewer={viewer} />
     </>
   );
 }

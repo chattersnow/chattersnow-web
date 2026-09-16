@@ -192,3 +192,88 @@ export async function listEventOptionsAction(): Promise<
   }
   return { data: (data ?? []) as EventOption[] };
 }
+
+export type PendingVolunteerHours = {
+  id: string;
+  hours: number | string;
+  logged_date: string;
+  notes: string | null;
+  created_at: string;
+  person: VolunteerHoursPerson;
+  event: VolunteerHoursEvent;
+  volunteer_role_type: VolunteerHoursRoleType;
+};
+
+/**
+ * Hours volunteers logged for themselves that nobody has decided on yet
+ * (#1165).
+ *
+ * A second list rather than rows mixed into the ledger, because they are not
+ * in the ledger: #1165 settled that self-logged hours are provisional, and
+ * keeping them in their own table is what stops an unreviewed number reaching
+ * an impact figure or a reimbursement. Confirming one is what writes the
+ * `volunteer_hours` row.
+ */
+export async function listPendingVolunteerHoursAction(): Promise<
+  { data: PendingVolunteerHours[] } | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "volunteers", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("volunteer_hour_submissions")
+    .select(
+      "id, hours, logged_date, notes, created_at, person:people(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)",
+    )
+    .eq("status", "pending")
+    .order("logged_date", { ascending: false });
+
+  if (error) {
+    return { error: "Could not load self-logged hours. Please try again." };
+  }
+  return { data: (data ?? []) as unknown as PendingVolunteerHours[] };
+}
+
+/**
+ * Confirms or declines one self-logged entry (#1165).
+ *
+ * Both halves go through `review_volunteer_hour_submission()`, which is
+ * security definer for two reasons worth not re-deriving here: confirming is
+ * two writes that have to be one, and the `volunteer_hours` row it creates
+ * carries `logged_by` = the volunteer rather than the reviewer, so the ledger
+ * says who actually did the hours.
+ */
+export async function reviewVolunteerHoursAction(
+  submissionId: string,
+  confirm: boolean,
+  options: { note?: string; hours?: number } = {},
+): Promise<VolunteerHoursActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(
+    supabase,
+    "volunteers",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("review_volunteer_hour_submission", {
+    p_submission_id: submissionId,
+    p_confirm: confirm,
+    p_note: options.note ?? null,
+    p_hours: options.hours ?? null,
+  });
+
+  if (error) {
+    if (error.message === "ALREADY_REVIEWED") {
+      return { error: "Somebody has already decided on those hours." };
+    }
+    if (error.message === "SUBMISSION_NOT_FOUND") {
+      return { error: "Those hours could not be found." };
+    }
+    return { error: "Could not save that decision. Please try again." };
+  }
+
+  revalidatePath("/portal/volunteers/participation");
+  return { success: true };
+}

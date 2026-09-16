@@ -68,7 +68,7 @@ import { PeopleSegmentNav } from "./people-segment-nav";
  * which is what typed it before the generated types existed either.
  */
 const PERSON_COLUMNS: string =
-  "id, name, preferred_name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, primary_contact_person_id, primary_contact(id, name, email, phone)";
+  "id, name, preferred_name, email, notification_email, notification_email_pending, phone, pronouns, instagram_handle, notes, logo_url, website, auth_user_id, is_donor, is_sponsor, is_volunteer, is_attendee, is_staff, is_partner, is_recipient, person_type, riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain, address_line1, address_line2, address_city, address_region, address_postal_code, address_country, primary_contact_person_id, primary_contact(id, name, email, phone)";
 
 /**
  * The shared body behind /portal/people and its role segments. Donors,
@@ -103,6 +103,14 @@ export async function PeopleDirectory({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "people", "manage");
+  // Its own permission, and its own module: on a tenant without the
+  // constituent area, `has_permission()` is false for everyone here and the
+  // link never renders (#1162).
+  const canReviewClaims = hasPermission(
+    permissions,
+    "constituent_claims",
+    "manage",
+  );
   // Every word this page shows -- the heading, the New button, the role facet,
   // the Roles column, both empty states -- is the tenant's (#911). The keys it
   // filters and sorts on are not.
@@ -256,6 +264,19 @@ export async function PeopleDirectory({
                 render={<Link href="/portal/people/duplicates" />}
               >
                 <LinkPendingPulse>Find duplicates</LinkPendingPulse>
+              </Button>
+            )}
+
+            {/* Beside Find duplicates and for the same reason: a claim is
+              matched against the whole directory, so the queue belongs on the
+              page that lists all of it. */}
+            {canReviewClaims && segment.isAllPeople && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/portal/people/claims" />}
+              >
+                <LinkPendingPulse>Account claims</LinkPendingPulse>
               </Button>
             )}
 

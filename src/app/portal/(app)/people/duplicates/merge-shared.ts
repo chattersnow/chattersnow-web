@@ -28,6 +28,12 @@ export const MERGEABLE_FIELDS = [
   "person_type",
   "source_type",
   "preferred_mountain",
+  "address_line1",
+  "address_line2",
+  "address_city",
+  "address_region",
+  "address_postal_code",
+  "address_country",
 ] as const;
 
 export type MergeableField = (typeof MERGEABLE_FIELDS)[number];

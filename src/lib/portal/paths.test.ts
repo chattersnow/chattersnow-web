@@ -179,3 +179,34 @@ describe("the login page's link back to the public site", () => {
     expect(publicSiteLink("someone-elses-domain.test", null)).toBeNull();
   });
 });
+
+// #1161 made NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS canonical, because the same
+// list now also scopes the session cookie and the browser has to be able to
+// read it. The server-only name keeps working so an operator who has set only
+// that one still gets the redirect.
+describe("portalRedirectHosts reads either variable", () => {
+  const originalPublic = process.env.NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS;
+  const originalServer = process.env.PORTAL_REDIRECT_HOSTS;
+
+  afterEach(() => {
+    if (originalPublic === undefined)
+      delete process.env.NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS;
+    else process.env.NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS = originalPublic;
+    if (originalServer === undefined) delete process.env.PORTAL_REDIRECT_HOSTS;
+    else process.env.PORTAL_REDIRECT_HOSTS = originalServer;
+  });
+
+  test("prefers the public name when both are set", () => {
+    process.env.NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS = "new.org";
+    process.env.PORTAL_REDIRECT_HOSTS = "old.org";
+
+    expect(portalRedirectHosts()).toEqual(["new.org"]);
+  });
+
+  test("falls back to the server-only name", () => {
+    delete process.env.NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS;
+    process.env.PORTAL_REDIRECT_HOSTS = "old.org";
+
+    expect(portalRedirectTarget("old.org")).toBe("portal.old.org");
+  });
+});

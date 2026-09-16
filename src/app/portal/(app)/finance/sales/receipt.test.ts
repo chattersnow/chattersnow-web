@@ -1,10 +1,4 @@
-// Pinned to a zone that is neither the org's nor the fixture's, the way
-// event-date-defaults.dom.test.tsx has since #1062: a receipt formatted in the
-// running process's zone is the defect this file guards (#1076), and on a
-// machine that happened to sit in the org's zone the assertions would pass for
-// exactly the wrong reason.
-process.env.TZ = "Australia/Sydney";
-
+import { pinTimezone } from "../../../../../../test/timezone";
 import { describe, expect, test } from "bun:test";
 import {
   buildReceipt,
@@ -13,6 +7,13 @@ import {
   receiptAsPlainText,
 } from "./receipt";
 import type { SaleRow } from "./sales-shared";
+
+// Pinned to a zone that is neither the org's nor the fixture's, the way
+// event-date-defaults.dom.test.tsx has since #1062: a receipt formatted in the
+// running process's zone is the defect this file guards (#1076), and on a
+// machine that happened to sit in the org's zone the assertions would pass for
+// exactly the wrong reason.
+pinTimezone("Australia/Sydney");
 
 const ORG = { name: "Example Nonprofit", logoUrl: null };
 

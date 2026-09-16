@@ -5461,10 +5461,19 @@ export type Database = {
       };
       people: {
         Row: {
+          address_city: string | null;
+          address_country: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          address_postal_code: string | null;
+          address_region: string | null;
           auth_user_id: string | null;
           created_at: string;
           created_by: string | null;
           email: string | null;
+          email_pending: string | null;
+          email_token: string | null;
+          email_token_expires_at: string | null;
           id: string;
           instagram_handle: string | null;
           is_anonymous: boolean;
@@ -5491,10 +5500,19 @@ export type Database = {
           website: string | null;
         };
         Insert: {
+          address_city?: string | null;
+          address_country?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          address_postal_code?: string | null;
+          address_region?: string | null;
           auth_user_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           email?: string | null;
+          email_pending?: string | null;
+          email_token?: string | null;
+          email_token_expires_at?: string | null;
           id?: string;
           instagram_handle?: string | null;
           is_anonymous?: boolean;
@@ -5521,10 +5539,19 @@ export type Database = {
           website?: string | null;
         };
         Update: {
+          address_city?: string | null;
+          address_country?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          address_postal_code?: string | null;
+          address_region?: string | null;
           auth_user_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           email?: string | null;
+          email_pending?: string | null;
+          email_token?: string | null;
+          email_token_expires_at?: string | null;
           id?: string;
           instagram_handle?: string | null;
           is_anonymous?: boolean;
@@ -5574,6 +5601,92 @@ export type Database = {
           },
           {
             foreignKeyName: "people_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      person_claims: {
+        Row: {
+          auth_user_id: string;
+          claimed_person_id: string | null;
+          created_at: string;
+          id: string;
+          note: string | null;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          stated_email: string | null;
+          stated_instagram_handle: string | null;
+          stated_name: string;
+          stated_phone: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          auth_user_id: string;
+          claimed_person_id?: string | null;
+          created_at?: string;
+          id?: string;
+          note?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          stated_email?: string | null;
+          stated_instagram_handle?: string | null;
+          stated_name: string;
+          stated_phone?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          auth_user_id?: string;
+          claimed_person_id?: string | null;
+          created_at?: string;
+          id?: string;
+          note?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          stated_email?: string | null;
+          stated_instagram_handle?: string | null;
+          stated_name?: string;
+          stated_phone?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "person_claims_person_in_tenant";
+            columns: ["tenant_id", "claimed_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_claims_person_in_tenant";
+            columns: ["tenant_id", "claimed_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_claims_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_claims_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -7401,6 +7514,116 @@ export type Database = {
           },
         ];
       };
+      volunteer_hour_submissions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          event_id: string | null;
+          hours: number;
+          id: string;
+          logged_date: string;
+          notes: string | null;
+          person_id: string;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          volunteer_hours_id: string | null;
+          volunteer_role_type_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: string | null;
+          hours: number;
+          id?: string;
+          logged_date: string;
+          notes?: string | null;
+          person_id: string;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          volunteer_hours_id?: string | null;
+          volunteer_role_type_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: string | null;
+          hours?: number;
+          id?: string;
+          logged_date?: string;
+          notes?: string | null;
+          person_id?: string;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          volunteer_hours_id?: string | null;
+          volunteer_role_type_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_hour_submissions_event_in_tenant";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_hours_in_tenant";
+            columns: ["tenant_id", "volunteer_hours_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_hours";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_role_type_in_tenant";
+            columns: ["tenant_id", "volunteer_role_type_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_role_types";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       volunteer_hours: {
         Row: {
           created_at: string;
@@ -7596,10 +7819,19 @@ export type Database = {
       };
       people_with_roles: {
         Row: {
+          address_city: string | null;
+          address_country: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          address_postal_code: string | null;
+          address_region: string | null;
           auth_user_id: string | null;
           created_at: string | null;
           created_by: string | null;
           email: string | null;
+          email_pending: string | null;
+          email_token: string | null;
+          email_token_expires_at: string | null;
           id: string | null;
           instagram_handle: string | null;
           is_anonymous: boolean | null;
@@ -7632,10 +7864,19 @@ export type Database = {
           updated_by: string | null;
           website: string | null;
           primary_contact: {
+            address_city: string | null;
+            address_country: string | null;
+            address_line1: string | null;
+            address_line2: string | null;
+            address_postal_code: string | null;
+            address_region: string | null;
             auth_user_id: string | null;
             created_at: string;
             created_by: string | null;
             email: string | null;
+            email_pending: string | null;
+            email_token: string | null;
+            email_token_expires_at: string | null;
             id: string;
             instagram_handle: string | null;
             is_anonymous: boolean;
@@ -7899,6 +8140,18 @@ export type Database = {
         Update: {
           slot?: never;
           value?: Json | null;
+        };
+        Relationships: [];
+      };
+      public_person_role_labels: {
+        Row: {
+          labels: Json | null;
+        };
+        Insert: {
+          labels?: Json | null;
+        };
+        Update: {
+          labels?: Json | null;
         };
         Relationships: [];
       };
@@ -8189,6 +8442,17 @@ export type Database = {
         Args: { p_current_release?: string };
         Returns: undefined;
       };
+      confirm_email_change: {
+        Args: { p_ip_address: unknown; p_token_hash: string };
+        Returns: {
+          confirmed_email: string;
+          display_name: string;
+          outcome: string;
+          person_id: string;
+          previous_email: string;
+          tenant_id: string;
+        }[];
+      };
       confirm_notification_email: {
         Args: { p_ip_address: unknown; p_token_hash: string };
         Returns: {
@@ -8477,6 +8741,21 @@ export type Database = {
           user_id: string;
         }[];
       };
+      log_my_volunteer_hours: {
+        Args: {
+          p_event_id?: string;
+          p_hours: number;
+          p_ip_address?: unknown;
+          p_logged_date: string;
+          p_notes?: string;
+          p_volunteer_role_type_id?: string;
+        };
+        Returns: string;
+      };
+      log_person_self_edit: {
+        Args: { p_after: Json; p_before: Json; p_person_id: string };
+        Returns: undefined;
+      };
       lookup_volunteer_application_status: {
         Args: {
           p_email: string;
@@ -8572,6 +8851,98 @@ export type Database = {
           module_key: string;
         }[];
       };
+      my_constituent_person_id: {
+        Args: { p_module_key?: string };
+        Returns: string;
+      };
+      my_contact_details: {
+        Args: never;
+        Returns: {
+          address_city: string;
+          address_country: string;
+          address_line1: string;
+          address_line2: string;
+          address_postal_code: string;
+          address_region: string;
+          email: string;
+          email_pending: string;
+          email_pending_expires_at: string;
+          instagram_handle: string;
+          name: string;
+          person_id: string;
+          phone: string;
+          preferred_mountain: string;
+          preferred_name: string;
+          pronouns: string;
+          riding_discipline: string;
+          ski_experience_level: string;
+          snowboard_experience_level: string;
+        }[];
+      };
+      my_contact_person_id: { Args: never; Returns: string };
+      my_event_history: {
+        Args: never;
+        Returns: {
+          attended: boolean;
+          ends_at: string;
+          event_id: string;
+          event_name: string;
+          location: string;
+          party_size: number;
+          registered_at: string;
+          registration_id: string;
+          starts_at: string;
+          timezone: string;
+        }[];
+      };
+      my_event_registration: {
+        Args: { p_event_id: string };
+        Returns: {
+          checked_in_at: string;
+          notes: string;
+          party_size: number;
+          registered_at: string;
+          registration_id: string;
+        }[];
+      };
+      my_gear_history: {
+        Args: never;
+        Returns: {
+          cancelled_at: string;
+          delivery_method: string;
+          fulfilled_at: string;
+          id: string;
+          items: string[];
+          kind: string;
+          note: string;
+          occurred_at: string;
+          quantity: number;
+          quoted_amount: number;
+          status: string;
+        }[];
+      };
+      my_giving_history: {
+        Args: never;
+        Returns: {
+          amount: number;
+          event_id: string;
+          event_name: string;
+          id: string;
+          items: string[];
+          kind: string;
+          received_on: string;
+        }[];
+      };
+      my_history_person_id: { Args: { p_module_key: string }; Returns: string };
+      my_loggable_events: {
+        Args: never;
+        Returns: {
+          event_id: string;
+          name: string;
+          starts_at: string;
+          timezone: string;
+        }[];
+      };
       my_modules: {
         Args: never;
         Returns: {
@@ -8579,6 +8950,13 @@ export type Database = {
           is_core: boolean;
           label: string;
           module_key: string;
+        }[];
+      };
+      my_notification_preferences: {
+        Args: never;
+        Returns: {
+          enabled: boolean;
+          kind: string;
         }[];
       };
       my_permissions: {
@@ -8589,8 +8967,35 @@ export type Database = {
         }[];
       };
       my_person_id: { Args: never; Returns: string };
+      my_public_person_id: { Args: never; Returns: string };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
+      my_volunteer_history: {
+        Args: never;
+        Returns: {
+          event_id: string;
+          event_name: string;
+          event_timezone: string;
+          hours: number;
+          id: string;
+          kind: string;
+          occurred_at: string;
+          occurred_on: string;
+          role: string;
+          status: string;
+        }[];
+      };
+      my_volunteer_role_types: {
+        Args: never;
+        Returns: {
+          id: string;
+          name: string;
+        }[];
+      };
+      normalize_instagram_handle: {
+        Args: { p_input: string };
+        Returns: string;
+      };
       notification_recipients: {
         Args: { p_kinds: Json };
         Returns: {
@@ -8619,6 +9024,19 @@ export type Database = {
         }[];
       };
       permission_rank: { Args: { p_level: string }; Returns: number };
+      person_claim_candidates: {
+        Args: { p_claim_id: string };
+        Returns: {
+          already_linked: boolean;
+          email: string;
+          instagram_handle: string;
+          name: string;
+          person_id: string;
+          preferred_name: string;
+          score: number;
+          tier: string;
+        }[];
+      };
       person_last_activity_at: {
         Args: { p_person_id: string };
         Returns: string;
@@ -8651,6 +9069,10 @@ export type Database = {
           is_staff: boolean;
           is_volunteer: boolean;
         }[];
+      };
+      person_self_edit_snapshot: {
+        Args: { p: Database["public"]["Tables"]["people"]["Row"] };
+        Returns: Json;
       };
       platform_export_tenant: { Args: { p_tenant_id: string }; Returns: Json };
       platform_list_tenant_modules: {
@@ -8707,10 +9129,19 @@ export type Database = {
       primary_contact: {
         Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
         Returns: {
+          address_city: string | null;
+          address_country: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          address_postal_code: string | null;
+          address_region: string | null;
           auth_user_id: string | null;
           created_at: string;
           created_by: string | null;
           email: string | null;
+          email_pending: string | null;
+          email_token: string | null;
+          email_token_expires_at: string | null;
           id: string;
           instagram_handle: string | null;
           is_anonymous: boolean;
@@ -8754,6 +9185,10 @@ export type Database = {
           p_template_tenant_id?: string;
         };
         Returns: string;
+      };
+      public_module_enabled: {
+        Args: { p_module_key: string };
+        Returns: boolean;
       };
       public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };
@@ -8815,6 +9250,18 @@ export type Database = {
           p_notes: string;
           p_party_size: number;
           p_phone: string;
+          p_pronouns?: string;
+        };
+        Returns: string;
+      };
+      register_myself_for_event: {
+        Args: {
+          p_event_id: string;
+          p_instagram_handle?: string;
+          p_ip_address?: unknown;
+          p_notes?: string;
+          p_party_size: number;
+          p_phone?: string;
           p_pronouns?: string;
         };
         Returns: string;
@@ -8965,6 +9412,17 @@ export type Database = {
         Returns: string;
       };
       request_host: { Args: never; Returns: string };
+      request_my_email_change: {
+        Args: { p_email: string; p_token_hash: string };
+        Returns: {
+          display_name: string;
+          expires_at: string;
+          outcome: string;
+          pending_email: string;
+          person_id: string;
+          tenant_id: string;
+        }[];
+      };
       request_tenant_slug: { Args: never; Returns: string };
       require_platform_operator: { Args: never; Returns: undefined };
       reserve_inventory_item_for_giveaway: {
@@ -9036,6 +9494,24 @@ export type Database = {
           column_name: string;
           table_name: string;
         }[];
+      };
+      review_person_claim: {
+        Args: {
+          p_approve: boolean;
+          p_claim_id: string;
+          p_person_id?: string;
+          p_review_note?: string;
+        };
+        Returns: string;
+      };
+      review_volunteer_hour_submission: {
+        Args: {
+          p_confirm: boolean;
+          p_hours?: number;
+          p_note?: string;
+          p_submission_id: string;
+        };
+        Returns: undefined;
       };
       revoke_support_access: {
         Args: { p_membership_id: string };
@@ -9111,6 +9587,25 @@ export type Database = {
         };
         Returns: undefined;
       };
+      set_my_contact_details: {
+        Args: {
+          p_address_city: string;
+          p_address_country: string;
+          p_address_line1: string;
+          p_address_line2: string;
+          p_address_postal_code: string;
+          p_address_region: string;
+          p_instagram_handle: string;
+          p_phone: string;
+          p_preferred_mountain: string;
+          p_preferred_name: string;
+          p_pronouns: string;
+          p_riding_discipline: string;
+          p_ski_experience_level: string;
+          p_snowboard_experience_level: string;
+        };
+        Returns: undefined;
+      };
       set_my_notification_email: {
         Args: { p_email: string; p_token_hash: string };
         Returns: {
@@ -9121,6 +9616,10 @@ export type Database = {
           person_id: string;
           tenant_id: string;
         }[];
+      };
+      set_my_notification_preference: {
+        Args: { p_enabled: boolean; p_kind: string };
+        Returns: undefined;
       };
       set_my_preferred_name: {
         Args: { p_preferred_name: string };
@@ -9164,6 +9663,8 @@ export type Database = {
         Args: { p_mode: string; p_policy_key: string };
         Returns: undefined;
       };
+      show_limit: { Args: never; Returns: number };
+      show_trgm: { Args: { "": string }; Returns: string[] };
       submit_artwork: {
         Args: {
           p_code: string;
@@ -9191,6 +9692,17 @@ export type Database = {
           p_topic: string;
         };
         Returns: string;
+      };
+      submit_person_claim: {
+        Args: {
+          p_email?: string;
+          p_instagram_handle?: string;
+          p_ip_address?: unknown;
+          p_name: string;
+          p_note?: string;
+          p_phone?: string;
+        };
+        Returns: undefined;
       };
       submit_volunteer_application: {
         Args: {

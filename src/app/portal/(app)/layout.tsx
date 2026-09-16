@@ -157,6 +157,21 @@ export default async function PortalAppLayout({
     "view",
   );
   const canSeeGearRequests = hasPermission(permissions, "inventory", "view");
+  // Its own resource, and one that carries the constituent_accounts module
+  // gate with it -- so this is false for everyone on a tenant without the
+  // constituent area (#1162).
+  const canSeePersonClaims = hasPermission(
+    permissions,
+    "constituent_claims",
+    "view",
+  );
+  // The same permission the ledger's own reader uses. A volunteer coordinator
+  // who can see hours can see the ones waiting to become hours (#1165).
+  const canSeeVolunteerHourSubmissions = hasPermission(
+    permissions,
+    "volunteers",
+    "view",
+  );
   const canSeeContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -207,13 +222,17 @@ export default async function PortalAppLayout({
     canSeeContactMessages ||
     canSeeEventCheckins ||
     canSeeArtworkSubmissions ||
-    canSeeGearRequests
+    canSeeGearRequests ||
+    canSeePersonClaims ||
+    canSeeVolunteerHourSubmissions
       ? getOpsInboxSummary(supabase, {
           canSeeVolunteerApplications,
           canSeeContactMessages,
           canSeeEventCheckins,
           canSeeArtworkSubmissions,
           canSeeGearRequests,
+          canSeePersonClaims,
+          canSeeVolunteerHourSubmissions,
         })
       : { items: [] },
     canSeeContentCalendar

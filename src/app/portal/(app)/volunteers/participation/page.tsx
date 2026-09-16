@@ -7,9 +7,13 @@ import {
 import { resolveCurrentPerson } from "@/lib/auth/current-person";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
-import { listVolunteerHoursAction } from "./actions";
+import {
+  listPendingVolunteerHoursAction,
+  listVolunteerHoursAction,
+} from "./actions";
 import { LogHoursDialog } from "./log-hours-dialog";
 import { HoursTable } from "./hours-table";
+import { PendingHours } from "./pending-hours";
 
 export const metadata: Metadata = {
   title: "Volunteer Participation",
@@ -26,10 +30,18 @@ export default async function ParticipationPage() {
   );
   const selfLogOnly = canLogOwn && !canManage;
 
-  const [result, selfPerson] = await Promise.all([
+  const [result, pending, selfPerson] = await Promise.all([
     listVolunteerHoursAction(),
+    // Only for somebody who can decide. A volunteer with
+    // volunteer_hours_logging:manage can log hours but not confirm anyone's,
+    // so showing them a queue they cannot act on would be a list of other
+    // people's shifts and nothing else.
+    canManage
+      ? listPendingVolunteerHoursAction()
+      : Promise.resolve({ data: [] as never[] }),
     selfLogOnly ? resolveCurrentPerson(supabase) : Promise.resolve(null),
   ]);
+  const pendingEntries = "data" in pending ? pending.data : [];
   const entries = "data" in result ? result.data : [];
   const totalHours = entries.reduce(
     (sum, entry) => sum + Number(entry.hours),
@@ -51,6 +63,30 @@ export default async function ParticipationPage() {
         <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <LogHoursDialog canManage={canManage} selfPerson={selfPerson} />
         </div>
+      ) : null}
+
+      {/* Hours volunteers logged for themselves, which are deliberately not in
+          the ledger below until somebody confirms them (#1165). Above it,
+          because it is the thing with a decision waiting on it; absent
+          entirely when there is nothing waiting, so the page does not grow a
+          permanent empty box. */}
+      {pendingEntries.length > 0 ? (
+        <Card className="mt-6">
+          <CardContent className="px-0">
+            <div className="px-4 pt-4">
+              <h2 className="brand-display text-lg font-semibold">
+                Logged by volunteers
+              </h2>
+              <p className="app-muted mt-1 text-sm">
+                Confirm these and they join the log below. Correct the number
+                first if it is wrong.
+              </p>
+            </div>
+            <div className="mt-3">
+              <PendingHours entries={pendingEntries} />
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       <Card className="mt-6">

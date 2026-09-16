@@ -185,14 +185,31 @@ afterAll(async () => {
 
 describe("the anon view of a tenant's modules", () => {
   test("reports the whole catalog for the host's tenant", async () => {
-    const modules = await must(
+    const modules = await must<{ module_key: string; enabled: boolean }[]>(
       anon.from("public_tenant_modules").select("module_key, enabled"),
       "modules",
     );
-    expect(modules.length).toBeGreaterThan(10);
-    expect(modules.every((m: { enabled: boolean }) => m.enabled === true)).toBe(
-      true,
+    const catalog = await must<{ key: string; default_enabled: boolean }[]>(
+      service.from("modules").select("key, default_enabled"),
+      "catalog",
     );
+
+    expect(modules.length).toBeGreaterThan(10);
+    expect(modules.map((m) => m.module_key).sort()).toEqual(
+      catalog.map((m) => m.key).sort(),
+    );
+
+    // Compared against the catalog rather than asserted to be all-on, which is
+    // what this said until `constituent_accounts` (#1161) became the first
+    // module with `default_enabled = false`. "Everything is enabled" was a
+    // snapshot of the catalog as it happened to stand; the contract being
+    // tested is that a tenant with no overrides of its own reads the defaults,
+    // whatever those defaults are.
+    const byKey = new Map(catalog.map((m) => [m.key, m.default_enabled]));
+    const disagree = modules
+      .filter((m) => m.enabled !== byKey.get(m.module_key))
+      .map((m) => m.module_key);
+    expect(disagree).toEqual([]);
   });
 
   test("follows the flag the operator sets", async () => {

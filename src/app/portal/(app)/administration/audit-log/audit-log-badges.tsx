@@ -18,6 +18,7 @@ export const TABLE_LABELS: Record<string, string> = {
   services: "Services",
   assets: "Assets",
   access_grants: "Access grants",
+  people: "People",
 };
 
 const ACTION_STYLES: Record<string, StatusTone> = {

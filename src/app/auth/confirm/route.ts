@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeSiteDestination } from "@/lib/auth/next-destination";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type") as EmailOtpType | null;
   const next = requestUrl.searchParams.get("next");
-  const destination = next?.startsWith("/") ? next : "/portal/set-password";
+  // Sanitized rather than merely checked for a leading slash: "//evil.example"
+  // passes that test and resolves to another origin, which made this an open
+  // redirect off a verified token (#1161).
+  const destination = safeSiteDestination(next, "/portal/set-password");
   const loginWithError = new URL(
     "/portal/login?error=invite_failed",
     requestUrl.origin,

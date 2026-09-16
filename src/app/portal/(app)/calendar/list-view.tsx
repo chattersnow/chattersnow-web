@@ -133,8 +133,8 @@ export function ListView({
                     </Link>
                   </TableHead>
                 ))}
-                <TableHead>Visibility</TableHead>
-                <TableHead>Owner</TableHead>
+                <TableHead hideBelow="md">Visibility</TableHead>
+                <TableHead hideBelow="sm">Owner</TableHead>
                 <TableHead className="w-px" />
               </TableRow>
             </TableHeader>
@@ -183,7 +183,7 @@ export function ListView({
                       />
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell hideBelow="md">
                     <CalendarVisibilityBadge
                       visibility={
                         entry.kind === "event"
@@ -192,7 +192,7 @@ export function ListView({
                       }
                     />
                   </TableCell>
-                  <TableCell className="app-muted">
+                  <TableCell hideBelow="sm" className="app-muted">
                     {entry.kind === "event"
                       ? "—"
                       : ownerName(owners, entry.item.owner_id)}

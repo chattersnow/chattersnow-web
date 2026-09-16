@@ -42,9 +42,27 @@ export function isPortalHost(hostname: string): boolean {
  * Read per call so a test can vary it. Note that Next inlines `process.env`
  * into the proxy bundle at build time, so changing this on Vercel takes a
  * redeploy rather than a restart.
+ *
+ * Since #1161 the canonical variable is `NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS`,
+ * with the server-only name kept as a fallback so an operator who has set only
+ * the old one still gets the redirect. The list had to become visible to the
+ * browser because the same fact -- these three hosts are one tenant's -- now
+ * also decides the session cookie's scope, and the browser client writes that
+ * cookie itself (`sessionCookieDomain`). The value is a handful of public
+ * domain names; there was never anything in it to keep server-side.
+ *
+ * Note the asymmetry, which is deliberate: this function accepts either
+ * variable, while the cookie scope accepts only the public one. A redirect
+ * that fires on one deployment and not another is cosmetic. A cookie scope the
+ * server and the browser disagree about is the duplicate-cookie bug the scope
+ * exists to prevent, so that reader fails closed instead of guessing.
  */
 export function portalRedirectHosts(): string[] {
-  return (process.env.PORTAL_REDIRECT_HOSTS ?? "")
+  return (
+    process.env.NEXT_PUBLIC_PORTAL_REDIRECT_HOSTS ??
+    process.env.PORTAL_REDIRECT_HOSTS ??
+    ""
+  )
     .split(",")
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean);

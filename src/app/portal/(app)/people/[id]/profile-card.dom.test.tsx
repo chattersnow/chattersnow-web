@@ -58,6 +58,12 @@ const person: PersonRow = {
   ski_experience_level: "beginner",
   snowboard_experience_level: "advanced",
   preferred_mountain: "Hunter",
+  address_line1: "12 Ridge Road",
+  address_line2: null,
+  address_city: "Hunter",
+  address_region: "NY",
+  address_postal_code: "12442",
+  address_country: null,
 };
 
 describe("ProfileCard", () => {

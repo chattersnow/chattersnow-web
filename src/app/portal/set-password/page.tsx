@@ -4,14 +4,23 @@ import { BrandLogo } from "@/components/brand-logo";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicBranding } from "@/lib/branding";
+import { safeSetPasswordDestination } from "@/lib/auth/next-destination";
 import { SetPasswordForm } from "./set-password-form";
 
 export const metadata: Metadata = {
   title: "Set Password",
 };
 
-export default async function SetPasswordPage() {
+export default async function SetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const supabase = await createSupabaseServerClient();
+  // Read on the server and handed down, rather than `useSearchParams` in the
+  // form: that hook would put this page behind a Suspense boundary it does not
+  // otherwise need.
+  const destination = safeSetPasswordDestination((await searchParams).next);
   // The logo the host's tenant has set, if any. It was
   // `/chatter-logo-transparent.png` hardcoded, so every tenant's set-password
   // page carried Chatter Snow's mark (#838). #817 fixed the login page and
@@ -25,7 +34,9 @@ export default async function SetPasswordPage() {
   ] = await Promise.all([supabase.auth.getUser(), getPublicBranding(supabase)]);
 
   if (!user) {
-    redirect("/portal/login");
+    // Back to whichever sign-in sent them, so a constituent whose reset link
+    // has expired is not handed a portal login they hold no role for (#1161).
+    redirect(destination === "/my" ? "/my/sign-in" : "/portal/login");
   }
 
   return (
@@ -48,7 +59,7 @@ export default async function SetPasswordPage() {
         </CardHeader>
 
         <CardContent className="mt-2 flex flex-col gap-7">
-          <SetPasswordForm />
+          <SetPasswordForm destination={destination} />
         </CardContent>
       </Card>
     </main>

@@ -39,6 +39,27 @@ const SKIP: Record<string, string> = {
   // skip that no longer describes anything.
   "/terms": "not in force for the seeded tenant (#859)",
   "/code-of-conduct": "not in force for the seeded tenant (#859)",
+  // Same shape as the two above, one layer down: the constituent area is a
+  // module a tenant opts into, `constituent_accounts` is the first module in
+  // the catalog that defaults to off, and the seeded tenant has not asked for
+  // it -- so both routes 404 and scanning them would be another pass over the
+  // 404 page.
+  //
+  // These are the lines to delete first when the area has something to look
+  // at. Its pages are a sign-in form and a signed-in landing page, which are
+  // exactly the kind of surface this scan is for; they are skipped because the
+  // seed cannot reach them, not because they are exempt. Enabling the module
+  // in `supabase/seed.sql` and removing these two lines is the whole change.
+  "/my": "module off for the seeded tenant (#1161)",
+  "/my/sign-in": "module off for the seeded tenant (#1161)",
+  "/my/details": "module off for the seeded tenant (#1164)",
+  "/my/hours": "module off for the seeded tenant (#1165)",
+  "/my/notifications": "module off for the seeded tenant (#1165)",
+  // The staff side of the same module. `has_permission()` folds the module
+  // check in, so with `constituent_accounts` off this refuses even an
+  // administrator and redirects to the denied page -- which is already
+  // scanned, under its own route. Delete this line with the two above.
+  "/portal/people/claims": "module off for the seeded tenant (#1162)",
 };
 
 const APP_DIR = join(import.meta.dirname, "..", "src", "app");

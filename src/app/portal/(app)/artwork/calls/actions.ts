@@ -97,3 +97,32 @@ export async function updateArtworkCallAction(
   revalidatePath("/portal/artwork/calls");
   return { success: true };
 }
+
+export async function deleteArtworkCallAction(
+  id: string,
+): Promise<ArtworkCallActionResult> {
+  const guard = await requireManage();
+  if ("error" in guard) return guard;
+
+  // This takes the artists' work with it. artwork_submissions references
+  // event_artwork_calls `on delete cascade` and artwork_submission_images
+  // cascades from the submission, so a call that collected anything cannot go
+  // without those going too -- which is why the confirmation names the count
+  // rather than asking "delete this call?".
+  //
+  // The image objects in storage are left to the daily sweep (runArtworkPurge,
+  // #870): they are unreferenced the moment these rows go, which is exactly
+  // what it looks for, and removing them here would risk failing half way
+  // through with no rows left to say which ones were missed.
+  const { error } = await guard.supabase
+    .from("event_artwork_calls")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete this call. Please try again." };
+  }
+
+  revalidatePath("/portal/artwork/calls");
+  return { success: true };
+}

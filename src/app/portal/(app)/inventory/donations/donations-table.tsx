@@ -69,7 +69,7 @@ export function DonationsTable({
             <TableRow>
               <TableHead>Donor</TableHead>
               <TableHead>Items</TableHead>
-              <TableHead>Source event</TableHead>
+              <TableHead hideBelow="md">Source event</TableHead>
               <TableHead sortDirection={dir}>
                 <SortHeaderLink
                   href={sortHref}
@@ -98,7 +98,9 @@ export function DonationsTable({
                       ? "—"
                       : `${donation.inventory_items.length} item${donation.inventory_items.length === 1 ? "" : "s"} · ${itemSummary}`}
                   </TableCell>
-                  <TableCell>{donation.event?.name ?? "—"}</TableCell>
+                  <TableCell hideBelow="md">
+                    {donation.event?.name ?? "—"}
+                  </TableCell>
                   <TableCell>
                     {formatCalendarDate(donation.donated_at)}
                   </TableCell>
