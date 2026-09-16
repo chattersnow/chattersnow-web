@@ -8565,7 +8565,6 @@ export type Database = {
           welcome_completed_at: string;
         }[];
       };
-      ensure_tenant_membership: { Args: never; Returns: string };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
       export_current_tenant_data: { Args: never; Returns: Json };
@@ -8667,6 +8666,7 @@ export type Database = {
         Returns: boolean;
       };
       has_role: { Args: { p_role: string }; Returns: boolean };
+      has_tenant_membership: { Args: never; Returns: boolean };
       is_admin: { Args: never; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
       link_person_to_auth_user: {

@@ -337,9 +337,8 @@ And nothing else: no platform tenant, no `chatter-snow` tenant, no demo tenant.
 `20260905190000_seed_initial_tenant.sql` is the only migration that inserts a
 tenant at the top level (the others do so inside `provision_tenant()`), and
 `supabase/seed.sql` inserts none -- every sample row it writes lands in this
-tenant. It exists because a database with none is unusable:
-`ensure_tenant_membership()` only auto-joins when exactly one active tenant
-exists, and `default current_tenant_id()` needs something to resolve to.
+tenant. It exists because a database with none is unusable: `default
+current_tenant_id()` needs something to resolve to.
 
 Its name and slug come from `app.initial_tenant_name` / `app.initial_tenant_slug`
 when set, and otherwise fall back to **Example Nonprofit** / `example-nonprofit`
@@ -393,6 +392,18 @@ with roles; and `seed.sql` cross-joins every seeded account with the one
 tenant, which is what gives `noaccess@example.test` -- no role at all -- its
 membership. No `user_tenant_selection` row is needed: `current_tenant_id()`
 resolves a sole membership by itself (`20260905180000`).
+
+Those are now the only two paths anywhere. A third used to exist:
+`ensure_tenant_membership()` joined any signed-in account holding no membership
+to the tenant the request host resolved to, on every portal request. #1191
+dropped it. It was written when only a staffer could have an account, and once
+a constituent signed in with the same account on both hosts (#1161) it handed a
+membership -- and an audit entry, and a row in Administration -> Users -- to any
+member of the public who opened `/portal`. **A membership now follows a role or
+an explicit grant, and nothing else creates one.** What remains in its place is
+`has_tenant_membership()`, which only reads: the portal shell uses it to tell an
+account that belongs to nothing (refused at `/portal/login?error=no_access`)
+from one whose organization is suspended (the NoTenant page).
 
 ### So there is no tenant switching locally
 

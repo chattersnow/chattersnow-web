@@ -19,11 +19,15 @@ export type CategoryActionResult = { error: string } | { success: true };
  * by group then category so `groupInventoryCategories` can preserve the order
  * instead of re-sorting.
  *
- * No permission check beyond being signed in — the `inventory_categories select`
- * policy is `using (true)` on purpose. An intake volunteer holds
- * `inventory_intake:manage` but `inventory:none`, and gating this on
+ * No permission check beyond being signed in: RLS answers this one, and it
+ * cannot be restated here without getting it wrong. The roles that need the
+ * vocabulary are not the ones holding `inventory` — an intake volunteer holds
+ * `inventory_intake:manage` with `inventory:none`, finance holds
+ * `inventory_reports:view` with `inventory:none` — so gating this on
  * `inventory:view` would show an empty category picker to exactly the people
- * who record donations.
+ * who record donations. The `inventory_categories select` policy accepts any
+ * of the three, and since #1191 it accepts nothing less: it used to be keyed
+ * on the tenant alone, which made a bare membership enough.
  */
 export async function listInventoryCategoriesAction(): Promise<
   { data: InventoryCategory[] } | { error: string }

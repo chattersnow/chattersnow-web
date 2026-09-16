@@ -68,8 +68,7 @@ export default async function PortalAppLayout({
   // my_permissions() answer for current_tenant_id(), so the two states where
   // that is null -- no membership, or several and no choice yet -- would
   // otherwise read as "no access" and bounce a legitimate account to the
-  // login screen. Also joins a first-time account to the tenant, the same way
-  // ensureCurrentPerson below provisions its people row (#707 Phase 1).
+  // login screen.
   //
   // Both branches act only when the read actually succeeded. A failed one
   // also comes back with no tenants, and telling a legitimate member that they
@@ -77,6 +76,20 @@ export default async function PortalAppLayout({
   // would turn a transient database error into a lockout.
   const tenantContext = await getTenantContext(supabase);
   if (tenantContext.resolved && tenantContext.tenants.length === 0) {
+    // Two different people arrive with no tenant, and this used to be only
+    // one of them: until #1191 reading the context also *joined* a
+    // membership-less account to the host's tenant, so the only way to get
+    // here was to hold a membership in an organization that had gone
+    // inactive. Now a constituent with an account on the public site (#1161)
+    // can reach it too, just by opening /portal, and NoTenant is the wrong
+    // answer for them -- it is addressed to someone waiting on an invitation,
+    // and its way out is a sign-out they did not ask for. Send them to the
+    // refusal built for exactly this: "Portal access not granted yet", with a
+    // banner naming the account and a local-scope sign-out that leaves their
+    // session on the public site alone.
+    if (!tenantContext.hasMembership) {
+      redirect("/portal/login?error=no_access");
+    }
     return <NoTenant />;
   }
 

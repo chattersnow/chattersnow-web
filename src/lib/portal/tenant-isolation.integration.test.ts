@@ -1494,16 +1494,23 @@ describe("the public surface follows the host", () => {
     expect(row.tenant_id).toBe(tenantB);
   });
 
-  test("a first sign-in on a tenant's host joins that tenant", async () => {
+  test("a first sign-in on a tenant's host joins nothing", async () => {
+    // The inverse of what this asserted until #1191. The host used to decide
+    // which tenant a membership-less account was joined to, which made the
+    // portal's front door a way to become a member of whichever organization
+    // owned the domain you happened to open -- and since #1161 the account
+    // arriving there is as likely to belong to a member of the public as to a
+    // new staffer. The host still decides which tenant a request is *about*;
+    // it no longer decides who belongs to it.
     const email = uniqueEmail("newcomer");
     const userId = await createTenantUser(email);
     try {
       const newcomer = await signIn(email, "password123", { host: B_HOST });
-      const { data: joined, error } = await newcomer.rpc(
-        "ensure_tenant_membership",
+      const { data: hasMembership, error } = await newcomer.rpc(
+        "has_tenant_membership",
       );
       expect(error).toBeNull();
-      expect(joined).toBe(tenantB);
+      expect(hasMembership).toBe(false);
       const memberships = await must(
         service
           .from("tenant_memberships")
@@ -1511,7 +1518,7 @@ describe("the public surface follows the host", () => {
           .eq("user_id", userId),
         "memberships",
       );
-      expect(memberships).toEqual([{ tenant_id: tenantB, kind: "member" }]);
+      expect(memberships).toEqual([]);
     } finally {
       await deleteTenantUser(userId);
     }
