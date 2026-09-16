@@ -26,8 +26,9 @@ const people: PersonListItem[] = [
     name: "Jane Doe",
     email: "jane@example.com",
     phone: null,
-    // Holds a portal login -- the only fixture that should get the badge.
+    // Holds an account with a role behind it -- the staff case (#1192).
     auth_user_id: "auth-1",
+    has_portal_access: true,
   },
   {
     id: "2",
@@ -36,6 +37,15 @@ const people: PersonListItem[] = [
     email: "john@acme.com",
     phone: null,
     auth_user_id: null,
+  },
+  {
+    id: "3",
+    name: "Nadia Okonkwo",
+    email: "nadia@example.com",
+    phone: null,
+    // An approved constituent claim (#1162): an account, no role, no portal.
+    auth_user_id: "auth-3",
+    has_portal_access: false,
   },
 ];
 
@@ -231,7 +241,11 @@ describe("PersonPicker portal accounts and preferred names", () => {
       "example.com",
     );
     expect(await screen.findByText("Jane Doe")).toBeInTheDocument();
-    expect(screen.getByText("Portal user")).toBeInTheDocument();
+    expect(screen.getByText("Portal access")).toBeInTheDocument();
+    // The same search reaches the constituent, labelled by the door the
+    // account opens rather than by the column it shares with Jane's.
+    expect(screen.getByText("Nadia Okonkwo")).toBeInTheDocument();
+    expect(screen.getByText("Website account")).toBeInTheDocument();
   });
 
   test("a directory-only person gets no badge", async () => {
@@ -250,7 +264,8 @@ describe("PersonPicker portal accounts and preferred names", () => {
       "acme",
     );
     expect(await screen.findByText("Johnny")).toBeInTheDocument();
-    expect(screen.queryByText("Portal user")).not.toBeInTheDocument();
+    expect(screen.queryByText("Portal access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Website account")).not.toBeInTheDocument();
   });
 
   test("results show the preferred name in place of the legal name", async () => {
@@ -290,7 +305,7 @@ describe("PersonPicker portal accounts and preferred names", () => {
     expect(await screen.findByText("Johnny")).toBeInTheDocument();
   });
 
-  test("the selected chip badges a portal user and uses the preferred name", () => {
+  test("the selected chip badges the account and uses the preferred name", () => {
     render(
       <PersonPicker
         people={people}
@@ -301,6 +316,7 @@ describe("PersonPicker portal accounts and preferred names", () => {
           email: "john@acme.com",
           phone: null,
           auth_user_id: "auth-2",
+          has_portal_access: true,
         }}
         onSelect={noop}
         onPersonCreated={noop}
@@ -308,7 +324,7 @@ describe("PersonPicker portal accounts and preferred names", () => {
     );
 
     expect(screen.getByText("Johnny")).toBeInTheDocument();
-    expect(screen.getByText("Portal user")).toBeInTheDocument();
+    expect(screen.getByText("Portal access")).toBeInTheDocument();
   });
 
   // Issue #567. The picker used to be an input followed by a flat list of

@@ -28,7 +28,9 @@ export default async function NonprofitStatusPage() {
       .order("created_at", { ascending: true }),
     supabase
       .from("people")
-      .select("id, name, preferred_name, email, phone, auth_user_id")
+      .select(
+        "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
+      )
       .order("name", { ascending: true }),
   ]);
 

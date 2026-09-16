@@ -11,7 +11,7 @@ import {
 } from "./person-form-fields";
 import type { PersonListItem } from "./actions";
 import {
-  PortalUserBadge,
+  PersonAccountBadge,
   isOrganization,
   type PersonType,
   type RoleKey,
@@ -35,6 +35,8 @@ export type PickedPerson = {
    * a PickedPerson from a narrower embedded `people(...)` relation. */
   preferred_name?: string | null;
   auth_user_id?: string | null;
+  /** Absent means "no role known", which reads as a website account (#1192). */
+  has_portal_access?: boolean | null;
 };
 
 export function PersonPicker({
@@ -132,7 +134,7 @@ export function PersonPicker({
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium">{personDisplayName(selected)}</p>
-            <PortalUserBadge person={selected} />
+            <PersonAccountBadge person={selected} />
           </div>
           {selected.email && (
             <p className="app-muted text-xs">{selected.email}</p>
@@ -259,7 +261,7 @@ export function PersonPicker({
                   <span className="font-medium">
                     {personDisplayName(person)}
                   </span>
-                  <PortalUserBadge person={person} />
+                  <PersonAccountBadge person={person} />
                 </span>
                 {person.email && (
                   <span className="app-muted text-xs">{person.email}</span>
