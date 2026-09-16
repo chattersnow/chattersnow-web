@@ -7514,6 +7514,130 @@ export type Database = {
           },
         ];
       };
+      volunteer_hour_submissions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          event_id: string | null;
+          hours: number;
+          id: string;
+          logged_date: string;
+          notes: string | null;
+          person_id: string;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          volunteer_hours_id: string | null;
+          volunteer_role_type_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: string | null;
+          hours: number;
+          id?: string;
+          logged_date: string;
+          notes?: string | null;
+          person_id: string;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          volunteer_hours_id?: string | null;
+          volunteer_role_type_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: string | null;
+          hours?: number;
+          id?: string;
+          logged_date?: string;
+          notes?: string | null;
+          person_id?: string;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          volunteer_hours_id?: string | null;
+          volunteer_role_type_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_hour_submissions_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "public_events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_volunteer_hours_id_fkey";
+            columns: ["volunteer_hours_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_hours";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_volunteer_role_type_id_fkey";
+            columns: ["volunteer_role_type_id"];
+            isOneToOne: false;
+            referencedRelation: "public_volunteer_role_types";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_volunteer_role_type_id_fkey";
+            columns: ["volunteer_role_type_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_role_types";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       volunteer_hours: {
         Row: {
           created_at: string;
@@ -8631,6 +8755,17 @@ export type Database = {
           user_id: string;
         }[];
       };
+      log_my_volunteer_hours: {
+        Args: {
+          p_event_id?: string;
+          p_hours: number;
+          p_ip_address?: unknown;
+          p_logged_date: string;
+          p_notes?: string;
+          p_volunteer_role_type_id?: string;
+        };
+        Returns: string;
+      };
       log_person_self_edit: {
         Args: { p_after: Json; p_before: Json; p_person_id: string };
         Returns: undefined;
@@ -8730,6 +8865,10 @@ export type Database = {
           module_key: string;
         }[];
       };
+      my_constituent_person_id: {
+        Args: { p_module_key?: string };
+        Returns: string;
+      };
       my_contact_details: {
         Args: never;
         Returns: {
@@ -8770,6 +8909,16 @@ export type Database = {
           timezone: string;
         }[];
       };
+      my_event_registration: {
+        Args: { p_event_id: string };
+        Returns: {
+          checked_in_at: string;
+          notes: string;
+          party_size: number;
+          registered_at: string;
+          registration_id: string;
+        }[];
+      };
       my_gear_history: {
         Args: never;
         Returns: {
@@ -8799,6 +8948,15 @@ export type Database = {
         }[];
       };
       my_history_person_id: { Args: { p_module_key: string }; Returns: string };
+      my_loggable_events: {
+        Args: never;
+        Returns: {
+          event_id: string;
+          name: string;
+          starts_at: string;
+          timezone: string;
+        }[];
+      };
       my_modules: {
         Args: never;
         Returns: {
@@ -8806,6 +8964,13 @@ export type Database = {
           is_core: boolean;
           label: string;
           module_key: string;
+        }[];
+      };
+      my_notification_preferences: {
+        Args: never;
+        Returns: {
+          enabled: boolean;
+          kind: string;
         }[];
       };
       my_permissions: {
@@ -8832,6 +8997,13 @@ export type Database = {
           occurred_on: string;
           role: string;
           status: string;
+        }[];
+      };
+      my_volunteer_role_types: {
+        Args: never;
+        Returns: {
+          id: string;
+          name: string;
         }[];
       };
       normalize_instagram_handle: {
@@ -9096,6 +9268,18 @@ export type Database = {
         };
         Returns: string;
       };
+      register_myself_for_event: {
+        Args: {
+          p_event_id: string;
+          p_instagram_handle?: string;
+          p_ip_address?: unknown;
+          p_notes?: string;
+          p_party_size: number;
+          p_phone?: string;
+          p_pronouns?: string;
+        };
+        Returns: string;
+      };
       reject_event_expense: {
         Args: { p_id: string; p_reason: string };
         Returns: {
@@ -9334,6 +9518,15 @@ export type Database = {
         };
         Returns: string;
       };
+      review_volunteer_hour_submission: {
+        Args: {
+          p_confirm: boolean;
+          p_hours?: number;
+          p_note?: string;
+          p_submission_id: string;
+        };
+        Returns: undefined;
+      };
       revoke_support_access: {
         Args: { p_membership_id: string };
         Returns: undefined;
@@ -9437,6 +9630,10 @@ export type Database = {
           person_id: string;
           tenant_id: string;
         }[];
+      };
+      set_my_notification_preference: {
+        Args: { p_enabled: boolean; p_kind: string };
+        Returns: undefined;
       };
       set_my_preferred_name: {
         Args: { p_preferred_name: string };

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email/send";
 import type { MailIdentity } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
+import { notificationKindDefault } from "@/lib/notifications/kinds";
 
 /**
  * Claim the send, then send it (#488, extracted for #742).
@@ -69,10 +70,50 @@ export type DeliveryRequest = {
   logPrefix: string;
 };
 
+/**
+ * Whether this person has switched this kind off (#1165).
+ *
+ * Only asked for a kind that is on by default -- the three receipts a
+ * constituent can now opt out of. Every other kind is opt-*in*, and its sender
+ * has already resolved who asked for it; re-reading the table here would turn
+ * a transient error into a digest nobody gets.
+ *
+ * Fails closed, like every other reader of this table: an unreadable
+ * preference is not permission to send. A receipt that does not arrive is a
+ * question somebody can ask; one that arrives after they opted out is not
+ * something anybody can take back.
+ */
+async function hasOptedOut(
+  admin: SupabaseClient,
+  request: DeliveryRequest,
+): Promise<boolean> {
+  if (!request.personId) return false;
+  if (!notificationKindDefault(request.kind)) return false;
+
+  const { data, error } = await admin
+    .from("person_notification_preferences")
+    .select("enabled")
+    .eq("tenant_id", request.tenantId)
+    .eq("person_id", request.personId)
+    .eq("kind", request.kind)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      `${request.logPrefix} could not read this person's email preferences; sending nothing`,
+      error,
+    );
+    return true;
+  }
+  return data ? !data.enabled : false;
+}
+
 export async function deliverEmail(
   admin: SupabaseClient,
   request: DeliveryRequest,
 ): Promise<DeliveryOutcome> {
+  if (await hasOptedOut(admin, request)) return "skipped";
+
   const { data: claimed, error: claimError } = await admin
     .from("notification_deliveries")
     .insert({

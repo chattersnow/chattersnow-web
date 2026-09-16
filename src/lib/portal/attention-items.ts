@@ -135,6 +135,7 @@ export async function getOpsInboxSummary(
     canSeeArtworkSubmissions: boolean;
     canSeeGearRequests: boolean;
     canSeePersonClaims: boolean;
+    canSeeVolunteerHourSubmissions: boolean;
   },
   nowIso: string = new Date().toISOString(),
 ): Promise<PendingApprovalsSummary> {
@@ -175,6 +176,27 @@ export async function getOpsInboxSummary(
         label: "Account claims",
         count: count ?? 0,
         href: "/portal/people/claims",
+        severity: "info",
+      });
+    }
+  }
+
+  // #1165. Hours a volunteer logged for themselves, which sit outside the
+  // ledger until somebody confirms them -- so this count is the only place
+  // they are visible to a staffer who is not looking for them. Plain RLS
+  // scoping like the rest: the select policy on volunteer_hour_submissions
+  // admits volunteers:view in the caller's own tenant.
+  if (options.canSeeVolunteerHourSubmissions) {
+    const { count } = await supabase
+      .from("volunteer_hour_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    if ((count ?? 0) > 0) {
+      items.push({
+        key: "volunteer_hour_submissions_pending",
+        label: "Self-logged hours",
+        count: count ?? 0,
+        href: "/portal/volunteers/participation",
         severity: "info",
       });
     }
