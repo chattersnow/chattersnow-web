@@ -32,7 +32,14 @@ export type MyEventRegistration = {
 };
 
 export type MyVolunteerEntry = {
-  kind: "application" | "signup" | "hours";
+  /**
+   * `hours_unconfirmed` is an entry the volunteer logged themselves that a
+   * staffer has not yet confirmed, or has declined (#1165). It is a kind of
+   * its own rather than an `hours` row with a status, because the section
+   * totals the `hours` rows and a provisional number belongs in that total
+   * exactly as little as it belongs in a grant report.
+   */
+  kind: "application" | "signup" | "hours" | "hours_unconfirmed";
   id: string;
   /** An application's moment, or the event a sign-up is for. Null for hours. */
   occurred_at: string | null;
@@ -157,6 +164,8 @@ export type VolunteerHistory = {
   applications: MyVolunteerEntry[];
   signups: MyVolunteerEntry[];
   hours: MyVolunteerEntry[];
+  /** Logged by the volunteer, still waiting on a staffer, or declined. */
+  unconfirmedHours: MyVolunteerEntry[];
   totalHours: number;
   /** Hours by the role they were logged under, largest first. */
   byRole: { role: string; hours: number }[];
@@ -169,6 +178,9 @@ export function groupVolunteering(
   const applications = rows.filter((row) => row.kind === "application");
   const signups = rows.filter((row) => row.kind === "signup");
   const hours = rows.filter((row) => row.kind === "hours");
+  const unconfirmedHours = rows.filter(
+    (row) => row.kind === "hours_unconfirmed",
+  );
 
   const totals = new Map<string, number>();
   let totalHours = 0;
@@ -185,6 +197,7 @@ export function groupVolunteering(
     applications,
     signups,
     hours,
+    unconfirmedHours,
     totalHours,
     byRole: [...totals]
       .map(([role, value]) => ({ role, hours: value }))

@@ -165,6 +165,13 @@ export default async function PortalAppLayout({
     "constituent_claims",
     "view",
   );
+  // The same permission the ledger's own reader uses. A volunteer coordinator
+  // who can see hours can see the ones waiting to become hours (#1165).
+  const canSeeVolunteerHourSubmissions = hasPermission(
+    permissions,
+    "volunteers",
+    "view",
+  );
   const canSeeContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -216,7 +223,8 @@ export default async function PortalAppLayout({
     canSeeEventCheckins ||
     canSeeArtworkSubmissions ||
     canSeeGearRequests ||
-    canSeePersonClaims
+    canSeePersonClaims ||
+    canSeeVolunteerHourSubmissions
       ? getOpsInboxSummary(supabase, {
           canSeeVolunteerApplications,
           canSeeContactMessages,
@@ -224,6 +232,7 @@ export default async function PortalAppLayout({
           canSeeArtworkSubmissions,
           canSeeGearRequests,
           canSeePersonClaims,
+          canSeeVolunteerHourSubmissions,
         })
       : { items: [] },
     canSeeContentCalendar

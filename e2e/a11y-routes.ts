@@ -52,6 +52,9 @@ const SKIP: Record<string, string> = {
   // in `supabase/seed.sql` and removing these two lines is the whole change.
   "/my": "module off for the seeded tenant (#1161)",
   "/my/sign-in": "module off for the seeded tenant (#1161)",
+  "/my/details": "module off for the seeded tenant (#1164)",
+  "/my/hours": "module off for the seeded tenant (#1165)",
+  "/my/notifications": "module off for the seeded tenant (#1165)",
   // The staff side of the same module. `has_permission()` folds the module
   // check in, so with `constituent_accounts` off this refuses even an
   // administrator and redirects to the denied page -- which is already

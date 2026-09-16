@@ -133,7 +133,8 @@ function VolunteeringSection({
   volunteering: VolunteerHistory;
   label: string;
 }) {
-  const { applications, signups, hours, totalHours, byRole } = volunteering;
+  const { applications, signups, hours, unconfirmedHours, totalHours, byRole } =
+    volunteering;
 
   return (
     <MySection
@@ -203,6 +204,36 @@ function VolunteeringSection({
                 {row.role && ` · ${row.role}`}
                 {row.event_name && ` · ${row.event_name}`}
               </>
+            }
+          />
+        ))}
+      </MyGroup>
+
+      {/* Hours the volunteer logged for themselves that nobody has confirmed
+          yet (#1165). Shown, and shown apart from the total, for two reasons:
+          an entry that vanishes on submit reads as a form that failed, and a
+          provisional number counted in "42 hours" is the thing keeping it out
+          of the ledger was meant to prevent. A declined entry stays here
+          rather than disappearing, so the four hours a volunteer remembers
+          logging have an answer on the screen built to give them one. */}
+      <MyGroup title="Waiting on us" isEmpty={unconfirmedHours.length === 0}>
+        {unconfirmedHours.map((row) => (
+          <MyEntry
+            key={row.id}
+            primary={`${formatNumber(row.hours)}h`}
+            secondary={
+              <>
+                {formatCalendarDate(row.occurred_on)}
+                {row.role && ` · ${row.role}`}
+                {row.event_name && ` · ${row.event_name}`}
+              </>
+            }
+            status={
+              row.status === "declined" ? (
+                <MyStatus tone="closed">Not confirmed</MyStatus>
+              ) : (
+                <MyStatus tone="open">Awaiting review</MyStatus>
+              )
             }
           />
         ))}

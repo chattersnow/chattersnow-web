@@ -60,19 +60,38 @@ export default async function MyPage() {
             : "Your record, and what you have done together."}
         </p>
         {/* The only navigation this area has, and it earns a place here rather
-            than in a nav bar of one: keeping your record current (#1164) is a
-            different job from reading it, and a real destination that appears
-            in no navigation surface is the one thing
+            than in a nav bar of three: each of these is a different job from
+            reading your history, not a different view of it, and a real
+            destination that appears in no navigation surface is the one thing
             docs/portal-navigation.md forbids outright. Only for an account
-            with a record -- there is nothing to edit until a claim is
-            approved, and the page below is the claim form. */}
+            with a record -- there is nothing to edit, log or choose until a
+            claim is approved, and the page below is the claim form.
+
+            Logging hours (#1165) appears only for somebody with volunteering
+            behind them, on the same rule the volunteering section itself
+            follows: a donor who has never volunteered is not offered a
+            timesheet. */}
         {personId && (
-          <p className="mt-4">
+          <p className="mt-4 flex flex-wrap gap-3">
             <Link
               href={`${MY_PATH_PREFIX}/details`}
               className={buttonVariants({ variant: "outline" })}
             >
               Edit your details
+            </Link>
+            {history.volunteering.length > 0 && (
+              <Link
+                href={`${MY_PATH_PREFIX}/hours`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Log your hours
+              </Link>
+            )}
+            <Link
+              href={`${MY_PATH_PREFIX}/notifications`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Your emails
             </Link>
           </p>
         )}

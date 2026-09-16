@@ -401,6 +401,7 @@ describe("the queue asks to be noticed", () => {
       canSeeArtworkSubmissions: false,
       canSeeGearRequests: false,
       canSeePersonClaims: true,
+      canSeeVolunteerHourSubmissions: false,
     };
 
     const mine = await getOpsInboxSummary(adminClient, flags);
