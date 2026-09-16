@@ -1638,3 +1638,20 @@ from auth.users u
 on conflict (user_id) do update
   set welcome_completed_at = now(),
       last_release_seen = '9999-12-31';
+
+-- Constituent accounts on, for the one seeded tenant (#1175).
+--
+-- `constituent_accounts` is the only module in the catalog that defaults to
+-- off (20260916050000), which is right for a real tenant -- a signed-in area on
+-- an organization's own website is its decision -- but locally it meant the
+-- whole of `/my`, its sign-in and the staff claims queue 404'd, so the a11y
+-- scan skipped three routes and no e2e spec could reach any of them. The area
+-- shipped across #1161-#1165 with no browser coverage at all as a result.
+--
+-- Named explicitly rather than left to default_tenant_id(): tenant_modules has
+-- no tenant default, and a row naming its tenant is what the multi-tenant rule
+-- asks for anyway (docs/tenants.md).
+insert into public.tenant_modules (tenant_id, module_key, enabled)
+select t.id, 'constituent_accounts', true
+from (select id from public.tenants order by created_at limit 1) t
+on conflict (tenant_id, module_key) do update set enabled = excluded.enabled;

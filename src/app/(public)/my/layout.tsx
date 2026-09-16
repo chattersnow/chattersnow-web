@@ -12,6 +12,14 @@ import { requireConstituentArea } from "@/lib/constituent/guard";
  * own header, footer and branding. That is the point: this is the tenant's
  * website, not a second application -- and not the portal, which requires a
  * role that nobody here has.
+ *
+ * Gate and slot, with no `PageShell` -- the precedent `(public)/events/layout`
+ * sets, and for the same reason: the five routes below do not share a column
+ * width, `/my/sign-in` wants `max-w-md` where the hub wants `max-w-3xl`, and
+ * wrapping here would force one on all of them and risk a second `<main>`.
+ * Each page invokes `PageShell` itself, which is also what gives it the
+ * `<main id="main-content">` the public layout's skip link aims at. Until
+ * #1179 none of them did, so the area shipped no main landmark at all.
  */
 export default async function MyLayout({
   children,

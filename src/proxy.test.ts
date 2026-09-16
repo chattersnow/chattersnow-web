@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { resolveDeviceClass, resolvePortalRoute } from "./proxy";
+import type { NextRequest } from "next/server";
+import { hasAuthCookie, resolveDeviceClass, resolvePortalRoute } from "./proxy";
 
 const PORTAL = "portal.example.org";
 const PUBLIC = "www.example.org";
@@ -251,5 +252,46 @@ describe("resolveDeviceClass", () => {
   test("ignores an override it does not recognise", () => {
     expect(resolveDeviceClass("mobile", "phablet")).toBe("mobile");
     expect(resolveDeviceClass(undefined, "")).toBe("desktop");
+  });
+});
+
+/**
+ * Since #1175 the public site can be signed in on any page, so the session
+ * refresh is decided by whether a request carries an auth cookie rather than by
+ * where it is going. Getting the name test wrong in either direction is quiet:
+ * too narrow and a constituent's header goes stale mid-visit, too broad and
+ * every anonymous page view builds a Supabase client for nothing.
+ */
+describe("hasAuthCookie", () => {
+  const withCookies = (names: string[]) =>
+    ({
+      cookies: { getAll: () => names.map((name) => ({ name, value: "x" })) },
+    }) as unknown as NextRequest;
+
+  test("sees the cookie @supabase/ssr writes", () => {
+    expect(hasAuthCookie(withCookies(["sb-abcdefgh-auth-token"]))).toBe(true);
+  });
+
+  // The token outgrows a single cookie once the JWT carries any real metadata,
+  // and @supabase/ssr then writes it as `.0`, `.1` and so on -- the shape the
+  // unchunked name test would have missed.
+  test("sees a chunked token", () => {
+    expect(
+      hasAuthCookie(
+        withCookies(["sb-abcdefgh-auth-token.0", "sb-abcdefgh-auth-token.1"]),
+      ),
+    ).toBe(true);
+  });
+
+  test("is false for a browser carrying nothing", () => {
+    expect(hasAuthCookie(withCookies([]))).toBe(false);
+  });
+
+  // Both halves of the name are required: an unrelated cookie that happens to
+  // start with `sb-` must not put every anonymous request through a refresh.
+  test("ignores an unrelated cookie", () => {
+    expect(
+      hasAuthCookie(withCookies(["device_override", "sb-analytics-id"])),
+    ).toBe(false);
   });
 });
