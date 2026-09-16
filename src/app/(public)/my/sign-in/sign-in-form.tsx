@@ -191,8 +191,11 @@ export function SignInForm() {
 
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>
+          <RequiredFieldsNote />
           <Field>
-            <FieldLabel htmlFor="my-email">Email *</FieldLabel>
+            <FieldLabel htmlFor="my-email" required>
+              Email
+            </FieldLabel>
             <Input
               id="my-email"
               type="email"
@@ -203,7 +206,9 @@ export function SignInForm() {
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="my-password">Password *</FieldLabel>
+            <FieldLabel htmlFor="my-password" required>
+              Password
+            </FieldLabel>
             <Input
               id="my-password"
               type="password"
@@ -215,7 +220,6 @@ export function SignInForm() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </Field>
-          <RequiredFieldsNote />
           <Button type="submit" className="w-full" disabled={busy}>
             {isSubmitting ? <Spinner /> : null}
             {mode === "sign-up" ? "Create account" : "Sign in"}
