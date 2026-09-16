@@ -3,13 +3,17 @@ import * as Sentry from "@sentry/nextjs";
 // Browser runtime. Next.js loads this file itself -- it is not imported from
 // `src/instrumentation.ts`, which only covers the server and edge runtimes.
 //
-// The DSN is written out rather than read from an environment variable on
-// purpose: it is a public, write-only ingest key (the same value ships inside
-// the client bundle either way), and hardcoding it means Preview deploys and
-// every future tenant host report to Sentry without anyone remembering to set
-// a variable in Vercel first.
+// The DSN comes from NEXT_PUBLIC_SENTRY_DSN when it is set, and falls back to
+// the literal below -- which is safe to commit, being a public, write-only
+// ingest key that ships inside the client bundle either way. The fallback is
+// what matters: an unset variable degrades to reporting into the project we
+// already use, so Preview deploys and every future tenant host keep reporting
+// without anyone remembering to set a variable in Vercel first, while setting
+// it is how a deployment is pointed at a different Sentry project.
 Sentry.init({
-  dsn: "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
+  dsn:
+    process.env.NEXT_PUBLIC_SENTRY_DSN ??
+    "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
 
   // `dataCollection` is deliberately absent. Omitting it leaves the SDK on its
   // conservative defaults (it falls back to `sendDefaultPii`, which is false),
@@ -20,10 +24,12 @@ Sentry.init({
   // Opt in one category at a time if an issue genuinely can't be diagnosed
   // without it.
 
-  // 100% locally so a change can be verified immediately; 10% in production,
-  // which is what the free plan's span quota can carry. Raise it if traces
-  // turn out to be too sparse to be useful.
-  tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
+  // Off everywhere. The free plan's 5k/month is an *error* quota; spans draw on
+  // a separate, smaller one, and nothing here reads the trace view today. This
+  // is not what ties an error to its request: trace ids are propagated whatever
+  // this is set to, so an event still carries one -- raising this is how a
+  // trace gets spans in it, not how it gets correlated.
+  tracesSampleRate: 0,
 
   // Tags every event with the deploy that produced it. Vercel exposes its
   // system variables to the browser bundle under the NEXT_PUBLIC_ prefix, so

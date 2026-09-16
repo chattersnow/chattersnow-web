@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPublicTenant, type PublicTenant } from "@/lib/branding";
+import { tagTenant } from "@/lib/observability/tenant-tag";
 
 /**
  * A tenant the signed-in user may act inside. Status is a platform concern the
@@ -122,7 +123,14 @@ async function resolveTenantContext(
   supabase: SupabaseClient,
 ): Promise<TenantContext> {
   try {
-    return await readTenantContext(supabase);
+    const context = await readTenantContext(supabase);
+    // Which tenant a Sentry event from this request is about (#1210). The
+    // session's own tenant first, falling back to the host's: on the refusals
+    // #956 added -- an account on a host belonging to an organization it is
+    // not in -- there is no current tenant, and the host is the only useful
+    // thing to say about where the failure happened.
+    tagTenant(currentTenant(context)?.slug ?? context.hostTenant?.slug);
+    return context;
   } catch {
     // A thrown fetch (the network, not PostgREST) lands here.
     return UNRESOLVED;
