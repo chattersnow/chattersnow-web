@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageShell } from "@/components/page-shell";
+import { ViewerTime } from "@/components/viewer-time";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
+import { isHrefVisible } from "@/lib/public-nav";
 import {
   getMyHistory,
   isHistoryEmpty,
@@ -14,6 +18,7 @@ import { DEFAULT_VOCABULARY, getPublicVocabulary } from "@/lib/person-roles";
 import { ClaimForm } from "./claim-form";
 import { MyHistorySections } from "./history";
 import { MyNav } from "./my-nav";
+import { MyNextSteps } from "./next-steps";
 import { SignOutButton } from "./sign-out-button";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +34,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function MyPage() {
   const { personId } = await requireConstituentSession();
   const supabase = await createSupabaseServerClient();
-  const [{ name }, { data: pendingClaim }, { data: auth }] = await Promise.all([
+  const [
+    { name, lexicon },
+    { data: pendingClaim },
+    { data: auth },
+    visibility,
+  ] = await Promise.all([
     getPublicSite(supabase),
     // Read through the claimant's own select policy, which is pinned to
     // auth.uid() -- so this is their claim or nothing, never a count of
@@ -40,7 +50,12 @@ export default async function MyPage() {
       .eq("status", "pending")
       .maybeSingle(),
     supabase.auth.getUser(),
+    // No query of its own: `getPageVisibility` is request-cached and the
+    // public layout wrapping this page has already issued it against the same
+    // client instance, so this resolves off that read (#1183).
+    getPageVisibility(supabase),
   ]);
+  const hidden = hiddenSlots(visibility);
 
   // A second wave, and only for an account that has a record to read. An
   // unlinked one would spend four round trips learning what the guard already
@@ -87,15 +102,38 @@ export default async function MyPage() {
                   </h2>
                   <p className="app-muted text-sm leading-relaxed">
                     Nothing on it yet. Your events, volunteering, giving and
-                    gear will appear here as they happen.
+                    requests will appear here as they happen.
                   </p>
+                  {/* Somebody who has just been approved has done everything
+                      asked of them, and the sentence above is otherwise where
+                      the page stops. */}
+                  <MyNextSteps hidden={hidden} lexicon={lexicon} />
                 </>
               ) : pendingClaim ? (
                 <Alert>
                   <AlertTitle>We are checking your request</AlertTitle>
                   <AlertDescription>
-                    Someone is matching what you told us against our records.
-                    You will hear from us either way.
+                    <p>
+                      Sent{" "}
+                      <ViewerTime
+                        iso={pendingClaim.created_at}
+                        fallbackZone="UTC"
+                        options={{ dateStyle: "long" }}
+                      />
+                      . Someone is matching what you told us against our
+                      records. You will hear from us either way.
+                    </p>
+                    {/* The date is only useful next to somewhere to take it.
+                        A claim that has sat for a fortnight is usually one
+                        where a detail was mistyped, and this page is the only
+                        place its sender can see that it has. */}
+                    {isHrefVisible(hidden, "/contact") && (
+                      <p>
+                        If something you sent was wrong, or this has been
+                        waiting longer than you expected,{" "}
+                        <Link href="/contact">get in touch</Link>.
+                      </p>
+                    )}
                   </AlertDescription>
                 </Alert>
               ) : (

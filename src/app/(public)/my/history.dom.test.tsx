@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
 import {
   EMPTY_HISTORY,
@@ -10,6 +11,7 @@ import {
   type MyVolunteerEntry,
 } from "@/lib/constituent/history";
 import { MyHistorySections } from "./history";
+import { MyNextSteps } from "./next-steps";
 
 /**
  * The component splits events against the real clock, so a literal date in a
@@ -145,5 +147,136 @@ describe("a gear request", () => {
     expect(screen.queryByText("Quoted")).not.toBeInTheDocument();
     expect(screen.getByText("A jacket")).toBeInTheDocument();
     expect(screen.getByText(/Size 10 if you have it/)).toBeInTheDocument();
+  });
+});
+
+// #1183. The strip is a lede, so what every case below really asks is whether
+// it says less than the sections it sits above -- never more, and never
+// something they would contradict.
+describe("the summary strip", () => {
+  test("is absent when only one section renders, because that section is already the summary", () => {
+    renderHistory({ events: [registration] });
+    expect(screen.queryByRole("link", { name: /Coming up/ })).toBeNull();
+  });
+
+  test("leads with one number per section once two of them render", () => {
+    renderHistory({ events: [registration], giving: [donation] });
+
+    expect(
+      screen.getByRole("link", { name: "1 Coming up" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "$25.00 Given" }),
+    ).toBeInTheDocument();
+  });
+
+  test("each stat links to the section it was counted from", () => {
+    renderHistory({ volunteering: [hours], gear: [request] });
+
+    expect(screen.getByRole("link", { name: "3 Hours" })).toHaveAttribute(
+      "href",
+      "#my-volunteering",
+    );
+    // "Postage to pay" is an open standing, so the request is still the
+    // requester's to act on and is counted.
+    expect(
+      screen.getByRole("link", { name: "1 Open request" }),
+    ).toHaveAttribute("href", "#my-gear");
+
+    expect(document.getElementById("my-volunteering")).toBeInTheDocument();
+    expect(document.getElementById("my-gear")).toBeInTheDocument();
+  });
+
+  test("falls back from what is coming up to what was attended, as the section does", () => {
+    renderHistory({
+      events: [
+        {
+          ...registration,
+          registration_id: "r0",
+          starts_at: A_MONTH_AGO,
+          attended: true,
+        },
+      ],
+      giving: [donation],
+    });
+
+    expect(screen.getByRole("link", { name: "1 Attended" })).toHaveAttribute(
+      "href",
+      "#my-events",
+    );
+  });
+
+  test("omits a section whose number is zero rather than opening with a nought", () => {
+    renderHistory({
+      // A past event nobody marked attended, and a fulfilled request: two
+      // sections render, and neither has a number worth leading with.
+      events: [
+        { ...registration, registration_id: "r0", starts_at: A_MONTH_AGO },
+      ],
+      gear: [{ ...request, status: "fulfilled" }],
+    });
+
+    expect(screen.queryByRole("link", { name: /Open request/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Attended/ })).toBeNull();
+  });
+});
+
+// #1183. The dead end this closes is a linked account with nothing on it yet --
+// the state somebody is in the moment their claim is approved.
+describe("next steps on an empty record", () => {
+  test("offers the destinations that put something on the record", () => {
+    render(<MyNextSteps hidden={[]} lexicon={DEFAULT_LEXICON} />);
+
+    expect(screen.getByRole("link", { name: "Find an event" })).toHaveAttribute(
+      "href",
+      "/events",
+    );
+    expect(
+      screen.getByRole("link", { name: "Volunteer with us" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Make a donation" }),
+    ).toBeInTheDocument();
+  });
+
+  test("names the collection with the tenant's word, not Chatter Snow's", () => {
+    render(
+      <MyNextSteps
+        hidden={[]}
+        lexicon={{ ...DEFAULT_LEXICON, collection_public: "Food Pantry" }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Browse the food pantry" }),
+    ).toBeInTheDocument();
+  });
+
+  test("offers nothing whose public page the tenant has hidden", () => {
+    render(
+      <MyNextSteps hidden={["events", "gears"]} lexicon={DEFAULT_LEXICON} />,
+    );
+
+    expect(screen.queryByRole("link", { name: "Find an event" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Browse the/ })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Volunteer with us" }),
+    ).toBeInTheDocument();
+  });
+
+  test("renders nothing at all when every destination is hidden", () => {
+    const { container } = render(
+      <MyNextSteps
+        hidden={[
+          "events",
+          "gears",
+          "get-involved",
+          "get-involved-volunteer",
+          "support",
+        ]}
+        lexicon={DEFAULT_LEXICON}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

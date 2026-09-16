@@ -1,3 +1,4 @@
+import { Card, CardContent } from "@/components/ui/card";
 import { ViewerTime } from "@/components/viewer-time";
 import { deliveryMethodLabel } from "@/lib/gear-requests";
 import { formatCalendarDate, formatCurrency, formatNumber } from "@/lib/format";
@@ -8,12 +9,15 @@ import {
   groupGear,
   groupGiving,
   groupVolunteering,
+  mySectionAnchor,
   splitEvents,
+  visibleSections,
   volunteerApplicationStanding,
   type GearHistory,
   type GivingHistory,
   type MyEventRegistration,
   type MyHistory,
+  type MySectionId,
   type VolunteerHistory,
 } from "@/lib/constituent/history";
 import { MyEntry, MyGroup, MySection, MyStatus } from "./history-shell";
@@ -43,9 +47,20 @@ export function MyHistorySections({
   const volunteering = groupVolunteering(history.volunteering);
   const giving = groupGiving(history.giving);
   const gear = groupGear(history.gear);
+  const sections = visibleSections(history);
 
   return (
     <>
+      {/* Two sections is where a lede starts earning its place: one section is
+          already its own summary, and forty rows across four are not. */}
+      {sections.length > 1 && (
+        <SummaryStrip
+          events={events}
+          volunteering={volunteering}
+          giving={giving}
+          gear={gear}
+        />
+      )}
       {history.events.length > 0 && <EventsSection events={events} />}
       {history.volunteering.length > 0 && (
         <VolunteeringSection
@@ -64,6 +79,101 @@ export function MyHistorySections({
 }
 
 /**
+ * The page's lede (#1183): the four numbers a person came for, each a link into
+ * the section it was counted from.
+ *
+ * Every one of these is already computed for a section's own `summary`, so the
+ * strip costs no query and cannot disagree with what the reader finds when they
+ * follow it -- the events stat in particular falls back from "coming up" to
+ * "attended" exactly as `EventsSection` does.
+ *
+ * A stat is omitted when its number is zero rather than shown as "0". A lede
+ * that opens with nothing is worse than a shorter lede, and the section
+ * underneath says the same thing in words. The strip itself is an anchor list,
+ * not navigation: following one is a jump within this page, so there is no tab
+ * state to carry in the URL (docs/portal-navigation.md, threshold 1) and the
+ * URL it does leave behind is linkable.
+ */
+function SummaryStrip({
+  events,
+  volunteering,
+  giving,
+  gear,
+}: {
+  events: { upcoming: MyEventRegistration[]; past: MyEventRegistration[] };
+  volunteering: VolunteerHistory;
+  giving: GivingHistory;
+  gear: GearHistory;
+}) {
+  const attended = events.past.filter((row) => row.attended).length;
+  const openRequests = gear.requests.filter(
+    (row) => gearRequestStanding(row.status).tone === "open",
+  ).length;
+
+  const stats: { section: MySectionId; value: string; label: string }[] = [];
+  if (events.upcoming.length > 0) {
+    stats.push({
+      section: "events",
+      value: formatNumber(events.upcoming.length),
+      label: "Coming up",
+    });
+  } else if (attended > 0) {
+    stats.push({
+      section: "events",
+      value: formatNumber(attended),
+      label: "Attended",
+    });
+  }
+  if (volunteering.totalHours > 0) {
+    stats.push({
+      section: "volunteering",
+      value: formatNumber(volunteering.totalHours),
+      label: "Hours",
+    });
+  }
+  if (giving.monetaryTotal > 0) {
+    stats.push({
+      section: "giving",
+      value: formatCurrency(giving.monetaryTotal),
+      label: "Given",
+    });
+  }
+  if (openRequests > 0) {
+    stats.push({
+      section: "gear",
+      value: formatNumber(openRequests),
+      label: openRequests === 1 ? "Open request" : "Open requests",
+    });
+  }
+
+  if (stats.length === 0) return null;
+
+  return (
+    <Card>
+      <CardContent>
+        <ul className="flex flex-wrap gap-x-8 gap-y-4">
+          {stats.map((stat) => (
+            <li key={stat.section}>
+              <a
+                href={`#${mySectionAnchor(stat.section)}`}
+                className="flex min-h-11 flex-col justify-center rounded-md transition-colors hover:text-[var(--purple)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                <span className="brand-display text-2xl font-semibold tracking-[-0.02em]">
+                  {stat.value}
+                </span>
+                <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+                  {stat.label}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * Upcoming first. It is the thing a person actually opens this page for --
  * usually on a phone, usually to check where they are meant to be -- and what
  * they already did can wait below it.
@@ -77,6 +187,7 @@ function EventsSection({
 
   return (
     <MySection
+      id={mySectionAnchor("events")}
       title="Events"
       summary={
         events.upcoming.length > 0
@@ -138,6 +249,7 @@ function VolunteeringSection({
 
   return (
     <MySection
+      id={mySectionAnchor("volunteering")}
       title={`${label} activity`}
       summary={
         totalHours > 0 ? (
@@ -258,6 +370,7 @@ function GivingSection({
 }) {
   return (
     <MySection
+      id={mySectionAnchor("giving")}
       title="Giving"
       summary={
         giving.monetaryTotal > 0
@@ -322,7 +435,10 @@ function GearSection({
     // The collection as the public site names it -- "Gear Library", "Tool
     // Library", "Food Pantry" -- because this section is about dealings with
     // that, not about a pile of items.
-    <MySection title={vocabulary.collection_public ?? "Library"}>
+    <MySection
+      id={mySectionAnchor("gear")}
+      title={vocabulary.collection_public ?? "Library"}
+    >
       <MyGroup title="Requests" isEmpty={gear.requests.length === 0}>
         {gear.requests.map((row) => {
           const standing = gearRequestStanding(row.status);

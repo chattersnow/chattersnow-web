@@ -17,17 +17,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  * tabulated, and nothing that needs a horizontal scroll to read.
  */
 export function MySection({
+  id,
   title,
   summary,
   children,
 }: {
+  /**
+   * The anchor the summary strip links to (#1183). `tabIndex={-1}` is what
+   * makes following that link move focus as well as the viewport -- a browser
+   * will not focus a plain `<section>` -- so a keyboard reader who activates
+   * "3 coming up" arrives inside Events rather than at the top of the page
+   * with nothing moved but the scroll position.
+   */
+  id: string;
   title: string;
   /** The one number this section is about, where it has one. */
   summary?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <Card>
+    <Card id={id} tabIndex={-1} className="scroll-mt-6">
       <CardHeader>
         <CardTitle className="brand-display text-lg font-semibold">
           {title}
