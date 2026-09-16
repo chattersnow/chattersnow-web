@@ -39,7 +39,15 @@ export default function MyError({
     // here redacted to a digest, so the copy Sentry gets from this line is a
     // thin duplicate that groups on its own -- an acceptable trade for not
     // losing client render errors entirely.
-    Sentry.captureException(error);
+    //
+    // `error_digest` is what makes the "Reference for support" digest on
+    // screen worth showing: Sentry does not index non-standard Error
+    // properties, so without a tag the digest a staffer reads out matches
+    // nothing searchable (#1195, #1210). The tag lands on this boundary's
+    // copy; the full server event for the same failure shares its trace.
+    Sentry.captureException(error, {
+      tags: error.digest ? { error_digest: error.digest } : undefined,
+    });
   }, [error]);
 
   return (

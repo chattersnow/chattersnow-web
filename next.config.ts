@@ -105,13 +105,6 @@ export default withSentryConfig(nextConfig, {
   // resolves to real source instead of a vendor chunk offset.
   widenClientFileUpload: true,
 
-  // Routes events through our own origin, because ad and tracking blockers
-  // block requests to ingest.sentry.io outright -- and the people most likely
-  // to be running one are the staff using the portal all day. The plugin
-  // creates the route; `src/proxy.ts` has to let it through, which is why
-  // `sentry-tunnel` is excluded from its matcher.
-  tunnelRoute: "/sentry-tunnel",
-
   // Keep `bun run build` quiet locally; let CI print the upload log.
   silent: !process.env.CI,
 });
