@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageShell } from "@/components/page-shell";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { CONSTITUENT_NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { MyNotificationPreferences } from "./preferences";
+import { MyNav } from "../my-nav";
 
 const MY_NOTIFICATIONS_PATH = `${MY_PATH_PREFIX}/notifications`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
-  return { title: publicTitle(await getPublicSite(supabase), "Your emails") };
+  return {
+    title: publicTitle(await getPublicSite(supabase), "Your emails"),
+    // One person's record. Nothing under /my is worth finding in a search
+    // result, and the area carries no robots.ts to say so for it.
+    robots: { index: false, follow: false },
+  };
 }
 
 /**
@@ -41,32 +47,31 @@ export default async function MyNotificationsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <section>
-        <div className="w-fit">
-          <div className="rainbow-accent w-full" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Your emails
-          </h1>
-        </div>
-        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          These are the messages we send you about things you have done. Turn
-          off anything you would rather not receive; we will remember.
-        </p>
-      </section>
+    <PageShell maxWidth="max-w-2xl">
+      <div className="space-y-8">
+        <section>
+          <div className="w-fit">
+            <div className="rainbow-accent w-full" />
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Your emails
+            </h1>
+          </div>
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+            These are the messages we send you about things you have done. Turn
+            off anything you would rather not receive; we will remember.
+          </p>
+          <MyNav current="notifications" />
+        </section>
 
-      <Card>
-        <CardContent>
-          <MyNotificationPreferences
-            kinds={CONSTITUENT_NOTIFICATION_KINDS}
-            enabledByKind={enabledByKind}
-          />
-        </CardContent>
-      </Card>
-
-      <Link href={MY_PATH_PREFIX} className="app-muted text-sm underline">
-        Back to your account
-      </Link>
-    </div>
+        <Card>
+          <CardContent>
+            <MyNotificationPreferences
+              kinds={CONSTITUENT_NOTIFICATION_KINDS}
+              enabledByKind={enabledByKind}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </PageShell>
   );
 }
