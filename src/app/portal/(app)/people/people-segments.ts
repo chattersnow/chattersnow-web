@@ -34,6 +34,35 @@ export type SegmentStat = {
  */
 export type DirectoryFlag = RoleKey | "has_account";
 
+/**
+ * The line under a segment's heading: what this list is, and the surface that
+ * answers the neighbouring question (#1198).
+ *
+ * Only Accounts carries one, because only Accounts has a counterpart -- the
+ * other eight are views of the directory, and the directory is where the
+ * reader already is. `docs/portal-navigation.md` states the rule the two
+ * sentences make visible: Administration → Users answers who may act on the
+ * organization's behalf, People answers who the organization knows.
+ *
+ * `scope` always renders; `crossSurface` only for a reader who can open what it
+ * names, on the same reasoning as `crossSectionHint`. So the first sentence has
+ * to stand on its own, and does.
+ *
+ * Neither field is a `{term}` template. An account is not one of the seven
+ * relationships a tenant renames, and the section it points at is named the
+ * same in every tenant.
+ */
+export type SegmentCounterpart = {
+  scope: string;
+  crossSurface: {
+    /** Prose before the link, e.g. "Staff who can sign in are in". */
+    before: string;
+    linkLabel: string;
+    href: string;
+    access: readonly PermissionCheck[];
+  };
+};
+
 export type PeopleSegment = {
   /** Stable id, and the last path segment for everything but the full list. */
   value: string;
@@ -103,6 +132,8 @@ export type PeopleSegment = {
     text: string;
     access: readonly PermissionCheck[];
   };
+  /** A line under the heading naming the other half of a split pair (#1198). */
+  counterpart?: SegmentCounterpart;
   /** Optional tiles above the table. */
   stats?: (supabase: SupabaseServerClient) => Promise<SegmentStat[]>;
 };
@@ -333,6 +364,16 @@ export const ACCOUNTS_SEGMENT: PeopleSegment = {
     "People appear here once they make an account on the website and a claim is approved from Account claims.",
   emptyDescriptionView:
     "People appear here once they make an account on the website and a claim is approved.",
+  counterpart: {
+    scope:
+      "People who hold an account on the organization's website, which lets them see their own record and nothing else.",
+    crossSurface: {
+      before: "Staff who can sign in to the portal are in",
+      linkLabel: "Administration › Users",
+      href: "/portal/administration/users",
+      access: [{ resource: "administration", level: "manage" }],
+    },
+  },
 };
 
 /**
@@ -436,7 +477,8 @@ export function segmentForRole(role: string): PeopleSegment | undefined {
  * caller reads off the returned object is a word; nothing on it is a template.
  *
  * `basePath`, `filterColumn`, `personType` and the permission checks are
- * identifiers rather than copy and pass through untouched.
+ * identifiers rather than copy and pass through untouched. So does
+ * `counterpart`, which is copy but holds no template: see its own note.
  */
 export function resolveSegment(
   segment: PeopleSegment,

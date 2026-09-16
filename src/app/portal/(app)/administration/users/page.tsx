@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
+import { UsersScopeNote } from "./users-scope-note";
 import { UsersTable } from "./users-table";
 import { PendingAccessSection } from "./pending-access-section";
 import { SupportAccessSection } from "./support-access-section";
@@ -22,14 +27,21 @@ export default async function UsersPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [result, rolesResult, pendingResult, supportResult, canManageSupport] =
-    await Promise.all([
-      listUsersAction(),
-      listRolesAction(),
-      listPendingGrantsAction(),
-      listSupportGrantsAction(),
-      canManageSupportAccessAction(),
-    ]);
+  const [
+    result,
+    rolesResult,
+    pendingResult,
+    supportResult,
+    canManageSupport,
+    permissions,
+  ] = await Promise.all([
+    listUsersAction(),
+    listRolesAction(),
+    listPendingGrantsAction(),
+    listSupportGrantsAction(),
+    canManageSupportAccessAction(),
+    getCurrentUserPermissions(supabase),
+  ]);
   const availableRoles = "data" in rolesResult ? rolesResult.data : [];
 
   return (
@@ -42,6 +54,14 @@ export default async function UsersPage() {
           <div className="rainbow-accent mt-3 w-full" />
         </div>
       </div>
+
+      <UsersScopeNote
+        canViewWebsiteAccounts={hasPermission(
+          permissions,
+          "constituent_claims",
+          "view",
+        )}
+      />
 
       <div className="mt-6 space-y-6">
         {"error" in result ? (

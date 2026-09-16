@@ -54,6 +54,7 @@ import {
   type PeopleSegment,
 } from "./people-segments";
 import { PeopleSegmentNav } from "./people-segment-nav";
+import { SegmentCounterpartNote } from "./segment-counterpart-note";
 
 /**
  * Every column the directory table and its row links need. `primary_contact`
@@ -240,6 +241,13 @@ export async function PeopleDirectory({
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
+
+      {segment.counterpart && (
+        <SegmentCounterpartNote
+          counterpart={segment.counterpart}
+          permissions={permissions}
+        />
+      )}
 
       {/* Everything below navigates through the URL -- segments, sort, page,
           search -- so it all shares one pending state, and the table card
