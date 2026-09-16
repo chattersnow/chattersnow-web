@@ -63,8 +63,14 @@ export type PersonRow = {
   notes: string | null;
   logo_url: string | null;
   website: string | null;
-  /** The portal login this record belongs to, null when it has no account. */
+  /** The login this record belongs to, null when it has no account. */
   auth_user_id: string | null;
+  /**
+   * Whether that account holds a role in this tenant, derived on
+   * `people_with_roles` (#1192). An account without one is a constituent's: it
+   * reaches `/my` and nothing else.
+   */
+  has_portal_access: boolean;
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
@@ -150,20 +156,36 @@ export function rolesFor(
 }
 
 /**
- * Marks a person who holds a portal login account, so whoever is looking can
- * tell who can actually sign in and act on things. Lives here rather than in
- * person-picker.tsx because the person detail page shows the same badge; when
- * the picker owned it, the detail page had no way to say the same thing.
+ * Names the door a linked account opens, rather than the column that says one
+ * exists (#1192). Two labels, because these are two different facts:
+ *
+ *   * **Portal access** -- the account holds a role in this tenant, so this
+ *     person can sign in and act on the organization's behalf. This is the
+ *     fact the old "Portal user" badge was built to carry.
+ *   * **Website account** -- the account exists with no role behind it, which
+ *     since #1162 is every approved constituent. Worth showing rather than
+ *     hiding: it is what tells a staffer this person can see their own record
+ *     at `/my`, which changes what you say to them.
+ *
+ * Neither label names a database state, on purpose. The pair names the two
+ * lists a person can be on -- Administration > Users, and the constituent
+ * accounts segment -- which is the distinction a staffer picking an assignee
+ * is actually being asked to make. See
+ * `planning/coven/design/2026-09-16-staff-users-vs-constituent-accounts-ia.md`.
+ *
+ * Lives here rather than in person-picker.tsx because the person detail page
+ * shows the same badge; when the picker owned it, the detail page had no way
+ * to say the same thing.
  */
-export function PortalUserBadge({
+export function PersonAccountBadge({
   person,
 }: {
-  person: { auth_user_id?: string | null };
+  person: { auth_user_id?: string | null; has_portal_access?: boolean | null };
 }) {
   if (!person.auth_user_id) return null;
   return (
     <Badge variant="secondary" className="shrink-0">
-      Portal user
+      {person.has_portal_access ? "Portal access" : "Website account"}
     </Badge>
   );
 }

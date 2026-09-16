@@ -48,6 +48,8 @@ export type DuplicatePerson = {
   person_type: string;
   email: string | null;
   auth_user_id: string | null;
+  /** Whether that account holds a role in this tenant (#1192). */
+  has_portal_access?: boolean | null;
   created_at: string;
 };
 

@@ -26,7 +26,7 @@ import type { PersonAccount, LinkableAccount } from "./person-account";
 /**
  * The portal login behind a directory record. Admin-only: everything here
  * comes from `list_portal_users()`, which is gated on `is_admin()`. A
- * non-admin with people:view sees the "Portal user" badge on the profile card
+ * non-admin with people:view sees the account badge beside the person's name
  * and nothing else -- knowing an account exists is not the same as being
  * shown its email, roles, and status.
  */
