@@ -283,7 +283,7 @@ describe("people preferred_name and portal-account link (integration)", () => {
     expect(linkedAdmin?.auth_user_id).toBeTruthy();
   });
 
-  test("a directory-only person has no auth_user_id, so no Portal user badge", async () => {
+  test("a directory-only person has no auth_user_id, so no account badge", async () => {
     const person = await createPerson();
     currentSupabase = await signIn(SEEDED_USERS.finance);
     const result = await listPeopleAction();

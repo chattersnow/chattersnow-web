@@ -44,6 +44,7 @@ const person: PersonRow = {
   logo_url: null,
   website: null,
   auth_user_id: null,
+  has_portal_access: false,
   is_donor: true,
   is_sponsor: false,
   is_volunteer: false,

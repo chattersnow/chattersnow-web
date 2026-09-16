@@ -9,6 +9,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { type NavGroup, isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import {
+  ACCOUNT_NAV_OFF,
+  type ConstituentAccountNav,
+} from "@/lib/constituent/account-nav";
+import { AccountMenu, AccountSheetRows } from "./account-menu";
+import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
@@ -33,8 +38,20 @@ import {
  * active signal -- this leaves it as the only one, on both kinds of item.
  * Links *inside* the dropdown panels keep the pill, where it reads correctly.
  */
+// The horizontal padding pays for the account control (#1175), which needs 52px
+// in a header that had five to spare. Measured with every section visible and
+// the browser at 1024: the nav is 651px at `px-2.5`, 615px at `px-2` and 584px
+// at `px-1.5`, and the budget below wants it at 604px or less -- so `px-2` is
+// not enough on its own and the tightest step is used for the one band that
+// needs it. `xl` relaxes to `px-2`, where the container is 1152px wide and 615
+// fits with the CTA and the widened control beside it.
+//
+// Only horizontal, and the nav is `hidden lg:block`, so this never touches a
+// tap target: below `lg` these items are rows in the sheet instead. What it
+// does narrow is the rainbow underline, which the item's own box draws -- it
+// reads as tighter tracking rather than as a smaller control.
 const TOP_LEVEL_ITEM =
-  "rainbow-underline h-9 px-2.5 py-1.5 font-medium data-active:bg-transparent";
+  "rainbow-underline h-9 px-1.5 py-1.5 font-medium data-active:bg-transparent xl:px-2";
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -89,8 +106,15 @@ export function SiteNav({
   hiddenSlots = [],
   supportLabel,
   lexicon = DEFAULT_LEXICON,
+  account = ACCOUNT_NAV_OFF,
 }: {
   hiddenSlots?: readonly string[];
+  /**
+   * Whether this tenant offers constituent accounts, and who is signed in
+   * (#1175). Defaults to off, so a caller that says nothing renders no account
+   * control at all -- the right answer for every tenant without the module.
+   */
+  account?: ConstituentAccountNav;
   /**
    * The "Support <organization>" entry names the organization, so it is the
    * one nav label that is site content rather than structure (#707 Phase 4).
@@ -174,13 +198,25 @@ export function SiteNav({
       {/* The header had no action at all: the site's only prominent CTA was the
           homepage Donate button, which is gated behind `support`.
 
-          The breakpoints look fussy but each one is load-bearing. Measured with
-          every section visible, the widest the header can get is logo 184 +
-          nav 643 + CTA 111 + toggle 44 + gaps = 1014px, against 944px of usable
-          width at `lg`. So the CTA shows while the nav is collapsed to the
-          hamburger and there is room to spare (sm..lg), stands down for the one
-          band where the full nav is out but the pair doesn't fit (lg..xl), and
-          returns at `xl` where 1152px holds both. */}
+          The breakpoints look fussy but each one is load-bearing, and the
+          numbers below were measured in a browser at each width with every
+          section visible -- not derived. Re-measure and correct them when you
+          change anything in this header: they are the only record of the
+          budget, and a stale one is worse than none.
+
+          At `lg` there is 944px to spend, and the nav is out while the
+          hamburger is not yet in: logo 220 + gap 16 + nav 584 + gap 8 +
+          toggle 44 + gap 8 + account 44 = 924, twenty to spare. That is why
+          the CTA stands down across `lg`..`xl` -- it does not fit -- and why
+          the nav runs at its tightest padding there.
+
+          At `xl` there is 1152px, the nav relaxes a step to 615, the CTA is
+          back and the account control has widened to carry the name:
+          logo 220 + gap 16 + cluster 887 = 1123, twenty-nine to spare.
+
+          Below `lg` the nav is a sheet and the cluster is 267px, which leaves
+          room everywhere down to 390. Narrower than that the header wraps to a
+          second row, as it did before any of this. */}
       {showEventsCta && (
         <Button
           variant="rainbow"
@@ -193,6 +229,13 @@ export function SiteNav({
       )}
 
       <ThemeToggle />
+
+      {/* Last before the hamburger, where the web has trained people to look
+          for an account. Hidden below `sm`: on a phone this would be a fifth
+          control in a header that already wraps, so it moves into the sheet
+          below instead. Renders nothing at all on a tenant without the
+          module. */}
+      <AccountMenu account={account} className="hidden sm:inline-flex" />
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetTrigger
@@ -242,6 +285,16 @@ export function SiteNav({
               ),
             )}
           </nav>
+          {/* Pinned below the scrolling section list rather than trailing it,
+              so sign out in particular is one tap from anywhere in the menu --
+              the same arrangement the portal's mobile menu uses. `sm:hidden`
+              because from `sm` up the header carries the control itself and two
+              of them would be two places to sign out. */}
+          <AccountSheetRows
+            account={account}
+            onNavigate={closeMobile}
+            className="sm:hidden"
+          />
         </SheetContent>
       </Sheet>
     </div>

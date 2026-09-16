@@ -422,11 +422,16 @@ describe("the queue asks to be noticed", () => {
 });
 
 describe("reviewing a claim", () => {
-  async function openClaim(label: string) {
+  async function openClaim(
+    label: string,
+    /** Anything beyond the name the claimant stated about themselves. */
+    stated: Record<string, unknown> = {},
+  ) {
     const claimant = await makeConstituent(uniqueEmail(`${label}-${run}`));
     createdUsers.push(claimant.userId);
     await claimant.client.rpc("submit_person_claim", {
       p_name: `${label} Person`,
+      ...stated,
     });
     const { data } = await service
       .from("person_claims")
@@ -472,8 +477,21 @@ describe("reviewing a claim", () => {
     expect(clash?.message).toContain("already linked to a different account");
   });
 
-  test("approving with no candidate creates a record", async () => {
-    const claim = await openClaim("newcomer");
+  // The create path keeps everything the claimant was asked for (#1184). It
+  // used to keep the name and the email and drop the other two on the floor,
+  // which is the worst shape this could take: the form asked, the fields were
+  // accepted without comment, and nothing on the resulting record said they
+  // had gone. The handle in particular is the one value that would have
+  // matched a future duplicate.
+  test("approving with no candidate creates a record from everything stated", async () => {
+    const statedEmail = uniqueEmail(`newcomer-stated-${run}`);
+    const claim = await openClaim("newcomer", {
+      p_email: statedEmail,
+      p_phone: "555-0147",
+      // Typed as people actually type it, to pin that what lands in `people`
+      // is normalized and not the raw string.
+      p_instagram_handle: `@Newcomer_${run}`,
+    });
     const { data: personId, error } = await adminClient.rpc(
       "review_person_claim",
       { p_claim_id: claim.claimId, p_approve: true },
@@ -483,11 +501,60 @@ describe("reviewing a claim", () => {
 
     const created = await service
       .from("people")
-      .select("name, auth_user_id, tenant_id")
+      .select(
+        "name, email, phone, instagram_handle, is_anonymous, source_type, auth_user_id, tenant_id",
+      )
       .eq("id", personId as string)
       .single();
+    expect(created.data?.name).toBe("newcomer Person");
+    expect(created.data?.email).toBe(statedEmail);
+    expect(created.data?.phone).toBe("555-0147");
+    expect(created.data?.instagram_handle).toBe(`newcomer_${run}`);
+    expect(created.data?.is_anonymous).toBe(false);
+    expect(created.data?.source_type).toBe("other");
     expect(created.data?.auth_user_id).toBe(claim.userId);
     expect(created.data?.tenant_id).toBe(tenantId);
+  });
+
+  // The other half of the same rule. A claimant is not a source of corrections
+  // to the directory -- what they stated is evidence for a reviewer, and the
+  // staffer's record wins. `/my/details` is where a person changes their own
+  // details, after the link exists.
+  test("approving against an existing record changes nothing but the link", async () => {
+    const existingId = await person({
+      name: `Marguerite Okonkwo ${run}`,
+      email: uniqueEmail(`claim-untouched-${run}`),
+      phone: "555-0100",
+      instagram_handle: `robin_${run}`,
+    });
+    const before = await service
+      .from("people")
+      .select("name, email, phone, instagram_handle")
+      .eq("id", existingId)
+      .single();
+
+    const claim = await openClaim("untouched", {
+      p_email: uniqueEmail(`untouched-stated-${run}`),
+      p_phone: "555-9999",
+      p_instagram_handle: `someone_else_${run}`,
+    });
+    const { error } = await adminClient.rpc("review_person_claim", {
+      p_claim_id: claim.claimId,
+      p_approve: true,
+      p_person_id: existingId,
+    });
+    expect(error).toBeNull();
+
+    const after = await service
+      .from("people")
+      .select("name, email, phone, instagram_handle, auth_user_id")
+      .eq("id", existingId)
+      .single();
+    expect(after.data?.auth_user_id).toBe(claim.userId);
+    expect(after.data?.name).toBe(before.data?.name);
+    expect(after.data?.email).toBe(before.data?.email);
+    expect(after.data?.phone).toBe(before.data?.phone);
+    expect(after.data?.instagram_handle).toBe(before.data?.instagram_handle);
   });
 
   test("rejecting links nothing and closes the claim", async () => {

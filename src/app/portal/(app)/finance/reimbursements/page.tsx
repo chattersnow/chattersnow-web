@@ -134,7 +134,9 @@ export default async function ReimbursementsPage({
     query.range(offset, to),
     supabase
       .from("people")
-      .select("id, name, preferred_name, email, phone, auth_user_id")
+      .select(
+        "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
+      )
       .order("name", { ascending: true }),
     supabase
       .from("events")

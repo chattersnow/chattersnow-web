@@ -69,6 +69,23 @@ export type TenantContext = {
    * added to anything.
    */
   resolved: boolean;
+  /**
+   * Whether this account holds a tenant membership at all, ignoring whether
+   * the tenant is active (#1191).
+   *
+   * It is the only thing that tells the two zero-tenant states apart. Opening
+   * the portal used to join a membership-less account to the host's tenant,
+   * which made "belongs to nobody" unreachable and let a constituent collect a
+   * membership on their way to being refused. With the join gone, an account
+   * with no membership and an account whose only organization is suspended
+   * both arrive here with an empty `tenants`, and the portal owes them
+   * different answers.
+   *
+   * Fails open: an errored read reports `true`, so a database blip sends a
+   * legitimate member to the page that explains itself rather than bouncing
+   * them to a login that says their access was never granted.
+   */
+  hasMembership: boolean;
 };
 
 const UNRESOLVED: TenantContext = {
@@ -76,6 +93,7 @@ const UNRESOLVED: TenantContext = {
   currentTenantId: null,
   hostTenant: null,
   resolved: false,
+  hasMembership: true,
 };
 
 /**
@@ -114,21 +132,24 @@ async function resolveTenantContext(
 async function readTenantContext(
   supabase: SupabaseClient,
 ): Promise<TenantContext> {
-  // Joins a brand-new account to the tenant before anything reads it, the
-  // same best-effort shape as in resolvePermissions(). The first RPC
-  // auto-joins the tenant the request host resolves to, else the sole active
-  // tenant, and never an account that already holds a membership anywhere.
+  // Until #1191 the first of these was ensure_tenant_membership(), which
+  // *joined* a membership-less account to the tenant the host resolved to.
+  // That was written for a new staffer's first sign-in and, once constituents
+  // shared the same account across both hosts (#1161), it handed a membership
+  // to any member of the public who opened /portal. Its replacement only
+  // reads, and the layout uses the answer to pick which refusal to give.
   //
   // The claim has to happen here too, not only in resolvePermissions(), and
   // #956 is what made that load-bearing. Provisioning stages the first admin
   // as a `pending_role_grants` row, and the membership only appears when that
-  // row is claimed -- so with the claim left downstream, the very first person
-  // to open a newly provisioned tenant's portal would be told they are not a
+  // row is claimed -- through the ensure_membership_for_role trigger on
+  // user_roles -- so with the claim left downstream, the very first person to
+  // open a newly provisioned tenant's portal would be told they are not a
   // member of it, on the tenant's own domain, and be refused before reaching
-  // the call that would have made them one. Both are idempotent; claiming
-  // twice in a request costs a no-op round trip and nothing else.
-  await Promise.all([
-    supabase.rpc("ensure_tenant_membership"),
+  // the call that would have made them one. It is idempotent; claiming twice
+  // in a request costs a no-op round trip and nothing else.
+  const [membershipResult] = await Promise.all([
+    supabase.rpc("has_tenant_membership"),
     supabase.rpc("claim_pending_role_grants"),
   ]);
 
@@ -155,6 +176,12 @@ async function readTenantContext(
       : ((currentResult.data as string | null) ?? null),
     hostTenant: hostResult.status === "resolved" ? hostResult.tenant : null,
     resolved: true,
+    // Raced with the claim beside it, and harmlessly so: the one caller only
+    // consults this when `tenants` came back empty, and a membership the claim
+    // just created puts a tenant in that list.
+    hasMembership: membershipResult.error
+      ? true
+      : (membershipResult.data as boolean | null) !== false,
   };
 }
 

@@ -337,9 +337,8 @@ And nothing else: no platform tenant, no `chatter-snow` tenant, no demo tenant.
 `20260905190000_seed_initial_tenant.sql` is the only migration that inserts a
 tenant at the top level (the others do so inside `provision_tenant()`), and
 `supabase/seed.sql` inserts none -- every sample row it writes lands in this
-tenant. It exists because a database with none is unusable:
-`ensure_tenant_membership()` only auto-joins when exactly one active tenant
-exists, and `default current_tenant_id()` needs something to resolve to.
+tenant. It exists because a database with none is unusable: `default
+current_tenant_id()` needs something to resolve to.
 
 Its name and slug come from `app.initial_tenant_name` / `app.initial_tenant_slug`
 when set, and otherwise fall back to **Example Nonprofit** / `example-nonprofit`
@@ -393,6 +392,18 @@ with roles; and `seed.sql` cross-joins every seeded account with the one
 tenant, which is what gives `noaccess@example.test` -- no role at all -- its
 membership. No `user_tenant_selection` row is needed: `current_tenant_id()`
 resolves a sole membership by itself (`20260905180000`).
+
+Those are now the only two paths anywhere. A third used to exist:
+`ensure_tenant_membership()` joined any signed-in account holding no membership
+to the tenant the request host resolved to, on every portal request. #1191
+dropped it. It was written when only a staffer could have an account, and once
+a constituent signed in with the same account on both hosts (#1161) it handed a
+membership -- and an audit entry, and a row in Administration -> Users -- to any
+member of the public who opened `/portal`. **A membership now follows a role or
+an explicit grant, and nothing else creates one.** What remains in its place is
+`has_tenant_membership()`, which only reads: the portal shell uses it to tell an
+account that belongs to nothing (refused at `/portal/login?error=no_access`)
+from one whose organization is suspended (the NoTenant page).
 
 ### So there is no tenant switching locally
 
@@ -1158,6 +1169,58 @@ scoped `trigger_retention_run` and `set_retention_policy_mode` per tenant),
 export (already `current_tenant_id()`-scoped, and exporting invented data is
 worth showing off), and renaming the tenant (the update policy grants `name`
 only — `custom_domain`, `slug`, `status` and `plan` are `service_role`).
+
+### The demo tenant does not offer constituent accounts
+
+**A decision, not a gap** (#1177, epic #1160). `constituent_accounts` — the
+module behind `/my`, the signed-in area on a tenant's public website
+(`docs/spec/constituent-accounts.md`) — is `false` for the `demo` plan, and it
+stays that way. Nobody should turn it on for this tenant.
+
+The product reason is that there is nothing to show. What that area is worth to
+a person is their own accumulated history: the donations they made, the gear
+they were handed, the shifts they worked. A tenant rebuilt from seed every night
+has none of that, so a visitor who signed up, claimed a record and had it
+approved would find the whole thing gone by morning — a demonstration of the
+opposite of the feature.
+
+The operational reason is the one that makes it a trap rather than a
+preference. **The nightly reset cannot clear what sign-up creates.**
+`delete_tenant()` removes everything carrying a `tenant_id`, `people` and
+`person_claims` included, and `scripts/demo-reset.ts` touches `auth.users` only
+to find or re-create the demo account itself. A self-serve sign-up creates an
+`auth.users` row that belongs to no tenant. So:
+
+- Every demo sign-up would survive every reset, permanently, on the Auth
+  instance shared by every tenant on this project — including the paying ones.
+- Its `people` link is deleted with the tenant, so the account would come back
+  the next night unlinked and facing the claim form again. The reset would go
+  _around_ the account rather than resetting it.
+- Sign-up is open to anyone and `demo.rickiecruz.com` is public, which makes the
+  combination an unauthenticated, unbounded row creator against the production
+  Auth project.
+
+Turning the module on for the demo therefore means building the sweep first, and
+the constraints on it are worth stating here so nobody writes it from the wrong
+end:
+
+- It must never delete the demo account itself, nor any account belonging to
+  another tenant. The Auth instance is shared, so "every user except the demo
+  one" is catastrophically wrong.
+- The safe selector is the demo tenant's own `people.auth_user_id` values,
+  collected **before** `delete_tenant()` removes those rows — that set is by
+  construction only accounts linked to this tenant.
+- Accounts that signed up and never had a claim approved have no `people` row at
+  all, so they need their own trail: a `person_claims` row, or the tenant
+  recorded at sign-up.
+- Cap it. The sweep should refuse to run when the count looks implausible rather
+  than delete a thousand users because a query went wrong, and the selector
+  needs a test that proves it cannot widen.
+
+Note that this is a decision about the **demo** tenant and not about the
+platform tenant or a customer's. `constituent_accounts` defaults to off for
+every tenant on every plan; a white-label customer turning it on is the ordinary
+case the module exists for, and their tenant is not reset nightly.
 
 ## Storage
 

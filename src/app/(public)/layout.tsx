@@ -12,6 +12,8 @@ import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
 import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import type { Lexicon } from "@/lib/lexicon";
 import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
+import { getConstituentAccountNav } from "@/lib/constituent/guard";
+import { MY_PATH_PREFIX, MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
 import { SiteNav } from "./site-nav";
 
 // The organization's name and description, per tenant (#707 Phase 4). Every
@@ -76,10 +78,15 @@ export default async function PublicLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createSupabaseServerClient();
-  const [visibility, site, publication] = await Promise.all([
+  const [visibility, site, publication, account] = await Promise.all([
     getPageVisibility(supabase),
     getPublicSite(supabase),
     getLegalPublication(supabase),
+    // Joins the same wave rather than following it: the module half of this
+    // read is already in flight as part of getPageVisibility (both go through
+    // the cached getPublicTenantModules), and the session half is a local JWT
+    // verification, so the layout's critical path is unchanged.
+    getConstituentAccountNav(supabase),
   ]);
   // The public site is the one surface that belongs to a host rather than to a
   // session, so a host no tenant claims has nothing to serve (#795 Phase 4).
@@ -129,6 +136,7 @@ export default async function PublicLayout({
             hiddenSlots={hidden}
             supportLabel={supportLabel}
             lexicon={lexicon}
+            account={account}
           />
         </div>
       </header>
@@ -208,12 +216,28 @@ export default async function PublicLayout({
                 sits with the utility links rather than competing with Events
                 and Programs. Its own landmark rather than joining the Legal
                 one, which is a nav about the terms of using the site. */}
-              {isSlotVisible(hidden, "brand") && (
+              {/* The account link joins the brand guide here, and for the same
+                  reason it is not a SectionLinks entry: these are utilities,
+                  not sections of the website, and `NAV_GROUPS` is the list of
+                  sections. It is the header control's quiet twin -- a returning
+                  visitor who has scrolled to the bottom of a page should not
+                  have to scroll back up to find their way in (#1175). The
+                  guard covers both, so the landmark is never announced empty.
+               */}
+              {(isSlotVisible(hidden, "brand") || account.enabled) && (
                 <nav
                   aria-label="Resources"
                   className="flex flex-wrap gap-x-6 gap-y-2"
                 >
-                  <FooterLink href="/brand" label="Brand & Design" />
+                  {isSlotVisible(hidden, "brand") && (
+                    <FooterLink href="/brand" label="Brand & Design" />
+                  )}
+                  {account.enabled && (
+                    <FooterLink
+                      href={account.signedIn ? MY_PATH_PREFIX : MY_SIGN_IN_PATH}
+                      label={account.signedIn ? "Your account" : "Sign in"}
+                    />
+                  )}
                 </nav>
               )}
               {/* Only the documents this tenant serves (#859). The privacy

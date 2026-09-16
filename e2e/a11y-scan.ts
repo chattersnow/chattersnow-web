@@ -203,6 +203,18 @@ const ROLE_SWEEPS: { email: string; label: string; routes: string[] }[] = [
     label: "multi",
     routes: ["/portal/home", "/portal/events"],
   },
+  // The constituent area (#1175). Not a role: `/my` asks for no permission at
+  // all, only a session and a linked `people` row. admin@ is used because a
+  // staff account is linked on its first sign-in, so these pages render a real
+  // record rather than the claim form -- and because the sign-in this sweep
+  // performs is the portal's, which is the point of one account across both
+  // surfaces (#1160). These four are skipped in the anon pass, where they would
+  // all four measure the sign-in page; this is their only coverage.
+  {
+    email: "admin@example.test",
+    label: "constituent",
+    routes: ["/my", "/my/details", "/my/hours", "/my/notifications"],
+  },
 ];
 
 // noaccess@ and former@ are deliberately absent. Both are bounced straight back

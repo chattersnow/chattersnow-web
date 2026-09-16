@@ -314,9 +314,39 @@ export async function notifyNewGearRequest(
  * than storing the instructions on the request: they are the organization's
  * words about what happens next, and the row is about what was asked for.
  */
+/**
+ * What makes this receipt's send unique. A resend passes a suffix, because the
+ * first send already claimed the bare key: a second insert with it raises
+ * 23505, deliverEmail() returns `skipped`, and at the call site that is
+ * indistinguishable from success -- so a resend on the original key would
+ * silently do nothing. `resendDedupeSuffix()` builds the suffix from the
+ * server's clock (#1203).
+ */
+export function gearRequestConfirmationDedupeKey(
+  requestId: string,
+  suffix?: string,
+): string {
+  return `${GEAR_REQUEST_CONFIRMATION_KIND}:${requestId}${suffix ? `:${suffix}` : ""}`;
+}
+
 export async function sendGearRequestConfirmation(
   admin: SupabaseClient,
-  options: { requestId: string; siteUrl: string },
+  options: {
+    requestId: string;
+    siteUrl: string;
+    /**
+     * Appended to the dedupe key so a deliberate resend is not read as the
+     * first send's duplicate (#1203). Absent on the original send.
+     */
+    dedupeSuffix?: string;
+    /**
+     * The rendered message, for a caller that has to record what it sent.
+     * Called from inside the render thunk, which is exactly the right moment:
+     * deliverEmail() renders only after it has won the claim, so this fires
+     * if and only if an email really existed.
+     */
+    onRendered?: (email: RenderedEmail) => void;
+  },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
     .from("gear_requests")
@@ -390,10 +420,10 @@ export async function sendGearRequestConfirmation(
     identity: mail.identity,
     personId: data.person_id,
     kind: GEAR_REQUEST_CONFIRMATION_KIND,
-    dedupeKey: `${GEAR_REQUEST_CONFIRMATION_KIND}:${data.id}`,
+    dedupeKey: gearRequestConfirmationDedupeKey(data.id, options.dedupeSuffix),
     to: requesterEmail,
-    render: () =>
-      renderGearRequestConfirmationEmail({
+    render: () => {
+      const email = renderGearRequestConfirmationEmail({
         orgName: orgName || mail.identity.from,
         requesterName: personDisplayName(requester, ""),
         items: descriptions,
@@ -405,7 +435,10 @@ export async function sendGearRequestConfirmation(
                 (method) => method.key === data.payment_method,
               ) ?? null)
             : null,
-      }),
+      });
+      options.onRendered?.(email);
+      return email;
+    },
     logPrefix: "[gear-request-confirm]",
   });
 }

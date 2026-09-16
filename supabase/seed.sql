@@ -1619,6 +1619,29 @@ join auth.users u on u.id = p.auth_user_id
 where u.email = 'admin@example.test'
 on conflict (tenant_id, person_id, kind, dedupe_key) do nothing;
 
+-- One message sent from the portal about the seeded gear request (#1203), so
+-- the request detail has a Messages card with something in it and the
+-- tenant-isolation suite has a row to assert about. id is fixed rather than
+-- generated for the same reason every other seeded id is: a test may name it.
+-- No delivery_id: the ledger row for it was never written locally, and the
+-- column is nullable precisely because a message can outlive one.
+insert into public.outbound_messages (
+  id, person_id, to_email, module, record_type, record_id,
+  subject, body, kind, status, sent_by, created_at
+)
+select 'eeeeeeee-0000-4000-8000-000000003001',
+       p.id, p.email, 'inventory', 'gear_request',
+       'eeeeeeee-0000-4000-8000-000000002001',
+       'About your gear request',
+       'Hi -- the wool beanie you asked for is set aside. Saturday morning before the shuttle works for us; we will be at the lodge entrance from 8.
+
+Let us know if a smaller size turns up better for you.',
+       'staff_message', 'sent', u.id, now() - interval '2 days'
+from public.people p
+join auth.users u on u.email = 'admin@example.test'
+where p.id = 'bbbbbbbb-0000-4000-8000-000000000004'
+on conflict (id) do nothing;
+
 -- The first-login welcome tour (20260902060000) opens a modal over the portal
 -- shell for any account whose welcome_completed_at is null. Every e2e spec
 -- signs in as one of these accounts and drives portal pages, so leaving them
@@ -1638,3 +1661,20 @@ from auth.users u
 on conflict (user_id) do update
   set welcome_completed_at = now(),
       last_release_seen = '9999-12-31';
+
+-- Constituent accounts on, for the one seeded tenant (#1175).
+--
+-- `constituent_accounts` is the only module in the catalog that defaults to
+-- off (20260916050000), which is right for a real tenant -- a signed-in area on
+-- an organization's own website is its decision -- but locally it meant the
+-- whole of `/my`, its sign-in and the staff claims queue 404'd, so the a11y
+-- scan skipped three routes and no e2e spec could reach any of them. The area
+-- shipped across #1161-#1165 with no browser coverage at all as a result.
+--
+-- Named explicitly rather than left to default_tenant_id(): tenant_modules has
+-- no tenant default, and a row naming its tenant is what the multi-tenant rule
+-- asks for anyway (docs/tenants.md).
+insert into public.tenant_modules (tenant_id, module_key, enabled)
+select t.id, 'constituent_accounts', true
+from (select id from public.tenants order by created_at limit 1) t
+on conflict (tenant_id, module_key) do update set enabled = excluded.enabled;

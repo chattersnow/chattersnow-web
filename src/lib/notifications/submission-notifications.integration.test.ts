@@ -37,6 +37,7 @@ import {
   GEAR_REQUEST_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
 } from "./kinds";
+import { resendDedupeSuffix } from "@/lib/outbound-messages";
 
 // submission-notifications.ts, deliver.ts and the send helper all import
 // "server-only", which throws outside Next's bundler.
@@ -506,6 +507,80 @@ describe("a new gear request", () => {
       }),
     ).toBe("skipped");
     expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toEqual([]);
+  });
+
+  // #1203. Resending is the answer to "I never received it", and it only
+  // works because the key varies: on the original key the second send loses
+  // the ledger race and returns `skipped`, which reads at the call site as
+  // though it went.
+  test("a resend carries its own key, and the same key twice sends once", async () => {
+    const request = await newGearRequest();
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("sent");
+
+    const suffix = resendDedupeSuffix(new Date("2026-09-16T14:31:00.000Z"));
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+        dedupeSuffix: suffix,
+      }),
+    ).toBe("sent");
+
+    const rows = await deliveries(GEAR_REQUEST_CONFIRMATION_KIND);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.dedupe_key).sort()).toEqual(
+      [
+        `${GEAR_REQUEST_CONFIRMATION_KIND}:${request.id}`,
+        `${GEAR_REQUEST_CONFIRMATION_KIND}:${request.id}:${suffix}`,
+      ].sort(),
+    );
+
+    // Twice inside the same minute is a double-click, not a second request.
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+        dedupeSuffix: suffix,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toHaveLength(2);
+
+    // A minute later it may go again: that is a person asking twice.
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+        dedupeSuffix: resendDedupeSuffix(new Date("2026-09-16T14:32:00.000Z")),
+      }),
+    ).toBe("sent");
+    expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toHaveLength(3);
+  });
+
+  test("onRendered fires only when the claim was won", async () => {
+    const request = await newGearRequest();
+    const subjects: string[] = [];
+
+    await sendGearRequestConfirmation(service, {
+      requestId: request.id,
+      siteUrl: SITE_URL,
+      onRendered: (email) => subjects.push(email.subject),
+    });
+    expect(subjects).toHaveLength(1);
+    expect(subjects[0]).toBeTruthy();
+
+    // The losing send renders nothing, so a caller recording what it sent
+    // cannot record a message that never existed.
+    await sendGearRequestConfirmation(service, {
+      requestId: request.id,
+      siteUrl: SITE_URL,
+      onRendered: (email) => subjects.push(email.subject),
+    });
+    expect(subjects).toHaveLength(1);
   });
 });
 

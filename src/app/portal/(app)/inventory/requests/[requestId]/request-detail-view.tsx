@@ -20,6 +20,11 @@ import {
 import type { Lexicon } from "@/lib/lexicon";
 import { GearRequestStatusBadge } from "../request-status-badge";
 import { GearRequestStatusActions } from "./request-status-actions";
+import {
+  RequestMessagesCard,
+  type MessageActor,
+  type RequestMessageRow,
+} from "./request-messages-card";
 import { ViewerTime } from "@/components/viewer-time";
 
 export type GearRequestDetailRow = {
@@ -84,11 +89,21 @@ export function GearRequestDetailView({
   paymentMethods,
   canManage,
   lexicon,
+  messages,
+  messageActors,
+  orgName,
+  replyTo,
+  orgEmailEnabled,
 }: {
   request: GearRequestDetailRow;
   paymentMethods: PaymentMethod[];
   canManage: boolean;
   lexicon: Lexicon;
+  messages: RequestMessageRow[];
+  messageActors: MessageActor[];
+  orgName: string;
+  replyTo: string | null;
+  orgEmailEnabled: boolean;
 }) {
   const requesterName = personDisplayName(
     request.requester,
@@ -297,6 +312,38 @@ export function GearRequestDetailView({
         item; it shows here as &ldquo;Handed over&rdquo;. Mark the request
         fulfilled once everything in it is out.
       </p>
+
+      {canManage && (
+        <RequestMessagesCard
+          requestId={request.id}
+          messages={messages}
+          actors={messageActors}
+          recipientName={requesterName}
+          toEmail={request.requester?.email ?? ""}
+          orgName={orgName}
+          replyTo={replyTo}
+          disabledReason={messagingDisabledReason(request, orgEmailEnabled)}
+        />
+      )}
     </>
   );
+}
+
+/**
+ * Why the two message buttons are off, in a sentence, rather than simply being
+ * absent. A requester whose record the retention purge cleared and one whose
+ * organization has switched outbound email off look identical from the card,
+ * and the difference decides whether there is anything to do about it.
+ */
+function messagingDisabledReason(
+  request: GearRequestDetailRow,
+  orgEmailEnabled: boolean,
+): string | undefined {
+  if (!orgEmailEnabled) {
+    return "Outbound email is switched off for this organization.";
+  }
+  if (!request.requester?.email) {
+    return "This request has no email address — the requester's record was cleared or never carried one.";
+  }
+  return undefined;
 }

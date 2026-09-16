@@ -19,7 +19,7 @@ export const listOtherPeople = cache(
     const { data } = await supabase
       .from("people")
       .select(
-        "id, name, preferred_name, email, phone, person_type, auth_user_id",
+        "id, name, preferred_name, email, phone, person_type, auth_user_id, has_portal_access",
       )
       .neq("id", personId)
       .order("name", { ascending: true });

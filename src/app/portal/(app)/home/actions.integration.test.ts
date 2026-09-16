@@ -283,3 +283,72 @@ describe("donations table RLS (integration, no Server Action to exercise)", () =
     await donation.cleanup();
   });
 });
+
+// #1122: parseDonationInput refuses a blank item description, but the RPC it
+// guards is `security definer`, granted to `authenticated` and reachable over
+// PostgREST without it -- and since #1082 Phase 1 the same write is callable
+// from outside this app with an already-authenticated client. These call the
+// RPC directly, the way a client that never loaded the parser would, so the
+// floor stays in Postgres where the other cases (unknown source type,
+// condition, intended use, no items at all) already sit.
+describe("create_donation_with_items input floor (integration)", () => {
+  async function recordItem(description: string) {
+    const client = await signIn(SEEDED_USERS.finance);
+    return client.rpc("create_donation_with_items", {
+      p_donor_name: `Integration Test Donor ${crypto.randomUUID()}`,
+      p_donor_is_anonymous: false,
+      p_donor_source_type: "individual",
+      p_donor_email: null,
+      p_donor_phone: null,
+      p_donor_notes: null,
+      p_items: [{ description, category_key: "jacket", condition: "good" }],
+    });
+  }
+
+  test("an empty item description is refused by Postgres", async () => {
+    const { data, error } = await recordItem("");
+
+    expect(data).toBeNull();
+    expect(error?.code).toBe("23514");
+    expect(error?.message).toContain("inventory_items_description_not_blank");
+  });
+
+  test("a whitespace-only item description is refused by Postgres", async () => {
+    const { data, error } = await recordItem("   ");
+
+    expect(data).toBeNull();
+    expect(error?.code).toBe("23514");
+    expect(error?.message).toContain("inventory_items_description_not_blank");
+  });
+
+  test("the refused donation leaves nothing behind", async () => {
+    const donorName = `Integration Test Donor ${crypto.randomUUID()}`;
+    const client = await signIn(SEEDED_USERS.finance);
+    const { error } = await client.rpc("create_donation_with_items", {
+      p_donor_name: donorName,
+      p_donor_is_anonymous: false,
+      p_donor_source_type: "individual",
+      p_donor_email: null,
+      p_donor_phone: null,
+      p_donor_notes: null,
+      p_items: [
+        {
+          description: "Winter coat",
+          category_key: "jacket",
+          condition: "good",
+        },
+        { description: " ", category_key: "jacket", condition: "good" },
+      ],
+    });
+    expect(error?.code).toBe("23514");
+
+    // The whole call is one transaction, so the first item's donor and
+    // donation roll back with the second item rather than leaving a
+    // half-recorded intake behind.
+    const { data } = await adminClient
+      .from("people")
+      .select("id")
+      .eq("name", donorName);
+    expect(data).toEqual([]);
+  });
+});

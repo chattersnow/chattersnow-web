@@ -261,6 +261,26 @@ function forwardHeaders(
   return headers;
 }
 
+/**
+ * Whether this request carries a Supabase auth cookie at all (#1175).
+ *
+ * A name test rather than a parse: the point is only to tell "somebody might be
+ * signed in" from "certainly nobody is", cheaply enough to run on every public
+ * request. @supabase/ssr writes `sb-<project-ref>-auth-token`, chunked as
+ * `.0`, `.1` and so on when it outgrows a cookie, so the prefix and the suffix
+ * together match every shape it takes without matching an unrelated `sb-`
+ * cookie. Whether the token is valid is the refresh's business, not this
+ * function's -- a false positive costs one client that finds nothing.
+ */
+export function hasAuthCookie(request: NextRequest): boolean {
+  return request.cookies
+    .getAll()
+    .some(
+      (cookie) =>
+        cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"),
+    );
+}
+
 async function refreshSession(
   request: NextRequest,
   portalPath: string | null,
@@ -336,7 +356,17 @@ export async function proxy(request: NextRequest) {
   // `/my` is a public-host route, so it is not a portal request -- it gets no
   // portal path header and no shell -- but it is signed in, so it needs the
   // refresh (#1161).
-  const hasSession = isPortalRequest || isMyPathname(pathname);
+  //
+  // Since #1175 the whole public site can be signed in: the header names the
+  // account on every page. Refreshing only on `/my` meant a constituent reading
+  // `/events` on an expired access token got a header that had quietly flipped
+  // back to "Sign in", with the token rotated only if they happened to return
+  // to `/my`. So any request carrying an auth cookie gets the refresh, wherever
+  // it is going. Anonymous traffic -- nearly all public traffic -- still builds
+  // no client and pays nothing, which is what the cookie test buys over simply
+  // refreshing every request.
+  const hasSession =
+    isPortalRequest || isMyPathname(pathname) || hasAuthCookie(request);
 
   const refreshedResponse = hasSession
     ? await refreshSession(request, portalPath, device)
@@ -372,5 +402,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png).*)"],
+  matcher: [
+    "/((?!sentry-tunnel|_next/static|_next/image|favicon.ico|icon.png).*)",
+  ],
 };

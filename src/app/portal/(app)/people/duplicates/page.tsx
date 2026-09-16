@@ -15,6 +15,7 @@ import {
   getMergePreviewAction,
   listDuplicatePeopleAction,
 } from "./actions";
+import { PersonAccountBadge } from "../people-shared";
 import type { DuplicatePerson } from "./merge-shared";
 import { MergeReview } from "./merge-review";
 
@@ -133,9 +134,7 @@ export default async function DuplicatePeoplePage({
                         {person.person_type === "organization" && (
                           <Badge variant="secondary">Organization</Badge>
                         )}
-                        {person.auth_user_id && (
-                          <Badge variant="secondary">Portal user</Badge>
-                        )}
+                        <PersonAccountBadge person={person} />
                       </div>
                     </div>
                     <div className="flex gap-2">

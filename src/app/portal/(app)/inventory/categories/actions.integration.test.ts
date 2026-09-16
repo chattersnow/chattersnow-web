@@ -3,11 +3,14 @@
 // `inventory_categories` / `inventory_category_groups` RLS).
 //
 // The asymmetry between reading and writing the vocabulary is the point of this
-// file (issue #667). Editing is gated on `inventory:manage`, but *reading* is
-// open to any signed-in user on purpose: the `volunteer` role holds
-// `inventory_intake:manage` with `inventory:none`, so gating the list on
+// file (issue #667). Editing is gated on `inventory:manage`; reading is gated
+// on holding *any* of the inventory family, which is not the same thing and is
+// the regression nothing else would catch: the `volunteer` role holds
+// `inventory_intake:manage` with `inventory:none` and `finance` holds
+// `inventory_reports:view` with `inventory:none`, so gating the list on
 // `inventory:view` would show an empty category picker to exactly the people
-// who record donations. Nothing else would catch that regression.
+// who record donations. It is not open to every signed-in account either,
+// since #1191 -- a membership on its own must not imply a read.
 //
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
@@ -100,6 +103,36 @@ describe("listInventoryCategoriesAction (integration)", () => {
 
     if (!("data" in result)) throw new Error("expected categories");
     expect(result.data.length).toBeGreaterThan(0);
+  });
+
+  test("finance can read it despite holding inventory:none", async () => {
+    // The second role the obvious predicate would have broken: finance holds
+    // inventory_reports:view, and the donation and distribution views it reads
+    // embed the category on every row.
+    currentSupabase = await signInAs(SEEDED_USERS.finance);
+    const result = await listInventoryCategoriesAction();
+
+    if (!("data" in result)) throw new Error("expected categories");
+    expect(result.data.length).toBeGreaterThan(0);
+  });
+
+  test("a member with no role at all reads nothing", async () => {
+    // #1191. Until then both select policies were keyed on tenant alone, so
+    // any membership was enough to read a tenant's vocabulary through
+    // PostgREST -- the one place in the schema where a membership implied a
+    // read. The action itself has no permission check, on purpose (see its
+    // comment), so RLS is the only thing asserted here.
+    currentSupabase = await signInAs(SEEDED_USERS.noAccess);
+    const result = await listInventoryCategoriesAction();
+
+    if (!("data" in result)) throw new Error("expected an empty list");
+    expect(result.data).toEqual([]);
+
+    const groups = await currentSupabase
+      .from("inventory_category_groups")
+      .select("id");
+    expect(groups.error).toBeNull();
+    expect(groups.data).toEqual([]);
   });
 });
 
