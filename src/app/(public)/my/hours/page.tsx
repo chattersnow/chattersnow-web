@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageShell } from "@/components/page-shell";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,12 +12,18 @@ import type {
   VolunteerRoleOption,
 } from "@/lib/constituent/hours";
 import { LogHoursForm } from "./hours-form";
+import { MyNav } from "../my-nav";
 
 const MY_HOURS_PATH = `${MY_PATH_PREFIX}/hours`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
-  return { title: publicTitle(await getPublicSite(supabase), "Log hours") };
+  return {
+    title: publicTitle(await getPublicSite(supabase), "Log hours"),
+    // One person's record. Nothing under /my is worth finding in a search
+    // result, and the area carries no robots.ts to say so for it.
+    robots: { index: false, follow: false },
+  };
 }
 
 /**
@@ -42,34 +48,33 @@ export default async function MyHoursPage() {
   ]);
 
   return (
-    <div className="space-y-8">
-      <section>
-        <div className="w-fit">
-          <div className="rainbow-accent w-full" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Log your hours
-          </h1>
-        </div>
-        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Tell us what you gave us and we will check it against our own notes.
-          Once someone has confirmed it, it counts towards your{" "}
-          {personRoleLabel("is_volunteer", vocabulary).toLowerCase()} total and
-          towards what we report.
-        </p>
-      </section>
+    <PageShell maxWidth="max-w-2xl">
+      <div className="space-y-8">
+        <section>
+          <div className="w-fit">
+            <div className="rainbow-accent w-full" />
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Log your hours
+            </h1>
+          </div>
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+            Tell us what you gave us and we will check it against our own notes.
+            Once someone has confirmed it, it counts towards your{" "}
+            {personRoleLabel("is_volunteer", vocabulary).toLowerCase()} total
+            and towards what we report.
+          </p>
+          <MyNav current="hours" />
+        </section>
 
-      <Card>
-        <CardContent>
-          <LogHoursForm
-            events={(events ?? []) as LoggableEvent[]}
-            roles={(roles ?? []) as VolunteerRoleOption[]}
-          />
-        </CardContent>
-      </Card>
-
-      <Link href={MY_PATH_PREFIX} className="app-muted text-sm underline">
-        Back to your account
-      </Link>
-    </div>
+        <Card>
+          <CardContent>
+            <LogHoursForm
+              events={(events ?? []) as LoggableEvent[]}
+              roles={(roles ?? []) as VolunteerRoleOption[]}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </PageShell>
   );
 }

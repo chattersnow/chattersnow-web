@@ -7,7 +7,23 @@ import { signIn } from "./helpers/auth";
 // routes below cover the three ways a public page gets its <main>: /home
 // hand-rolls one, /about gets it from a layout wrapping PageShell, and
 // /inventory/sizing used to nest its own inside the /inventory PageShell.
-const ROUTES = ["/home", "/about", "/inventory/sizing"];
+//
+// /my/sign-in is the fourth way, and the one that was broken: the constituent
+// area's layout is gate-and-slot, so until #1179 each page under it rendered
+// no <main> at all and the skip link pointed at nothing.
+const ROUTES = ["/home", "/about", "/inventory/sizing", "/my/sign-in"];
+
+// The rest of the area needs a session -- signed out all four redirect to
+// /my/sign-in, which would test that one page four times. admin@ is used for
+// the reason the a11y sweep uses it: a staff account is linked to its own
+// people row on first sign-in, so these render the real pages rather than the
+// claim form. Any new signed-in /my route belongs here.
+const SIGNED_IN_ROUTES = [
+  "/my",
+  "/my/details",
+  "/my/hours",
+  "/my/notifications",
+];
 
 /**
  * Tabs to the first focusable element that belongs to the app. `next dev`
@@ -50,8 +66,37 @@ test.describe("skip link", () => {
     });
   }
 
+  for (const route of SIGNED_IN_ROUTES) {
+    test(`moves focus straight to main content on ${route}`, async ({
+      page,
+    }) => {
+      await signIn(page);
+      await page.goto(route);
+
+      const skipLink = page.getByRole("link", {
+        name: "Skip to main content",
+      });
+
+      await tabToFirstAppStop(page);
+      await expect(skipLink).toBeFocused();
+      await expect(skipLink).toBeVisible();
+
+      await page.keyboard.press("Enter");
+      await expect(page.locator("#main-content")).toBeFocused();
+    });
+  }
+
   test("exactly one main landmark per page", async ({ page }) => {
     for (const route of ROUTES) {
+      await page.goto(route);
+      await expect(
+        page.locator("main"),
+        `main landmarks on ${route}`,
+      ).toHaveCount(1);
+    }
+
+    await signIn(page);
+    for (const route of SIGNED_IN_ROUTES) {
       await page.goto(route);
       await expect(
         page.locator("main"),

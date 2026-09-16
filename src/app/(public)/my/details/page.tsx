@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageShell } from "@/components/page-shell";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -9,6 +9,7 @@ import { getPublicSite, publicTitle } from "@/lib/public-site";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { ContactForm } from "./contact-form";
 import { EmailChangeForm } from "./email-form";
+import { MyNav } from "../my-nav";
 
 const MY_DETAILS_PATH = `${MY_PATH_PREFIX}/details`;
 
@@ -16,6 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
   return {
     title: publicTitle(await getPublicSite(supabase), "Your details"),
+    // One person's record. Nothing under /my is worth finding in a search
+    // result, and the area carries no robots.ts to say so for it.
+    robots: { index: false, follow: false },
   };
 }
 
@@ -51,49 +55,57 @@ export default async function MyDetailsPage() {
   if (!details) redirect(MY_PATH_PREFIX);
 
   return (
-    <div className="space-y-8">
-      <section>
-        <div className="w-fit">
-          <div className="rainbow-accent w-full" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-            Your details
-          </h1>
-        </div>
-        <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-          Keep this current and we will reach you. Everything here is yours to
-          change; the rest of your record is ours to keep.
-        </p>
-      </section>
+    <PageShell maxWidth="max-w-2xl">
+      <div className="space-y-8">
+        <section>
+          <div className="w-fit">
+            <div className="rainbow-accent w-full" />
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              Your details
+            </h1>
+          </div>
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
+            Keep this current and we will reach you. Everything here is yours to
+            change; the rest of your record is ours to keep.
+          </p>
+          <MyNav current="details" />
+        </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="brand-display text-lg font-semibold">
-            Email
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EmailChangeForm
-            email={details.email}
-            pendingEmail={details.email_pending}
-            pendingExpiresAt={details.email_pending_expires_at}
-          />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="brand-display text-lg font-semibold">
+              Email
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EmailChangeForm
+              email={details.email}
+              pendingEmail={details.email_pending}
+              pendingExpiresAt={details.email_pending_expires_at}
+            />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="brand-display text-lg font-semibold">
-            Everything else
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ContactForm details={details} />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="brand-display text-lg font-semibold">
+              Everything else
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ContactForm details={details} />
+          </CardContent>
+        </Card>
 
-      <Link href={MY_PATH_PREFIX} className="app-muted text-sm underline">
-        Back to your account
-      </Link>
-    </div>
+        {/* The one repeat in the area. This page is the only one long enough
+          that arriving at the bottom of it leaves the header nav off-screen;
+          the other three fit a viewport. */}
+        <MyNav
+          current="details"
+          label="Your account, end of page"
+          className="mt-0"
+        />
+      </div>
+    </PageShell>
   );
 }
