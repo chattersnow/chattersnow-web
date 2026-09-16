@@ -548,3 +548,76 @@ describe("registerForEventAction confirmation", () => {
     expect(rows).toEqual([]);
   });
 });
+
+// #1206: parseEventRegistrationForm refuses a blank name, but register_for_event
+// is `security definer` and granted to **anon** -- an unauthenticated POST to
+// /rest/v1/rpc/register_for_event reached resolve_or_create_person_by_email()
+// with a whitespace name and left a people row nobody could identify. These
+// call the RPC the way a caller that never loaded the parser does, so the floor
+// stays in Postgres: the function's own NAME_REQUIRED, with the tightened
+// donor_identified_or_anonymous check behind it for every other writer.
+describe("register_for_event name floor (integration)", () => {
+  async function registerAs(name: string, email: string) {
+    const { id } = await event();
+    return anonClient().rpc("register_for_event", {
+      p_event_id: id,
+      p_name: name,
+      p_email: email,
+      p_phone: null,
+      p_party_size: 1,
+      p_notes: null,
+      p_ip_address: uniqueIp(),
+    });
+  }
+
+  test("an empty name is refused for an anonymous caller", async () => {
+    const { data, error } = await registerAs("", uniqueEmail("blank-name"));
+
+    expect(data).toBeNull();
+    expect(error?.message).toContain("NAME_REQUIRED");
+  });
+
+  test("a whitespace-only name is refused for an anonymous caller", async () => {
+    const email = uniqueEmail("whitespace-name");
+    const { data, error } = await registerAs("   ", email);
+
+    expect(data).toBeNull();
+    expect(error?.message).toContain("NAME_REQUIRED");
+
+    // Nothing behind it: neither the person the RPC resolves nor the
+    // registration it would have written.
+    const { data: people } = await service
+      .from("people")
+      .select("id")
+      .eq("email", email);
+    expect(people).toEqual([]);
+    const { data: registrations } = await service
+      .from("event_registrations")
+      .select("id")
+      .eq("email", email);
+    expect(registrations).toEqual([]);
+  });
+
+  test("the constraint refuses a blank name written straight to the table", async () => {
+    const { error } = await service.from("people").insert({
+      name: "   ",
+      is_anonymous: false,
+      source_type: "other",
+      email: uniqueEmail("direct-blank-name"),
+    });
+
+    expect(error?.code).toBe("23514");
+    expect(error?.message).toContain("donor_identified_or_anonymous");
+  });
+
+  test("an anonymous person may still have no name", async () => {
+    const { data, error } = await service
+      .from("people")
+      .insert({ name: null, is_anonymous: true, source_type: "other" })
+      .select("id")
+      .single();
+
+    expect(error).toBeNull();
+    await service.from("people").delete().eq("id", data!.id);
+  });
+});
