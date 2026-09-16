@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,14 @@ export default function MyError({
 }) {
   useEffect(() => {
     console.error(error);
+    // React error boundaries stop a thrown render from ever reaching
+    // window.onerror, so without this call a client-side crash here is
+    // invisible to Sentry. Server-side throws are already reported by
+    // `onRequestError` in `src/instrumentation.ts`; in production those arrive
+    // here redacted to a digest, so the copy Sentry gets from this line is a
+    // thin duplicate that groups on its own -- an acceptable trade for not
+    // losing client render errors entirely.
+    Sentry.captureException(error);
   }, [error]);
 
   return (
