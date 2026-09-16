@@ -302,12 +302,18 @@ grant execute on function public.register_myself_for_event(uuid, integer, text, 
 -- land in their own table and are promoted by a decision -- rather than a new
 -- one invented for this ticket.
 
+-- `volunteer_hours` has never been the parent of a foreign key, so Phase 3
+-- (20260906080000) had no reason to give it the key every parent of a
+-- cross-tenant reference needs. It has one now.
+alter table public.volunteer_hours
+  add constraint volunteer_hours_tenant_id_id_key unique (tenant_id, id);
+
 create table public.volunteer_hour_submissions (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) default public.default_tenant_id(),
   person_id uuid not null,
-  event_id uuid references public.events(id) on delete set null,
-  volunteer_role_type_id uuid references public.volunteer_role_types(id) on delete set null,
+  event_id uuid,
+  volunteer_role_type_id uuid,
   -- The same precision the ledger uses, with a ceiling the ledger does not
   -- need: a staffer entering 100 hours has a reason, and a volunteer entering
   -- 100 hours for one day has made a typo.
@@ -319,7 +325,7 @@ create table public.volunteer_hour_submissions (
   -- The ledger row this became, once somebody confirmed it. Null until then,
   -- and null forever for a declined one. This is the join that lets a
   -- volunteer's own history show one entry rather than two for the same hours.
-  volunteer_hours_id uuid references public.volunteer_hours(id) on delete set null,
+  volunteer_hours_id uuid,
   created_at timestamptz not null default now(),
   -- Who entered it. Defaulted from auth.uid() like every other created_by, and
   -- the reason #1165 asks for it: whatever the ledger ends up saying, the
@@ -332,9 +338,27 @@ create table public.volunteer_hour_submissions (
   reviewed_by uuid references auth.users(id),
   reviewed_at timestamptz,
   review_note text,
+  -- Composite, like every other reference between two tenant tables
+  -- (20260906080000): row-level security decides which rows a session can
+  -- see, and says nothing about which rows a column may point at, so a
+  -- cross-tenant reference has to be refused by the database itself.
+  -- `set null (<column>)` rather than the bare form, which would try to null
+  -- `tenant_id` too and fail on its not-null constraint.
   constraint volunteer_hour_submissions_person_in_tenant
     foreign key (tenant_id, person_id)
     references public.people (tenant_id, id) on delete cascade,
+  constraint volunteer_hour_submissions_event_in_tenant
+    foreign key (tenant_id, event_id)
+    references public.events (tenant_id, id)
+    on delete set null (event_id),
+  constraint volunteer_hour_submissions_role_type_in_tenant
+    foreign key (tenant_id, volunteer_role_type_id)
+    references public.volunteer_role_types (tenant_id, id)
+    on delete set null (volunteer_role_type_id),
+  constraint volunteer_hour_submissions_hours_in_tenant
+    foreign key (tenant_id, volunteer_hours_id)
+    references public.volunteer_hours (tenant_id, id)
+    on delete set null (volunteer_hours_id),
   -- A decision names its author and its moment, or it is not a decision.
   constraint volunteer_hour_submissions_reviewed_together check (
     status = 'pending'

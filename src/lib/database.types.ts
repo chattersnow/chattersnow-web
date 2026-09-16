@@ -7574,18 +7574,18 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "volunteer_hour_submissions_event_id_fkey";
-            columns: ["event_id"];
+            foreignKeyName: "volunteer_hour_submissions_event_in_tenant";
+            columns: ["tenant_id", "event_id"];
             isOneToOne: false;
             referencedRelation: "events";
-            referencedColumns: ["id"];
+            referencedColumns: ["tenant_id", "id"];
           },
           {
-            foreignKeyName: "volunteer_hour_submissions_event_id_fkey";
-            columns: ["event_id"];
+            foreignKeyName: "volunteer_hour_submissions_hours_in_tenant";
+            columns: ["tenant_id", "volunteer_hours_id"];
             isOneToOne: false;
-            referencedRelation: "public_events";
-            referencedColumns: ["id"];
+            referencedRelation: "volunteer_hours";
+            referencedColumns: ["tenant_id", "id"];
           },
           {
             foreignKeyName: "volunteer_hour_submissions_person_in_tenant";
@@ -7602,6 +7602,13 @@ export type Database = {
             referencedColumns: ["tenant_id", "id"];
           },
           {
+            foreignKeyName: "volunteer_hour_submissions_role_type_in_tenant";
+            columns: ["tenant_id", "volunteer_role_type_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_role_types";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
             foreignKeyName: "volunteer_hour_submissions_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
@@ -7613,27 +7620,6 @@ export type Database = {
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "volunteer_hour_submissions_volunteer_hours_id_fkey";
-            columns: ["volunteer_hours_id"];
-            isOneToOne: false;
-            referencedRelation: "volunteer_hours";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "volunteer_hour_submissions_volunteer_role_type_id_fkey";
-            columns: ["volunteer_role_type_id"];
-            isOneToOne: false;
-            referencedRelation: "public_volunteer_role_types";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "volunteer_hour_submissions_volunteer_role_type_id_fkey";
-            columns: ["volunteer_role_type_id"];
-            isOneToOne: false;
-            referencedRelation: "volunteer_role_types";
             referencedColumns: ["id"];
           },
         ];

@@ -333,6 +333,27 @@ describe("logging your own hours", () => {
     expect(unconfirmed[0].status).toBe("pending");
   });
 
+  test("the portal reads the queue with its event and role attached", async () => {
+    // The query listPendingVolunteerHoursAction() runs, verbatim. Worth a test
+    // of its own because the foreign keys here are composite
+    // (20260906080000), and PostgREST resolves an embed from the key it finds:
+    // a select that parses today can stop resolving when a key is reshaped,
+    // and nothing else in this suite would notice.
+    const { data, error } = await adminClient
+      .from("volunteer_hour_submissions")
+      .select(
+        "id, hours, logged_date, notes, created_at, person:people(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)",
+      )
+      .eq("person_id", alice.personId)
+      .eq("status", "pending");
+
+    expect(error).toBeNull();
+    expect(data!.length).toBeGreaterThan(0);
+    expect((data![0] as unknown as { person: { id: string } }).person.id).toBe(
+      alice.personId,
+    );
+  });
+
   test("refuses a day that has not happened", async () => {
     const tomorrow = new Date(Date.now() + 48 * 60 * 60 * 1000)
       .toISOString()
