@@ -75,9 +75,16 @@ export type PersonListItem = {
   // Optional for the same reason as person_type: the many narrower
   // PersonListItem selects across the app don't carry these columns.
   // personDisplayName() degrades to `name` when preferred_name is absent, and
-  // a missing auth_user_id simply means no "Portal user" badge is shown.
+  // a missing auth_user_id simply means no account badge is shown.
   preferred_name?: string | null;
   auth_user_id?: string | null;
+  /**
+   * The computed column from 20260916130000: does this person's account hold a
+   * role in this tenant. Absent means "no role known", which the badge reads
+   * as a website account -- right for the narrow selects, which are of people
+   * rather than of accounts (#1192).
+   */
+  has_portal_access?: boolean | null;
 };
 
 export type OrganizationMembershipActionResult =
@@ -186,7 +193,12 @@ export async function listPeopleAction(): Promise<
 
   const { data, error } = await supabase
     .from("people")
-    .select("id, name, preferred_name, email, phone, person_type, auth_user_id")
+    // has_portal_access is a computed column on `people` (20260916130000), not
+    // a stored one: reading the view instead to get it would run the seven
+    // role flags over every person in the tenant to render one badge.
+    .select(
+      "id, name, preferred_name, email, phone, person_type, auth_user_id, has_portal_access",
+    )
     .order("name", { ascending: true });
 
   if (error) {

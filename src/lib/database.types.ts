@@ -5585,6 +5585,7 @@ export type Database = {
           updated_at: string;
           updated_by: string | null;
           website: string | null;
+          has_portal_access: boolean | null;
         };
         Insert: {
           address_city?: string | null;
@@ -7920,6 +7921,8 @@ export type Database = {
           email_pending: string | null;
           email_token: string | null;
           email_token_expires_at: string | null;
+          has_account: boolean | null;
+          has_portal_access: boolean | null;
           id: string | null;
           instagram_handle: string | null;
           is_anonymous: boolean | null;
@@ -8664,6 +8667,7 @@ export type Database = {
           created_at: string;
           email: string;
           email_key: string;
+          has_portal_access: boolean;
           id: string;
           name: string;
           person_type: string;
@@ -8752,6 +8756,12 @@ export type Database = {
       has_permission: {
         Args: { p_min_level: string; p_resource_key: string };
         Returns: boolean;
+      };
+      has_portal_access: {
+        Args: { "": Database["public"]["Tables"]["people"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.has_portal_access with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
       has_role: { Args: { p_role: string }; Returns: boolean };
       has_tenant_membership: { Args: never; Returns: boolean };
@@ -9154,6 +9164,7 @@ export type Database = {
           table_name: string;
         }[];
       };
+      person_portal_access: { Args: { p_person_id: string }; Returns: boolean };
       person_role_flags: {
         Args: { p_person_id: string };
         Returns: {

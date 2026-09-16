@@ -254,6 +254,119 @@ describe("people_with_roles", () => {
     expect(data).toEqual([]);
   });
 
+  // #1192. `auth_user_id` used to mean "a staffer was linked to this record";
+  // since #1162 it is also written for every approved constituent, who holds
+  // no role and cannot open the portal. These two columns are what lets the
+  // badge say which of the two it is looking at -- and the reader below is
+  // deliberately the coordinator, who cannot read `user_roles` at all, because
+  // that is the whole reason the derivation is security definer.
+  test("has_portal_access tells a staff account from a constituent's", async () => {
+    const coordinator = await signInAs(SEEDED_USERS.coordinator);
+    // Somebody else's account, not the reader's own: "user views own roles"
+    // (20260821080000) would have let the coordinator answer this one directly.
+    const {
+      data: { user: staffUser },
+    } = await adminClient.auth.getUser();
+
+    // noaccess@example.test is seeded with no role and no people row, which is
+    // the shape an approved claim leaves behind.
+    const constituentSession = await signInAs(SEEDED_USERS.noAccess);
+    const {
+      data: { user: constituentUser },
+    } = await constituentSession.auth.getUser();
+
+    const constituent = await createPerson();
+    cleanups.push(constituent.cleanup);
+    const unlinked = await createPerson();
+    cleanups.push(unlinked.cleanup);
+
+    const { error: linkError } = await adminClient
+      .from("people")
+      .update({ auth_user_id: constituentUser!.id })
+      .eq("id", constituent.id);
+    expect(linkError).toBeNull();
+
+    const { data: rows, error } = await coordinator
+      .from("people_with_roles")
+      .select("id, has_account, has_portal_access")
+      .in("id", [constituent.id, unlinked.id]);
+    expect(error).toBeNull();
+
+    const constituentRow = (rows ?? []).find((r) => r.id === constituent.id);
+    expect(constituentRow).toMatchObject({
+      has_account: true,
+      has_portal_access: false,
+    });
+
+    const unlinkedRow = (rows ?? []).find((r) => r.id === unlinked.id);
+    expect(unlinkedRow).toMatchObject({
+      has_account: false,
+      has_portal_access: false,
+    });
+
+    // The admin's record: an account with a role behind it.
+    const { data: staffRow } = await coordinator
+      .from("people_with_roles")
+      .select("has_account, has_portal_access")
+      .eq("auth_user_id", staffUser!.id)
+      .single();
+    expect(staffRow).toMatchObject({
+      has_account: true,
+      has_portal_access: true,
+    });
+
+    // The coordinator cannot see the rows the answer was derived from.
+    const { data: roles } = await coordinator
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", staffUser!.id);
+    expect(roles).toEqual([]);
+  });
+
+  // #1193's Accounts segment filters the directory rather than querying
+  // something else, and the segment strip filters on boolean columns --
+  // `auth_user_id is not null` is not one, which is why has_account exists.
+  test("has_account is a column a segment can filter on", async () => {
+    const linked = await createPerson();
+    cleanups.push(linked.cleanup);
+    const unlinked = await createPerson();
+    cleanups.push(unlinked.cleanup);
+
+    const constituentSession = await signInAs(SEEDED_USERS.noAccess);
+    const {
+      data: { user },
+    } = await constituentSession.auth.getUser();
+    await adminClient
+      .from("people")
+      .update({ auth_user_id: user!.id })
+      .eq("id", linked.id);
+
+    const { data, error } = await adminClient
+      .from("people_with_roles")
+      .select("id")
+      .in("id", [linked.id, unlinked.id])
+      .eq("has_account", true);
+    expect(error).toBeNull();
+    expect((data ?? []).map((row) => row.id)).toEqual([linked.id]);
+  });
+
+  // The picker reads `people` rather than the view, so it would otherwise pay
+  // for seven role flags to render one badge (20260916130000).
+  test("has_portal_access is a computed column on people too", async () => {
+    const coordinator = await signInAs(SEEDED_USERS.coordinator);
+    const {
+      data: { user },
+    } = await coordinator.auth.getUser();
+
+    const { data, error } = await coordinator
+      .from("people")
+      .select("id, auth_user_id, has_portal_access")
+      .eq("auth_user_id", user!.id)
+      .single();
+    expect(error).toBeNull();
+    expect(data?.has_portal_access).toBe(true);
+  });
+
   async function createOpportunity(fields: Record<string, unknown>) {
     const { data, error } = await adminClient
       .from("partnership_opportunities")
