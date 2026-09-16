@@ -7954,6 +7954,7 @@ export type Database = {
           updated_at: string | null;
           updated_by: string | null;
           website: string | null;
+          account_email: string | null;
           primary_contact: {
             address_city: string | null;
             address_country: string | null;
@@ -8431,6 +8432,12 @@ export type Database = {
       };
     };
     Functions: {
+      account_email: {
+        Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.account_email with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
+      };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
       approve_event_expense: {
         Args: { p_id: string };
@@ -9846,6 +9853,10 @@ export type Database = {
         Returns: boolean;
       };
       trigger_retention_run: { Args: { p_dry_run?: boolean }; Returns: string };
+      unlink_person_account: {
+        Args: { p_person_id: string };
+        Returns: undefined;
+      };
       update_event_sponsor: {
         Args: {
           p_contribution_value: number;

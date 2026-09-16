@@ -6,8 +6,19 @@ import Link from "next/link";
 import { Check, Pencil, X } from "lucide-react";
 import {
   linkPersonToAuthUserAction,
+  unlinkPersonAccountAction,
   updatePersonNotificationEmailAction,
 } from "../actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,23 +35,35 @@ import {
 import type { PersonAccount, LinkableAccount } from "./person-account";
 
 /**
- * The portal login behind a directory record. Admin-only: everything here
- * comes from `list_portal_users()`, which is gated on `is_admin()`. A
- * non-admin with people:view sees the account badge beside the person's name
- * and nothing else -- knowing an account exists is not the same as being
- * shown its email, roles, and status.
+ * The account behind a directory record, and the two very different things that
+ * can mean (#1192).
+ *
+ * Most of what is here comes from `list_portal_users()`, which is gated on
+ * `is_admin()`, so an administrator sees roles, status and dates. A claims
+ * reviewer who is not an administrator sees the `directory` shape instead
+ * (#1193): that an account exists, what it signs in as, and an Unlink -- which
+ * is the whole of what reviewing claims gives them authority over. A reader
+ * with neither permission sees no card at all; knowing an account exists is not
+ * the same as being shown its email.
  */
 export function AccountCard({
   personId,
+  personName,
   account,
+  hasPortalAccess,
   linkable,
   roleLabels,
   notificationEmail,
   notificationEmailPending,
   canManagePerson,
+  canUnlinkAccount,
 }: {
   personId: string;
+  /** Named in the unlink confirmation, per `ConfirmDeleteButton`'s rule. */
+  personName: string | null;
   account: PersonAccount | null;
+  /** Whether that account holds a role in this tenant (#1192). */
+  hasPortalAccess: boolean;
   linkable: LinkableAccount[];
   /** name -> the tenant's wording, for the role names on the account (#910). */
   roleLabels: RoleLabels;
@@ -50,10 +73,13 @@ export function AccountCard({
   notificationEmailPending: string | null;
   /** people:manage, which the override is written under -- see the action. */
   canManagePerson: boolean;
+  /** constituent_claims:manage, which the unlink is written under (#1193). */
+  canUnlinkAccount: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [confirmingUnlink, setConfirmingUnlink] = useState(false);
 
   function link(userId: string) {
     setError(null);
@@ -67,30 +93,55 @@ export function AccountCard({
     });
   }
 
+  function unlink() {
+    setError(null);
+    startTransition(async () => {
+      const result = await unlinkPersonAccountAction(personId);
+      if ("error" in result) {
+        setConfirmingUnlink(false);
+        setError(result.error);
+        return;
+      }
+      setConfirmingUnlink(false);
+      router.refresh();
+    });
+  }
+
+  // Only a website account, and only for somebody who reviews claims. A staff
+  // account's link is what the portal identifies them by, and the RPC refuses
+  // it outright -- so the button is absent rather than present and failing.
+  const canUnlink = canUnlinkAccount && !!account && !hasPortalAccess;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="app-muted text-sm font-semibold">
-          Portal account
+          Account
         </CardTitle>
       </CardHeader>
       <CardContent>
         {account ? (
           <div className="flex flex-col gap-3 text-sm">
             <div className="flex flex-wrap gap-2">
-              {account.deactivated_at ? (
-                <Badge variant="destructive">Deactivated</Badge>
-              ) : (
-                <Badge variant="secondary">Active</Badge>
-              )}
-              {account.roles.length === 0 ? (
-                <Badge variant="outline">No access</Badge>
-              ) : (
-                account.roles.map((role) => (
-                  <Badge key={role} variant="outline">
-                    {formatRoleLabel(role, roleLabels)}
-                  </Badge>
-                ))
+              <Badge variant="secondary">
+                {hasPortalAccess ? "Portal access" : "Website account"}
+              </Badge>
+              {/* Only Administration's read knows whether an account is
+                  suspended or which roles it holds, so the directory shape says
+                  neither rather than implying "Active". */}
+              {account.source === "administration" && (
+                <>
+                  {account.deactivated_at ? (
+                    <Badge variant="destructive">Deactivated</Badge>
+                  ) : (
+                    <Badge variant="secondary">Active</Badge>
+                  )}
+                  {account.roles.map((role) => (
+                    <Badge key={role} variant="outline">
+                      {formatRoleLabel(role, roleLabels)}
+                    </Badge>
+                  ))}
+                </>
               )}
             </div>
             <p>
@@ -104,30 +155,52 @@ export function AccountCard({
               pending={notificationEmailPending}
               canManage={canManagePerson}
             />
-            <p>
-              <span className="app-muted">Account created:</span>{" "}
-              {formatInstantDate(account.created_at)}
-            </p>
+            {account.created_at && (
+              <p>
+                <span className="app-muted">Account created:</span>{" "}
+                {formatInstantDate(account.created_at)}
+              </p>
+            )}
             {account.deactivated_at && (
               <p>
                 <span className="app-muted">Deactivated:</span>{" "}
                 {formatInstantDate(account.deactivated_at)}
               </p>
             )}
-            <p>
-              <Link
-                href="/portal/administration/users"
-                className="underline underline-offset-2"
-              >
-                Manage in Administration › Users
-              </Link>
-            </p>
+            {account.source === "administration" && (
+              <p>
+                <Link
+                  href="/portal/administration/users"
+                  className="underline underline-offset-2"
+                >
+                  Manage in Administration › Users
+                </Link>
+              </p>
+            )}
+            {canUnlink && (
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => setConfirmingUnlink(true)}
+                >
+                  Unlink account
+                </Button>
+              </div>
+            )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-3 text-sm">
             <EmptyState
               className="py-4"
-              title="No portal account linked"
+              title="No account linked"
               description={
                 linkable.length > 0
                   ? "An account signs in with a matching email but has never been linked to this record."
@@ -165,6 +238,40 @@ export function AccountCard({
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={confirmingUnlink} onOpenChange={setConfirmingUnlink}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Unlink this account from {personName ?? "this record"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {account?.email ? `${account.email} ` : "This account "}
+              will stop seeing this record on the website: their own events,
+              volunteering, giving and gear at /my. The account itself is not
+              deleted, and they can ask to be linked again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                unlink();
+              }}
+            >
+              {isPending ? (
+                <>
+                  <Spinner /> Unlinking...
+                </>
+              ) : (
+                "Unlink account"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

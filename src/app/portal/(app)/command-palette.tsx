@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { hasPermission, type PermissionMap } from "@/lib/auth/permissions";
 import { visibleNavItems } from "@/lib/portal/nav";
-import { type Lexicon } from "@/lib/lexicon";
+import { applyLexicon, type Lexicon } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
+import { visibleSegments } from "./people/people-segments";
 import { searchPeopleAction } from "./command-palette-actions";
 import {
   QuickActionDialog,
@@ -81,6 +82,23 @@ function pageItems(
         // -- so the section is part of the entry, not decoration.
         detail: section.label,
         href: sub.href,
+      });
+    }
+  }
+  // The People segments, which the loop above cannot reach: #957 collapsed six
+  // top-level routes into one page with a strip, and since the strip is not the
+  // nav tree, Donors and Sponsors stopped being typeable here along with the
+  // routes. The strip is still navigation, so it belongs in the palette. Every
+  // entry is already permission-scoped -- `visibleSegments` drops Accounts for
+  // a reader without `constituent_claims:view` (#1193) -- and `/portal/people`
+  // dedupes against the People nav item.
+  if (hasPermission(permissions, "people", "view")) {
+    for (const segment of visibleSegments(permissions)) {
+      push({
+        value: `page:${segment.basePath}`,
+        label: applyLexicon(segment.title, lexicon),
+        detail: "People",
+        href: segment.basePath,
       });
     }
   }

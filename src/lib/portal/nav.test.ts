@@ -150,6 +150,8 @@ describe("People section", () => {
       "/portal/people/staff",
       "/portal/people/partners",
       "/portal/people/organizations",
+      // The ninth, added by #1193 and the only one a reader can be refused.
+      "/portal/people/accounts",
     ]) {
       expect(activeSectionFor(path)).toBe("people");
     }
@@ -161,8 +163,10 @@ describe("People section", () => {
   });
 
   test("is one entry with no sub-items", () => {
-    // The segments are a strip on the page, not eight links in the sidebar
-    // (#957). A sub-item here would be a second way to do the same thing.
+    // The segments are a strip on the page, not nine links in the sidebar
+    // (#957). A sub-item here would be a second way to do the same thing --
+    // which is why Accounts reaches the command palette through the segment
+    // list rather than through a nav entry of its own (#1193).
     const people = NAV_ITEMS.find((item) => item.value === "people")!;
     expect(people.subItems).toBeUndefined();
   });

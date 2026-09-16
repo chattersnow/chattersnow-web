@@ -26,6 +26,14 @@ export type SegmentStat = {
  * shared. Adding the specced Staff type is now a config entry rather than a
  * fifth copy.
  */
+/**
+ * A boolean column on `people_with_roles` a segment can narrow by. The six
+ * role flags, plus `has_account` -- which is not a role at all but is the same
+ * shape to query, and exists on the view (20260916130000) precisely so that
+ * "who holds an account" could be a filter rather than a second screen (#1193).
+ */
+export type DirectoryFlag = RoleKey | "has_account";
+
 export type PeopleSegment = {
   /** Stable id, and the last path segment for everything but the full list. */
   value: string;
@@ -36,10 +44,22 @@ export type PeopleSegment = {
    * Column to restrict the directory to. Omitted for the full directory,
    * which offers the role facet instead.
    */
-  /** Narrows the segment to one role. Roles are additive, so this stacks. */
-  filterColumn?: RoleKey;
+  /** Narrows the segment to one flag. Roles are additive, so this stacks. */
+  filterColumn?: DirectoryFlag;
   /** Narrows the segment to one entity type, which roles cannot express. */
   personType?: PersonType;
+  /**
+   * What a reader must hold for this segment to exist at all -- absent from
+   * the strip, and a 404 at its own route. See the note on `crossSectionHint`
+   * for why this is the exception rather than the rule.
+   */
+  access?: readonly PermissionCheck[];
+  /**
+   * Columns only this segment needs, appended to the directory's shared select.
+   * `account_email` is a security-definer computed column (20260916150000), so
+   * every other segment is spared the per-row lookup.
+   */
+  extraSelect?: string;
   /**
    * The one segment that lists everybody. It offers no filter of its own since
    * #957: the strip is the role facet, and a facet that duplicated it was the
@@ -70,9 +90,10 @@ export type PeopleSegment = {
    * `emptyDescriptionManage` only when the reader can reach that section
    * (#903).
    *
-   * These segments are filters on the `people` directory -- role flags on a
-   * person row, not modules -- so `people` being core keeps every one of them
-   * reachable. What was not reachable was the advice: "or approve an
+   * Nearly all of these segments are filters on the `people` directory -- role
+   * flags on a person row, not modules -- so `people` being core keeps them
+   * reachable. Accounts is the one exception, and carries `access` to say so.
+   * What was not reachable was the advice: "or approve an
    * application from Volunteers > Applications" is a dead end for a tenant
    * whose Volunteers module is off, and "record a donation from Inventory >
    * Donations" for one without Inventory. Split out rather than gated as a
@@ -282,6 +303,39 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
 };
 
 /**
+ * Who holds an account on the organization's website (#1193).
+ *
+ * Not a role and not an entity type: it is a state a directory record acquires
+ * when a claim is approved (#1162) or an administrator links a staff login. It
+ * is here rather than on a page of its own because the answer is the directory
+ * filtered, which is what the strip is for -- the reasoning is in
+ * `planning/coven/design/2026-09-16-staff-users-vs-constituent-accounts-ia.md`.
+ *
+ * The only gated segment. `constituent_claims:view` carries the module
+ * entitlement with it (20260910010000), so a tenant that has not turned the
+ * constituent area on has no reader who passes this.
+ *
+ * No `newPerson`: an account is something a person makes for themselves.
+ */
+export const ACCOUNTS_SEGMENT: PeopleSegment = {
+  value: "accounts",
+  basePath: "/portal/people/accounts",
+  // A literal rather than a `{term}` template: the tenant renames the seven
+  // relationships it has with people, and an account is not one of them.
+  title: "Accounts",
+  filterColumn: "has_account",
+  access: [{ resource: "constituent_claims", level: "view" }],
+  extraSelect: "account_email",
+  noun: "account holder",
+  nounPlural: "account holders",
+  emptyTitle: "Nobody has an account yet",
+  emptyDescriptionManage:
+    "People appear here once they make an account on the website and a claim is approved from Account claims.",
+  emptyDescriptionView:
+    "People appear here once they make an account on the website and a claim is approved.",
+};
+
+/**
  * The strip, in the order it reads (#957).
  *
  * All first, then six of the seven role segments in `PERSON_ROLES` order, then
@@ -298,6 +352,12 @@ export const ORGANIZATIONS_SEGMENT: PeopleSegment = {
  * delete a rider's profile on request (20260905130000), none of which is true
  * of anyone else. Their history is on their own record, on the aspect card, for
  * a staffer who opened it for a reason.
+ *
+ * Accounts (#1193) comes after Organizations, which pushes the odd one out one
+ * place along: it narrows by neither what a person does nor what kind of record
+ * they are, but by whether they can sign in to the website. It is also the only
+ * one a reader can be absent from, so a strip that ended on it reads the same
+ * as today's for everyone who cannot see it.
  */
 export const PEOPLE_SEGMENTS: readonly PeopleSegment[] = [
   PEOPLE_SEGMENT,
@@ -308,7 +368,25 @@ export const PEOPLE_SEGMENTS: readonly PeopleSegment[] = [
   STAFF_SEGMENT,
   PARTNERS_SEGMENT,
   ORGANIZATIONS_SEGMENT,
+  ACCOUNTS_SEGMENT,
 ];
+
+/**
+ * The segments a reader may see, which for everyone but an account-claims
+ * reviewer is all of them.
+ *
+ * Both the strip and the segment's own route read this: a link nobody can
+ * follow and a route with no link are the two halves of the same mistake, and
+ * `docs/portal-navigation.md` forbids the second outright.
+ */
+export function visibleSegments(
+  permissions: PermissionMap,
+): readonly PeopleSegment[] {
+  return PEOPLE_SEGMENTS.filter(
+    (segment) =>
+      !segment.access || hasAnyPermission(permissions, segment.access),
+  );
+}
 
 /**
  * What the strip calls a segment, in the tenant's own words (#911).
@@ -330,7 +408,12 @@ export function segmentNavLabel(
  */
 export function segmentForRole(role: string): PeopleSegment | undefined {
   return PEOPLE_SEGMENTS.find(
-    (segment) => segment.filterColumn === role && !segment.isAllPeople,
+    (segment) =>
+      segment.filterColumn === role &&
+      // Roles only. `?role=has_account` is not a role, and honouring it would
+      // be a way into a gated segment through a parameter kept for old links.
+      segment.filterColumn !== "has_account" &&
+      !segment.isAllPeople,
   );
 }
 

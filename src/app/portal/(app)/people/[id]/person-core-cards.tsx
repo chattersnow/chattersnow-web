@@ -14,7 +14,7 @@ import { OrganizationsCard } from "./organizations-card";
 import { ProfileCard } from "./profile-card";
 import { PublicTeamCard, type PublicTeamMembership } from "./public-team-card";
 import { listOtherPeople } from "./person-data";
-import { resolvePersonAccount } from "./person-account";
+import { directoryPersonAccount, resolvePersonAccount } from "./person-account";
 
 /**
  * The cards that belong to the person rather than to any one role.
@@ -132,9 +132,12 @@ export async function PersonPublicTeamCard({
 export async function PersonAccountCard({
   person,
   canManagePerson,
+  canUnlinkAccount,
 }: {
   person: PersonRow;
   canManagePerson: boolean;
+  /** constituent_claims:manage, which the unlink is written under (#1193). */
+  canUnlinkAccount: boolean;
 }) {
   // list_portal_users() reports role *names*; the account card renders the
   // tenant's own wording for them (#910).
@@ -152,12 +155,17 @@ export async function PersonAccountCard({
   return (
     <AccountCard
       personId={person.id}
-      account={account}
+      personName={person.name}
+      // Both actions degrade to an empty list without administration:manage, so
+      // a claims reviewer falls back to what the person row itself says (#1193).
+      account={account ?? directoryPersonAccount(person)}
+      hasPortalAccess={person.has_portal_access}
       linkable={linkable}
       roleLabels={roleLabelMap(roles && "data" in roles ? roles.data : [])}
       notificationEmail={person.notification_email}
       notificationEmailPending={person.notification_email_pending}
       canManagePerson={canManagePerson}
+      canUnlinkAccount={canUnlinkAccount}
     />
   );
 }
