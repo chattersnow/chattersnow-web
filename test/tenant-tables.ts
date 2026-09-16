@@ -84,6 +84,7 @@ export const TENANT_TABLES = [
   "monetary_donations",
   "nonprofit_status_milestones",
   "notification_deliveries",
+  "outbound_messages",
   "partnership_opportunities",
   "people",
   "person_merges",

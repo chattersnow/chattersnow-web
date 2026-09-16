@@ -588,6 +588,101 @@ describe("run_retention_purge", () => {
     });
   });
 
+  // #1203. What survives is the fact of the send; what goes is the
+  // correspondence and everyone named in it. Its own clock, two years, rather
+  // than the clock of whatever record the message was about -- the table is
+  // polymorphic, and a message's own send date is what it is measured from.
+  describe("staff messages lose their correspondence and keep their trail", () => {
+    const BODY = "The blue one is gone. Would the grey do?";
+    let oldMessageId: string;
+    let recentMessageId: string;
+    let recipientEmail: string;
+    let recordId: string;
+
+    beforeAll(async () => {
+      recipientEmail = uniqueEmail("retention-message");
+      const recipient = await createPerson({
+        name: "Retention Recipient",
+        email: recipientEmail,
+      });
+      recordId = crypto.randomUUID();
+
+      // Written straight through the service role, because that is the only
+      // way a row gets here: the table has no insert policy for anyone.
+      async function messageAt(createdAt: number) {
+        const id = crypto.randomUUID();
+        const { error } = await serviceClient.from("outbound_messages").insert({
+          id,
+          tenant_id: await tenantId(),
+          person_id: recipient.id,
+          to_email: recipientEmail,
+          module: "inventory",
+          record_type: "gear_request",
+          record_id: recordId,
+          subject: "About your gear request",
+          body: BODY,
+          kind: "staff_message",
+          status: "sent",
+          created_at: new Date(createdAt).toISOString(),
+        });
+        if (error) throw error;
+        return id;
+      }
+
+      oldMessageId = await messageAt(Date.now() - 7 * DAY);
+      recentMessageId = await messageAt(Date.now() + 10 * DAY);
+
+      cleanups.push(async () => {
+        await serviceClient
+          .from("outbound_messages")
+          .delete()
+          .in("id", [oldMessageId, recentMessageId]);
+      });
+      cleanups.push(recipient.cleanup);
+    });
+
+    test("the row survives saying a message went out, and not what it said", async () => {
+      await setMode("outbound_messages", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
+
+      const { data } = await serviceClient
+        .from("outbound_messages")
+        .select(
+          "person_id, to_email, subject, body, status, kind, record_id, module",
+        )
+        .eq("id", oldMessageId)
+        .single();
+
+      expect(data).not.toBeNull();
+      expect(data!.person_id).toBeNull();
+      // Empty rather than null: the columns are not null, so the purge writes
+      // the same sentinel rule C uses for event registrations.
+      expect(data!.to_email).toBe("");
+      expect(data!.subject).toBe("");
+      expect(data!.body).toBe("");
+      // The half that answers "was anything sent about this request?".
+      expect(data!.status).toBe("sent");
+      expect(data!.kind).toBe("staff_message");
+      expect(data!.record_id).toBe(recordId);
+      expect(data!.module).toBe("inventory");
+    });
+
+    test("a message inside the window keeps its text", async () => {
+      await setMode("outbound_messages", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
+
+      const { data } = await serviceClient
+        .from("outbound_messages")
+        .select("person_id, to_email, body")
+        .eq("id", recentMessageId)
+        .single();
+
+      expect(data!.person_id).not.toBeNull();
+      expect(data!.to_email).toBe(recipientEmail);
+      expect(data!.body).toBe(BODY);
+    });
+  });
+
   // #720. The two append-only stores that hold copies of the same personal
   // data: audit_log's row snapshots, and person_merges' copies of a people row.
   // Both are redacted in place rather than deleted -- the entry, its table, its
