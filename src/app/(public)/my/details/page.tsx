@@ -73,8 +73,11 @@ export default async function MyDetailsPage() {
 
         <Card>
           <CardHeader>
+            {/* Not "Sign-in email", which #1181 sketched: this column is the
+              address the organization writes to, and the form below says in
+              so many words that it is not how you sign in. */}
             <CardTitle className="brand-display text-lg font-semibold">
-              Email
+              Your email address
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -86,16 +89,12 @@ export default async function MyDetailsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="brand-display text-lg font-semibold">
-              Everything else
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ContactForm details={details} />
-          </CardContent>
-        </Card>
+        {/* Cards of its own, not one card here: the three groups inside it are
+          the page's real structure, and a card titled "Everything else"
+          wrapped around them threw that structure away (#1181). The form
+          spans all three because the RPC behind it writes the whole
+          allowlist in one call. */}
+        <ContactForm details={details} />
 
         {/* The one repeat in the area. This page is the only one long enough
           that arriving at the bottom of it leaves the header nav off-screen;

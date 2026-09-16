@@ -6,7 +6,7 @@ Findings-only audit of the public constituent area, prompted by `/my` rendering 
 
 **Scope.** The five routes of the area, the claim flow that feeds it, and the staff-visible consequences of what the claim form collects. The area shipped as epic #1160's five sub-issues — #1161 session and shell, #1162 claims, #1163 history, #1164 self-edit, #1165 acting — merged between 2026-09-14 and 2026-09-16. Each added a page or a section to the same area; this is the first pass over it as a whole.
 
-**Status.** Findings 1, 2, 3, 9, 11 and 13 are fixed — #1175 landed the way in and turned the module on for the seed, #1179 gave the area its page shell and its boundaries, #1180 gave it a nav. The rest are open and unowned. The findings below are left as they were written, in the present tense of 2026-09-16; the Status column is the record of what has moved.
+**Status.** Findings 1, 2, 3, 4, 5, 8, 9, 11 and 13 are fixed — #1175 landed the way in and turned the module on for the seed, #1179 gave the area its page shell and its boundaries, #1180 gave it a nav, #1181 regrouped `/my/details` and bound its errors to their fields. The rest are open and unowned. The findings below are left as they were written, in the present tense of 2026-09-16; the Status column is the record of what has moved.
 
 | Route               | Purpose                     | Ends with                         |
 | ------------------- | --------------------------- | --------------------------------- |
@@ -25,11 +25,11 @@ Findings-only audit of the public constituent area, prompted by `/my` rendering 
 | 1   | No `PageShell` on any of the five routes: no padding, no column, no `<main>`       | Layout/a11y | Serious  | Fixed (#1179)        |
 | 2   | Four destinations, no navigation surface — a `<p>` of buttons and three back links | IA          | Serious  | Fixed (#1180, #1175) |
 | 3   | The area is excluded from every automated scan and has no e2e spec                 | Test infra  | Serious  | Fixed (#1175, #1179) |
-| 4   | Fourteen self-edit fields under a card titled "Everything else"                    | IA          | Moderate | Open                 |
-| 5   | Form errors are page-bottom alerts, bound to no field                              | Forms       | Moderate | Open                 |
+| 4   | Fourteen self-edit fields under a card titled "Everything else"                    | IA          | Moderate | Fixed (#1181)        |
+| 5   | Form errors are page-bottom alerts, bound to no field                              | Forms       | Moderate | Fixed (#1181)        |
 | 6   | The claim form implies the typed email and phone affect matching; they do not      | Content     | Moderate | Open                 |
 | 7   | The claim form is also an enrollment form and never says so                        | Content     | Moderate | Open                 |
-| 8   | Address line 2 has no visible label                                                | a11y        | Moderate | Open                 |
+| 8   | Address line 2 has no visible label                                                | a11y        | Moderate | Fixed (#1181)        |
 | 9   | Sign-out is a button in the page body, not in chrome                               | IA          | Moderate | Fixed (#1175)        |
 | 10  | Required markers typed into label strings, defeating `FieldLabel required`         | a11y        | Minor    | Open                 |
 | 11  | No `loading.tsx`/`error.tsx`; sign-in's Suspense fallback is `null`                | Perf/feel   | Minor    | Fixed (#1179)        |
