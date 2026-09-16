@@ -1,14 +1,15 @@
-// Neither the organization's zone nor the fixture's, deliberately (#1076,
-// following #1062): the receipt must read in ZONE below whatever clock the
-// machine running the tests is on, and a runner sitting in Denver would let a
-// regression to the process zone pass unnoticed.
-process.env.TZ = "Australia/Sydney";
-
+import { pinTimezone } from "../../../../../../../../test/timezone";
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import { buildReceipt, formatReceiptInstant } from "../../receipt";
 import type { SaleRow } from "../../sales-shared";
 import { SaleReceipt } from "./sale-receipt";
+
+// Neither the organization's zone nor the fixture's, deliberately (#1076,
+// following #1062): the receipt must read in ZONE below whatever clock the
+// machine running the tests is on, and a runner sitting in Denver would let a
+// regression to the process zone pass unnoticed.
+pinTimezone("Australia/Sydney");
 
 const printMock = mock(() => {});
 
