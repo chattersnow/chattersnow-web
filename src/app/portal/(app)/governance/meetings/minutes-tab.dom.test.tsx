@@ -10,6 +10,9 @@ import { createRef } from "react";
 import * as MinutesActions from "./minutes-actions";
 import * as ActionItemsActions from "./action-items-actions";
 import * as AgendaActions from "./agenda-actions";
+import * as AttendeesActions from "./attendees-actions";
+import * as DecisionsActions from "./decisions-actions";
+import * as MinutesApprovalActions from "./minutes-approval-actions";
 import * as PeopleActions from "../../people/actions";
 import type { MinutesRow } from "./minutes-core";
 import type { MinutesLeaveGuard } from "./minutes-editor";
@@ -52,6 +55,21 @@ mock.module("./agenda-actions", () => ({
 mock.module("../../people/actions", () => ({
   ...PeopleActions,
   listPeopleAction: mock(async () => ({ data: [] })),
+}));
+// The quick-reference panel the editor renders beside the notes (#1201) reads
+// four more lists of its own. Stubbed empty: this file is about the minutes
+// lifecycle, and the panel has its own coverage.
+mock.module("./attendees-actions", () => ({
+  ...AttendeesActions,
+  listMeetingAttendeesAction: mock(async () => ({ data: [] })),
+}));
+mock.module("./decisions-actions", () => ({
+  ...DecisionsActions,
+  listDecisionsAction: mock(async () => ({ data: [] })),
+}));
+mock.module("./minutes-approval-actions", () => ({
+  ...MinutesApprovalActions,
+  getPreviousMeetingMinutesAction: mock(async () => ({ data: null })),
 }));
 
 const { MinutesTab } = await import("./minutes-tab");
@@ -100,7 +118,9 @@ function renderTab(canManage = true) {
   render(
     <MinutesTab
       meetingId="meeting-1"
+      meetingDate="2026-09-01T18:00:00.000Z"
       canManage={canManage}
+      onViewDecisions={() => {}}
       guardRef={guardRef}
     />,
   );

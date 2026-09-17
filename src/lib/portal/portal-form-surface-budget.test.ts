@@ -39,9 +39,9 @@ const EXEMPT: Record<string, string> = {
   "administration/users/pending-access-section.tsx":
     "Shows a minted invite link to copy. Read-only, and the only control is " +
     "Copy.",
-  "governance/meetings/agenda-export-dialog.tsx":
-    "The agenda print preview. It renders AgendaPrintView with copy and " +
-    "print buttons -- a document, not an editor.",
+  "governance/meetings/meeting-export-dialog.tsx":
+    "The agenda's or the minutes' print preview. It renders the export's own " +
+    "Markdown with copy and print buttons -- a document, not an editor.",
   "governance/meetings/minutes-approval-dialog.tsx":
     "The previous meeting's minutes, read, then approved with one action. " +
     "The approval is a button, not a field.",

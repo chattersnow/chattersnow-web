@@ -96,6 +96,14 @@ describe("formatAgendaMarkdown", () => {
     expect(markdown).toContain("Sep 30, 2026 — Budget approval");
     expect(markdown).toContain("Discussed fall planning.");
   });
+
+  test("calls the agenda's free-text field Agenda notes", () => {
+    // Renamed from "Meeting notes" in #1201: since #1200 the minutes are their
+    // own record, and this field is the pre-meeting context, not the minutes.
+    const markdown = formatAgendaMarkdown(emptyInput);
+    expect(markdown).toContain("## Agenda notes");
+    expect(markdown).not.toContain("Meeting notes");
+  });
 });
 
 describe("formatAgendaPlainText", () => {
@@ -103,6 +111,7 @@ describe("formatAgendaPlainText", () => {
     const text = formatAgendaPlainText(emptyInput);
     expect(text).toContain("AGENDA — Aug 31, 2026");
     expect(text).toContain("OPENING");
+    expect(text).toContain("AGENDA NOTES");
     expect(text).not.toContain("#");
     expect(text).not.toContain("**");
   });

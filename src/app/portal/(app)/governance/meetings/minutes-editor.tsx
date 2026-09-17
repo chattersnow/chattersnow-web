@@ -1,44 +1,39 @@
 "use client";
 
 import {
-  FormEvent,
   useEffect,
   useRef,
   useState,
-  useTransition,
   type ReactNode,
   type RefObject,
 } from "react";
 import { saveMinutesDraftAction, type MinutesRow } from "./minutes-actions";
-import {
-  createActionItemAction,
-  type ActionItem,
-} from "./action-items-actions";
+import type { ActionItem } from "./action-items-actions";
 import type { MinutesItem } from "./minutes-snapshot";
 import { OngoingTopicsTooltip } from "./agenda-tab";
+import { MinutesActionItemDialog } from "./minutes-action-item-dialog";
 import {
-  ActionItemFormFields,
-  emptyActionItemForm,
-  packActionItemFormData,
-  type ActionItemFormState,
-} from "./action-item-form-fields";
-import { PersonPicker, type PickedPerson } from "../../people/person-picker";
+  MinutesQuickReferenceAside,
+  MinutesQuickReferenceSheet,
+} from "./minutes-quick-reference";
+import { MeetingExportDialog } from "./meeting-export-dialog";
+import {
+  formatMinutesMarkdown,
+  formatMinutesPlainText,
+  type MinutesExportInput,
+} from "./minutes-export";
+import type { PickedPerson } from "../../people/person-picker";
 import type { PersonListItem } from "../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import {
-  PortalFormSurface,
-  PortalFormSurfaceClose,
-} from "@/components/portal/portal-form-surface";
-import { Spinner } from "@/components/ui/spinner";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { RequiredFieldsNote } from "@/components/required-fields-note";
-import { runAction } from "@/components/portal/action-toast";
+import { MarkdownText } from "@/components/portal/markdown-text";
 import { SaveStatusLine } from "@/components/portal/save-status";
 import { useAutosave } from "@/hooks/use-autosave";
 import { useUnsavedChangesGuard } from "@/components/portal/unsaved-changes-guard";
+import { usePortalDevice } from "@/lib/portal/device-context";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 
 /**
@@ -159,7 +154,10 @@ function MinutesItemCard({
         note.trim() === "" ? (
           <p className="app-muted mt-2 text-sm">No notes recorded.</p>
         ) : (
-          <p className="mt-2 text-sm whitespace-pre-wrap">{note}</p>
+          // Rendered, not `whitespace-pre-wrap` (#1201): the editor is a plain
+          // textarea and notetakers type Markdown conventions into it, so
+          // finalized minutes read with literal asterisks otherwise.
+          <MarkdownText className="mt-2 text-sm">{note}</MarkdownText>
         )
       ) : (
         <Textarea
@@ -191,133 +189,32 @@ function MinutesItemCard({
   );
 }
 
-/**
- * An action item raised in the room, recorded without leaving the minutes.
- *
- * This is the single most common thing said out loud while minutes are being
- * taken, and before this it meant navigating to Overview -- the exact
- * navigation #1200 exists to remove.
- */
-function AddActionItemDialog({
-  meetingId,
-  item,
-  people,
-  onPersonCreated,
-  onAdded,
-  onOpenChange,
-}: {
-  meetingId: string;
-  item: MinutesItem;
-  people: PersonListItem[];
-  onPersonCreated: (person: PickedPerson) => void;
-  onAdded: () => void;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [selectedOwner, setSelectedOwner] = useState<PickedPerson | null>(null);
-  const [form, setForm] = useState<ActionItemFormState>(() =>
-    emptyActionItemForm(),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function update<K extends keyof ActionItemFormState>(
-    key: K,
-    value: ActionItemFormState[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    if (!selectedOwner) {
-      setError("Select or create an owner for this action item.");
-      return;
-    }
-
-    const owner = selectedOwner;
-    startTransition(async () => {
-      await runAction(
-        () =>
-          createActionItemAction(
-            meetingId,
-            owner.id,
-            packActionItemFormData(form, item.key),
-          ),
-        {
-          success: "Action item added.",
-          onError: setError,
-          onSuccess: onAdded,
-        },
-      );
-    });
-  }
-
-  return (
-    <PortalFormSurface
-      open
-      onOpenChange={onOpenChange}
-      withTrigger={false}
-      title="Add action item"
-      description={`Recorded under ${item.label}.`}
-      onSubmit={handleSubmit}
-      footer={
-        <>
-          <PortalFormSurfaceClose
-            render={<Button type="button" variant="secondary" />}
-          >
-            Cancel
-          </PortalFormSurfaceClose>
-          <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <Spinner /> Saving...
-              </>
-            ) : (
-              "Add action item"
-            )}
-          </Button>
-        </>
-      }
-    >
-      <FieldGroup>
-        <RequiredFieldsNote />
-        <Field>
-          <FieldLabel>Owner</FieldLabel>
-          <PersonPicker
-            people={people}
-            selected={selectedOwner}
-            onSelect={setSelectedOwner}
-            onPersonCreated={onPersonCreated}
-          />
-        </Field>
-
-        <ActionItemFormFields
-          form={form}
-          update={update}
-          idPrefix={`minutes-action-item-${item.key}`}
-        />
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-      </FieldGroup>
-    </PortalFormSurface>
-  );
-}
-
 function itemsFor(actionItems: ActionItem[], key: string): ActionItem[] {
   return actionItems.filter((item) => item.minutes_item_key === key);
 }
 
+/**
+ * The minutes' half of the shared export dialog (#1201). The agenda tab has
+ * the same three lines over `agenda-export.ts`.
+ */
+function MinutesExport({ input }: { input: MinutesExportInput }) {
+  return (
+    <MeetingExportDialog
+      title="Export minutes"
+      markdown={formatMinutesMarkdown(input)}
+      plainText={formatMinutesPlainText(input)}
+    />
+  );
+}
+
 /** Minutes nobody may write to: finalized, or a viewer without manage access. */
 export function MinutesReadOnlyView({
+  meetingDate,
   minutes,
   actionItems,
   lifecycleAction,
 }: {
+  meetingDate: string;
   minutes: MinutesRow;
   actionItems: ActionItem[];
   lifecycleAction?: ReactNode;
@@ -330,7 +227,10 @@ export function MinutesReadOnlyView({
         <Badge variant={minutes.status === "final" ? "success" : "progress"}>
           {minutes.status === "final" ? "Final" : "Draft"}
         </Badge>
-        {lifecycleAction}
+        <div className="flex flex-wrap items-center gap-2">
+          <MinutesExport input={{ meetingDate, minutes, actionItems }} />
+          {lifecycleAction}
+        </div>
       </div>
 
       <ol className="flex flex-col gap-3">
@@ -348,9 +248,9 @@ export function MinutesReadOnlyView({
       <div>
         <p className="text-sm font-semibold">Closing notes</p>
         {minutes.body_text?.trim() ? (
-          <p className="mt-1 text-sm whitespace-pre-wrap">
+          <MarkdownText className="mt-1 text-sm">
             {minutes.body_text}
-          </p>
+          </MarkdownText>
         ) : (
           <p className="app-muted mt-1 text-sm">None.</p>
         )}
@@ -361,27 +261,43 @@ export function MinutesReadOnlyView({
 
 export function MinutesEditor({
   meetingId,
+  meetingDate,
   minutes,
   actionItems,
   people,
   onPersonCreated,
   onActionItemAdded,
+  onViewDecisions,
   lifecycleAction,
   guardRef,
 }: {
   meetingId: string;
+  meetingDate: string;
   minutes: MinutesRow;
   actionItems: ActionItem[];
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
   /** Refreshes the item list in place -- never the whole route, mid-meeting. */
   onActionItemAdded: () => void;
+  /** Leaves for the overview's decisions section. Saves on the way out. */
+  onViewDecisions: () => void;
   lifecycleAction?: ReactNode;
   guardRef: RefObject<MinutesLeaveGuard | null>;
 }) {
   const items = minutes.agenda_snapshot?.items ?? [];
   const [draft, setDraft] = useState<MinutesDraft>(() => initialDraft(minutes));
-  const [addingUnder, setAddingUnder] = useState<string | null>(null);
+  // The open add-action-item dialog, if any. Its `item` is the snapshot item
+  // the action was raised under, or null for one raised out of band from the
+  // quick-reference panel -- a wrapper object rather than a bare
+  // `MinutesItem | null`, so "closed" and "open, for the meeting" stay
+  // distinguishable.
+  const [addingActionItem, setAddingActionItem] = useState<{
+    item: MinutesItem | null;
+  } | null>(null);
+  // From the layout, decided on the server (#1079/#1115) -- never
+  // `useIsMobile()`, which answers `false` during SSR and would flash the
+  // desktop aside onto a phone before correcting itself.
+  const isPhone = usePortalDevice() === "mobile";
 
   // What the server has accepted, and therefore what the next save diffs
   // against. Written only by a save that succeeded, so a failure leaves the
@@ -429,15 +345,25 @@ export function MinutesEditor({
     queue(next);
   }
 
-  function openActionItemDialog(key: string) {
+  function openActionItemDialog(item: MinutesItem | null) {
     // Started before the dialog opens, so the sentence being typed is on its
     // way to the server rather than waiting out a debounce behind a modal.
     // Not awaited: the dialog should open now, not after a round trip.
     void flush();
-    setAddingUnder(key);
+    setAddingActionItem({ item });
   }
 
-  const addingItem = items.find((item) => item.key === addingUnder) ?? null;
+  const quickReference = {
+    meetingId,
+    meetingDate,
+    actionItems,
+    onAddActionItem: () => openActionItemDialog(null),
+    // No flush here: this leaves the tab, and the tab strip's own leave path
+    // (`leaveMinutes` in meeting-detail-view.tsx) is what flushes, waits for
+    // the result and asks about discarding if the save failed. Flushing again
+    // first would only duplicate the half of that which cannot report back.
+    onViewDecisions,
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -449,7 +375,11 @@ export function MinutesEditor({
             lastSavedAt={autosave.lastSavedAt}
           />
         </div>
-        {lifecycleAction}
+        <div className="flex flex-wrap items-center gap-2">
+          {isPhone && <MinutesQuickReferenceSheet {...quickReference} />}
+          <MinutesExport input={{ meetingDate, minutes, actionItems }} />
+          {lifecycleAction}
+        </div>
       </div>
 
       {autosave.status === "error" && autosave.errorMessage && (
@@ -475,7 +405,7 @@ export function MinutesEditor({
                   })
                 }
                 onFlush={() => void flush()}
-                onAddActionItem={() => openActionItemDialog(item.key)}
+                onAddActionItem={() => openActionItemDialog(item)}
               />
             ))}
           </ol>
@@ -495,21 +425,21 @@ export function MinutesEditor({
             />
           </Field>
         </div>
-        {/* The quick-reference column lands in the follow-up issue. */}
+        {!isPhone && <MinutesQuickReferenceAside {...quickReference} />}
       </div>
 
-      {addingItem && (
-        <AddActionItemDialog
+      {addingActionItem && (
+        <MinutesActionItemDialog
           meetingId={meetingId}
-          item={addingItem}
+          item={addingActionItem.item}
           people={people}
           onPersonCreated={onPersonCreated}
           onAdded={() => {
-            setAddingUnder(null);
+            setAddingActionItem(null);
             onActionItemAdded();
           }}
           onOpenChange={(open) => {
-            if (!open) setAddingUnder(null);
+            if (!open) setAddingActionItem(null);
           }}
         />
       )}

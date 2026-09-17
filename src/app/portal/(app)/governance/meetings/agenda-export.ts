@@ -122,7 +122,7 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
   );
   lines.push("");
 
-  lines.push("## Meeting notes");
+  lines.push("## Agenda notes");
   lines.push(agenda.body_text || "—");
 
   return lines.join("\n");
@@ -224,7 +224,7 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
   );
   lines.push("");
 
-  lines.push("MEETING NOTES");
+  lines.push("AGENDA NOTES");
   lines.push(`  ${agenda.body_text || "—"}`);
 
   return lines.join("\n");
