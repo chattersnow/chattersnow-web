@@ -37,7 +37,46 @@ describe("parseMinutesPatch", () => {
     expect(parseMinutesPatch({ notes: { opening: { text: "a" } } })).toEqual(
       refusal,
     );
+  });
+
+  test("refuses a note key no snapshot item could have minted", () => {
+    const refusal = { error: NOTES_REFUSAL, field: "notes" };
     expect(parseMinutesPatch({ notes: { "  ": "a" } })).toEqual(refusal);
+    expect(parseMinutesPatch({ notes: { "": "a" } })).toEqual(refusal);
+    // Notes into a section that does not exist would be stored forever: the
+    // merge only ever adds keys.
+    expect(parseMinutesPatch({ notes: { "Section:Events": "a" } })).toEqual(
+      refusal,
+    );
+    expect(parseMinutesPatch({ notes: { "section:events:0": "a" } })).toEqual(
+      refusal,
+    );
+    // And the reason CodeQL cared: a key that is a built-in property name.
+    // Written as JSON rather than as an object literal on purpose -- in a
+    // literal `__proto__:` is the prototype setter and leaves no own key, so
+    // the literal form would not be testing anything. This is the shape a
+    // request body actually arrives in.
+    expect(
+      parseMinutesPatch({ notes: JSON.parse('{"__proto__": "a"}') }),
+    ).toEqual(refusal);
+    expect(parseMinutesPatch({ notes: { toString: "a" } })).toEqual(refusal);
+
+    // The keys the builder actually mints all pass.
+    for (const key of [
+      "opening",
+      "carried_over",
+      "section:finance_fundraising",
+      "decisions",
+      "new_business",
+      "new_business:12",
+      "upcoming_dates",
+      "parking_lot",
+      "next_meeting",
+    ]) {
+      expect(parseMinutesPatch({ notes: { [key]: "note" } })).toEqual({
+        data: { notes: { [key]: "note" } },
+      });
+    }
   });
 
   test("distinguishes closing notes left alone from closing notes cleared", () => {

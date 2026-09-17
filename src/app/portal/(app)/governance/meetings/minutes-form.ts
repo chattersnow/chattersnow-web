@@ -34,33 +34,41 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Every key `buildMinutesSnapshot()` mints: a bare item name (`opening`,
+ * `parking_lot`) or one qualified after a colon (`section:finance_fundraising`,
+ * `new_business:0`), where the section half is itself a template section key
+ * and so already matches `isValidSectionKey`.
+ *
+ * Checking the shape rather than only the emptiness closes two things at once.
+ * A key that matches nothing in the snapshot is notes written into a section
+ * that does not exist -- a bug, silently stored forever, since the merge never
+ * deletes. And it keeps `__proto__` and friends out of an object built from
+ * request data, which is what CodeQL's remote-property-injection rule is about;
+ * this parser deliberately validates the caller's object in place and hands it
+ * on, rather than copying it key by key into a fresh one, so there is no
+ * computed property write here at all.
+ */
+const NOTE_KEY_PATTERN = /^[a-z][a-z0-9_]*(:[a-z0-9_]+)?$/;
+
 export function parseMinutesPatch(
   input: MinutesPatchInput,
 ): ParseResult<MinutesPatch> {
-  const notes: Record<string, string> = {};
+  const notesRefusal = {
+    error: "Could not read the meeting notes. Please try again.",
+    field: "notes",
+  };
+
+  let notes: Record<string, string> = {};
 
   if (input.notes !== undefined) {
-    if (!isRecord(input.notes)) {
-      return {
-        error: "Could not read the meeting notes. Please try again.",
-        field: "notes",
-      };
-    }
+    if (!isRecord(input.notes)) return notesRefusal;
+
     for (const [key, value] of Object.entries(input.notes)) {
-      if (typeof value !== "string") {
-        return {
-          error: "Could not read the meeting notes. Please try again.",
-          field: "notes",
-        };
-      }
-      if (key.trim() === "") {
-        return {
-          error: "Could not read the meeting notes. Please try again.",
-          field: "notes",
-        };
-      }
-      notes[key] = value;
+      if (typeof value !== "string") return notesRefusal;
+      if (!NOTE_KEY_PATTERN.test(key)) return notesRefusal;
     }
+    notes = input.notes as Record<string, string>;
   }
 
   // `undefined` is absent, not "clear it": a Server Action argument that was
