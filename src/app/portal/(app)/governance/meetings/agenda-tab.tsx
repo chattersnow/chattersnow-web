@@ -58,15 +58,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AgendaExportDialog } from "./agenda-export-dialog";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
-
-const APPROVE_MINUTES_ITEM = "Approve previous meeting minutes";
-
-const OPENING_CHECKLIST = [
-  "Welcome and call to order",
-  "Confirm quorum",
-  APPROVE_MINUTES_ITEM,
-  "Review agenda",
-];
+import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
 
 function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
   if (topics.length === 0) return null;
