@@ -84,7 +84,13 @@ test.describe("portal governance minutes", () => {
       // The quick-reference panel (#1201): raise an action item without
       // leaving the minutes. On a phone it is behind the Reference button; on
       // a desktop it is the sticky column beside the notes.
-      const reference = page.getByRole("button", { name: "Reference" });
+      // `exact`, because a role name is matched as a substring: without it
+      // this also picks up every "N reference topics" tooltip trigger beside
+      // the snapshot items, and there are eight of them.
+      const reference = page.getByRole("button", {
+        name: "Reference",
+        exact: true,
+      });
       if (await reference.isVisible()) await reference.click();
       await page.getByRole("button", { name: "Add", exact: true }).click();
       // Scoped by its own title: on a phone the reference sheet is still open
@@ -103,8 +109,16 @@ test.describe("portal governance minutes", () => {
       await expect(page.getByText(actionItemText).first()).toBeVisible({
         timeout: 15_000,
       });
-      if (await reference.isVisible()) {
-        await page.keyboard.press("Escape");
+      // Closed through its own button rather than with Escape, and waited on:
+      // Base UI marks the page behind an open sheet inert, so the note
+      // textboxes are out of the accessibility tree — and therefore out of
+      // `getByRole`'s reach — until this has actually gone.
+      const referenceSheet = modal(page).filter({
+        has: page.getByRole("heading", { name: "Quick reference" }),
+      });
+      if (await referenceSheet.isVisible()) {
+        await referenceSheet.getByRole("button", { name: "Close" }).click();
+        await expect(referenceSheet).not.toBeVisible();
       }
       await expect(noteBoxes.nth(0)).toHaveValue(openingNote);
 
