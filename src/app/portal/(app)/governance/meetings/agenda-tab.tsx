@@ -60,7 +60,15 @@ import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
 
-function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
+/**
+ * The template's reference topics for a section, behind a dotted-underline
+ * count so a long list does not push the agenda's own content down the page.
+ *
+ * Exported for the Minutes tab (#1200), which renders the same topics beside
+ * each snapshot item -- they are what the section is *for*, and a notetaker
+ * needs them in front of them as much as the agenda's author did.
+ */
+export function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
   if (topics.length === 0) return null;
   return (
     <Tooltip>

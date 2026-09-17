@@ -16,8 +16,16 @@ import { useState } from "react";
  * phases, so moving phase leaves the held value belonging to the phase you
  * left. The hook's own URL behaviour, companion params included, is covered
  * by use-url-tab-state.dom.test.tsx.
+ *
+ * The returned `seed` stands in for a deep link: call it before `render` and
+ * the next mount opens on that tab, as `?tab=<value>` in the URL would. A tab
+ * reached by a link rather than a click is a real entry point -- the daily
+ * digest sends people into one -- and nothing else in these tests exercises a
+ * panel that was never clicked into.
  */
 export function mockUrlTabState() {
+  let seeded: string | null = null;
+
   mock.module("@/components/portal/use-url-tab-state", () => ({
     useUrlTabState: <T extends string>({
       fallback,
@@ -26,11 +34,20 @@ export function mockUrlTabState() {
       fallback: T;
       isValid: (value: string) => value is T;
     }) => {
-      const [value, setValue] = useState<T>(fallback);
+      const [value, setValue] = useState<T>(() =>
+        seeded !== null && isValid(seeded) ? seeded : fallback,
+      );
       return [isValid(value) ? value : fallback, setValue] as [
         T,
         (next: T) => void,
       ];
     },
   }));
+
+  return {
+    /** The tab the next mount starts on; null restores the fallback. */
+    seed(value: string | null) {
+      seeded = value;
+    },
+  };
 }

@@ -69,6 +69,7 @@ describe("formatAgendaMarkdown", () => {
           description: "Order supplies",
           due_date: null,
           status: "open",
+          minutes_item_key: null,
           owner: { id: "p1", name: "Alex", email: null, phone: null },
         },
       ],

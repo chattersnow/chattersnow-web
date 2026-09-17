@@ -68,10 +68,21 @@ export function ActionItemFormFields({
   );
 }
 
-export function packActionItemFormData(form: ActionItemFormState) {
+/**
+ * `minutesItemKey` names the minutes item the action was raised under (#1199),
+ * which only the Minutes tab knows. Set only when there is one: `parseActionItemForm`
+ * treats an empty value as absent, and `updateActionItemAction` spreads the
+ * parsed object into its update, so sending a blank from the Action items tab
+ * would quietly unlink an item somebody grouped under a section.
+ */
+export function packActionItemFormData(
+  form: ActionItemFormState,
+  minutesItemKey?: string,
+) {
   const formData = new FormData();
   formData.set("description", form.description);
   formData.set("dueDate", form.dueDate);
   formData.set("status", form.done ? "done" : "open");
+  if (minutesItemKey) formData.set("minutesItemKey", minutesItemKey);
   return formData;
 }
