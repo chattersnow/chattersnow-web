@@ -2,10 +2,15 @@ import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
+import type { MeetingDatedContext } from "./meeting-context-shared";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
 import {
-  meetingContextEntryDay,
-  type MeetingDatedContext,
-} from "./meeting-context-shared";
+  datedContextLines,
+  topicContextLines,
+  TOPIC_CONTEXT_MARKDOWN,
+  TOPIC_CONTEXT_PLAIN,
+  type TopicContextLineStyle,
+} from "./meeting-topic-context-text";
 import {
   formatCalendarDate,
   formatInstantDate,
@@ -26,6 +31,12 @@ export type AgendaExportInput = {
    * empty, which would read as "nothing is scheduled".
    */
   datedContext?: MeetingDatedContext;
+  /**
+   * The records behind each standing section (#1224), or undefined while the
+   * read is in flight -- in which case the blocks are left out rather than
+   * printed empty, the same rule `datedContext` follows.
+   */
+  topicContext?: MeetingTopicContext;
 };
 
 function actionItemLine(item: ActionItem): string {
@@ -39,41 +50,22 @@ function decisionLine(decision: Decision): string {
 }
 
 /**
- * The live block, printed as dated text under its own heading.
+ * The blocks under one section heading.
  *
- * A printed agenda cannot be clicked and cannot re-read the calendar, so the
- * "as of" line is not decoration: it is the difference between a snapshot of a
- * live list and a claim about the future. Gaps are printed for the same reason
- * they are rendered -- a board member handed a page that silently omits events
- * has no way to know it did.
+ * `datedContext` is deliberately not passed: the agenda prints its own
+ * "Next 30 days" section, and the Events block would repeat it verbatim a few
+ * headings earlier. The minutes, which have no such section, do pass it.
  */
-function datedContextLines(
-  context: MeetingDatedContext | undefined,
-  bullet: string,
+function sectionContextLines(
+  input: AgendaExportInput,
+  sectionKey: string,
+  style: TopicContextLineStyle,
 ): string[] {
-  if (!context) return [];
-  const lines: string[] = [
-    `From the calendar and events, as of ${formatCalendarDate(context.asOf)}.`,
-  ];
-  if (context.entries.length === 0) {
-    lines.push(`${bullet}Nothing scheduled.`);
-  } else {
-    for (const entry of context.entries) {
-      const kind = entry.kind === "event" ? "Event" : "Calendar item";
-      lines.push(
-        `${bullet}${formatCalendarDate(meetingContextEntryDay(entry))} — ${entry.title} (${kind})`,
-      );
-    }
-  }
-  for (const gap of context.gaps) {
-    const source = gap.source === "events" ? "Events" : "Calendar items";
-    lines.push(
-      gap.reason === "forbidden"
-        ? `${source} are not included — the exporter's role does not cover them.`
-        : `${source} could not be loaded.`,
-    );
-  }
-  return lines;
+  return topicContextLines({
+    itemKey: `section:${sectionKey}`,
+    context: input.topicContext,
+    style,
+  });
 }
 
 export function formatAgendaMarkdown(input: AgendaExportInput): string {
@@ -110,6 +102,9 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
       lines.push(`### ${section.label}`);
       lines.push(`**Updates:** ${value?.updates || "—"}`);
       lines.push(`**Decisions needed:** ${value?.decisions_needed || "—"}`);
+      lines.push(
+        ...sectionContextLines(input, section.key, TOPIC_CONTEXT_MARKDOWN),
+      );
       lines.push("");
     }
   }
@@ -133,7 +128,9 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
 
   if (input.datedContext) {
     lines.push("## Next 30 days");
-    lines.push(...datedContextLines(input.datedContext, "- "));
+    lines.push(
+      ...datedContextLines(input.datedContext, TOPIC_CONTEXT_MARKDOWN),
+    );
     lines.push("");
   }
 
@@ -216,6 +213,9 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
       lines.push(`  ${section.label}`);
       lines.push(`    Updates: ${value?.updates || "—"}`);
       lines.push(`    Decisions needed: ${value?.decisions_needed || "—"}`);
+      lines.push(
+        ...sectionContextLines(input, section.key, TOPIC_CONTEXT_PLAIN),
+      );
     }
   }
   lines.push("");
@@ -239,9 +239,7 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
 
   if (input.datedContext) {
     lines.push("NEXT 30 DAYS");
-    for (const line of datedContextLines(input.datedContext, "  - ")) {
-      lines.push(line.startsWith("  - ") ? line : `  ${line}`);
-    }
+    lines.push(...datedContextLines(input.datedContext, TOPIC_CONTEXT_PLAIN));
     lines.push("");
   }
 

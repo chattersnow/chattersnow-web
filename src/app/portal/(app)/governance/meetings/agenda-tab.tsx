@@ -16,7 +16,12 @@ import {
   type Agenda,
 } from "./agenda-actions";
 import type { AgendaOngoingItem, AgendaUpcomingDate } from "./agenda-form";
-import { listMeetingDatedContextAction } from "./meeting-context-actions";
+import {
+  getMeetingTopicContextAction,
+  listMeetingDatedContextAction,
+} from "./meeting-context-actions";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import { TopicContext } from "./meeting-topic-context";
 import {
   meetingContextEntryDay,
   meetingContextSourceId,
@@ -563,6 +568,13 @@ export function AgendaTab({
       const result = await listMeetingDatedContextAction(meetingId);
       return "error" in result ? { error: result.error.message } : result;
     }, [meetingId]);
+  // The records behind each standing section (#1224). One read for the whole
+  // page, not one per section: seven sections times two sources would be a
+  // page that fetches fourteen times to show a reference list.
+  const { data: topicContext } = useTabData<MeetingTopicContext>(async () => {
+    const result = await getMeetingTopicContextAction(meetingId);
+    return "error" in result ? { error: result.error.message } : result;
+  }, [meetingId]);
 
   if (agenda === undefined) {
     return <TabLoadingSkeleton />;
@@ -626,6 +638,7 @@ export function AgendaTab({
                 createdItems: createdItems ?? [],
                 decisions: decisions ?? [],
                 datedContext,
+                topicContext,
               }}
             />
           </div>
@@ -726,6 +739,14 @@ export function AgendaTab({
                           </p>
                         </div>
                       </div>
+                      {/* Beside the sentence being written about it, rather
+                          than in a panel two columns away. The Events section
+                          gets no calendar block here: the agenda already has
+                          its own "Next 30 days" further down the page. */}
+                      <TopicContext
+                        itemKey={`section:${section.key}`}
+                        context={topicContext}
+                      />
                     </div>
                   );
                 })

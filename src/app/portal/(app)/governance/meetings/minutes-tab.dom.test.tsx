@@ -13,6 +13,7 @@ import * as AgendaActions from "./agenda-actions";
 import * as AttendeesActions from "./attendees-actions";
 import * as DecisionsActions from "./decisions-actions";
 import * as MinutesApprovalActions from "./minutes-approval-actions";
+import * as MeetingContextActions from "./meeting-context-actions";
 import * as PeopleActions from "../../people/actions";
 import type { MinutesRow } from "./minutes-core";
 import type { MinutesLeaveGuard } from "./minutes-editor";
@@ -70,6 +71,47 @@ mock.module("./decisions-actions", () => ({
 mock.module("./minutes-approval-actions", () => ({
   ...MinutesApprovalActions,
   getPreviousMeetingMinutesAction: mock(async () => ({ data: null })),
+}));
+mock.module("./meeting-context-actions", () => ({
+  ...MeetingContextActions,
+  listMeetingDatedContextAction: mock(async () => ({
+    data: {
+      timeZone: "America/Denver",
+      asOf: "2026-09-01",
+      window: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+      entries: [],
+      gaps: [],
+    },
+  })),
+  // #1224's supporting-records read. Stubbed with empty payloads rather than
+  // absent-with-reason ones, so the blocks render nothing at all and these
+  // files stay about the lifecycle they were written for.
+  getMeetingTopicContextAction: mock(async () => ({
+    data: {
+      timeZone: "America/Denver",
+      asOf: "2026-09-01",
+      review: { fromDate: "2026-08-01", toDate: "2026-09-01" },
+      lookahead: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+      finance_activity: {
+        window: { fromDate: "2026-08-01", toDate: "2026-09-01" },
+        income: 0,
+        cashDonations: 0,
+        paidSpend: 0,
+        net: 0,
+        approvedUnpaidSpend: 0,
+        pendingSpend: 0,
+        outstandingReimbursements: null,
+        upcomingEventBudget: null,
+      },
+      grants: { rows: [], total: 0 },
+      nonprofit_compliance: {
+        milestones: { rows: [], total: 0 },
+        requirements: { rows: [], total: 0 },
+        disclosures: { year: 2027, missing: 0, boardMembers: 0 },
+      },
+      partnerships: { rows: [], total: 0 },
+    },
+  })),
 }));
 
 const { MinutesTab } = await import("./minutes-tab");

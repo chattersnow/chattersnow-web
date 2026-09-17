@@ -6,6 +6,9 @@ import {
 } from "./minutes-export";
 import type { MinutesRow } from "./minutes-core";
 import type { ActionItem } from "./action-items-actions";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import type { MeetingDatedContext } from "./meeting-context-shared";
+import { eventEntry } from "../../calendar/calendar-entries";
 
 function minutes(overrides: Partial<MinutesRow> = {}): MinutesRow {
   return {
@@ -61,6 +64,79 @@ const emptyInput: MinutesExportInput = {
   meetingDate: "2026-09-01T18:00:00.000Z",
   minutes: minutes(),
   actionItems: [],
+};
+
+/**
+ * A snapshot on the seeded section keys, so the #1224 mapping resolves. The
+ * existing fixtures use `section:finance`, which is deliberately unmapped and
+ * therefore keeps asserting the pre-#1224 output.
+ */
+const supportedInput: MinutesExportInput = {
+  meetingDate: "2026-09-01T18:00:00.000Z",
+  minutes: minutes({
+    agenda_snapshot: {
+      version: 2,
+      meeting_date: "2026-09-01",
+      template_id: null,
+      template_version_id: null,
+      external_link: null,
+      items: [
+        {
+          key: "section:finance_fundraising",
+          label: "Finance & Fundraising",
+          kind: "section",
+        },
+        { key: "section:events", label: "Events", kind: "section" },
+      ],
+    },
+    notes: {
+      "section:finance_fundraising": "The treasurer walked through it.",
+    },
+  }),
+  actionItems: [],
+  topicContext: {
+    timeZone: "America/Denver",
+    asOf: "2026-09-01",
+    review: { fromDate: "2026-06-01", toDate: "2026-09-01" },
+    lookahead: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+    finance_activity: {
+      window: { fromDate: "2026-06-01", toDate: "2026-09-01" },
+      income: 4200,
+      cashDonations: 0,
+      paidSpend: 2800,
+      net: 1400,
+      approvedUnpaidSpend: 0,
+      pendingSpend: 0,
+      outstandingReimbursements: null,
+      upcomingEventBudget: null,
+    },
+    // The board member case: `finance_reports:view` without the governance
+    // tables would be the other way round, but either way the block is absent
+    // with a reason rather than printed as an empty list.
+    grants: { unavailable: "forbidden" },
+    nonprofit_compliance: { unavailable: "error" },
+    partnerships: { rows: [], total: 0 },
+  } satisfies MeetingTopicContext,
+  datedContext: {
+    timeZone: "America/Denver",
+    asOf: "2026-09-01",
+    window: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+    entries: [
+      eventEntry({
+        id: "event-1",
+        title: "Fall picnic",
+        starts_at: "2026-09-15T22:00:00.000Z",
+        ends_at: null,
+        time_zone: "America/Denver",
+        summary: null,
+        location: null,
+        status: "published",
+        visibility: "public",
+        program_ids: [],
+      }),
+    ],
+    gaps: [],
+  } satisfies MeetingDatedContext,
 };
 
 /** A snapshot whose "Upcoming dates" item carries a pinned reference (#1223). */
@@ -203,5 +279,55 @@ describe("pinned references (#1223)", () => {
   test("says nothing about links for a snapshot that has none", () => {
     expect(formatMinutesMarkdown(emptyInput)).not.toContain("Linked records");
     expect(formatMinutesPlainText(emptyInput)).not.toContain("Linked:");
+  });
+});
+
+describe("supporting records (#1224)", () => {
+  test("prints the finance block under the section it supports", () => {
+    const markdown = formatMinutesMarkdown(supportedInput);
+    const finance = markdown.slice(
+      markdown.indexOf("## Finance & Fundraising"),
+      markdown.indexOf("## Events"),
+    );
+
+    expect(finance).toContain("The treasurer walked through it.");
+    expect(finance).toContain("Supporting records, as of Sep 1, 2026.");
+    expect(finance).toContain("- Income: $4,200.00");
+    expect(finance).toContain("- Net: $1,400.00");
+    // Nullable halves are figures the caller's role does not cover, not zeros.
+    expect(finance).not.toContain("Outstanding reimbursements");
+    expect(finance).not.toContain("Budgeted for upcoming events");
+  });
+
+  test("prints the calendar under Events, which the agenda does not", () => {
+    // The minutes have no standalone "Next 30 days" section to duplicate.
+    const markdown = formatMinutesMarkdown(supportedInput);
+    const events = markdown.slice(markdown.indexOf("## Events"));
+
+    expect(events).toContain("**Next 30 days**");
+    expect(events).toContain("- Sep 15, 2026 — Fall picnic (Event)");
+  });
+
+  test("prints nothing for a source that is unreadable or empty", () => {
+    const markdown = formatMinutesMarkdown(supportedInput);
+
+    expect(markdown).not.toContain("Grant deadlines");
+    expect(markdown).not.toContain("Nonprofit compliance");
+    expect(markdown).not.toContain("Partnership opportunities");
+  });
+
+  test("indents the blocks in plain text without emphasis", () => {
+    const text = formatMinutesPlainText(supportedInput);
+
+    expect(text).toContain("  Supporting records, as of Sep 1, 2026.");
+    expect(text).toContain("  Finance activity — Jun 1, 2026 – Sep 1, 2026");
+    expect(text).toContain("  - Income: $4,200.00");
+    expect(text).not.toContain("**");
+  });
+
+  test("adds nothing to a snapshot on unmapped section keys", () => {
+    expect(formatMinutesMarkdown(emptyInput)).not.toContain(
+      "Supporting records",
+    );
   });
 });

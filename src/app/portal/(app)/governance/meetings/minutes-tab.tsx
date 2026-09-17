@@ -11,6 +11,12 @@ import {
 import { listActionItemsAction, type ActionItem } from "./action-items-actions";
 import { getAgendaAction } from "./agenda-actions";
 import {
+  getMeetingTopicContextAction,
+  listMeetingDatedContextAction,
+} from "./meeting-context-actions";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import type { MeetingDatedContext } from "./meeting-context-shared";
+import {
   MinutesEditor,
   MinutesReadOnlyView,
   type MinutesLeaveGuard,
@@ -132,6 +138,19 @@ export function MinutesTab({
     [meetingId],
   );
 
+  // The live records behind each standing section (#1224), plus #1223's
+  // calendar block, which the Events section reads from. Two reads for the
+  // whole tab rather than one per card, and both are supplementary: a failure
+  // leaves the notes readable rather than replacing them with an error.
+  const { data: topicContext } = useTabData<MeetingTopicContext>(async () => {
+    const result = await getMeetingTopicContextAction(meetingId);
+    return "error" in result ? { error: result.error.message } : result;
+  }, [meetingId]);
+  const { data: datedContext } = useTabData<MeetingDatedContext>(async () => {
+    const result = await listMeetingDatedContextAction(meetingId);
+    return "error" in result ? { error: result.error.message } : result;
+  }, [meetingId]);
+
   // Supplementary: the action items raised under each section. Gated at
   // `governance:manage`, unlike the minutes themselves, so a view-only board
   // member simply sees the notes without them rather than an error about a
@@ -246,6 +265,7 @@ export function MinutesTab({
         meetingDate={meetingDate}
         minutes={minutes}
         actionItems={actionItems}
+        topicContext={{ context: topicContext, datedContext }}
         lifecycleAction={
           canManage && minutes.status === "final" ? (
             <LifecycleButton
@@ -269,6 +289,7 @@ export function MinutesTab({
       minutes={minutes}
       actionItems={actionItems}
       people={people}
+      topicContext={{ context: topicContext, datedContext }}
       onPersonCreated={(person: PickedPerson) =>
         setPeople((prev) => [...prev, person])
       }

@@ -1,6 +1,13 @@
 import type { MinutesRow } from "./minutes-core";
 import type { ActionItem } from "./action-items-actions";
 import type { MinutesItemReference } from "./minutes-snapshot";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import type { MeetingDatedContext } from "./meeting-context-shared";
+import {
+  topicContextLines,
+  TOPIC_CONTEXT_MARKDOWN,
+  TOPIC_CONTEXT_PLAIN,
+} from "./meeting-topic-context-text";
 import {
   formatCalendarDate,
   formatInstantDate,
@@ -28,6 +35,14 @@ export type MinutesExportInput = {
   meetingDate: string;
   minutes: MinutesRow;
   actionItems: ActionItem[];
+  /**
+   * The live records behind each standing section (#1224), and the calendar
+   * block the Events section reads from. Both are live reads rather than part
+   * of the frozen snapshot, so they carry their own "as of" line; both are
+   * left out entirely while their read is in flight.
+   */
+  topicContext?: MeetingTopicContext;
+  datedContext?: MeetingDatedContext;
 };
 
 function actionItemLine(item: ActionItem): string {
@@ -83,6 +98,16 @@ export function formatMinutesMarkdown(input: MinutesExportInput): string {
   for (const item of items) {
     lines.push(`## ${item.label}`);
     lines.push(minutes.notes[item.key]?.trim() || "No notes recorded.");
+    const context = topicContextLines({
+      itemKey: item.key,
+      context: input.topicContext,
+      datedContext: input.datedContext,
+      style: TOPIC_CONTEXT_MARKDOWN,
+    });
+    if (context.length > 0) {
+      lines.push("");
+      lines.push(...context);
+    }
     const references = item.planned?.references ?? [];
     if (references.length > 0) {
       lines.push("");
@@ -132,6 +157,14 @@ export function formatMinutesPlainText(input: MinutesExportInput): string {
   for (const item of items) {
     lines.push(item.label.toUpperCase());
     lines.push(`  ${minutes.notes[item.key]?.trim() || "No notes recorded."}`);
+    lines.push(
+      ...topicContextLines({
+        itemKey: item.key,
+        context: input.topicContext,
+        datedContext: input.datedContext,
+        style: TOPIC_CONTEXT_PLAIN,
+      }),
+    );
     for (const reference of item.planned?.references ?? [])
       lines.push(`  Linked: ${referenceLine(reference)}`);
     const raised = byKey.get(item.key) ?? [];

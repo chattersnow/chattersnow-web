@@ -11,7 +11,12 @@ import Link from "next/link";
 import { saveMinutesDraftAction, type MinutesRow } from "./minutes-actions";
 import type { ActionItem } from "./action-items-actions";
 import type { MinutesItem } from "./minutes-snapshot";
-import { datedRecordHref } from "./meeting-context-shared";
+import {
+  datedRecordHref,
+  type MeetingDatedContext as MeetingDatedContextData,
+} from "./meeting-context-shared";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import { TopicContext } from "./meeting-topic-context";
 import { OngoingTopicsTooltip } from "./agenda-tab";
 import { MinutesActionItemDialog } from "./minutes-action-item-dialog";
 import {
@@ -49,6 +54,15 @@ import { formatCalendarDate, personDisplayName } from "@/lib/format";
  * Plain `<Textarea>`s. There is no rich-text editor in this repo and adding one
  * here is out of scope.
  */
+
+/**
+ * The live reference reads the minutes show beside each section (#1224).
+ * Loaded once by `MinutesTab` and threaded down, rather than fetched per card.
+ */
+export type TopicContextProps = {
+  context: MeetingTopicContext | undefined;
+  datedContext: MeetingDatedContextData | undefined;
+};
 
 export type MinutesDraft = {
   notes: Record<string, string>;
@@ -158,6 +172,7 @@ function MinutesItemCard({
   note,
   actionItems,
   readOnly,
+  topicContext,
   onNoteChange,
   onFlush,
   onAddActionItem,
@@ -166,6 +181,7 @@ function MinutesItemCard({
   note: string;
   actionItems: ActionItem[];
   readOnly: boolean;
+  topicContext?: TopicContextProps;
   onNoteChange?: (value: string) => void;
   onFlush?: () => void;
   onAddActionItem?: () => void;
@@ -177,6 +193,16 @@ function MinutesItemCard({
           working against must not move under them because someone opened the
           Agenda tab in another window. */}
       <PlannedContent item={item} />
+
+      {/* Live, and deliberately not frozen into the snapshot (#1224): what
+          gets typed into the note below is the record, and a cash position
+          copied into `agenda_snapshot` would be a second, silent, un-auditable
+          financial statement. */}
+      <TopicContext
+        itemKey={item.key}
+        context={topicContext?.context}
+        datedContext={topicContext?.datedContext}
+      />
 
       {readOnly ? (
         note.trim() === "" ? (
@@ -240,11 +266,13 @@ export function MinutesReadOnlyView({
   meetingDate,
   minutes,
   actionItems,
+  topicContext,
   lifecycleAction,
 }: {
   meetingDate: string;
   minutes: MinutesRow;
   actionItems: ActionItem[];
+  topicContext: TopicContextProps;
   lifecycleAction?: ReactNode;
 }) {
   const items = minutes.agenda_snapshot?.items ?? [];
@@ -256,7 +284,15 @@ export function MinutesReadOnlyView({
           {minutes.status === "final" ? "Final" : "Draft"}
         </Badge>
         <div className="flex flex-wrap items-center gap-2">
-          <MinutesExport input={{ meetingDate, minutes, actionItems }} />
+          <MinutesExport
+            input={{
+              meetingDate,
+              minutes,
+              actionItems,
+              topicContext: topicContext.context,
+              datedContext: topicContext.datedContext,
+            }}
+          />
           {lifecycleAction}
         </div>
       </div>
@@ -268,6 +304,7 @@ export function MinutesReadOnlyView({
             item={item}
             note={minutes.notes[item.key] ?? ""}
             actionItems={itemsFor(actionItems, item.key)}
+            topicContext={topicContext}
             readOnly
           />
         ))}
@@ -293,6 +330,7 @@ export function MinutesEditor({
   minutes,
   actionItems,
   people,
+  topicContext,
   onPersonCreated,
   onActionItemAdded,
   onViewDecisions,
@@ -304,6 +342,7 @@ export function MinutesEditor({
   minutes: MinutesRow;
   actionItems: ActionItem[];
   people: PersonListItem[];
+  topicContext: TopicContextProps;
   onPersonCreated: (person: PickedPerson) => void;
   /** Refreshes the item list in place -- never the whole route, mid-meeting. */
   onActionItemAdded: () => void;
@@ -405,7 +444,15 @@ export function MinutesEditor({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isPhone && <MinutesQuickReferenceSheet {...quickReference} />}
-          <MinutesExport input={{ meetingDate, minutes, actionItems }} />
+          <MinutesExport
+            input={{
+              meetingDate,
+              minutes,
+              actionItems,
+              topicContext: topicContext.context,
+              datedContext: topicContext.datedContext,
+            }}
+          />
           {lifecycleAction}
         </div>
       </div>
@@ -425,6 +472,7 @@ export function MinutesEditor({
                 item={item}
                 note={draft.notes[item.key] ?? ""}
                 actionItems={itemsFor(actionItems, item.key)}
+                topicContext={topicContext}
                 readOnly={false}
                 onNoteChange={(value) =>
                   edit({
