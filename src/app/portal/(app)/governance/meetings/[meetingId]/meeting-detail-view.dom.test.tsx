@@ -1,16 +1,17 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import * as AttendeesActions from "../attendees-actions";
 import * as AgendaActions from "../agenda-actions";
 import * as ActionItemsActions from "../action-items-actions";
 import * as DecisionsActions from "../decisions-actions";
 import * as MinutesApprovalActions from "../minutes-approval-actions";
+import * as MinutesActions from "../minutes-actions";
 import * as ResolutionsActions from "../../resolutions/resolutions-actions";
 import * as PeopleActions from "../../../people/actions";
 import type { MeetingRow } from "../meeting-badges";
 import { mockUrlTabState } from "@/../test/url-tab-state-mock";
 
-mockUrlTabState();
+const urlTabState = mockUrlTabState();
 
 mock.module("../attendees-actions", () => ({
   ...AttendeesActions,
@@ -33,6 +34,10 @@ mock.module("../decisions-actions", () => ({
 mock.module("../minutes-approval-actions", () => ({
   ...MinutesApprovalActions,
   getPreviousMeetingMinutesAction: mock(async () => ({ data: null })),
+}));
+mock.module("../minutes-actions", () => ({
+  ...MinutesActions,
+  getMinutesAction: mock(async () => ({ data: null })),
 }));
 mock.module("../../resolutions/resolutions-actions", () => ({
   ...ResolutionsActions,
@@ -61,12 +66,15 @@ function makeMeeting(overrides: Partial<MeetingRow> = {}): MeetingRow {
 }
 
 describe("MeetingDetailView", () => {
-  test("shows an Overview and an Agenda tab, with Overview active", () => {
+  afterEach(() => urlTabState.seed(null));
+
+  test("shows Overview, Agenda and Minutes tabs, with Overview active", () => {
     render(<MeetingDetailView meeting={makeMeeting()} canManage={true} />);
 
-    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Agenda" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Minutes" })).toBeInTheDocument();
 
     // Overview holds everything but the agenda.
     expect(screen.getByText("Meeting details")).toBeInTheDocument();
@@ -168,5 +176,22 @@ describe("MeetingDetailView", () => {
 
     expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
     expect(screen.getByText("Meeting details")).toBeInTheDocument();
+  });
+
+  test("opens on the Minutes tab from a ?tab=minutes link", async () => {
+    urlTabState.seed("minutes");
+    render(<MeetingDetailView meeting={makeMeeting()} canManage={true} />);
+
+    expect(screen.getByRole("tab", { name: "Minutes" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // The panel is really mounted, not merely selected: Base UI unmounts the
+    // inactive ones, so a deep link is the only way this subtree renders
+    // without a click.
+    expect(
+      await screen.findByText("No minutes started yet", {}, { timeout: 4_000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Meeting details")).not.toBeInTheDocument();
   });
 });
