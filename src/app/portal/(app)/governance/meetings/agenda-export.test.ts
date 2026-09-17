@@ -10,6 +10,7 @@ import type {
   MeetingCalendarItemRow,
   MeetingDatedContext,
 } from "./meeting-context-shared";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
 
 const baseAgenda: Agenda = {
   id: "agenda-1",
@@ -75,6 +76,88 @@ const datedContext: MeetingDatedContext = {
   ],
   gaps: [{ source: "events", reason: "forbidden" }],
 };
+
+/** What the four supporting sources answered for one meeting (#1224). */
+const topicContext: MeetingTopicContext = {
+  timeZone: "America/Denver",
+  asOf: "2026-08-31",
+  review: { fromDate: "2026-06-01", toDate: "2026-08-31" },
+  lookahead: { fromDate: "2026-08-31", toDate: "2026-09-30" },
+  finance_activity: {
+    window: { fromDate: "2026-06-01", toDate: "2026-08-31" },
+    income: 4200,
+    cashDonations: 1500,
+    paidSpend: 2800,
+    net: 2900,
+    approvedUnpaidSpend: 300,
+    pendingSpend: 125.5,
+    outstandingReimbursements: { total: 425.5, count: 2 },
+    upcomingEventBudget: { total: 1800, count: 3 },
+  },
+  grants: {
+    rows: [
+      {
+        id: "g1",
+        funderName: "Rocky Mountain Community Foundation",
+        amount: 10000,
+        deadline: "2026-08-15",
+        status: "submitted",
+        overdue: true,
+      },
+    ],
+    total: 4,
+  },
+  nonprofit_compliance: {
+    milestones: {
+      rows: [
+        {
+          id: "m1",
+          label: "File Form 1023-EZ",
+          detail: "Federal exemption",
+          dueDate: "2026-09-10",
+          overdue: false,
+        },
+      ],
+      total: 1,
+    },
+    requirements: {
+      rows: [
+        {
+          id: "r1",
+          label: "Colorado periodic report",
+          detail: "in_progress",
+          dueDate: "2026-08-01",
+          overdue: true,
+        },
+      ],
+      total: 1,
+    },
+    disclosures: { year: 2027, missing: 2, boardMembers: 5 },
+  },
+  partnerships: {
+    rows: [
+      {
+        id: "p1",
+        organization: "Loveland Ski Area",
+        stage: "negotiating",
+        nextStepDate: "2026-09-12",
+      },
+    ],
+    total: 2,
+  },
+};
+
+const seededSections = [
+  { key: "finance_fundraising", label: "Finance & Fundraising", topics: [] },
+  { key: "legal_nonprofit", label: "Legal & Nonprofit", topics: [] },
+  { key: "events", label: "Events", topics: [] },
+  {
+    key: "community_partnerships",
+    label: "Community & Partnerships",
+    topics: [],
+  },
+  { key: "marketing_social", label: "Marketing & Social", topics: [] },
+];
 
 describe("formatAgendaMarkdown", () => {
   test("renders empty-state placeholders for an agenda with no content", () => {
@@ -162,6 +245,107 @@ describe("formatAgendaMarkdown", () => {
     expect(markdown).toContain("Discussed fall planning.");
   });
 
+  test("prints the records behind each standing section", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: seededSections,
+      topicContext,
+    });
+
+    expect(markdown).toContain("Supporting records, as of Aug 31, 2026.");
+    expect(markdown).toContain(
+      "**Finance activity** — Jun 1, 2026 – Aug 31, 2026",
+    );
+    expect(markdown).toContain("- Income: $4,200.00");
+    expect(markdown).toContain("- Net: $2,900.00");
+    expect(markdown).toContain(
+      "- Outstanding reimbursements: $425.50 across 2",
+    );
+    expect(markdown).toContain(
+      "- Budgeted for upcoming events: $1,800.00 across 3",
+    );
+    expect(markdown).toContain(
+      "- Rocky Mountain Community Foundation — $10,000.00, Submitted, due Aug 15, 2026 (overdue)",
+    );
+    expect(markdown).toContain("4 open in total.");
+    expect(markdown).toContain(
+      "- 501(c)(3) milestone: File Form 1023-EZ (Federal exemption) — due Sep 10, 2026",
+    );
+    expect(markdown).toContain(
+      "- Annual requirement: Colorado periodic report (In progress) — due Aug 1, 2026 (overdue)",
+    );
+    expect(markdown).toContain(
+      "- Conflict-of-interest disclosures: 2 of 5 board members have none on file for FY2027",
+    );
+    expect(markdown).toContain("- Loveland Ski Area — Negotiating");
+  });
+
+  test("prints an undated milestone as having no due date", () => {
+    const compliance = topicContext.nonprofit_compliance;
+    if ("unavailable" in compliance) throw new Error("fixture regressed");
+
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: seededSections,
+      topicContext: {
+        ...topicContext,
+        nonprofit_compliance: {
+          ...compliance,
+          milestones: {
+            rows: [
+              {
+                id: "m2",
+                label: "Draft bylaws",
+                detail: "Incorporation",
+                dueDate: null,
+                overdue: false,
+              },
+            ],
+            total: 8,
+          },
+        },
+      },
+    });
+
+    expect(markdown).toContain(
+      "- 501(c)(3) milestone: Draft bylaws (Incorporation) — no due date",
+    );
+  });
+
+  test("leaves an unmapped section untouched", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: seededSections,
+      topicContext,
+    });
+    const marketing = markdown.slice(
+      markdown.indexOf("### Marketing & Social"),
+    );
+
+    expect(marketing).not.toContain("Supporting records");
+  });
+
+  test("does not repeat the calendar under Events", () => {
+    // The agenda already prints its own "Next 30 days" section a few headings
+    // later; the Events block would be the same list twice on one page.
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: seededSections,
+      topicContext,
+      datedContext,
+    });
+
+    expect(markdown.match(/Fall picnic \(Event\)/g)).toHaveLength(1);
+  });
+
+  test("omits every block while the read is still in flight", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: seededSections,
+    });
+    expect(markdown).not.toContain("Supporting records");
+  });
+
   test("calls the agenda's free-text field Agenda notes", () => {
     // Renamed from "Meeting notes" in #1201: since #1200 the minutes are their
     // own record, and this field is the pre-meeting context, not the minutes.
@@ -178,6 +362,19 @@ describe("formatAgendaPlainText", () => {
     expect(text).toContain("OPENING");
     expect(text).toContain("AGENDA NOTES");
     expect(text).not.toContain("#");
+    expect(text).not.toContain("**");
+  });
+
+  test("indents the supporting blocks without markdown emphasis", () => {
+    const text = formatAgendaPlainText({
+      ...emptyInput,
+      sections: seededSections,
+      topicContext,
+    });
+
+    expect(text).toContain("  Supporting records, as of Aug 31, 2026.");
+    expect(text).toContain("  Finance activity — Jun 1, 2026 – Aug 31, 2026");
+    expect(text).toContain("  - Income: $4,200.00");
     expect(text).not.toContain("**");
   });
 

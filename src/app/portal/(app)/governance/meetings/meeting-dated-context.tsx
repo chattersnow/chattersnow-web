@@ -90,6 +90,7 @@ export function MeetingDatedContext({
   context,
   loadError,
   pinnedKeys,
+  maxEntries,
   onPin,
 }: {
   /** `undefined` while the read is in flight. */
@@ -97,9 +98,20 @@ export function MeetingDatedContext({
   loadError: string | null;
   /** `${kind}:${id}` for every row already in the agenda's upcoming dates. */
   pinnedKeys?: Set<string>;
+  /**
+   * Caps the list, with a link to the calendar for the rest (#1224). The
+   * agenda leaves it unset -- the block is a section of its own there, and
+   * pinning needs every row in reach. Inside a minutes item card it is one
+   * reference among several, so it shows a handful.
+   */
+  maxEntries?: number;
   /** Omitted in view mode: the pin is an edit to the agenda. */
   onPin?: (entry: MeetingContextEntry) => void;
 }) {
+  const entries = context?.entries ?? [];
+  const shown =
+    maxEntries === undefined ? entries : entries.slice(0, maxEntries);
+
   return (
     <div>
       <p className="text-sm font-semibold">Next 30 days</p>
@@ -117,11 +129,11 @@ export function MeetingDatedContext({
         <Skeleton className="mt-2 h-16 w-full" />
       ) : (
         <>
-          {context.entries.length === 0 ? (
+          {entries.length === 0 ? (
             <p className="app-muted mt-1 text-sm">Nothing scheduled.</p>
           ) : (
             <ul className="mt-1 divide-y divide-[var(--line)]">
-              {context.entries.map((entry) => {
+              {shown.map((entry) => {
                 const key = meetingContextSourceKey(entry);
                 return (
                   <EntryRow
@@ -133,6 +145,17 @@ export function MeetingDatedContext({
                 );
               })}
             </ul>
+          )}
+          {shown.length < entries.length && (
+            <p className="app-muted mt-1 text-xs">
+              Showing {shown.length} of {entries.length}.{" "}
+              <Link
+                href="/portal/calendar"
+                className="text-[var(--purple-deep)] underline"
+              >
+                View all
+              </Link>
+            </p>
           )}
           {context.gaps.map((gap) => (
             <p key={gap.source} className="app-muted mt-1 text-xs">

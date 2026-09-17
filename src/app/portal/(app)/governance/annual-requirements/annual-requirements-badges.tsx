@@ -7,7 +7,9 @@ const REQUIREMENT_STATUS_STYLES: Record<RequirementStatus, StatusTone> = {
   done: "success",
 };
 
-const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = {
+// Exported for the agenda's compliance context block (#1224), which lists the
+// same requirements as text beside the section that discusses them.
+export const REQUIREMENT_STATUS_LABELS: Record<RequirementStatus, string> = {
   not_started: "Not started",
   in_progress: "In progress",
   done: "Done",
