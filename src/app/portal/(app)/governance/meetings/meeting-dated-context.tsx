@@ -4,9 +4,11 @@ import Link from "next/link";
 import { Check, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordPreviewLink } from "@/components/portal/record-preview-sheet";
 import { formatCalendarDate } from "@/lib/format";
 import {
   meetingContextEntryDay,
+  meetingContextSourceId,
   meetingContextSourceKey,
   type MeetingContextGap,
   type MeetingDatedContext,
@@ -56,12 +58,17 @@ function EntryRow({
         {formatCalendarDate(meetingContextEntryDay(entry))}
       </span>
       <div className="min-w-0 flex-1">
-        <Link
+        {/* Opens over the page instead of navigating (#1225). `entry.href` is
+            still what it falls back to where there is no sheet to open into. */}
+        <RecordPreviewLink
+          record={{
+            kind: entry.kind,
+            id: meetingContextSourceId(entry),
+            label: entry.title,
+          }}
           href={entry.href}
-          className="text-sm text-[var(--purple-deep)] underline"
-        >
-          {entry.title}
-        </Link>
+          className="text-left text-sm text-[var(--purple-deep)] underline"
+        />
         <p className="app-muted text-xs">
           {entry.kind === "event" ? "Event" : "Calendar item"}
         </p>

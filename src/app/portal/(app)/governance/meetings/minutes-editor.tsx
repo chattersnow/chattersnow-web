@@ -7,7 +7,6 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import Link from "next/link";
 import { saveMinutesDraftAction, type MinutesRow } from "./minutes-actions";
 import type { ActionItem } from "./action-items-actions";
 import type { MinutesItem } from "./minutes-snapshot";
@@ -21,8 +20,13 @@ import { OngoingTopicsTooltip } from "./agenda-tab";
 import { MinutesActionItemDialog } from "./minutes-action-item-dialog";
 import {
   MinutesQuickReferenceAside,
-  MinutesQuickReferenceSheet,
+  MinutesQuickReferenceBody,
+  MinutesQuickReferenceTrigger,
 } from "./minutes-quick-reference";
+import {
+  forbiddenPreviewKinds,
+  MEETING_RECORD_PREVIEW_LOADERS,
+} from "./meeting-record-preview";
 import { MeetingExportDialog } from "./meeting-export-dialog";
 import {
   formatMinutesMarkdown,
@@ -37,6 +41,10 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownText } from "@/components/portal/markdown-text";
+import {
+  RecordPreviewLink,
+  RecordPreviewProvider,
+} from "@/components/portal/record-preview-sheet";
 import { SaveStatusLine } from "@/components/portal/save-status";
 import { useAutosave } from "@/hooks/use-autosave";
 import { useUnsavedChangesGuard } from "@/components/portal/unsaved-changes-guard";
@@ -142,17 +150,22 @@ function PlannedContent({ item }: { item: MinutesItem }) {
       <OngoingTopicsTooltip topics={topics} />
       {/* Navigating away is safe -- #1200's autosave and leave guard are what
           made it safe -- so a pinned date is a link rather than dead text, which
-          was the complaint #1199-#1201 exist to answer. */}
+          was the complaint #1199-#1201 exist to answer. Since #1225 it does not
+          navigate at all: the record opens over the minutes, and the full
+          record is one more click from there. */}
       {references.length > 0 && (
         <ul className="mt-1 flex flex-col gap-0.5 text-sm">
           {references.map((reference) => (
             <li key={`${reference.kind}:${reference.id}`}>
-              <Link
+              <RecordPreviewLink
+                record={{
+                  kind: reference.kind,
+                  id: reference.id,
+                  label: reference.label,
+                }}
                 href={datedRecordHref(reference.kind, reference.id)}
-                className="text-[var(--purple-deep)] underline"
-              >
-                {reference.label}
-              </Link>
+                className="text-left text-[var(--purple-deep)] underline"
+              />
               {reference.date && (
                 <span className="app-muted">
                   {" — "}
@@ -278,49 +291,54 @@ export function MinutesReadOnlyView({
   const items = minutes.agenda_snapshot?.items ?? [];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Badge variant={minutes.status === "final" ? "success" : "progress"}>
-          {minutes.status === "final" ? "Final" : "Draft"}
-        </Badge>
-        <div className="flex flex-wrap items-center gap-2">
-          <MinutesExport
-            input={{
-              meetingDate,
-              minutes,
-              actionItems,
-              topicContext: topicContext.context,
-              datedContext: topicContext.datedContext,
-            }}
-          />
-          {lifecycleAction}
+    <RecordPreviewProvider
+      loaders={MEETING_RECORD_PREVIEW_LOADERS}
+      forbiddenKinds={forbiddenPreviewKinds(topicContext.datedContext)}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Badge variant={minutes.status === "final" ? "success" : "progress"}>
+            {minutes.status === "final" ? "Final" : "Draft"}
+          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <MinutesExport
+              input={{
+                meetingDate,
+                minutes,
+                actionItems,
+                topicContext: topicContext.context,
+                datedContext: topicContext.datedContext,
+              }}
+            />
+            {lifecycleAction}
+          </div>
+        </div>
+
+        <ol className="flex flex-col gap-3">
+          {items.map((item) => (
+            <MinutesItemCard
+              key={item.key}
+              item={item}
+              note={minutes.notes[item.key] ?? ""}
+              actionItems={itemsFor(actionItems, item.key)}
+              topicContext={topicContext}
+              readOnly
+            />
+          ))}
+        </ol>
+
+        <div>
+          <p className="text-sm font-semibold">Closing notes</p>
+          {minutes.body_text?.trim() ? (
+            <MarkdownText className="mt-1 text-sm">
+              {minutes.body_text}
+            </MarkdownText>
+          ) : (
+            <p className="app-muted mt-1 text-sm">None.</p>
+          )}
         </div>
       </div>
-
-      <ol className="flex flex-col gap-3">
-        {items.map((item) => (
-          <MinutesItemCard
-            key={item.key}
-            item={item}
-            note={minutes.notes[item.key] ?? ""}
-            actionItems={itemsFor(actionItems, item.key)}
-            topicContext={topicContext}
-            readOnly
-          />
-        ))}
-      </ol>
-
-      <div>
-        <p className="text-sm font-semibold">Closing notes</p>
-        {minutes.body_text?.trim() ? (
-          <MarkdownText className="mt-1 text-sm">
-            {minutes.body_text}
-          </MarkdownText>
-        ) : (
-          <p className="app-muted mt-1 text-sm">None.</p>
-        )}
-      </div>
-    </div>
+    </RecordPreviewProvider>
   );
 }
 
@@ -433,92 +451,113 @@ export function MinutesEditor({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="progress">Draft</Badge>
-          <SaveStatusLine
-            status={autosave.status}
-            lastSavedAt={autosave.lastSavedAt}
-          />
+    <RecordPreviewProvider
+      loaders={MEETING_RECORD_PREVIEW_LOADERS}
+      forbiddenKinds={forbiddenPreviewKinds(topicContext.datedContext)}
+      // Phone only. The sheet the provider owns is the *same* surface the
+      // quick reference uses, so a referenced record replaces this body rather
+      // than opening a second overlay over a 390px screen -- literally the
+      // "replace the quick glance with view details" the request asked for.
+      // On a desktop the aside below stays put and the record opens over the
+      // page, so there is no host and nothing to go back to.
+      host={
+        isPhone
+          ? {
+              title: "Quick reference",
+              description:
+                "Action items, decisions and attendance for this meeting, without leaving the minutes.",
+              body: <MinutesQuickReferenceBody {...quickReference} />,
+            }
+          : undefined
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="progress">Draft</Badge>
+            <SaveStatusLine
+              status={autosave.status}
+              lastSavedAt={autosave.lastSavedAt}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <MinutesQuickReferenceTrigger />
+            <MinutesExport
+              input={{
+                meetingDate,
+                minutes,
+                actionItems,
+                topicContext: topicContext.context,
+                datedContext: topicContext.datedContext,
+              }}
+            />
+            {lifecycleAction}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {isPhone && <MinutesQuickReferenceSheet {...quickReference} />}
-          <MinutesExport
-            input={{
-              meetingDate,
-              minutes,
-              actionItems,
-              topicContext: topicContext.context,
-              datedContext: topicContext.datedContext,
+
+        {autosave.status === "error" && autosave.errorMessage && (
+          <Alert variant="destructive">
+            <AlertDescription>{autosave.errorMessage}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="flex flex-col gap-4">
+            <ol className="flex flex-col gap-3">
+              {items.map((item) => (
+                <MinutesItemCard
+                  key={item.key}
+                  item={item}
+                  note={draft.notes[item.key] ?? ""}
+                  actionItems={itemsFor(actionItems, item.key)}
+                  topicContext={topicContext}
+                  readOnly={false}
+                  onNoteChange={(value) =>
+                    edit({
+                      ...draft,
+                      notes: { ...draft.notes, [item.key]: value },
+                    })
+                  }
+                  onFlush={() => void flush()}
+                  onAddActionItem={() => openActionItemDialog(item)}
+                />
+              ))}
+            </ol>
+
+            <Field>
+              <FieldLabel htmlFor="minutes-closing-notes">
+                Closing notes
+              </FieldLabel>
+              <Textarea
+                id="minutes-closing-notes"
+                placeholder="Anything that belongs to the meeting as a whole"
+                value={draft.bodyText}
+                onChange={(event) =>
+                  edit({ ...draft, bodyText: event.target.value })
+                }
+                onBlur={() => void flush()}
+              />
+            </Field>
+          </div>
+          {!isPhone && <MinutesQuickReferenceAside {...quickReference} />}
+        </div>
+
+        {addingActionItem && (
+          <MinutesActionItemDialog
+            meetingId={meetingId}
+            item={addingActionItem.item}
+            people={people}
+            onPersonCreated={onPersonCreated}
+            onAdded={() => {
+              setAddingActionItem(null);
+              onActionItemAdded();
+            }}
+            onOpenChange={(open) => {
+              if (!open) setAddingActionItem(null);
             }}
           />
-          {lifecycleAction}
-        </div>
+        )}
       </div>
-
-      {autosave.status === "error" && autosave.errorMessage && (
-        <Alert variant="destructive">
-          <AlertDescription>{autosave.errorMessage}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="flex flex-col gap-4">
-          <ol className="flex flex-col gap-3">
-            {items.map((item) => (
-              <MinutesItemCard
-                key={item.key}
-                item={item}
-                note={draft.notes[item.key] ?? ""}
-                actionItems={itemsFor(actionItems, item.key)}
-                topicContext={topicContext}
-                readOnly={false}
-                onNoteChange={(value) =>
-                  edit({
-                    ...draft,
-                    notes: { ...draft.notes, [item.key]: value },
-                  })
-                }
-                onFlush={() => void flush()}
-                onAddActionItem={() => openActionItemDialog(item)}
-              />
-            ))}
-          </ol>
-
-          <Field>
-            <FieldLabel htmlFor="minutes-closing-notes">
-              Closing notes
-            </FieldLabel>
-            <Textarea
-              id="minutes-closing-notes"
-              placeholder="Anything that belongs to the meeting as a whole"
-              value={draft.bodyText}
-              onChange={(event) =>
-                edit({ ...draft, bodyText: event.target.value })
-              }
-              onBlur={() => void flush()}
-            />
-          </Field>
-        </div>
-        {!isPhone && <MinutesQuickReferenceAside {...quickReference} />}
-      </div>
-
-      {addingActionItem && (
-        <MinutesActionItemDialog
-          meetingId={meetingId}
-          item={addingActionItem.item}
-          people={people}
-          onPersonCreated={onPersonCreated}
-          onAdded={() => {
-            setAddingActionItem(null);
-            onActionItemAdded();
-          }}
-          onOpenChange={(open) => {
-            if (!open) setAddingActionItem(null);
-          }}
-        />
-      )}
-    </div>
+    </RecordPreviewProvider>
   );
 }

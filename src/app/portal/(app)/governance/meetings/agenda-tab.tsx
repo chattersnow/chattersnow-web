@@ -30,6 +30,10 @@ import {
   type MeetingDatedContext as MeetingDatedContextData,
 } from "./meeting-context-shared";
 import { MeetingDatedContext } from "./meeting-dated-context";
+import {
+  forbiddenPreviewKinds,
+  MEETING_RECORD_PREVIEW_LOADERS,
+} from "./meeting-record-preview";
 import type {
   ActiveAgendaTemplate,
   AgendaTemplateSection,
@@ -45,6 +49,7 @@ import {
   type PreviousMeetingMinutes,
 } from "./minutes-approval-actions";
 import { MinutesApprovalDialog } from "./minutes-approval-dialog";
+import { RecordPreviewProvider } from "@/components/portal/record-preview-sheet";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -588,8 +593,22 @@ export function AgendaTab({
   const templateVersionId =
     agenda?.template_version_id ?? activeTemplate?.version_id ?? null;
 
+  // Both branches below sit inside it, so a "Next 30 days" row opens over the
+  // agenda instead of navigating off it (#1225) -- while writing the agenda as
+  // much as while reading it, since deciding whether to pin a date is exactly
+  // when somebody wants to look at the record. No host: the agenda has no
+  // quick-reference panel to replace, on a phone or anywhere else.
+  const preview = (body: ReactNode) => (
+    <RecordPreviewProvider
+      loaders={MEETING_RECORD_PREVIEW_LOADERS}
+      forbiddenKinds={forbiddenPreviewKinds(datedContext)}
+    >
+      {body}
+    </RecordPreviewProvider>
+  );
+
   if (mode === "edit") {
-    return (
+    return preview(
       <AgendaForm
         agenda={agenda}
         sections={sections}
@@ -604,11 +623,11 @@ export function AgendaTab({
         }}
         onCancel={onExitEdit}
         onDirtyChange={onDirtyChange}
-      />
+      />,
     );
   }
 
-  return (
+  return preview(
     <div className="flex flex-col gap-6">
       {loadError && (
         <Alert variant="destructive">
@@ -872,6 +891,6 @@ export function AgendaTab({
           </FieldGroup>
         </>
       )}
-    </div>
+    </div>,
   );
 }
