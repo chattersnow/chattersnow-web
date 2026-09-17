@@ -582,15 +582,57 @@ begin
   select id into v_agenda_template_id from public.agenda_templates where key = 'board_meeting';
   select current_version_id into v_agenda_template_version_id from public.agenda_templates where id = v_agenda_template_id;
 
+  -- The `ongoing_items` and `upcoming_dates` shapes here are the ones the app
+  -- reads (#1199). They were `{"finance_fundraising": "..."}` and a bare string
+  -- array until then -- well-formed JSON in the wrong shape, so `agenda-tab.tsx`
+  -- read `ongoing_items[key]?.updates` off a string and rendered every seeded
+  -- section as an em dash: a seed that looked populated and displayed empty.
+  -- All seven template sections are filled, because the minutes snapshot is
+  -- built from these columns and a half-filled agenda makes a half-blank guide.
   insert into public.agendas (
-    meeting_id, body_text, template_id, template_version_id, ongoing_items,
+    meeting_id, external_link, body_text, template_id, template_version_id, ongoing_items,
     new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, created_by
   )
   values (
-    v_meeting_id, '1. Program launch\n2. Nonprofit formation timeline', v_agenda_template_id, v_agenda_template_version_id,
-    '{"finance_fundraising": "On track; see winter swap sponsorship.", "events": "Winter Gear Swap logistics confirmed."}'::jsonb,
+    v_meeting_id, 'https://example.test/board/winter-agenda.pdf',
+    'Program launch and the nonprofit formation timeline are the two items needing a decision today; everything else is a status update.',
+    v_agenda_template_id, v_agenda_template_version_id,
+    '{
+      "finance_fundraising": {
+        "updates": "Operating balance is healthy going into the swap. Sponsorship income for the Winter Gear Swap is confirmed in full, and the two outstanding pledges from last quarter have cleared. Expenses are tracking under projection, mostly because the venue waived its cleaning fee.",
+        "decisions_needed": "Whether to open a second account for restricted funds before the first grant arrives, or keep everything in one account with a tracking column until the volume justifies the split."
+      },
+      "legal_nonprofit": {
+        "updates": "The fiscal sponsorship agreement is signed and countersigned. The 501(c)(3) application is drafted but not filed; the remaining gap is the conflict-of-interest policy, which needs a board vote before it can be attached.",
+        "decisions_needed": "Adopt the conflict-of-interest policy as drafted, or send it back for a second read."
+      },
+      "events": {
+        "updates": "Winter Gear Swap logistics are confirmed: venue, insurance, volunteer shifts and the gear intake table. Two vendors dropped out and have been replaced. Post-event follow-up reuses the survey sent after the fall swap.",
+        "decisions_needed": "Cap attendance at the venue limit, or run a waitlist."
+      },
+      "community_partnerships": {
+        "updates": "Two partnership conversations are open, one with a regional ski club and one with an LGBTQ+ community centre. Neither is ready to commit to a written agreement, and both asked for a one-page description of what partnering involves.",
+        "decisions_needed": ""
+      },
+      "marketing_social": {
+        "updates": "The swap campaign is scheduled through the event date and the important community dates for next quarter are on the calendar. We are short on community stories; the two we have are both from the same event.",
+        "decisions_needed": ""
+      },
+      "operations": {
+        "updates": "Inventory intake is caught up. The storage unit is at roughly three quarters capacity, which is the real constraint on how much gear the swap can accept. Volunteer coordination has moved into the portal and is no longer tracked in a spreadsheet.",
+        "decisions_needed": "Whether to rent a second storage unit before the swap, or limit intake on the day."
+      },
+      "technology_website": {
+        "updates": "The portal is in daily use for events, inventory and governance. Domain and account access is documented. No outstanding security items.",
+        "decisions_needed": ""
+      }
+    }'::jsonb,
     '["Discuss Q1 grant applications"]'::jsonb, '["Revisit storage unit lease renewal"]'::jsonb,
-    '["Winter Gear Swap — 21 days out"]'::jsonb, current_date + 30, 'Post-event debrief; nonprofit formation update.',
+    '[
+      {"date": "2026-04-01", "description": "Winter Gear Swap", "owner": "Events lead"},
+      {"date": "2026-04-15", "description": "Fiscal sponsor quarterly report due", "owner": "Treasurer"}
+    ]'::jsonb,
+    current_date + 30, 'Post-event debrief; nonprofit formation update.',
     v_admin_id
   );
   insert into public.governance_meeting_action_items (meeting_id, description, owner_person_id, due_date, created_by)
@@ -599,6 +641,102 @@ begin
   values (v_meeting_id, 'Proceed with the winter gear swap pilot.', current_date - 14, 'Winter access program launch', 'Passed unanimously', v_admin_id);
   insert into public.resolutions (meeting_id, motion_text, mover_person_id, seconder_person_id, vote_outcome, effective_date, created_by)
   values (v_meeting_id, 'Adopt the winter access program as a core initiative.', v_person_sponsor, v_person_volunteer, 'passed', current_date - 14, v_admin_id);
+
+  -- One finalized set of minutes on the past meeting (#1199), so the Minutes
+  -- tab has something to open locally that is not an empty draft.
+  --
+  -- The snapshot is assembled from the agenda and its pinned template version
+  -- rather than written out as a literal, which is exactly what
+  -- buildMinutesSnapshot() does at runtime: a hand-written copy would drift
+  -- from the template the first time anyone edited the template seed, and the
+  -- item keys are what the notes below are keyed to.
+  insert into public.meeting_minutes (
+    meeting_id, agenda_snapshot, notes, body_text, status,
+    finalized_at, finalized_by, created_by, updated_by
+  )
+  select
+    v_meeting_id,
+    jsonb_build_object(
+      'version', 1,
+      'meeting_date', to_char(m.meeting_date at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+      'template_id', v_agenda_template_id,
+      'template_version_id', v_agenda_template_version_id,
+      'external_link', a.external_link,
+      'items',
+        jsonb_build_array(
+          jsonb_build_object(
+            'key', 'opening', 'label', 'Opening', 'kind', 'opening',
+            'planned', jsonb_build_object('topics', jsonb_build_array(
+              'Welcome and call to order', 'Confirm quorum',
+              'Approve previous meeting minutes', 'Review agenda'))),
+          jsonb_build_object(
+            'key', 'carried_over',
+            'label', 'Action items from previous meeting',
+            'kind', 'carried_over')
+        )
+        || (
+          select jsonb_agg(
+            jsonb_build_object(
+              'key', 'section:' || (t.section ->> 'key'),
+              'label', t.section ->> 'label',
+              'kind', 'section',
+              'planned', jsonb_build_object(
+                'updates', coalesce(a.ongoing_items -> (t.section ->> 'key') ->> 'updates', ''),
+                'decisions_needed', coalesce(a.ongoing_items -> (t.section ->> 'key') ->> 'decisions_needed', ''),
+                'topics', coalesce(t.section -> 'topics', '[]'::jsonb)))
+            order by t.ord)
+          from jsonb_array_elements(v.sections) with ordinality as t(section, ord)
+        )
+        || jsonb_build_array(
+          jsonb_build_object('key', 'decisions', 'label', 'Decisions & votes', 'kind', 'decisions'))
+        || (
+          select coalesce(jsonb_agg(
+            jsonb_build_object(
+              'key', 'new_business:' || (t.ord - 1),
+              'label', t.entry,
+              'kind', 'new_business',
+              'planned', jsonb_build_object('text', t.entry))
+            order by t.ord), '[]'::jsonb)
+          from jsonb_array_elements_text(a.new_business) with ordinality as t(entry, ord)
+        )
+        || jsonb_build_array(
+          jsonb_build_object(
+            'key', 'upcoming_dates', 'label', 'Upcoming dates', 'kind', 'upcoming_dates',
+            'planned', jsonb_build_object('topics', coalesce((
+              select jsonb_agg(concat_ws(' — ', d ->> 'date', d ->> 'description', d ->> 'owner'))
+              from jsonb_array_elements(a.upcoming_dates) as d), '[]'::jsonb))),
+          jsonb_build_object(
+            'key', 'parking_lot', 'label', 'Parking lot', 'kind', 'parking_lot',
+            'planned', jsonb_build_object('topics', coalesce(a.parking_lot, '[]'::jsonb))),
+          jsonb_build_object(
+            'key', 'next_meeting', 'label', 'Next meeting', 'kind', 'next_meeting',
+            'planned', jsonb_build_object(
+              'text', concat_ws(' — ', a.next_meeting_date::text, a.next_meeting_topics))))
+    ),
+    '{
+      "opening": "Called to order at 18:04. Quorum confirmed with four of five board members present; the fifth sent regrets in advance and had reviewed the papers.\n\nMinutes of the previous meeting were approved as circulated, with one correction: the storage unit lease renewal date was recorded as the 12th and is in fact the 21st.\n\nThe agenda was accepted without changes.",
+      "carried_over": "Both items carried over from last time are done. The partner gear donation schedule is confirmed through the end of the season, and the insurance certificate has been received and filed.",
+      "section:finance_fundraising": "The treasurer walked through the operating balance and the sponsorship income for the swap, both of which are where the agenda said they would be. The two pledges that had been outstanding since last quarter have now cleared, which closes the only receivable on the books.\n\nOn the restricted-funds question the board went back and forth. The argument for a second account is that a grantor asking how restricted money is segregated wants a simpler answer than a tracking column. The argument against is that a second account is another reconciliation every month for a volunteer treasurer, and nothing is restricted yet.\n\nResolved to keep one account for now and revisit the moment the first restricted grant is actually awarded, rather than in anticipation of one. The treasurer will add a note to the grant application checklist so this is not forgotten.",
+      "section:legal_nonprofit": "The fiscal sponsorship agreement is fully executed and a copy is filed in the governance folder.\n\nThe conflict-of-interest policy was read in full. Two changes were requested from the floor: the annual disclosure should name the calendar year it covers rather than the date it was signed, and the recusal language should cover board members'' immediate family, not only the members themselves.\n\nWith those two changes the policy was adopted. The 501(c)(3) application can now be filed with the policy attached; the target is before the end of the month.",
+      "section:events": "Swap logistics were confirmed section by section against the run sheet. The two replacement vendors have both been given the load-in time and the intake table layout.\n\nOn attendance, the board chose a waitlist over a hard cap. A cap turns people away at the door, which is the opposite of the point of the event; a waitlist at least tells us how much demand we are missing and gives us a list to invite to the next one.",
+      "section:community_partnerships": "Both partnership conversations were reported as open and neither is ready for a written agreement. The board agreed that the one-page description both organizations asked for is worth writing once and reusing, rather than drafting a bespoke note each time, and that it should say plainly what we are asking for and what we are offering.",
+      "section:marketing_social": "The campaign schedule was noted with no changes. The shortage of community stories was discussed briefly: the suggestion was to ask at the swap itself, while people are holding gear they are pleased with, rather than by email afterwards.",
+      "section:operations": "Storage came up as the binding constraint on the swap. Renting a second unit before the event was rejected on cost — it would be a monthly commitment to solve a one-day problem.\n\nInstead intake on the day will be limited to what can leave with somebody the same day, with anything left over going to the partner organization that has offered overflow space. The operations lead will confirm that offer in writing before the event.",
+      "section:technology_website": "Nothing to decide. Access documentation was noted as current.",
+      "decisions": "Two decisions were recorded formally: adopting the conflict-of-interest policy as amended, and proceeding with the winter gear swap pilot. The resolution adopting the winter access program as a core initiative was moved, seconded and passed.",
+      "new_business:0": "Q1 grant applications were discussed as a block. Three are plausible; one has a deadline inside four weeks and would need the 501(c)(3) filing to be in flight, which it now will be. Agreed to prioritise that one and treat the other two as next quarter''s work.",
+      "upcoming_dates": "Both dates were read out and confirmed. The fiscal sponsor quarterly report is the one with no slack in it.",
+      "parking_lot": "The storage unit lease renewal stays parked until the swap is over, since the intake decision above changes what we need from it.",
+      "next_meeting": "Confirmed for the scheduled date. Standing items plus the post-event debrief and a nonprofit formation update."
+    }'::jsonb,
+    'Adjourned at 19:52. Minutes taken by the notetaker of record and circulated the following day for approval at the next meeting.',
+    'final',
+    m.meeting_date + interval '2 hours',
+    v_admin_id, v_admin_id, v_admin_id
+  from public.governance_meetings m
+  join public.agendas a on a.meeting_id = m.id
+  join public.agenda_template_versions v on v.id = v_agenda_template_version_id
+  where m.id = v_meeting_id;
 
   -- Administration edge cases: a staged invite and a deliberately deactivated user.
   insert into public.pending_role_grants (email, role_id, status, expires_at, name, created_by, invited_at, invited_by)

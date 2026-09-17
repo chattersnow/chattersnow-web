@@ -4360,6 +4360,7 @@ export type Database = {
           due_date: string | null;
           id: string;
           meeting_id: string;
+          minutes_item_key: string | null;
           owner_person_id: string;
           status: string;
           tenant_id: string;
@@ -4373,6 +4374,7 @@ export type Database = {
           due_date?: string | null;
           id?: string;
           meeting_id: string;
+          minutes_item_key?: string | null;
           owner_person_id: string;
           status?: string;
           tenant_id?: string;
@@ -4386,6 +4388,7 @@ export type Database = {
           due_date?: string | null;
           id?: string;
           meeting_id?: string;
+          minutes_item_key?: string | null;
           owner_person_id?: string;
           status?: string;
           tenant_id?: string;
@@ -5042,6 +5045,92 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      meeting_minutes: {
+        Row: {
+          agenda_snapshot: Json;
+          approved_at: string | null;
+          approved_at_meeting_id: string | null;
+          approved_by: string | null;
+          body_text: string | null;
+          created_at: string;
+          created_by: string;
+          finalized_at: string | null;
+          finalized_by: string | null;
+          id: string;
+          meeting_id: string;
+          notes: Json;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          agenda_snapshot?: Json;
+          approved_at?: string | null;
+          approved_at_meeting_id?: string | null;
+          approved_by?: string | null;
+          body_text?: string | null;
+          created_at?: string;
+          created_by?: string;
+          finalized_at?: string | null;
+          finalized_by?: string | null;
+          id?: string;
+          meeting_id: string;
+          notes?: Json;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          agenda_snapshot?: Json;
+          approved_at?: string | null;
+          approved_at_meeting_id?: string | null;
+          approved_by?: string | null;
+          body_text?: string | null;
+          created_at?: string;
+          created_by?: string;
+          finalized_at?: string | null;
+          finalized_by?: string | null;
+          id?: string;
+          meeting_id?: string;
+          notes?: Json;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_approved_at_meeting_id_fkey";
+            columns: ["tenant_id", "approved_at_meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "governance_meetings";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_meeting_id_fkey";
+            columns: ["tenant_id", "meeting_id"];
+            isOneToOne: true;
+            referencedRelation: "governance_meetings";
+            referencedColumns: ["tenant_id", "id"];
           },
         ];
       };
@@ -9651,6 +9740,15 @@ export type Database = {
           p_is_offered?: boolean;
           p_key: string;
           p_name: string;
+        };
+        Returns: string;
+      };
+      save_meeting_minutes_draft: {
+        Args: {
+          p_body_text: string;
+          p_body_text_set: boolean;
+          p_meeting_id: string;
+          p_notes: Json;
         };
         Returns: string;
       };
