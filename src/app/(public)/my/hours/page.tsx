@@ -48,7 +48,7 @@ export default async function MyHoursPage() {
   ]);
 
   return (
-    <PageShell maxWidth="max-w-2xl">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

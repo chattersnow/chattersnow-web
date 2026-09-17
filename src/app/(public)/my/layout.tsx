@@ -14,12 +14,15 @@ import { requireConstituentArea } from "@/lib/constituent/guard";
  * role that nobody here has.
  *
  * Gate and slot, with no `PageShell` -- the precedent `(public)/events/layout`
- * sets, and for the same reason: the five routes below do not share a column
- * width, `/my/sign-in` wants `max-w-md` where the hub wants `max-w-3xl`, and
- * wrapping here would force one on all of them and risk a second `<main>`.
- * Each page invokes `PageShell` itself, which is also what gives it the
- * `<main id="main-content">` the public layout's skip link aims at. Until
- * #1179 none of them did, so the area shipped no main landmark at all.
+ * sets. Until #1218 the reason was that the five routes below did not share a
+ * column width; they all sit in the one public column now, and what keeps the
+ * shell on the pages is `loading.tsx` and `error.tsx`. Those render in place
+ * of the page but inside this layout, so a shell here would wrap a second one
+ * and nest two `<main>` elements on every fallback. Each page, each loading
+ * file and the error boundary invokes `PageShell` itself, which is also what
+ * gives it the `<main id="main-content">` the public layout's skip link aims
+ * at. Until #1179 none of them did, so the area shipped no main landmark at
+ * all.
  */
 export default async function MyLayout({
   children,

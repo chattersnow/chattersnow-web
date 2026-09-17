@@ -2,10 +2,11 @@ import { requireVisiblePage } from "@/lib/page-visibility";
 
 /**
  * Gate and slot -- no PageShell. Unlike the other public sections, each page
- * under /events invokes PageShell itself, because they do not share one column
- * width: /events/e/[id] wants max-w-3xl and the rest want the default. Wrapping
- * here would both nest a second <main> and force a single width on all of
- * them.
+ * under /events invokes PageShell itself. Until #1218 that was because they
+ * did not share one column width; they all sit in the one public column now,
+ * and what keeps the shell on the pages is the `modal` slot below. A shell
+ * here would wrap the intercepted sheet in a <main> of its own, on top of the
+ * one the page behind it already renders.
  *
  * The `modal` slot is the intercepted /events/e/[id] (#847). Keeping it on this
  * layout rather than the (public) one is what scopes interception to the

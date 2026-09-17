@@ -16,6 +16,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  *
  * What it still owes the rest of the site is here: the tenant's colours, the
  * skip link, the same 404 on a host no tenant claims, and the visibility gate.
+ *
+ * It is also the one page `docs/public-page-widths.md` exempts. Every page in
+ * `(public)` renders in `PageShell`'s `max-w-6xl` so its left edge lands on
+ * the header's; this page has no header, so there is nothing for a wide column
+ * to line up with, and `max-w-sm` below is the phone it is read on.
  */
 export default async function LinksLayout({
   children,

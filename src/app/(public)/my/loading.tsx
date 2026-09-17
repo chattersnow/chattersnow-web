@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function MyLoading() {
   return (
-    <PageShell maxWidth="max-w-3xl">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

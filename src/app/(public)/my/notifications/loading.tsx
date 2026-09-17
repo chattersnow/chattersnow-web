@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyNotificationsLoading() {
   return (
-    <PageShell maxWidth="max-w-2xl">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

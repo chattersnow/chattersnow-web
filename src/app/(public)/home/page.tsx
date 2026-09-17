@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite } from "@/lib/public-site";
@@ -159,72 +160,64 @@ export default async function Home() {
   );
 
   return (
-    // /home has no layout.tsx, so it has no PageShell ancestor -- it has to
-    // carry the skip link target itself.
-    <main
-      id="main-content"
-      tabIndex={-1}
-      className="app-shell px-6 py-8 outline-none sm:px-10"
-    >
-      <div className="mx-auto max-w-6xl">
-        <section className="flex flex-col items-center text-center">
-          <HomeCarousel
-            slides={CAROUSEL_SLOTS.map((slot) => ({
-              key: slot,
-              url: siteImages[slot] ?? null,
-            }))}
-            alt={content.text("org.image_alt")}
-          />
+    <PageShell>
+      <section className="flex flex-col items-center text-center">
+        <HomeCarousel
+          slides={CAROUSEL_SLOTS.map((slot) => ({
+            key: slot,
+            url: siteImages[slot] ?? null,
+          }))}
+          alt={content.text("org.image_alt")}
+        />
 
-          <div className="mt-5 w-fit">
-            <div className="rainbow-accent w-full" />
-            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              {content.text("home.heading")}
-            </h1>
-          </div>
-          <p className="app-muted mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
-            {content.text("home.intro")}
-          </p>
+        <div className="mt-5 w-fit">
+          <div className="rainbow-accent w-full" />
+          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            {content.text("home.heading")}
+          </h1>
+        </div>
+        <p className="app-muted mt-3 max-w-xl text-sm leading-relaxed sm:text-base">
+          {content.text("home.intro")}
+        </p>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Button
-              variant="rainbow"
-              nativeButton={false}
-              render={<Link href="/events" />}
-            >
-              {content.text("home.cta_events")}
-            </Button>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button
+            variant="rainbow"
+            nativeButton={false}
+            render={<Link href="/events" />}
+          >
+            {content.text("home.cta_events")}
+          </Button>
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href="/get-involved" />}
+          >
+            {content.text("home.cta_get_involved")}
+          </Button>
+          {supportVisible ? (
             <Button
               variant="secondary"
               nativeButton={false}
-              render={<Link href="/get-involved" />}
+              render={<Link href="/support" />}
             >
-              {content.text("home.cta_get_involved")}
+              {content.text("home.cta_donate")}
             </Button>
-            {supportVisible ? (
-              <Button
-                variant="secondary"
-                nativeButton={false}
-                render={<Link href="/support" />}
-              >
-                {content.text("home.cta_donate")}
-              </Button>
-            ) : null}
-          </div>
-        </section>
+          ) : null}
+        </div>
+      </section>
 
-        {upcoming.length > 0 && (
-          <UpcomingEvents
-            items={upcoming}
-            now={now}
-            cards={layout.homeUpcomingCards}
-            eyebrow={content.text("home.upcoming_eyebrow")}
-            heading={content.text("home.upcoming_heading")}
-            ctaLabel={content.text("home.upcoming_cta")}
-            nextUpLabel={content.text("home.next_event_eyebrow")}
-          />
-        )}
-      </div>
-    </main>
+      {upcoming.length > 0 && (
+        <UpcomingEvents
+          items={upcoming}
+          now={now}
+          cards={layout.homeUpcomingCards}
+          eyebrow={content.text("home.upcoming_eyebrow")}
+          heading={content.text("home.upcoming_heading")}
+          ctaLabel={content.text("home.upcoming_cta")}
+          nextUpLabel={content.text("home.next_event_eyebrow")}
+        />
+      )}
+    </PageShell>
   );
 }

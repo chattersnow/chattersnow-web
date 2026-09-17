@@ -16,11 +16,11 @@ describe("PageShell", () => {
     expect(main?.getAttribute("tabindex")).toBe("-1");
   });
 
-  test("still honours a custom column width", () => {
-    const { container } = render(
-      <PageShell maxWidth="max-w-3xl">content</PageShell>,
-    );
+  // Issue #1218: one column for the whole public site, with no prop to
+  // override it, so every page's left edge lands on the header's.
+  test("renders one fixed column", () => {
+    const { container } = render(<PageShell>content</PageShell>);
 
-    expect(container.querySelector(".max-w-3xl")).not.toBeNull();
+    expect(container.querySelector(".max-w-6xl")).not.toBeNull();
   });
 });
