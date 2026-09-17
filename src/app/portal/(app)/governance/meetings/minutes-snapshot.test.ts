@@ -197,6 +197,50 @@ describe("buildMinutesSnapshot", () => {
   });
 });
 
+describe("pinned upcoming dates (#1223)", () => {
+  const PINNED: SnapshotAgenda = {
+    ...FULL_AGENDA,
+    upcoming_dates: [
+      {
+        date: "2026-04-01",
+        description: "Gear drive",
+        owner: "Board",
+        source_kind: "event",
+        source_id: "event-1",
+      },
+      // Hand-typed alongside a pinned one: it still gets a line and no
+      // reference, which is what keeps the two lists the same length.
+      { date: "2026-04-08", description: "Grant deadline", owner: "Avery" },
+    ],
+  };
+
+  test("gives a pinned entry both a topics line and a reference", () => {
+    const planned = build(PINNED).items.find(
+      (item) => item.key === "upcoming_dates",
+    )?.planned;
+
+    expect(planned?.topics).toEqual([
+      "2026-04-01 — Gear drive — Board",
+      "2026-04-08 — Grant deadline — Avery",
+    ]);
+    expect(planned?.references).toEqual([
+      {
+        kind: "event",
+        id: "event-1",
+        label: "Gear drive",
+        date: "2026-04-01",
+      },
+    ]);
+  });
+
+  test("leaves references off entirely when nothing was pinned", () => {
+    const planned = build(FULL_AGENDA).items.find(
+      (item) => item.key === "upcoming_dates",
+    )?.planned;
+    expect(planned).not.toHaveProperty("references");
+  });
+});
+
 describe("isMinutesSnapshot", () => {
   test("accepts what the builder produces", () => {
     expect(isMinutesSnapshot(build(FULL_AGENDA))).toBe(true);
@@ -220,5 +264,55 @@ describe("isMinutesSnapshot", () => {
         items: [{ key: "x", label: "X", kind: "not_a_kind" }],
       }),
     ).toBe(false);
+  });
+
+  test("still accepts a v1 snapshot, which has no references at all", () => {
+    // Exactly what a row written before #1223 holds: version 1, and `planned`
+    // with topics only. Nothing back-fills these, so they have to keep reading.
+    const v1 = {
+      version: 1,
+      meeting_date: "2026-03-18T18:00:00.000Z",
+      template_id: null,
+      template_version_id: null,
+      external_link: null,
+      items: [
+        {
+          key: "upcoming_dates",
+          label: "Upcoming dates",
+          kind: "upcoming_dates",
+          planned: { topics: ["2026-04-01 — Gear drive — Board"] },
+        },
+      ],
+    };
+    expect(isMinutesSnapshot(v1)).toBe(true);
+  });
+
+  test("rejects references the minutes editor could not render", () => {
+    const withReferences = (references: unknown) => ({
+      ...build(null),
+      items: [
+        {
+          key: "upcoming_dates",
+          label: "Upcoming dates",
+          kind: "upcoming_dates",
+          planned: { topics: [], references },
+        },
+      ],
+    });
+
+    expect(isMinutesSnapshot(withReferences("event-1"))).toBe(false);
+    expect(isMinutesSnapshot(withReferences([{ kind: "event" }]))).toBe(false);
+    expect(
+      isMinutesSnapshot(
+        withReferences([{ kind: "grant", id: "g", label: "G", date: "" }]),
+      ),
+    ).toBe(false);
+    expect(
+      isMinutesSnapshot(
+        withReferences([
+          { kind: "calendar_item", id: "c", label: "C", date: "2026-04-01" },
+        ]),
+      ),
+    ).toBe(true);
   });
 });

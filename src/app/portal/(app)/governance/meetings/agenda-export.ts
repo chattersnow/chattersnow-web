@@ -3,6 +3,10 @@ import type { AgendaTemplateSection } from "./agenda-template-shared";
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
 import {
+  meetingContextEntryDay,
+  type MeetingDatedContext,
+} from "./meeting-context-shared";
+import {
   formatCalendarDate,
   formatInstantDate,
   personDisplayName,
@@ -16,6 +20,12 @@ export type AgendaExportInput = {
   carriedOverItems: ActionItem[];
   createdItems: ActionItem[];
   decisions: Decision[];
+  /**
+   * The live "Next 30 days" block (#1223), or undefined while it is still
+   * loading -- in which case the section is left out rather than printed as
+   * empty, which would read as "nothing is scheduled".
+   */
+  datedContext?: MeetingDatedContext;
 };
 
 function actionItemLine(item: ActionItem): string {
@@ -26,6 +36,44 @@ function decisionLine(decision: Decision): string {
   const topic = decision.topic ? `${decision.topic}: ` : "";
   const vote = decision.vote_result ? ` (${decision.vote_result})` : "";
   return `${topic}${decision.description}${vote}`;
+}
+
+/**
+ * The live block, printed as dated text under its own heading.
+ *
+ * A printed agenda cannot be clicked and cannot re-read the calendar, so the
+ * "as of" line is not decoration: it is the difference between a snapshot of a
+ * live list and a claim about the future. Gaps are printed for the same reason
+ * they are rendered -- a board member handed a page that silently omits events
+ * has no way to know it did.
+ */
+function datedContextLines(
+  context: MeetingDatedContext | undefined,
+  bullet: string,
+): string[] {
+  if (!context) return [];
+  const lines: string[] = [
+    `From the calendar and events, as of ${formatCalendarDate(context.asOf)}.`,
+  ];
+  if (context.entries.length === 0) {
+    lines.push(`${bullet}Nothing scheduled.`);
+  } else {
+    for (const entry of context.entries) {
+      const kind = entry.kind === "event" ? "Event" : "Calendar item";
+      lines.push(
+        `${bullet}${formatCalendarDate(meetingContextEntryDay(entry))} — ${entry.title} (${kind})`,
+      );
+    }
+  }
+  for (const gap of context.gaps) {
+    const source = gap.source === "events" ? "Events" : "Calendar items";
+    lines.push(
+      gap.reason === "forbidden"
+        ? `${source} are not included — the exporter's role does not cover them.`
+        : `${source} could not be loaded.`,
+    );
+  }
+  return lines;
 }
 
 export function formatAgendaMarkdown(input: AgendaExportInput): string {
@@ -82,6 +130,12 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
     for (const item of agenda.new_business) lines.push(`- ${item}`);
   }
   lines.push("");
+
+  if (input.datedContext) {
+    lines.push("## Next 30 days");
+    lines.push(...datedContextLines(input.datedContext, "- "));
+    lines.push("");
+  }
 
   lines.push("## Upcoming dates");
   if (agenda.upcoming_dates.length === 0) {
@@ -182,6 +236,14 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
     for (const item of agenda.new_business) lines.push(`  - ${item}`);
   }
   lines.push("");
+
+  if (input.datedContext) {
+    lines.push("NEXT 30 DAYS");
+    for (const line of datedContextLines(input.datedContext, "  - ")) {
+      lines.push(line.startsWith("  - ") ? line : `  ${line}`);
+    }
+    lines.push("");
+  }
 
   lines.push("UPCOMING DATES");
   if (agenda.upcoming_dates.length === 0) {

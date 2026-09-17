@@ -43,15 +43,51 @@ type CalendarEntryBase = {
 };
 
 /**
+ * The columns a calendar item has to carry to be placed and labelled on any
+ * view. The calendar workspace reads the full ~30-column row and is the
+ * default; a surface that only needs to *show* a date -- the agenda's "Next 30
+ * days" block (#1223) -- selects these and parameterizes the entry rather than
+ * fetching the editorial workflow it will never render.
+ */
+export type CalendarItemEntryRow = Pick<
+  CalendarItemRow,
+  | "id"
+  | "title"
+  | "item_type"
+  | "starts_at"
+  | "ends_at"
+  | "time_zone"
+  | "summary"
+  | "calendar_status"
+>;
+
+/**
  * One row on the calendar. `kind` is what the views branch on: calendar items
  * carry the editorial workflow (priority tier, decision, sensitive review),
  * events carry none of it and are read-only markers here.
+ *
+ * Parameterized by how much of the calendar item the caller actually read, and
+ * defaulted to the whole row so every existing view is untouched. The point is
+ * that `href` keeps being computed in exactly one place whatever the select
+ * was -- a second builder for a narrower row is a second place the route lives.
  */
-export type CalendarEntry =
-  | (CalendarEntryBase & { kind: "calendar_item"; item: CalendarItemRow })
+export type CalendarEntry<Item extends CalendarItemEntryRow = CalendarItemRow> =
+  | (CalendarEntryBase & { kind: "calendar_item"; item: Item })
   | (CalendarEntryBase & { kind: "event"; event: CalendarEventRow });
 
-export function calendarItemEntry(item: CalendarItemRow): CalendarEntry {
+/** Where a calendar item is managed. The one place this route is written. */
+export function calendarItemHref(id: string): string {
+  return `/portal/calendar/${id}`;
+}
+
+/** Where an event is managed. The one place this route is written. */
+export function eventHref(id: string): string {
+  return `/portal/events/${id}`;
+}
+
+export function calendarItemEntry<Item extends CalendarItemEntryRow>(
+  item: Item,
+): CalendarEntry<Item> {
   return {
     kind: "calendar_item",
     id: item.id,
@@ -60,7 +96,7 @@ export function calendarItemEntry(item: CalendarItemRow): CalendarEntry {
     ends_at: item.ends_at,
     time_zone: item.time_zone,
     summary: item.summary,
-    href: `/portal/calendar/${item.id}`,
+    href: calendarItemHref(item.id),
     item,
   };
 }
@@ -74,7 +110,7 @@ export function eventEntry(event: CalendarEventRow): CalendarEntry {
     ends_at: event.ends_at,
     time_zone: event.time_zone,
     summary: event.summary,
-    href: `/portal/events/${event.id}`,
+    href: eventHref(event.id),
     event,
   };
 }
@@ -123,7 +159,7 @@ type CalendarSortColumn = "title" | "starts_at" | "calendar_status";
  * Events sort by their own lifecycle status. There is no honest way to rank
  * "published" against "idea", so the column just orders the text it has.
  */
-function statusValue(entry: CalendarEntry): string {
+function statusValue(entry: CalendarEntry<CalendarItemEntryRow>): string {
   return entry.kind === "event"
     ? entry.event.status
     : entry.item.calendar_status;
@@ -131,7 +167,10 @@ function statusValue(entry: CalendarEntry): string {
 
 const COMPARATORS: Record<
   CalendarSortColumn,
-  (a: CalendarEntry, b: CalendarEntry) => number
+  (
+    a: CalendarEntry<CalendarItemEntryRow>,
+    b: CalendarEntry<CalendarItemEntryRow>,
+  ) => number
 > = {
   title: (a, b) =>
     a.title.localeCompare(b.title, undefined, { sensitivity: "base" }),
@@ -148,11 +187,11 @@ const COMPARATORS: Record<
  * on either query's order. Ties break on `id` so a re-render can't shuffle two
  * rows that share a value.
  */
-export function sortCalendarEntries(
-  entries: CalendarEntry[],
+export function sortCalendarEntries<Item extends CalendarItemEntryRow>(
+  entries: CalendarEntry<Item>[],
   sort: CalendarSortColumn,
   dir: "asc" | "desc",
-): CalendarEntry[] {
+): CalendarEntry<Item>[] {
   const compare = COMPARATORS[sort];
   const sign = dir === "asc" ? 1 : -1;
   return [...entries].sort((a, b) => {

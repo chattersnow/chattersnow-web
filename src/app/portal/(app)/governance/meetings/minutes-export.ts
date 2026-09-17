@@ -1,5 +1,6 @@
 import type { MinutesRow } from "./minutes-core";
 import type { ActionItem } from "./action-items-actions";
+import type { MinutesItemReference } from "./minutes-snapshot";
 import {
   formatCalendarDate,
   formatInstantDate,
@@ -34,6 +35,17 @@ function actionItemLine(item: ActionItem): string {
     ? ` (due ${formatCalendarDate(item.due_date)})`
     : "";
   return `${item.description} — ${personDisplayName(item.owner)}${due}`;
+}
+
+/**
+ * A pinned reference, as a printed page can carry it (#1223): its label and its
+ * date. A link is the thing a reader cannot follow on paper, so the export
+ * prints what the link *said* rather than where it pointed.
+ */
+function referenceLine(reference: MinutesItemReference): string {
+  return reference.date
+    ? `${reference.label} — ${formatCalendarDate(reference.date)}`
+    : reference.label;
 }
 
 /** `minutes_item_key` -> the items raised under it, plus the unlinked rest. */
@@ -71,6 +83,13 @@ export function formatMinutesMarkdown(input: MinutesExportInput): string {
   for (const item of items) {
     lines.push(`## ${item.label}`);
     lines.push(minutes.notes[item.key]?.trim() || "No notes recorded.");
+    const references = item.planned?.references ?? [];
+    if (references.length > 0) {
+      lines.push("");
+      lines.push("**Linked records**");
+      for (const reference of references)
+        lines.push(`- ${referenceLine(reference)}`);
+    }
     const raised = byKey.get(item.key) ?? [];
     if (raised.length > 0) {
       lines.push("");
@@ -113,6 +132,8 @@ export function formatMinutesPlainText(input: MinutesExportInput): string {
   for (const item of items) {
     lines.push(item.label.toUpperCase());
     lines.push(`  ${minutes.notes[item.key]?.trim() || "No notes recorded."}`);
+    for (const reference of item.planned?.references ?? [])
+      lines.push(`  Linked: ${referenceLine(reference)}`);
     const raised = byKey.get(item.key) ?? [];
     for (const action of raised) lines.push(`  - ${actionItemLine(action)}`);
     lines.push("");

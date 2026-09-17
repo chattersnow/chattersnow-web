@@ -179,6 +179,66 @@ describe("parseAgendaForm", () => {
     }
   });
 
+  test("keeps the source fields on a pinned upcoming date", () => {
+    const result = parseAgendaForm(
+      formData({
+        ...validFields,
+        upcomingDates: JSON.stringify([
+          {
+            date: "2026-04-02",
+            description: "Spring gear swap",
+            owner: "",
+            source_kind: "event",
+            source_id: "event-1",
+          },
+        ]),
+      }),
+    );
+    expect("data" in result && result.data.upcoming_dates).toEqual([
+      {
+        date: "2026-04-02",
+        description: "Spring gear swap",
+        owner: "",
+        source_kind: "event",
+        source_id: "event-1",
+      },
+    ]);
+  });
+
+  test("refuses half a source pair, and a kind outside the two", () => {
+    const rejected = [
+      // One half of the pair alone names no record.
+      { date: "2026-04-02", description: "x", owner: "", source_kind: "event" },
+      { date: "2026-04-02", description: "x", owner: "", source_id: "id-1" },
+      // A kind outside the pair would reach the minutes as a reference
+      // nothing knows how to open.
+      {
+        date: "2026-04-02",
+        description: "x",
+        owner: "",
+        source_kind: "grant",
+        source_id: "id-1",
+      },
+      {
+        date: "2026-04-02",
+        description: "x",
+        owner: "",
+        source_kind: "event",
+        source_id: "  ",
+      },
+    ];
+
+    for (const entry of rejected) {
+      expect(
+        parseAgendaForm(
+          formData({ ...validFields, upcomingDates: JSON.stringify([entry]) }),
+        ),
+      ).toEqual({
+        error: "Could not read the upcoming dates list. Please try again.",
+      });
+    }
+  });
+
   test("rejects an ongoing item that is not an object", () => {
     expect(
       parseAgendaForm(

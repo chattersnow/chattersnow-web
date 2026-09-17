@@ -16,6 +16,15 @@ import {
   type Agenda,
 } from "./agenda-actions";
 import type { AgendaOngoingItem, AgendaUpcomingDate } from "./agenda-form";
+import { listMeetingDatedContextAction } from "./meeting-context-actions";
+import {
+  meetingContextEntryDay,
+  meetingContextSourceId,
+  meetingContextSourceKey,
+  type MeetingContextEntry,
+  type MeetingDatedContext as MeetingDatedContextData,
+} from "./meeting-context-shared";
+import { MeetingDatedContext } from "./meeting-dated-context";
 import type {
   ActiveAgendaTemplate,
   AgendaTemplateSection,
@@ -118,6 +127,21 @@ function AgendaExport({ input }: { input: AgendaExportInput }) {
   );
 }
 
+/**
+ * Titles for the rows the editor shows as linked, keyed the way a pinned row
+ * names its source. Only what is in the live window is here; a pinned row whose
+ * record has since moved out of it keeps its link and reads generically.
+ */
+function sourceTitles(
+  context: MeetingDatedContextData | undefined,
+): Record<string, string> {
+  const titles: Record<string, string> = {};
+  for (const entry of context?.entries ?? []) {
+    titles[meetingContextSourceKey(entry)] = entry.title;
+  }
+  return titles;
+}
+
 function ReadOnlySection({
   title,
   onViewAll,
@@ -177,6 +201,8 @@ function AgendaForm({
   templateId,
   templateVersionId,
   meetingId,
+  datedContext,
+  datedContextError,
   onSaved,
   onCancel,
   onDirtyChange,
@@ -186,6 +212,8 @@ function AgendaForm({
   templateId: string | null;
   templateVersionId: string | null;
   meetingId: string;
+  datedContext: MeetingDatedContextData | undefined;
+  datedContextError: string | null;
   onSaved: () => void;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -267,6 +295,31 @@ function AgendaForm({
       },
     }));
   }
+
+  /**
+   * Copies one live entry into the agenda's own list. A copy, not a reference:
+   * the saved row is what the frozen minutes and the printed export read, and
+   * the description stays editable because the board's wording for a date is
+   * often not the calendar's.
+   */
+  function pinEntry(entry: MeetingContextEntry) {
+    setUpcomingDates((prev) => [
+      ...prev,
+      {
+        date: meetingContextEntryDay(entry),
+        description: entry.title,
+        owner: "",
+        source_kind: entry.kind,
+        source_id: meetingContextSourceId(entry),
+      },
+    ]);
+  }
+
+  const pinnedKeys = new Set(
+    upcomingDates
+      .filter((item) => item.source_kind && item.source_id)
+      .map((item) => `${item.source_kind}:${item.source_id}`),
+  );
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -376,7 +429,17 @@ function AgendaForm({
           items={parkingLot}
           onChange={setParkingLot}
         />
-        <DatedListEditor items={upcomingDates} onChange={setUpcomingDates} />
+        <MeetingDatedContext
+          context={datedContext}
+          loadError={datedContextError}
+          pinnedKeys={pinnedKeys}
+          onPin={pinEntry}
+        />
+        <DatedListEditor
+          items={upcomingDates}
+          onChange={setUpcomingDates}
+          sourceTitles={sourceTitles(datedContext)}
+        />
 
         <Field orientation="responsive">
           <Field>
@@ -493,6 +556,13 @@ export function AgendaTab({
     () => getPreviousMeetingMinutesAction(meetingId, meetingDate),
     [meetingId, meetingDate],
   );
+  // Its own read rather than part of the agenda's: this is live reference
+  // material, and it must stay right when the agenda row does not move.
+  const { data: datedContext, loadError: datedContextError } =
+    useTabData<MeetingDatedContextData>(async () => {
+      const result = await listMeetingDatedContextAction(meetingId);
+      return "error" in result ? { error: result.error.message } : result;
+    }, [meetingId]);
 
   if (agenda === undefined) {
     return <TabLoadingSkeleton />;
@@ -514,6 +584,8 @@ export function AgendaTab({
         templateId={templateId}
         templateVersionId={templateVersionId}
         meetingId={meetingId}
+        datedContext={datedContext}
+        datedContextError={datedContextError}
         onSaved={() => {
           onExitEdit();
           refreshAgenda();
@@ -553,6 +625,7 @@ export function AgendaTab({
                 carriedOverItems: carriedOverItems ?? [],
                 createdItems: createdItems ?? [],
                 decisions: decisions ?? [],
+                datedContext,
               }}
             />
           </div>
@@ -693,6 +766,11 @@ export function AgendaTab({
           <ReadOnlyListSection
             title="New business"
             items={agenda.new_business}
+          />
+
+          <MeetingDatedContext
+            context={datedContext}
+            loadError={datedContextError}
           />
 
           <div>

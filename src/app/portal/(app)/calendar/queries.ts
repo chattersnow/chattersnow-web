@@ -296,7 +296,15 @@ export async function getMissingCoverageSeriesForYear(
  */
 export async function listCalendarEvents(
   supabase: SupabaseClient,
-  options: { programId?: string } = {},
+  options: {
+    programId?: string;
+    /**
+     * Only events touching this span of instants. Added for the agenda's
+     * "Next 30 days" block (#1223), which wants thirty days rather than the
+     * whole calendar; the workspace passes nothing and still reads every row.
+     */
+    window?: { fromInstant: string; toInstant: string };
+  } = {},
 ): Promise<{ events: CalendarEventRow[]; error: boolean }> {
   const programSelect = options.programId
     ? "event_programs!inner(program_id)"
@@ -313,6 +321,18 @@ export async function listCalendarEvents(
 
   if (options.programId)
     query = query.eq("event_programs.program_id", options.programId);
+
+  if (options.window) {
+    const { fromInstant, toInstant } = options.window;
+    // Two cases, not one range on `starts_at`: a multi-day event that began
+    // before the window and is still running inside it is upcoming as far as a
+    // board reading an agenda is concerned, and filtering on its start alone
+    // would drop it.
+    query = query.or(
+      `and(starts_at.gte.${fromInstant},starts_at.lte.${toInstant}),` +
+        `and(starts_at.lt.${fromInstant},ends_at.gte.${fromInstant})`,
+    );
+  }
 
   const { data, error } = await query;
   if (error) return { events: [], error: true };

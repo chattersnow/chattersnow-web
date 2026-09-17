@@ -7,9 +7,11 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import Link from "next/link";
 import { saveMinutesDraftAction, type MinutesRow } from "./minutes-actions";
 import type { ActionItem } from "./action-items-actions";
 import type { MinutesItem } from "./minutes-snapshot";
+import { datedRecordHref } from "./meeting-context-shared";
 import { OngoingTopicsTooltip } from "./agenda-tab";
 import { MinutesActionItemDialog } from "./minutes-action-item-dialog";
 import {
@@ -110,7 +112,10 @@ function PlannedContent({ item }: { item: MinutesItem }) {
   ].filter((line): line is { label: string | null; text: string } => !!line);
 
   const topics = planned.topics ?? [];
-  if (lines.length === 0 && topics.length === 0) return null;
+  const references = planned.references ?? [];
+  if (lines.length === 0 && topics.length === 0 && references.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-1">
@@ -121,6 +126,29 @@ function PlannedContent({ item }: { item: MinutesItem }) {
         </p>
       ))}
       <OngoingTopicsTooltip topics={topics} />
+      {/* Navigating away is safe -- #1200's autosave and leave guard are what
+          made it safe -- so a pinned date is a link rather than dead text, which
+          was the complaint #1199-#1201 exist to answer. */}
+      {references.length > 0 && (
+        <ul className="mt-1 flex flex-col gap-0.5 text-sm">
+          {references.map((reference) => (
+            <li key={`${reference.kind}:${reference.id}`}>
+              <Link
+                href={datedRecordHref(reference.kind, reference.id)}
+                className="text-[var(--purple-deep)] underline"
+              >
+                {reference.label}
+              </Link>
+              {reference.date && (
+                <span className="app-muted">
+                  {" — "}
+                  {formatCalendarDate(reference.date)}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
