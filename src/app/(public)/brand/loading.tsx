@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BrandLoading() {
   return (
-    <PageShell maxWidth="max-w-4xl">
+    <PageShell>
       <div className="space-y-10">
         <header>
           <div className="rainbow-accent" />

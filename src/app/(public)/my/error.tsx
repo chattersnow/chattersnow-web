@@ -51,7 +51,7 @@ export default function MyError({
   }, [error]);
 
   return (
-    <PageShell maxWidth="max-w-2xl">
+    <PageShell>
       <div className="w-fit">
         <h1 className="brand-display flex items-center gap-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
           <TriangleAlert className="size-8 shrink-0 text-[var(--purple)]" />

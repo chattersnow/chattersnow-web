@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getClientIp } from "@/lib/get-client-ip";
 import { formatDateTimeInZone } from "@/lib/time";
@@ -64,49 +65,41 @@ export default async function ArtworkSubmissionPage({
     : null;
 
   return (
-    // px matching the layout's own header and footer. `app-shell` carries no
-    // horizontal padding and (public)/layout.tsx pads only its chrome, so
-    // without this the page runs edge to edge on anything narrower than
-    // max-w-2xl -- which is every phone, and this call is shared by link.
-    <div className="app-shell px-6 py-12 sm:px-10 sm:py-16">
-      <div className="mx-auto max-w-2xl">
-        <p className="app-eyebrow">Call for artwork</p>
-        {/*
+    <PageShell>
+      <p className="app-eyebrow">Call for artwork</p>
+      {/*
           The call's own title, not the event's name (#879). Someone arriving
           from a flyer used to read this page as an event page, with the thing
           it was actually asking of them in quiet eyebrow text above.
         */}
-        <h1 className="brand-display mt-2 text-3xl sm:text-4xl">
-          {call.title}
-        </h1>
-        <div className="rainbow-accent mt-4 w-16" />
-        {/* Absent entirely on a standalone call: the brief below carries the
+      <h1 className="brand-display mt-2 text-3xl sm:text-4xl">{call.title}</h1>
+      <div className="rainbow-accent mt-4 w-16" />
+      {/* Absent entirely on a standalone call: the brief below carries the
             deadline, which is the date that matters to a submitter anyway. */}
-        {eventLine && <p className="app-muted mt-4">{eventLine}</p>}
+      {eventLine && <p className="app-muted mt-4">{eventLine}</p>}
 
-        {call.intro && (
-          <div className="mt-6 whitespace-pre-line text-base leading-relaxed">
-            {call.intro}
-          </div>
-        )}
-
-        <div className="mt-8">
-          <CallBrief
-            closesAt={call.closes_at}
-            timeZone={call.display_timezone}
-            maxImages={call.max_images}
-            rightsNote={call.rights_note}
-          />
+      {call.intro && (
+        <div className="mt-6 whitespace-pre-line text-base leading-relaxed">
+          {call.intro}
         </div>
+      )}
 
-        <div className="mt-10">
-          <ArtworkSubmissionForm
-            code={code}
-            maxImages={call.max_images}
-            rightsNote={call.rights_note}
-          />
-        </div>
+      <div className="mt-8">
+        <CallBrief
+          closesAt={call.closes_at}
+          timeZone={call.display_timezone}
+          maxImages={call.max_images}
+          rightsNote={call.rights_note}
+        />
       </div>
-    </div>
+
+      <div className="mt-10">
+        <ArtworkSubmissionForm
+          code={code}
+          maxImages={call.max_images}
+          rightsNote={call.rights_note}
+        />
+      </div>
+    </PageShell>
   );
 }

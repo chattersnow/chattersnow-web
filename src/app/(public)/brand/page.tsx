@@ -153,7 +153,7 @@ export default async function BrandPage() {
   const softHex = hex("primary_soft");
 
   return (
-    <PageShell maxWidth="max-w-4xl">
+    <PageShell>
       <div className="space-y-10">
         <header>
           <div className="rainbow-accent" />
@@ -263,7 +263,7 @@ export default async function BrandPage() {
               {stops.map((stop) => (
                 <li key={`${stop.color}-${stop.position}`}>
                   <div
-                    className="h-11 rounded-md border border-[var(--line)]"
+                    className="h-14 rounded-md border border-[var(--line)]"
                     style={{ background: stop.color }}
                   />
                   <p className="mt-1 font-mono text-xs uppercase">
@@ -348,8 +348,12 @@ export default async function BrandPage() {
           <ul className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-6">
             {RADIUS.map((radius) => (
               <li key={radius.name}>
+                {/* Square, not a fixed height: a corner radius only reads as
+                    one against a shape whose corners are all in view, and in
+                    the full page column (#1218) a fixed 64px would leave six
+                    170px-wide letterboxes. */}
                 <div
-                  className="h-16 border border-[var(--line)] bg-[var(--purple-soft)]"
+                  className="aspect-square border border-[var(--line)] bg-[var(--purple-soft)]"
                   style={{ borderRadius: `var(${radius.cssVar})` }}
                 />
                 <p className="app-muted mt-1 text-center font-mono text-xs">
@@ -480,7 +484,7 @@ export default async function BrandPage() {
                     url={url}
                     alt=""
                     className="aspect-[4/3] rounded-xl"
-                    sizes="(min-width: 640px) 15rem, 45vw"
+                    sizes="(min-width: 640px) 24rem, 45vw"
                   />
                 </li>
               ))}
@@ -543,7 +547,11 @@ export default async function BrandPage() {
           title="Social layouts"
           intro="Two shapes that hold up at post and story sizes, built from the same tokens. Rebuild them in whatever tool you use; the measurements are above."
         >
-          <div className="grid items-start gap-6 sm:grid-cols-[1fr_auto]">
+          {/* Both shapes are width-capped rather than left to fill the page
+              column (#1218). Left to itself the square would run to ~890px
+              beside a 240px story, and the pair would read as one big thing
+              and one small one rather than two templates. */}
+          <div className="grid items-start gap-6 sm:grid-cols-[minmax(0,20rem)_auto]">
             <div>
               <div
                 className="relative aspect-square overflow-hidden rounded-2xl"
@@ -572,10 +580,6 @@ export default async function BrandPage() {
               </p>
             </div>
 
-            {/* Width-capped rather than left to fill the column: a 9:16 box in
-                half of a 4xl page is over 900px tall, which dwarfs the square
-                beside it and makes the pair read as one big thing and one
-                small one. */}
             <div className="w-full max-w-[15rem]">
               <div
                 className="relative flex aspect-[9/16] flex-col justify-center overflow-hidden rounded-2xl p-7"

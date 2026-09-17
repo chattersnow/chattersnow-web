@@ -85,6 +85,15 @@ Ask "is this a different job, or a different view of the same thing?" before ask
 
 Two hard rules: no tab without a URL, and no real destination that appears in no navigation surface (sidebar, command palette, or breadcrumb). On configuration, Administration holds what governs the organization as a whole — identity, org-wide settings, oversight — while configuration that only shapes one feature's vocabulary lives with that feature. The nav is never the gate: module entitlements decide visibility through `has_permission()` and `visibleNavItems()`, and `src/lib/portal/nav-guards.test.ts` must stay green.
 
+## Public page widths
+
+Before adding a public route or wrapping a page in a `max-w-*`, read
+`docs/public-page-widths.md`. The rule in one line:
+
+> **Every public page renders in `PageShell`, and `PageShell` has one column: `max-w-6xl`.**
+
+The site header and footer are `max-w-6xl` too, so a page with its own narrower column is centred inside its own chrome and reads as inset — which is what `/brand` and the whole `/my` area did before #1218. `PageShell` (`src/components/page-shell.tsx`) takes no width argument, so there is nothing to pass and nothing to remember. Copy that needs a shorter measure caps the **element** (`<p className="max-w-3xl">`), not the shell; a page that is nothing but prose uses `LegalPageShell`, which fills the same column with a section rail beside the document. `loading.tsx`, `error.tsx` and `not-found.tsx` each wrap themselves in `PageShell` the same way, since they render in place of the page. One exception: `src/app/links` is outside the `(public)` group with no site chrome to line up with, and keeps its phone-width column.
+
 ## Architecture
 
 - **Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 (via `@tailwindcss/postcss`), Supabase (Postgres + Auth + Storage). The React Compiler is **disabled** (`next.config.ts` → `reactCompiler: false`); it was on at the initial commit and switched off in `faf98de` without a stated reason, and `babel-plugin-react-compiler` is still a dependency. Its lint rules apply either way — they ship with `eslint-config-next/core-web-vitals`, so `bun run lint` still fails on things like setting state directly in an effect body or reading a ref during render. Write compiler-clean components regardless.

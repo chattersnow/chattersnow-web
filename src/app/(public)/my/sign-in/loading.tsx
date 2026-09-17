@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MySignInLoading() {
   return (
-    <PageShell maxWidth="max-w-md">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">
