@@ -92,7 +92,9 @@ test.describe("portal governance minutes", () => {
       await expect(noteBoxes.nth(1)).toHaveValue(secondNote);
 
       await page.getByRole("button", { name: "Finalize" }).click();
-      const finalizeDialog = modal(page);
+      // `alertdialog`, not `modal()`: a lifecycle confirm is a question, not a
+      // form, so it stays on `AlertDialog` and centred on both devices.
+      const finalizeDialog = page.getByRole("alertdialog");
       await expect(
         finalizeDialog.getByRole("heading", {
           name: "Finalize these minutes?",
@@ -108,7 +110,7 @@ test.describe("portal governance minutes", () => {
       await expect(noteBoxes).toHaveCount(0);
 
       await page.getByRole("button", { name: "Reopen" }).click();
-      const reopenDialog = modal(page);
+      const reopenDialog = page.getByRole("alertdialog");
       await expect(
         reopenDialog.getByRole("heading", { name: "Reopen these minutes?" }),
       ).toBeVisible();
