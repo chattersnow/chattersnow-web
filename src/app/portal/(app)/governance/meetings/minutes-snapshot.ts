@@ -18,8 +18,17 @@
  * a bare string).
  */
 import type { AgendaTemplateSection } from "./agenda-template-shared";
+import {
+  AGENDA_UPCOMING_DATE_SOURCE_KINDS,
+  type AgendaUpcomingDateSourceKind,
+} from "./agenda-form";
 
-export const MINUTES_SNAPSHOT_VERSION = 1;
+/**
+ * 2 since #1223, which added `planned.references`. Nothing branches on this --
+ * `isMinutesSnapshot` validates structure, so a v1 row keeps reading and is
+ * never back-filled -- and it is here so a future reader can date a shape.
+ */
+export const MINUTES_SNAPSHOT_VERSION = 2;
 
 export type MinutesItemKind =
   | "opening"
@@ -31,12 +40,28 @@ export type MinutesItemKind =
   | "parking_lot"
   | "next_meeting";
 
+/**
+ * A record an agenda line was pinned from (#1223), frozen alongside the line.
+ *
+ * No `href`: it is derivable from `kind` and `id`, and freezing it would be a
+ * second place the portal's routes live. `label` and `date` are frozen because
+ * they are what the agenda said at the time -- minutes record the meeting, not
+ * the record's state today.
+ */
+export type MinutesItemReference = {
+  kind: AgendaUpcomingDateSourceKind;
+  id: string;
+  label: string;
+  date: string;
+};
+
 /** What the agenda planned for one item, if anything. Never the notes. */
 export type MinutesItemPlanned = {
   updates?: string;
   decisions_needed?: string;
   text?: string;
   topics?: string[];
+  references?: MinutesItemReference[];
 };
 
 export type MinutesItem = {
@@ -120,6 +145,36 @@ function upcomingDateLine(value: unknown): string | null {
   return parts.length > 0 ? parts.join(" — ") : null;
 }
 
+/**
+ * The record a pinned upcoming date was copied from, if it was pinned at all.
+ *
+ * Read off the same entry `upcomingDateLine` reads, rather than from a second
+ * pass over the column: the line and its reference have to agree about which
+ * row they came from, and that is easiest to guarantee by reading them
+ * together.
+ */
+function upcomingDateReference(value: unknown): MinutesItemReference | null {
+  if (!isRecord(value)) return null;
+  const { source_kind: kind, source_id: id, description, date } = value;
+  if (
+    typeof kind !== "string" ||
+    !AGENDA_UPCOMING_DATE_SOURCE_KINDS.includes(
+      kind as AgendaUpcomingDateSourceKind,
+    ) ||
+    typeof id !== "string" ||
+    id.trim() === ""
+  ) {
+    return null;
+  }
+  const label = typeof description === "string" ? description.trim() : "";
+  return {
+    kind: kind as AgendaUpcomingDateSourceKind,
+    id,
+    label: label || "Linked record",
+    date: typeof date === "string" ? date : "",
+  };
+}
+
 function stringEntries(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter(
@@ -194,16 +249,28 @@ export function buildMinutesSnapshot(
     });
   }
 
-  const upcomingDates = (
-    Array.isArray(agenda?.upcoming_dates) ? agenda.upcoming_dates : []
-  )
+  const upcomingEntries = Array.isArray(agenda?.upcoming_dates)
+    ? agenda.upcoming_dates
+    : [];
+  // The text line is still produced for every entry, pinned or not, so a v1
+  // reader -- the export, anything that only knows about `topics` -- keeps
+  // rendering exactly what it did before.
+  const upcomingDates = upcomingEntries
     .map(upcomingDateLine)
     .filter((line): line is string => line !== null);
+  const upcomingReferences = upcomingEntries
+    .map(upcomingDateReference)
+    .filter((ref): ref is MinutesItemReference => ref !== null);
   items.push({
     key: "upcoming_dates",
     label: "Upcoming dates",
     kind: "upcoming_dates",
-    planned: { topics: upcomingDates },
+    planned: {
+      topics: upcomingDates,
+      ...(upcomingReferences.length > 0
+        ? { references: upcomingReferences }
+        : {}),
+    },
   });
 
   items.push({
@@ -244,13 +311,41 @@ const ITEM_KINDS: readonly MinutesItemKind[] = [
   "next_meeting",
 ];
 
+function isMinutesItemReference(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.kind === "string" &&
+    AGENDA_UPCOMING_DATE_SOURCE_KINDS.includes(
+      value.kind as AgendaUpcomingDateSourceKind,
+    ) &&
+    typeof value.id === "string" &&
+    typeof value.label === "string" &&
+    typeof value.date === "string"
+  );
+}
+
+/**
+ * `references` is checked rather than waved through with the rest of `planned`,
+ * because the minutes editor maps over it to render links: a column holding
+ * something else there would be a render crash, where every other `planned`
+ * field would merely render blank.
+ */
+function isPlanned(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value.references === undefined) return true;
+  return (
+    Array.isArray(value.references) &&
+    value.references.every(isMinutesItemReference)
+  );
+}
+
 function isMinutesItem(value: unknown): value is MinutesItem {
   return (
     isRecord(value) &&
     typeof value.key === "string" &&
     typeof value.label === "string" &&
     ITEM_KINDS.includes(value.kind as MinutesItemKind) &&
-    (value.planned === undefined || isRecord(value.planned))
+    (value.planned === undefined || isPlanned(value.planned))
   );
 }
 

@@ -63,6 +63,39 @@ const emptyInput: MinutesExportInput = {
   actionItems: [],
 };
 
+/** A snapshot whose "Upcoming dates" item carries a pinned reference (#1223). */
+const pinnedInput: MinutesExportInput = {
+  meetingDate: "2026-09-01T18:00:00.000Z",
+  minutes: minutes({
+    agenda_snapshot: {
+      version: 2,
+      meeting_date: "2026-09-01",
+      template_id: null,
+      template_version_id: null,
+      external_link: null,
+      items: [
+        {
+          key: "upcoming_dates",
+          label: "Upcoming dates",
+          kind: "upcoming_dates",
+          planned: {
+            topics: ["2026-09-15 — Fall picnic — Board"],
+            references: [
+              {
+                kind: "event",
+                id: "event-1",
+                label: "Fall picnic",
+                date: "2026-09-15",
+              },
+            ],
+          },
+        },
+      ],
+    },
+  }),
+  actionItems: [],
+};
+
 describe("formatMinutesMarkdown", () => {
   test("walks the frozen snapshot, placeholders and all", () => {
     const markdown = formatMinutesMarkdown(emptyInput);
@@ -153,5 +186,22 @@ describe("formatMinutesPlainText", () => {
     expect(text).toContain("ACTION ITEMS");
     expect(text).not.toContain("#");
     expect(text).not.toContain("**");
+  });
+});
+
+describe("pinned references (#1223)", () => {
+  test("prints a pinned reference as its label and date", () => {
+    // A printed page cannot be clicked, so what survives is what the link said.
+    const markdown = formatMinutesMarkdown(pinnedInput);
+    expect(markdown).toContain("**Linked records**");
+    expect(markdown).toContain("- Fall picnic — Sep 15, 2026");
+
+    const text = formatMinutesPlainText(pinnedInput);
+    expect(text).toContain("  Linked: Fall picnic — Sep 15, 2026");
+  });
+
+  test("says nothing about links for a snapshot that has none", () => {
+    expect(formatMinutesMarkdown(emptyInput)).not.toContain("Linked records");
+    expect(formatMinutesPlainText(emptyInput)).not.toContain("Linked:");
   });
 });

@@ -6,6 +6,7 @@ import * as ActionItemsActions from "../action-items-actions";
 import * as DecisionsActions from "../decisions-actions";
 import * as MinutesApprovalActions from "../minutes-approval-actions";
 import * as MinutesActions from "../minutes-actions";
+import * as MeetingContextActions from "../meeting-context-actions";
 import * as ResolutionsActions from "../../resolutions/resolutions-actions";
 import * as PeopleActions from "../../../people/actions";
 import type { MeetingRow } from "../meeting-badges";
@@ -38,6 +39,21 @@ mock.module("../minutes-approval-actions", () => ({
 mock.module("../minutes-actions", () => ({
   ...MinutesActions,
   getMinutesAction: mock(async () => ({ data: null })),
+}));
+// The agenda tab's live "Next 30 days" read (#1223). Answered with an empty
+// window rather than left unmocked: unstubbed it reaches `cookies()`, which
+// throws outside a request scope.
+mock.module("../meeting-context-actions", () => ({
+  ...MeetingContextActions,
+  listMeetingDatedContextAction: mock(async () => ({
+    data: {
+      timeZone: "America/Denver",
+      asOf: "2026-09-01",
+      window: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+      entries: [],
+      gaps: [],
+    },
+  })),
 }));
 mock.module("../../resolutions/resolutions-actions", () => ({
   ...ResolutionsActions,

@@ -5,6 +5,11 @@ import {
   type AgendaExportInput,
 } from "./agenda-export";
 import type { Agenda } from "./agenda-actions";
+import { calendarItemEntry, eventEntry } from "../../calendar/calendar-entries";
+import type {
+  MeetingCalendarItemRow,
+  MeetingDatedContext,
+} from "./meeting-context-shared";
 
 const baseAgenda: Agenda = {
   id: "agenda-1",
@@ -32,6 +37,45 @@ const emptyInput: AgendaExportInput = {
   decisions: [],
 };
 
+const calendarItem: MeetingCalendarItemRow = {
+  id: "item-1",
+  title: "Trans Day of Visibility",
+  item_type: "community_observance",
+  starts_at: "2026-09-20T06:00:00.000Z",
+  ends_at: null,
+  time_zone: "America/Denver",
+  summary: null,
+  calendar_status: "active",
+  series_key: null,
+  recurrence_start_month: null,
+  recurrence_start_day: null,
+  recurrence_end_month: null,
+  recurrence_end_day: null,
+  recurrence_end_is_month_end: false,
+};
+
+const datedContext: MeetingDatedContext = {
+  timeZone: "America/Denver",
+  asOf: "2026-08-31",
+  window: { fromDate: "2026-08-31", toDate: "2026-09-30" },
+  entries: [
+    eventEntry({
+      id: "event-1",
+      title: "Fall picnic",
+      starts_at: "2026-09-15T22:00:00.000Z",
+      ends_at: null,
+      time_zone: "America/Denver",
+      summary: null,
+      location: null,
+      status: "published",
+      visibility: "public",
+      program_ids: [],
+    }),
+    calendarItemEntry(calendarItem),
+  ],
+  gaps: [{ source: "events", reason: "forbidden" }],
+};
+
 describe("formatAgendaMarkdown", () => {
   test("renders empty-state placeholders for an agenda with no content", () => {
     const markdown = formatAgendaMarkdown(emptyInput);
@@ -41,6 +85,27 @@ describe("formatAgendaMarkdown", () => {
     expect(markdown).toContain("No agenda template is configured.");
     expect(markdown).toContain("No decisions recorded yet.");
     expect(markdown).not.toContain("External link:");
+    // The live block is omitted rather than printed empty while it is still
+    // loading: an empty section reads as "nothing is scheduled".
+    expect(markdown).not.toContain("Next 30 days");
+  });
+
+  test("prints the live block as dated text, with when it was read", () => {
+    const markdown = formatAgendaMarkdown({ ...emptyInput, datedContext });
+
+    expect(markdown).toContain("## Next 30 days");
+    expect(markdown).toContain(
+      "From the calendar and events, as of Aug 31, 2026.",
+    );
+    expect(markdown).toContain("- Sep 15, 2026 — Fall picnic (Event)");
+    expect(markdown).toContain(
+      "- Sep 20, 2026 — Trans Day of Visibility (Calendar item)",
+    );
+    // A page that silently omits a source gives its reader no way to know it
+    // did, so the gap is printed too.
+    expect(markdown).toContain(
+      "Events are not included — the exporter's role does not cover them.",
+    );
   });
 
   test("includes structured content and formatting", () => {
@@ -114,5 +179,16 @@ describe("formatAgendaPlainText", () => {
     expect(text).toContain("AGENDA NOTES");
     expect(text).not.toContain("#");
     expect(text).not.toContain("**");
+  });
+
+  test("indents the live block under its own uppercase header", () => {
+    const text = formatAgendaPlainText({ ...emptyInput, datedContext });
+
+    expect(text).toContain("NEXT 30 DAYS");
+    expect(text).toContain(
+      "  From the calendar and events, as of Aug 31, 2026.",
+    );
+    expect(text).toContain("  - Sep 15, 2026 — Fall picnic (Event)");
+    expect(text).not.toContain("#");
   });
 });
