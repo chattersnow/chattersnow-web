@@ -99,11 +99,22 @@ function LifecycleButton({
 
 export function MinutesTab({
   meetingId,
+  meetingDate,
   canManage,
+  onViewDecisions,
   guardRef,
 }: {
   meetingId: string;
+  /**
+   * The meeting's own date. The quick-reference panel measures "previous
+   * meeting" against it, and the export heads the document with it. Passed
+   * rather than read off `agenda_snapshot.meeting_date`, which is the date as
+   * it stood when the minutes were started.
+   */
+  meetingDate: string;
   canManage: boolean;
+  /** Leaves for the overview's decisions section, saving on the way out. */
+  onViewDecisions: () => void;
   guardRef: RefObject<MinutesLeaveGuard | null>;
 }) {
   const {
@@ -232,6 +243,7 @@ export function MinutesTab({
   if (minutes.status === "final" || !canManage) {
     return (
       <MinutesReadOnlyView
+        meetingDate={meetingDate}
         minutes={minutes}
         actionItems={actionItems}
         lifecycleAction={
@@ -253,6 +265,7 @@ export function MinutesTab({
   return (
     <MinutesEditor
       meetingId={meetingId}
+      meetingDate={meetingDate}
       minutes={minutes}
       actionItems={actionItems}
       people={people}
@@ -260,6 +273,7 @@ export function MinutesTab({
         setPeople((prev) => [...prev, person])
       }
       onActionItemAdded={refreshActionItems}
+      onViewDecisions={onViewDecisions}
       guardRef={guardRef}
       lifecycleAction={
         <LifecycleButton

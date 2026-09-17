@@ -2,6 +2,7 @@ import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
+import { pickPerson, seedPerson } from "./helpers/people";
 
 // Taking minutes against the agenda (#1200). There was no e2e coverage of the
 // agenda or the minutes at all before this.
@@ -30,6 +31,8 @@ test.describe("portal governance minutes", () => {
     const location = `E2E Minutes Room ${uniqueSuffix()}`;
     const openingNote = `Quorum reached at 18:04 ${uniqueSuffix()}`;
     const secondNote = `Discussion recorded ${uniqueSuffix()}`;
+    const actionItemText = `Chase the grant report ${uniqueSuffix()}`;
+    const owner = await seedPerson(admin, "Minutes owner");
 
     try {
       await page.goto("/portal/governance/meetings");
@@ -53,7 +56,9 @@ test.describe("portal governance minutes", () => {
       // its meeting notes become the minutes' closing notes.
       await page.getByRole("tab", { name: "Agenda" }).click();
       await page.getByRole("button", { name: "Edit agenda" }).click();
-      await page.getByLabel("Meeting notes").fill("Planned: budget review.");
+      // "Agenda notes" since #1201 -- the field was called "Meeting notes"
+      // while it *was* the minutes.
+      await page.getByLabel("Agenda notes").fill("Planned: budget review.");
       await page.getByRole("button", { name: "Save agenda" }).click();
       await expect(
         page.getByRole("button", { name: "Edit agenda" }),
@@ -75,6 +80,47 @@ test.describe("portal governance minutes", () => {
       await noteBoxes.nth(1).fill(secondNote);
       // No Save button anywhere in this tab: the status line is the receipt.
       await expect(page.getByText(/^Saved /)).toBeVisible({ timeout: 15_000 });
+
+      // The quick-reference panel (#1201): raise an action item without
+      // leaving the minutes. On a phone it is behind the Reference button; on
+      // a desktop it is the sticky column beside the notes.
+      // `exact`, because a role name is matched as a substring: without it
+      // this also picks up every "N reference topics" tooltip trigger beside
+      // the snapshot items, and there are eight of them.
+      const reference = page.getByRole("button", {
+        name: "Reference",
+        exact: true,
+      });
+      if (await reference.isVisible()) await reference.click();
+      await page.getByRole("button", { name: "Add", exact: true }).click();
+      // Scoped by its own title: on a phone the reference sheet is still open
+      // behind this one, and both carry role="dialog".
+      const actionItemDialog = modal(page).filter({
+        has: page.getByRole("heading", { name: "Add action item" }),
+      });
+      await pickPerson(actionItemDialog, owner.name);
+      await actionItemDialog.getByLabel("Description").fill(actionItemText);
+      await actionItemDialog
+        .getByRole("button", { name: "Add action item" })
+        .click();
+      await expect(actionItemDialog).not.toBeVisible({ timeout: 15_000 });
+      // Back in the panel's own list -- and the notes are still on screen,
+      // which is the whole point of the panel.
+      await expect(page.getByText(actionItemText).first()).toBeVisible({
+        timeout: 15_000,
+      });
+      // Closed through its own button rather than with Escape, and waited on:
+      // Base UI marks the page behind an open sheet inert, so the note
+      // textboxes are out of the accessibility tree — and therefore out of
+      // `getByRole`'s reach — until this has actually gone.
+      const referenceSheet = modal(page).filter({
+        has: page.getByRole("heading", { name: "Quick reference" }),
+      });
+      if (await referenceSheet.isVisible()) {
+        await referenceSheet.getByRole("button", { name: "Close" }).click();
+        await expect(referenceSheet).not.toBeVisible();
+      }
+      await expect(noteBoxes.nth(0)).toHaveValue(openingNote);
 
       // The whole point. Leaving for another part of the meeting record used
       // to discard every word of this.
@@ -120,8 +166,10 @@ test.describe("portal governance minutes", () => {
         timeout: 15_000,
       });
     } finally {
-      // `meeting_minutes` and the action items both cascade from the meeting.
+      // `meeting_minutes` and the action items both cascade from the meeting,
+      // and the owner has to outlive the items that point at it.
       await admin.from("governance_meetings").delete().eq("location", location);
+      await admin.from("people").delete().eq("id", owner.id);
     }
   });
 });

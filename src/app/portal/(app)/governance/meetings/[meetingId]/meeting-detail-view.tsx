@@ -187,9 +187,14 @@ export function MeetingDetailView({
     pendingScrollRef.current = null;
   }, [tab]);
 
+  // Through `handleTabChange`, not `setTab`: since #1201 the Minutes tab links
+  // here too, and Base UI unmounts its panel on the way out. That path is
+  // where the minutes' autosave is flushed and where a save that failed turns
+  // into the discard confirm, so a link that bypassed it would be the one way
+  // out of the minutes that still loses a sentence.
   function goToOverviewSection(id: string) {
     pendingScrollRef.current = id;
-    setTab("overview");
+    handleTabChange("overview");
   }
 
   // Base UI's Tabs unmounts an inactive TabsContent's subtree by default, so
@@ -225,6 +230,16 @@ export function MeetingDetailView({
     }
     setDiscardSubject("these minutes");
     setPendingTab(next);
+  }
+
+  /**
+   * Staying put. The queued scroll goes with it -- it was set by the link that
+   * asked to leave, and leaving it armed would yank the page to that section
+   * the next time they switched to Overview for their own reasons.
+   */
+  function cancelPendingTab() {
+    setPendingTab(null);
+    pendingScrollRef.current = null;
   }
 
   function confirmDiscard() {
@@ -306,7 +321,9 @@ export function MeetingDetailView({
           <SectionCard title="Minutes">
             <MinutesTab
               meetingId={meeting.id}
+              meetingDate={meeting.meeting_date}
               canManage={canManage}
+              onViewDecisions={() => goToOverviewSection("decisions-section")}
               guardRef={minutesGuardRef}
             />
           </SectionCard>
@@ -315,7 +332,7 @@ export function MeetingDetailView({
 
       <AlertDialog
         open={pendingTab !== null}
-        onOpenChange={(next) => !next && setPendingTab(null)}
+        onOpenChange={(next) => !next && cancelPendingTab()}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -326,7 +343,7 @@ export function MeetingDetailView({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingTab(null)}>
+            <AlertDialogCancel onClick={cancelPendingTab}>
               Keep editing
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDiscard}>

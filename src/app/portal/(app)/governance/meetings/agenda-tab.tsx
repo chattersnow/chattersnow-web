@@ -34,7 +34,12 @@ import { MinutesApprovalDialog } from "./minutes-approval-dialog";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
@@ -55,7 +60,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { AgendaExportDialog } from "./agenda-export-dialog";
+import { MeetingExportDialog } from "./meeting-export-dialog";
+import {
+  formatAgendaMarkdown,
+  formatAgendaPlainText,
+  type AgendaExportInput,
+} from "./agenda-export";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
@@ -90,6 +100,21 @@ export function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
         </ul>
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+/**
+ * The agenda's half of the shared export dialog (#1201): the dialog takes two
+ * formatted strings, and this is where an agenda becomes them. The minutes tab
+ * has the same three lines over `minutes-export.ts`.
+ */
+function AgendaExport({ input }: { input: AgendaExportInput }) {
+  return (
+    <MeetingExportDialog
+      title="Export agenda"
+      markdown={formatAgendaMarkdown(input)}
+      plainText={formatAgendaPlainText(input)}
+    />
   );
 }
 
@@ -378,13 +403,22 @@ function AgendaForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="agenda-body">Meeting notes</FieldLabel>
+          <FieldLabel htmlFor="agenda-body">Agenda notes</FieldLabel>
           <Textarea
             id="agenda-body"
             rows={6}
             value={bodyText}
             onChange={(event) => setBodyText(event.target.value)}
           />
+          {/* Renamed in #1201. This field has been "the minutes" since #408,
+              and since #1200 it is not: it is pre-meeting context, and what
+              happened belongs in the Minutes tab. Removing it outright is a
+              follow-up -- meetings that predate the minutes record still hold
+              their only account of themselves here. */}
+          <FieldDescription>
+            Context to have in front of the board before the meeting. What
+            actually happened goes in the Minutes tab.
+          </FieldDescription>
         </Field>
 
         {error && (
@@ -510,7 +544,7 @@ export function AgendaTab({
       ) : (
         <>
           <div className="flex justify-end">
-            <AgendaExportDialog
+            <AgendaExport
               input={{
                 meetingDate,
                 agenda,
@@ -727,7 +761,11 @@ export function AgendaTab({
           </div>
 
           <FieldGroup>
-            <ReadOnlyField label="Meeting notes" htmlFor="agenda-body-view">
+            {/* Still `whitespace-pre-wrap`, not `MarkdownText`. The agenda is
+                a plan someone reads back while editing it, and #1201 scoped
+                rendering to the three surfaces that present a finished
+                document. Widening it here is a follow-up. */}
+            <ReadOnlyField label="Agenda notes" htmlFor="agenda-body-view">
               <span className="whitespace-pre-wrap">
                 {agenda.body_text || "—"}
               </span>
