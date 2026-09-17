@@ -5,6 +5,13 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { getTenantContext } from "@/lib/portal/tenants";
+import {
+  NO_RECORD_MESSAGES,
+  VOLUNTEER_APPLICATION_RECORD_TYPE,
+} from "@/lib/outbound-messages";
+import { loadRecordMessages } from "@/lib/portal/record-messages";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -157,6 +164,49 @@ export default async function VolunteerApplicationsPage({
       .maybeSingle();
     linkedApplication = (linked as VolunteerApplication | null) ?? null;
   }
+
+  // What has been said to each applicant on this page, in one query rather
+  // than one per sheet: the list renders a sheet per row, and a reviewer opens
+  // one of them. RLS answers with nothing without volunteers:manage, so the
+  // check here only saves the round trips for a reader who cannot see it.
+  const applicationIds = [
+    ...applicationRows.map((row) => row.id),
+    ...(linkedApplication ? [linkedApplication.id] : []),
+  ];
+  const [recordMessages, orgEmailEnabled, tenantContext] = await Promise.all([
+    canManage
+      ? loadRecordMessages(
+          supabase,
+          VOLUNTEER_APPLICATION_RECORD_TYPE,
+          applicationIds,
+        )
+      : NO_RECORD_MESSAGES,
+    canManage ? getOrgEmailEnabled(supabase) : false,
+    // Only for what the composer calls the organization in its default
+    // subject. Memoized per request, so the shell has already paid for it.
+    getTenantContext(supabase),
+  ]);
+  const orgName =
+    tenantContext.tenants.find(
+      (tenant) => tenant.id === tenantContext.currentTenantId,
+    )?.name ?? "";
+  // The Reply-To the composer quotes, through the view that exists because
+  // app_settings itself is closed to a volunteers manager.
+  const { data: orgMail } = canManage
+    ? await supabase
+        .from("org_notification_settings")
+        .select("reply_to")
+        .maybeSingle()
+    : { data: null };
+  const replyTo = (orgMail?.reply_to as string | null) ?? null;
+
+  const messageProps = (applicationId: string) => ({
+    messages: recordMessages.byRecord[applicationId] ?? [],
+    messageActors: recordMessages.actors,
+    orgName,
+    replyTo,
+    orgEmailEnabled,
+  });
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
@@ -346,6 +396,7 @@ export default async function VolunteerApplicationsPage({
                             <VolunteerApplicationDetailsSheet
                               application={application}
                               canManage={canManage}
+                              {...messageProps(application.id)}
                               defaultOpen={
                                 application.id === linkedApplicationId
                               }
@@ -363,6 +414,7 @@ export default async function VolunteerApplicationsPage({
               <VolunteerApplicationDetailsSheet
                 application={linkedApplication}
                 canManage={canManage}
+                {...messageProps(linkedApplication.id)}
                 defaultOpen
                 withTrigger={false}
               />

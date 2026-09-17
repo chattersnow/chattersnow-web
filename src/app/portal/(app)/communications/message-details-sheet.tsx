@@ -41,14 +41,31 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { formatDateTime } from "@/lib/format";
 import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
+import { RecordMessages } from "@/components/portal/record-messages";
+import {
+  messagingDisabledReason,
+  type MessageActor,
+  type RecordMessageRow,
+} from "@/lib/outbound-messages";
+import { ContactMessageReplyActions } from "./message-reply-actions";
 
 export function MessageDetailsSheet({
   message,
   canManage,
+  messages,
+  messageActors,
+  replyTo,
+  orgEmailEnabled,
   defaultOpen = false,
 }: {
   message: ContactMessage;
   canManage: boolean;
+  /** What has been sent in reply to this message from the portal (#1204). */
+  messages: RecordMessageRow[];
+  messageActors: MessageActor[];
+  /** The tenant's Reply-To, so the composer can say where a reply lands. */
+  replyTo: string | null;
+  orgEmailEnabled: boolean;
   /** True when `?message=` names this row. */
   defaultOpen?: boolean;
 }) {
@@ -191,6 +208,29 @@ export function MessageDetailsSheet({
               </Alert>
             )}
           </FieldGroup>
+
+          {canManage ? (
+            <section className="mt-6 flex flex-col gap-3">
+              <h3 className="app-muted text-sm font-semibold">Replies</h3>
+              <ContactMessageReplyActions
+                contactMessageId={message.id}
+                senderName={message.name}
+                toEmail={message.email}
+                topicLabel={contactTopicLabel(message.topic, lexicon)}
+                replyTo={replyTo}
+                disabledReason={messagingDisabledReason(
+                  orgEmailEnabled,
+                  message.email,
+                  "This message has no email address to reply to.",
+                )}
+              />
+              <RecordMessages
+                messages={messages}
+                actors={messageActors}
+                emptyMessage="Nothing has been sent in reply from the portal. Replying here does not change the message's status — mark it resolved yourself once it is handled."
+              />
+            </section>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

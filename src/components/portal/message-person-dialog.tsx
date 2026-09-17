@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useId,
   useState,
   useTransition,
   type FormEvent,
@@ -50,6 +51,7 @@ export function MessagePersonDialog({
   replyTo,
   sendMessage,
   trigger,
+  actionLabel = "Contact requester",
   disabledReason,
 }: {
   /** For the dialog's own copy only; the action re-resolves the recipient. */
@@ -64,10 +66,22 @@ export function MessagePersonDialog({
     body: string;
   }) => Promise<{ error: string } | { success: true }>;
   trigger?: ReactElement;
+  /**
+   * What the default trigger says, and what the disabled one says in its
+   * place. Each queue names the person in its own terms -- a requester, an
+   * applicant, somebody who wrote in -- and #1204's callers are why this is a
+   * prop rather than the gear request's wording baked in.
+   */
+  actionLabel?: string;
   /** When set, the trigger is disabled and this says why. */
   disabledReason?: string;
 }) {
   const router = useRouter();
+  // Minted rather than fixed: this composer opens inside records' own detail
+  // sheets, and #1204's contact message sheet already labels a field
+  // `message-body`. Two elements sharing an id hand the label to whichever
+  // comes first, which left the message box with no accessible name at all.
+  const fieldId = useId();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -116,7 +130,7 @@ export function MessagePersonDialog({
     return (
       <div className="flex flex-col gap-1">
         <Button type="button" variant="secondary" size="sm" disabled>
-          Contact requester
+          {actionLabel}
         </Button>
         <p className="app-muted text-xs">{disabledReason}</p>
       </div>
@@ -136,7 +150,7 @@ export function MessagePersonDialog({
       trigger={
         trigger ?? (
           <Button type="button" variant="secondary" size="sm">
-            Contact requester
+            {actionLabel}
           </Button>
         )
       }
@@ -160,11 +174,11 @@ export function MessagePersonDialog({
       <div className="py-2">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="message-subject" required>
+            <FieldLabel htmlFor={`${fieldId}-subject`} required>
               Subject
             </FieldLabel>
             <Input
-              id="message-subject"
+              id={`${fieldId}-subject`}
               name="subject"
               required
               maxLength={MAX_MESSAGE_SUBJECT_LENGTH}
@@ -177,11 +191,11 @@ export function MessagePersonDialog({
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="message-body" required>
+            <FieldLabel htmlFor={`${fieldId}-body`} required>
               Message
             </FieldLabel>
             <Textarea
-              id="message-body"
+              id={`${fieldId}-body`}
               name="body"
               required
               rows={10}

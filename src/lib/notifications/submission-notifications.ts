@@ -468,9 +468,33 @@ type VolunteerApplicationRow = {
  * and no preference row -- so it bypasses the opt-in and goes straight to the
  * ledger, gated only by the tenant's kill switch.
  */
+export function volunteerApplicationConfirmationDedupeKey(
+  applicationId: string,
+  suffix?: string,
+): string {
+  return `${VOLUNTEER_APPLICATION_CONFIRMATION_KIND}:${applicationId}${suffix ? `:${suffix}` : ""}`;
+}
+
 export async function notifyVolunteerApplicationConfirmation(
   admin: SupabaseClient,
-  options: { tenantId: string; referenceCode: string; siteUrl: string },
+  options: {
+    tenantId: string;
+    referenceCode: string;
+    siteUrl: string;
+    /**
+     * Appended to the dedupe key so a deliberate resend is not read as the
+     * first send's duplicate (#1203, adopted here in #1204). Absent on the
+     * original send.
+     */
+    dedupeSuffix?: string;
+    /**
+     * The rendered message, for a caller that has to record what it sent.
+     * Called from inside the render thunk, which fires only after
+     * deliverEmail() has won the claim -- so it fires if and only if an email
+     * really existed.
+     */
+    onRendered?: (email: RenderedEmail) => void;
+  },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
     .from("volunteer_applications")
@@ -505,15 +529,21 @@ export async function notifyVolunteerApplicationConfirmation(
     identity: mail.identity,
     personId: data.person_id,
     kind: VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
-    dedupeKey: `${VOLUNTEER_APPLICATION_CONFIRMATION_KIND}:${data.id}`,
+    dedupeKey: volunteerApplicationConfirmationDedupeKey(
+      data.id,
+      options.dedupeSuffix,
+    ),
     to,
-    render: () =>
-      renderVolunteerApplicationConfirmationEmail({
+    render: () => {
+      const email = renderVolunteerApplicationConfirmationEmail({
         orgName: mail.displayName,
         applicantName: (data.name ?? "").trim(),
         referenceCode: data.reference_code,
         siteUrl: mail.origin,
-      }),
+      });
+      options.onRendered?.(email);
+      return email;
+    },
     logPrefix: "[volunteer-application-confirm]",
   });
 }

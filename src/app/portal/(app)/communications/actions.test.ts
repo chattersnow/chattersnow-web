@@ -1,5 +1,10 @@
 import { describe, expect, mock, test } from "bun:test";
 
+// The reply action (#1204) reaches the staff-message sender, which is
+// `server-only` -- a module that throws outside Next's bundler. Nothing in
+// this file exercises a send; the stub keeps the import graph loadable.
+mock.module("server-only", () => ({}));
+
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 

@@ -6,11 +6,19 @@
 // shows up in how the table's prop-driven `messages` re-renders interact
 // with the filter -- mirroring how the real page passes a freshly-fetched
 // `messages` array after the details sheet's router.refresh().
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ContactMessage } from "./message-types";
-import { MessagesTable } from "./messages-table";
+
+// The sheet inside each row reaches the reply action (#1204) and through it
+// the `server-only` sender. Next's bundler replaces a "use server" module with
+// action references for a client component, so this graph never loads in the
+// app; under bun it does, and server-only throws on sight. Nothing here sends
+// anything -- the stub only keeps the import loadable.
+mock.module("server-only", () => ({}));
+
+const { MessagesTable } = await import("./messages-table");
 
 function makeMessage(overrides: Partial<ContactMessage> = {}): ContactMessage {
   return {
