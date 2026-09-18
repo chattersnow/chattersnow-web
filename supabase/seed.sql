@@ -202,8 +202,6 @@ declare
   v_recurring_local_date date;
   v_meeting_id constant uuid := 'abababab-0000-4000-8000-000000000001';
   v_role_type_id uuid;
-  v_template_id uuid;
-  v_template_version_id uuid;
   v_agenda_template_id uuid;
   v_agenda_template_version_id uuid;
   v_former_id uuid;
@@ -499,7 +497,7 @@ begin
   )
   values (v_event_past, 14, 7, 480.00, 9, 'Participants especially valued loaner gear and peer support.', v_admin_id);
 
-  -- Content and community calendar, including a pinned brief template version.
+  -- Content and community calendar.
   insert into public.calendar_items (
     id, title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,
     priority_rationale, calendar_status, visibility, owner_id, public_url, created_by
@@ -516,21 +514,16 @@ begin
   insert into public.calendar_item_programs (item_id, program_id)
   values (v_calendar_promo_id, v_program_id);
 
-  select id into v_template_id from public.content_brief_templates where key = 'community_spotlight';
-  select current_version_id into v_template_version_id from public.content_brief_templates where id = v_template_id;
-
   insert into public.content_opportunities (
     calendar_item_id, content_status, org_connection, recommended_formats,
     recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days,
-    publish_due_at, template_id, template_version_id, template_field_values, created_by
+    publish_due_at, created_by
   )
   values (
     v_calendar_promo_id, 'draft', 'Show how shared gear helps neighbors participate outdoors.',
     'Instagram post; email; event page', 'Publish a participant-centered event announcement.',
     'Confirm final registration link and accessibility details.', v_admin_person_id, v_admin_person_id, 14,
-    now() + interval '7 days', v_template_id, v_template_version_id,
-    '{"subject_name":"Chatter Snow community","setting":"Local winter trail","publish_permission":"Internal demo content only"}'::jsonb,
-    v_admin_id
+    now() + interval '7 days', v_admin_id
   );
 
   -- Structured-recurrence calendar item (issue #191): dated to today so the

@@ -373,122 +373,41 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
             <li>
               <strong className="text-foreground">Sensitive topic</strong> —
-              flagging an item this way surfaces tone guidance and requires
-              someone with manage access to record a review before it&apos;s
-              considered handled; unreviewed sensitive items are flagged the
-              same way as undecided Tier 1 items.
+              flagging an item this way surfaces its tone guidance on the
+              item&apos;s content brief, so whoever writes the content sees it.
             </li>
             <li>
               <strong className="text-foreground">Content opportunity</strong> —
-              items with a linked content opportunity move through their own
-              draft/review/publish stages, tracked on the{" "}
-              <Link
-                href="/portal/calendar/work-queue"
-                className="underline hover:text-foreground"
-              >
-                Work Queue
-              </Link>{" "}
-              page.
+              items with a linked content brief move through their own
+              draft/review/publish stages, with due dates set from the
+              brief&apos;s lead time.
             </li>
           </ol>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
             Anyone with manage access to the content calendar can create or edit
-            items and record decisions and sensitive-topic reviews; everyone
-            else can view.
+            items and record decisions; everyone else can view.
           </p>
         </HowToSection>
         <HowToSection heading="What happens downstream">
           <ul className="list-disc space-y-2 pl-4">
             <li>
-              An undecided Tier 1 item or an unreviewed sensitive item stays
-              flagged on this list until it&apos;s handled.
+              An undecided Tier 1 item stays flagged on this list until a
+              decision is recorded.
             </li>
             <li>
               Every create, edit, or delete on a calendar item is written to the
               audit log.
             </li>
-            <li>
-              Items that also have a content opportunity feed the Work
-              queue&apos;s due dates — see that page&apos;s own guide for how
-              those stages work.
-            </li>
           </ul>
         </HowToSection>
         <HowToSection heading="Common mistakes">
           <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Marking an item sensitive without also recording a review leaves
-              it flagged even after everything else about it is finished.
-            </li>
             <li>
               Deciding Skip or Defer on a Tier 1 item after its date has already
               passed doesn&apos;t retroactively clear it from history — decide
               before the date when possible.
-            </li>
-          </ul>
-        </HowToSection>
-      </>
-    ),
-  },
-  "/portal/calendar/work-queue": {
-    title: "How the work queue works",
-    description: "Draft, review, and publish stages with their due dates.",
-    body: (
-      <>
-        <HowToSection heading="Steps">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">Draft</strong> — an
-              opportunity starts here (statuses <code>not_planned</code>,{" "}
-              <code>idea</code>, or <code>draft</code>), due two-thirds of the
-              way through its lead time, before the publish date.
-            </li>
-            <li>
-              <strong className="text-foreground">Review</strong> — once
-              it&apos;s <code>in_review</code> or sent back as{" "}
-              <code>changes_requested</code>, the due date shifts to the last
-              third of the lead time.
-            </li>
-            <li>
-              <strong className="text-foreground">Publish</strong> — once{" "}
-              <code>approved</code> or <code>scheduled</code>, the due date is
-              the publish date itself.
-            </li>
-          </ol>
-        </HowToSection>
-        <HowToSection heading="Who can do this">
-          <p>
-            Owners and reviewers work their own items from{" "}
-            <strong className="text-foreground">My work</strong>; anyone with
-            manage access to the content calendar can act on anything in the{" "}
-            <strong className="text-foreground">Upcoming queue</strong>.
-          </p>
-        </HowToSection>
-        <HowToSection heading="What happens downstream">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              An item is Overdue when its current stage&apos;s due date has
-              passed; nothing is ever overdue once it reaches{" "}
-              <code>published</code> or <code>skipped</code>.
-            </li>
-            <li>
-              Status changes here are written to the audit log alongside the
-              rest of the calendar item&apos;s history.
-            </li>
-          </ul>
-        </HowToSection>
-        <HowToSection heading="Common mistakes">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Leaving the owner or reviewer fields blank means the item never
-              shows up in anyone&apos;s My work tab, only in the general queue.
-            </li>
-            <li>
-              Sending an item back to <code>changes_requested</code>{" "}
-              doesn&apos;t reset it to the draft stage&apos;s due-date math — it
-              moves to the review stage&apos;s, which can shorten the time left.
             </li>
           </ul>
         </HowToSection>
@@ -551,178 +470,6 @@ export const helpContent: Record<string, HelpEntry> = {
               check the target year&apos;s coverage first. Re-running Generate
               all for an already-covered year is harmless, since it only fills
               gaps.
-            </li>
-          </ul>
-        </HowToSection>
-      </>
-    ),
-  },
-  "/portal/calendar/reports": {
-    title: "How the annual review is counted",
-    description: "What counts toward each metric, and who can see it.",
-    body: (
-      <>
-        <HowToSection heading="What counts">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">
-                Tier 1 items with a decision
-              </strong>{" "}
-              — the share of the selected fiscal year&apos;s Tier 1 items (by
-              start date) that have a Plan, Skip, or Defer decision recorded.
-            </li>
-            <li>
-              <strong className="text-foreground">
-                Planned opportunities completed on time
-              </strong>{" "}
-              — of opportunities whose calendar item was decided Plan and has a
-              publish target date, the share published on or before that date.
-            </li>
-            <li>
-              <strong className="text-foreground">Overdue content tasks</strong>{" "}
-              — the selected fiscal year&apos;s opportunities currently past
-              their stage&apos;s due date, using the same overdue logic as the
-              Work Queue page.
-            </li>
-            <li>
-              <strong className="text-foreground">
-                Median time to first review
-              </strong>{" "}
-              — median days from a brief being created to it entering review,
-              counted only for opportunities that have a template and are
-              currently <code>in_review</code>.
-            </li>
-            <li>
-              <strong className="text-foreground">
-                Public items with a clear connection to your organization
-              </strong>{" "}
-              — the selected fiscal year&apos;s items that are public, live
-              (active or complete), and have a non-empty &ldquo;Our
-              connection&rdquo; recorded on their opportunity.
-            </li>
-            <li>
-              <strong className="text-foreground">
-                Publication permissions recorded
-              </strong>{" "}
-              — a raw count of publication-permission rows tied to the selected
-              fiscal year&apos;s items.
-            </li>
-          </ul>
-        </HowToSection>
-        <HowToSection heading="The year is the fiscal year">
-          <p>
-            The picker lists fiscal years, not calendar years, and a fiscal year
-            is named for the calendar year it ends in — so under a July start,
-            FY2027 covers items starting between July 1 2026 and June 30 2027. A
-            season&apos;s planning therefore sits in one review instead of being
-            split at New Year. An admin or board member sets the start month in{" "}
-            <Link
-              href="/portal/administration/organization-settings"
-              className="underline hover:text-foreground"
-            >
-              Organization Settings
-            </Link>
-            .
-          </p>
-        </HowToSection>
-        <HowToSection heading="Who can do this">
-          <p>
-            <strong className="text-foreground">admin</strong> and{" "}
-            <strong className="text-foreground">event_coordinator</strong> hold
-            manage on this report, while{" "}
-            <strong className="text-foreground">finance</strong>,{" "}
-            <strong className="text-foreground">board</strong>, and{" "}
-            <strong className="text-foreground">volunteer</strong> hold view —
-            since the page has no write actions, every calendar role can see it.
-          </p>
-        </HowToSection>
-        <HowToSection heading="What happens downstream">
-          <p>
-            Changing the Year selector re-runs the whole computation live from
-            that year&apos;s calendar items, opportunities, and permissions —
-            nothing is cached.
-          </p>
-        </HowToSection>
-        <HowToSection heading="Common mistakes">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Reading &quot;Median time to first review&quot; as a whole-year
-              average — it only reflects opportunities currently sitting in
-              review, so it drops to &quot;—&quot; once everything for the year
-              has moved past review, even though plenty were reviewed during the
-              year.
-            </li>
-            <li>
-              Assuming a metric carries over past years — every figure on this
-              page is scoped to the selected year&apos;s items only.
-            </li>
-          </ul>
-        </HowToSection>
-      </>
-    ),
-  },
-  "/portal/calendar/program-suggestions": {
-    title: "How program suggestions work",
-    description:
-      "Rules that surface dismissible program chips in the item editor.",
-    body: (
-      <>
-        <HowToSection heading="Steps">
-          <ol className="list-decimal space-y-2 pl-4">
-            <li>
-              <strong className="text-foreground">
-                Item type and category
-              </strong>{" "}
-              — each is optional, but at least one is required. Leaving one
-              blank makes it a wildcard for that dimension (matches any value),
-              while setting both narrows the rule to just that combination —
-              e.g. community observance + LGBTQ+ community.
-            </li>
-            <li>
-              <strong className="text-foreground">Active toggle</strong> —
-              deactivate a rule to stop it from suggesting without deleting it.
-            </li>
-          </ol>
-        </HowToSection>
-        <HowToSection heading="Who can do this">
-          <p>
-            Anyone with view access to the content calendar can see this list;
-            manage access — the same <code>content_calendar</code> permission as
-            calendar items themselves, not a separate resource — is needed to
-            create, edit, deactivate, or delete rules.
-          </p>
-        </HowToSection>
-        <HowToSection heading="What happens downstream">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Matched rules produce dismissible &quot;Suggested&quot; chips next
-              to Related programs, in both the new-item dialog and an existing
-              item&apos;s edit view — clicking one adds the program, but nothing
-              is added automatically.
-            </li>
-            <li>
-              A program already added to the item is never suggested again, even
-              if a rule still matches it.
-            </li>
-            <li>
-              Editing or deactivating a rule only changes what&apos;s suggested
-              going forward — it doesn&apos;t touch programs already added to
-              any calendar item.
-            </li>
-          </ul>
-        </HowToSection>
-        <HowToSection heading="Common mistakes">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              An item-type-only (or category-only) rule matches every value of
-              the dimension left blank — e.g. an item-type-only rule suggests
-              its program for that type regardless of category, which can be
-              broader than intended.
-            </li>
-            <li>
-              Expecting a rule change to retroactively update an item&apos;s
-              Related programs — it won&apos;t; only a fresh look at the editor
-              re-evaluates suggestions.
             </li>
           </ul>
         </HowToSection>

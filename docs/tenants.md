@@ -71,8 +71,9 @@ into:
   a template without it. A new tenant can then relabel or retire anything but
   `admin` from Administration > Roles;
 - the catalog defaults a fresh database gets from migrations: the inventory
-  category vocabulary, the agenda templates and the content brief templates,
-  current versions included;
+  category vocabulary, the agenda templates (current versions included) and
+  the calendar category vocabulary. The content brief templates were copied
+  here too until #1230 retired them;
 - its **module entitlements**, seeded from `plan_modules` for `--plan` and
   _not_ copied from the template tenant: the template's entitlements are what
   the platform sold that organization. See "Modules" below;
@@ -820,7 +821,7 @@ same read.
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `events`            | `events`, `event_impact`, `event_incidents`, `event_volunteer_hours`                                          |
 | `artwork`           | `artwork_submissions`                                                                                         |
-| `calendar`          | `content_calendar`, `content_calendar_reports`                                                                |
+| `calendar`          | `content_calendar`                                                                                            |
 | `programs`          | `programs`, `programs_reports`                                                                                |
 | `inventory`         | `inventory`, `inventory_reports`, `inventory_intake`                                                          |
 | `volunteers`        | `volunteers`, `volunteer_hours_logging`                                                                       |

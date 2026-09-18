@@ -1,7 +1,7 @@
 /**
  * Longest-prefix route matching for portal help content. A key matches when
  * it equals the pathname or is a segment-boundary prefix of it, so
- * "/portal/calendar" matches "/portal/calendar/work-queue" but not
+ * "/portal/calendar" matches "/portal/calendar/import" but not
  * "/portal/calendars". The longest matching key wins, letting a specific
  * page's entry shadow its module's entry, which in turn shadows "/portal".
  */

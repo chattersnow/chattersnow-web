@@ -7,8 +7,6 @@ import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { listProgramsAction } from "../../programs/actions";
 import { listCalendarOwnersAction } from "../actions";
-import { listActiveContentBriefTemplatesAction } from "../templates/actions";
-import { listActiveProgramSuggestionRulesAction } from "../program-suggestions/actions";
 import { getCalendarItem } from "../queries";
 import { CalendarItemDetailView } from "./calendar-item-detail-view";
 import { listCalendarCategories } from "../queries";
@@ -58,29 +56,19 @@ export default async function CalendarItemDetailPage({
   }
   if (!item) notFound();
 
-  const [
-    ownersResult,
-    programsResult,
-    templatesResult,
-    suggestionRulesResult,
-    { data: leadTimeSetting },
-  ] = await Promise.all([
-    listCalendarOwnersAction(),
-    listProgramsAction(),
-    listActiveContentBriefTemplatesAction(),
-    listActiveProgramSuggestionRulesAction(),
-    supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "content.default_lead_time_days")
-      .maybeSingle(),
-  ]);
+  const [ownersResult, programsResult, { data: leadTimeSetting }] =
+    await Promise.all([
+      listCalendarOwnersAction(),
+      listProgramsAction(),
+      supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "content.default_lead_time_days")
+        .maybeSingle(),
+    ]);
 
   const owners = "data" in ownersResult ? ownersResult.data : [];
   const programs = "data" in programsResult ? programsResult.data : [];
-  const activeTemplates = "data" in templatesResult ? templatesResult.data : [];
-  const programSuggestionRules =
-    "data" in suggestionRulesResult ? suggestionRulesResult.data : [];
   const defaultLeadTimeDays =
     typeof leadTimeSetting?.value === "number" ? leadTimeSetting.value : 21;
 
@@ -93,9 +81,7 @@ export default async function CalendarItemDetailPage({
         item={item}
         owners={owners}
         programs={programs}
-        activeTemplates={activeTemplates}
         defaultLeadTimeDays={defaultLeadTimeDays}
-        programSuggestionRules={programSuggestionRules}
         canManage={canManage}
       />
     </>

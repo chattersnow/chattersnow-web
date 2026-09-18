@@ -7,13 +7,11 @@ import {
   createContentOpportunityAction,
   updateContentOpportunityAction,
 } from "./content-opportunity-actions";
-import { upsertContentPermissionAction } from "./content-permission-actions";
 import {
   CONTENT_STATUSES,
   leadTimeSchedule,
   type ContentOpportunityRow,
 } from "./content-opportunity-shared";
-import type { ContentPermissionRow } from "./content-permission-shared";
 import { ContentStatusBadge } from "./content-opportunity-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -36,10 +34,6 @@ import {
 import { calendarActorName, ownerName, ownerOptions } from "./calendar-shared";
 import type { CalendarOwner } from "./calendar-shared";
 import { PersonSelect } from "../people/person-select";
-import type {
-  ActiveContentBriefTemplate,
-  TemplateField,
-} from "./content-brief-template-shared";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime } from "@/lib/format";
 import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
@@ -72,35 +66,16 @@ function formStateFor(
     draftDueAt: utcIsoToDatetimeLocalInBrowser(
       opportunity?.draft_due_at ?? null,
     ),
-    // Seeded from the brief's OWN pinned version's fields, never the
-    // template's current/live version -- so opening an existing brief for
-    // edit never silently upgrades its structure. Only picking a template
-    // from the dropdown below changes templateVersionId/resolvedFields.
-    templateId: opportunity?.template_id ?? "",
-    templateVersionId: opportunity?.template_version_id ?? "",
-    templateFieldValues: opportunity?.template_field_values ?? {},
-    resolvedFields: opportunity?.template_version?.fields ?? [],
   };
 }
 
 type FormState = ReturnType<typeof formStateFor>;
-
-function consentFormStateFor(permission: ContentPermissionRow | null) {
-  return {
-    permittedUse: permission?.permitted_use ?? "",
-    usageLimits: permission?.usage_limits ?? "",
-    consentOnFileAt: permission?.consent_on_file_at ?? "",
-  };
-}
-
-type ConsentFormState = ReturnType<typeof consentFormStateFor>;
 
 export function ContentOpportunityTab({
   calendarItemId,
   itemStartsAt,
   opportunity,
   owners,
-  activeTemplates,
   defaultLeadTimeDays,
   canManage,
   isSensitiveTopic,
@@ -110,7 +85,6 @@ export function ContentOpportunityTab({
   itemStartsAt: string;
   opportunity: ContentOpportunityRow | null;
   owners: CalendarOwner[];
-  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
   canManage: boolean;
   isSensitiveTopic: boolean;
@@ -123,55 +97,6 @@ export function ContentOpportunityTab({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  const [consentMode, setConsentMode] = useState<"view" | "edit">("view");
-  const [consentForm, setConsentForm] = useState<ConsentFormState>(() =>
-    consentFormStateFor(opportunity?.content_permission ?? null),
-  );
-  const [consentError, setConsentError] = useState<string | null>(null);
-  const [isConsentPending, startConsentTransition] = useTransition();
-
-  const currentTemplateId =
-    mode === "edit" ? form.templateId : (opportunity?.template_id ?? null);
-  const requiresConsent =
-    activeTemplates.find((template) => template.id === currentTemplateId)
-      ?.requires_consent ?? false;
-
-  function startEditingConsent() {
-    setConsentForm(
-      consentFormStateFor(opportunity?.content_permission ?? null),
-    );
-    setConsentError(null);
-    setConsentMode("edit");
-  }
-
-  function handleConsentSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setConsentError(null);
-    if (!opportunity) {
-      setConsentError("Save this brief first before recording consent.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.set("permittedUse", consentForm.permittedUse);
-    formData.set("usageLimits", consentForm.usageLimits);
-    formData.set("consentOnFileAt", consentForm.consentOnFileAt);
-
-    startConsentTransition(async () => {
-      await runAction(
-        () => upsertContentPermissionAction(opportunity.id, formData),
-        {
-          success: "Consent details saved.",
-          onError: setConsentError,
-          onSuccess: () => {
-            setConsentMode("view");
-            router.refresh();
-          },
-        },
-      );
-    });
-  }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -205,38 +130,6 @@ export function ContentOpportunityTab({
     }));
   }
 
-  function selectTemplate(value: string) {
-    if (value === "none") {
-      setForm((prev) => ({
-        ...prev,
-        templateId: "",
-        templateVersionId: "",
-        templateFieldValues: {},
-        resolvedFields: [],
-      }));
-      return;
-    }
-    const match = activeTemplates.find((template) => template.id === value);
-    if (!match) return;
-    // Picks the template's CURRENT version, frozen at this moment. Switching
-    // templates (or re-picking the same one after it's been revised) resets
-    // field values -- the new field list may not share the old one's keys.
-    setForm((prev) => ({
-      ...prev,
-      templateId: match.id,
-      templateVersionId: match.version_id,
-      templateFieldValues: {},
-      resolvedFields: match.fields,
-    }));
-  }
-
-  function updateTemplateFieldValue(key: string, value: string) {
-    setForm((prev) => ({
-      ...prev,
-      templateFieldValues: { ...prev.templateFieldValues, [key]: value },
-    }));
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -265,12 +158,6 @@ export function ContentOpportunityTab({
     formData.set(
       "draftDueAt",
       form.draftDueAt ? new Date(form.draftDueAt).toISOString() : "",
-    );
-    formData.set("templateId", form.templateId);
-    formData.set("templateVersionId", form.templateVersionId);
-    formData.set(
-      "templateFieldValues",
-      JSON.stringify(form.templateFieldValues),
     );
 
     startTransition(async () => {
@@ -312,7 +199,7 @@ export function ContentOpportunityTab({
           title="No content brief yet for this item"
           description={
             canManage
-              ? "Start one to capture the angle, owner, and consent for this piece."
+              ? "Start one to capture the angle, owner, and deadlines for this piece."
               : "A brief appears here once a content manager starts one."
           }
           action={
@@ -358,25 +245,6 @@ export function ContentOpportunityTab({
                 {opportunity.skip_reason}
               </ReadOnlyField>
             )}
-          {opportunity.template_version && (
-            <>
-              <ReadOnlyField label="Template" htmlFor="brief-template">
-                {activeTemplates.find(
-                  (template) => template.id === opportunity.template_id,
-                )?.name ?? "Template"}{" "}
-                (v{opportunity.template_version.version})
-              </ReadOnlyField>
-              {opportunity.template_version.fields.map((field) => (
-                <ReadOnlyField
-                  key={field.key}
-                  label={field.label}
-                  htmlFor={`brief-template-field-${field.key}`}
-                >
-                  {opportunity.template_field_values[field.key] || "—"}
-                </ReadOnlyField>
-              ))}
-            </>
-          )}
           <ReadOnlyField label="Our connection" htmlFor="brief-connection">
             {opportunity.org_connection || "—"}
           </ReadOnlyField>
@@ -431,148 +299,6 @@ export function ContentOpportunityTab({
               legal, or confidential case details here.
             </FieldDescription>
           </Field>
-          {requiresConsent && (
-            <Field className="rounded-lg border p-3">
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="consent-section">
-                  Community-story consent
-                </FieldLabel>
-                {canManage && consentMode === "view" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Edit consent"
-                    onClick={startEditingConsent}
-                  >
-                    <Pencil />
-                  </Button>
-                )}
-              </div>
-              <div id="consent-section" className="flex flex-col gap-2">
-                {consentError && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{consentError}</AlertDescription>
-                  </Alert>
-                )}
-                {consentMode === "view" ? (
-                  opportunity.content_permission ? (
-                    <>
-                      <ReadOnlyField
-                        label="Permitted use"
-                        htmlFor="consent-permitted-use"
-                      >
-                        {opportunity.content_permission.permitted_use}
-                      </ReadOnlyField>
-                      <ReadOnlyField
-                        label="Usage limits"
-                        htmlFor="consent-usage-limits"
-                      >
-                        {opportunity.content_permission.usage_limits || "—"}
-                      </ReadOnlyField>
-                      <ReadOnlyField
-                        label="Consent on file"
-                        htmlFor="consent-on-file"
-                      >
-                        {opportunity.content_permission.consent_on_file_at}
-                      </ReadOnlyField>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-destructive">
-                        No consent recorded yet. This is required before
-                        approving, scheduling, or publishing this content.
-                      </p>
-                      {canManage && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="self-start"
-                          onClick={startEditingConsent}
-                        >
-                          Record consent
-                        </Button>
-                      )}
-                    </>
-                  )
-                ) : (
-                  <form onSubmit={handleConsentSubmit}>
-                    <FieldGroup>
-                      <RequiredFieldsNote />
-                      <Field>
-                        <FieldLabel htmlFor="consent-permittedUse" required>
-                          Permitted use
-                        </FieldLabel>
-                        <Textarea
-                          id="consent-permittedUse"
-                          required
-                          value={consentForm.permittedUse}
-                          onChange={(event) =>
-                            setConsentForm((prev) => ({
-                              ...prev,
-                              permittedUse: event.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="consent-usageLimits">
-                          Usage limits
-                        </FieldLabel>
-                        <Textarea
-                          id="consent-usageLimits"
-                          placeholder="e.g. social only, no last names"
-                          value={consentForm.usageLimits}
-                          onChange={(event) =>
-                            setConsentForm((prev) => ({
-                              ...prev,
-                              usageLimits: event.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="consent-onFileAt" required>
-                          Consent on file
-                        </FieldLabel>
-                        <Input
-                          id="consent-onFileAt"
-                          type="date"
-                          required
-                          value={consentForm.consentOnFileAt}
-                          onChange={(event) =>
-                            setConsentForm((prev) => ({
-                              ...prev,
-                              consentOnFileAt: event.target.value,
-                            }))
-                          }
-                        />
-                      </Field>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setConsentMode("view")}
-                        >
-                          Cancel
-                        </Button>
-                        <Button type="submit" disabled={isConsentPending}>
-                          {isConsentPending ? (
-                            <>
-                              <Spinner /> Saving...
-                            </>
-                          ) : (
-                            "Save consent"
-                          )}
-                        </Button>
-                      </div>
-                    </FieldGroup>
-                  </form>
-                )}
-              </div>
-            </Field>
-          )}
           {opportunity.status_changed_at && (
             <p className="app-muted text-xs">
               Status last changed{" "}
@@ -588,54 +314,6 @@ export function ContentOpportunityTab({
       ) : (
         <form onSubmit={handleSubmit}>
           <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="brief-template">
-                Content brief template
-              </FieldLabel>
-              <Select
-                value={form.templateId || "none"}
-                onValueChange={(value) => selectTemplate(value ?? "none")}
-              >
-                <SelectTrigger id="brief-template" className="w-full">
-                  <SelectValue placeholder="No template">
-                    {(value: string) =>
-                      value && value !== "none"
-                        ? (activeTemplates.find(
-                            (template) => template.id === value,
-                          )?.name ?? "No template")
-                        : "No template"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No template</SelectItem>
-                  {activeTemplates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            {form.resolvedFields.map((field: TemplateField) => (
-              <Field key={field.key}>
-                <FieldLabel htmlFor={`brief-template-field-${field.key}`}>
-                  {field.label}
-                </FieldLabel>
-                <Textarea
-                  id={`brief-template-field-${field.key}`}
-                  value={form.templateFieldValues[field.key] ?? ""}
-                  onChange={(event) =>
-                    updateTemplateFieldValue(field.key, event.target.value)
-                  }
-                />
-                {field.help_text && (
-                  <FieldDescription>{field.help_text}</FieldDescription>
-                )}
-              </Field>
-            ))}
-
             <Field orientation="responsive">
               <Field>
                 <FieldLabel htmlFor="brief-contentStatus">

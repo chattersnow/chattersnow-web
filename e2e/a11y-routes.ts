@@ -151,10 +151,6 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
     listPath: "/portal/calendar",
     linkPattern: /^\/portal\/calendar\/[0-9a-f-]{36}$/,
   },
-  "/portal/calendar/templates/[templateId]": {
-    listPath: "/portal/calendar/templates",
-    linkPattern: /^\/portal\/calendar\/templates\/[0-9a-f-]{36}$/,
-  },
   "/portal/governance/meetings/[meetingId]": {
     listPath: "/portal/governance/meetings",
     linkPattern: /^\/portal\/governance\/meetings\/[0-9a-f-]{36}$/,

@@ -1237,53 +1237,6 @@ export type Database = {
           },
         ];
       };
-      calendar_item_links: {
-        Row: {
-          item_id: string;
-          related_item_id: string;
-          tenant_id: string;
-        };
-        Insert: {
-          item_id: string;
-          related_item_id: string;
-          tenant_id?: string;
-        };
-        Update: {
-          item_id?: string;
-          related_item_id?: string;
-          tenant_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "calendar_item_links_item_id_fkey";
-            columns: ["tenant_id", "item_id"];
-            isOneToOne: false;
-            referencedRelation: "calendar_items";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "calendar_item_links_related_item_id_fkey";
-            columns: ["tenant_id", "related_item_id"];
-            isOneToOne: false;
-            referencedRelation: "calendar_items";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "calendar_item_links_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "public_tenant";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "calendar_item_links_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       calendar_item_programs: {
         Row: {
           item_id: string;
@@ -1354,8 +1307,6 @@ export type Database = {
           recurrence_start_day: number | null;
           recurrence_start_month: number | null;
           region: string | null;
-          sensitive_review_at: string | null;
-          sensitive_review_by: string | null;
           series_key: string | null;
           source: string | null;
           starts_at: string;
@@ -1390,8 +1341,6 @@ export type Database = {
           recurrence_start_day?: number | null;
           recurrence_start_month?: number | null;
           region?: string | null;
-          sensitive_review_at?: string | null;
-          sensitive_review_by?: string | null;
           series_key?: string | null;
           source?: string | null;
           starts_at: string;
@@ -1426,8 +1375,6 @@ export type Database = {
           recurrence_start_day?: number | null;
           recurrence_start_month?: number | null;
           region?: string | null;
-          sensitive_review_at?: string | null;
-          sensitive_review_by?: string | null;
           series_key?: string | null;
           source?: string | null;
           starts_at?: string;
@@ -1464,77 +1411,6 @@ export type Database = {
           },
           {
             foreignKeyName: "calendar_items_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      calendar_program_suggestion_rules: {
-        Row: {
-          category: string | null;
-          created_at: string;
-          created_by: string;
-          id: string;
-          is_active: boolean;
-          item_type: string | null;
-          note: string | null;
-          program_id: string;
-          tenant_id: string;
-          updated_at: string;
-          updated_by: string | null;
-        };
-        Insert: {
-          category?: string | null;
-          created_at?: string;
-          created_by?: string;
-          id?: string;
-          is_active?: boolean;
-          item_type?: string | null;
-          note?: string | null;
-          program_id: string;
-          tenant_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Update: {
-          category?: string | null;
-          created_at?: string;
-          created_by?: string;
-          id?: string;
-          is_active?: boolean;
-          item_type?: string | null;
-          note?: string | null;
-          program_id?: string;
-          tenant_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "calendar_program_suggestion_rules_category_fkey";
-            columns: ["tenant_id", "category"];
-            isOneToOne: false;
-            referencedRelation: "calendar_categories";
-            referencedColumns: ["tenant_id", "key"];
-          },
-          {
-            foreignKeyName: "calendar_program_suggestion_rules_program_id_fkey";
-            columns: ["tenant_id", "program_id"];
-            isOneToOne: false;
-            referencedRelation: "programs";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "calendar_program_suggestion_rules_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "public_tenant";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "calendar_program_suggestion_rules_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -1670,125 +1546,6 @@ export type Database = {
           },
         ];
       };
-      content_brief_template_versions: {
-        Row: {
-          created_at: string;
-          created_by: string | null;
-          fields: Json;
-          id: string;
-          template_id: string;
-          tenant_id: string;
-          version: number;
-        };
-        Insert: {
-          created_at?: string;
-          created_by?: string | null;
-          fields?: Json;
-          id?: string;
-          template_id: string;
-          tenant_id?: string;
-          version: number;
-        };
-        Update: {
-          created_at?: string;
-          created_by?: string | null;
-          fields?: Json;
-          id?: string;
-          template_id?: string;
-          tenant_id?: string;
-          version?: number;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "content_brief_template_versions_template_id_fkey";
-            columns: ["tenant_id", "template_id"];
-            isOneToOne: false;
-            referencedRelation: "content_brief_templates";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "content_brief_template_versions_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "public_tenant";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "content_brief_template_versions_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      content_brief_templates: {
-        Row: {
-          created_at: string;
-          created_by: string | null;
-          current_version_id: string | null;
-          description: string | null;
-          id: string;
-          is_active: boolean;
-          key: string;
-          name: string;
-          requires_consent: boolean;
-          tenant_id: string;
-          updated_at: string;
-          updated_by: string | null;
-        };
-        Insert: {
-          created_at?: string;
-          created_by?: string | null;
-          current_version_id?: string | null;
-          description?: string | null;
-          id?: string;
-          is_active?: boolean;
-          key: string;
-          name: string;
-          requires_consent?: boolean;
-          tenant_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Update: {
-          created_at?: string;
-          created_by?: string | null;
-          current_version_id?: string | null;
-          description?: string | null;
-          id?: string;
-          is_active?: boolean;
-          key?: string;
-          name?: string;
-          requires_consent?: boolean;
-          tenant_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "content_brief_templates_current_version_id_fkey";
-            columns: ["tenant_id", "current_version_id"];
-            isOneToOne: false;
-            referencedRelation: "content_brief_template_versions";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "content_brief_templates_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "public_tenant";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "content_brief_templates_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       content_opportunities: {
         Row: {
           calendar_item_id: string;
@@ -1810,9 +1567,6 @@ export type Database = {
           skip_reason: string | null;
           status_changed_at: string | null;
           status_changed_by: string | null;
-          template_field_values: Json;
-          template_id: string | null;
-          template_version_id: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
@@ -1837,9 +1591,6 @@ export type Database = {
           skip_reason?: string | null;
           status_changed_at?: string | null;
           status_changed_by?: string | null;
-          template_field_values?: Json;
-          template_id?: string | null;
-          template_version_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -1864,9 +1615,6 @@ export type Database = {
           skip_reason?: string | null;
           status_changed_at?: string | null;
           status_changed_by?: string | null;
-          template_field_values?: Json;
-          template_id?: string | null;
-          template_version_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -1905,20 +1653,6 @@ export type Database = {
             columns: ["tenant_id", "reviewer_id"];
             isOneToOne: false;
             referencedRelation: "people_with_roles";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "content_opportunities_template_id_fkey";
-            columns: ["tenant_id", "template_id"];
-            isOneToOne: false;
-            referencedRelation: "content_brief_templates";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "content_opportunities_template_version_id_fkey";
-            columns: ["tenant_id", "template_version_id"];
-            isOneToOne: false;
-            referencedRelation: "content_brief_template_versions";
             referencedColumns: ["tenant_id", "id"];
           },
           {
@@ -2032,70 +1766,6 @@ export type Database = {
           },
           {
             foreignKeyName: "content_packs_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      content_permissions: {
-        Row: {
-          consent_on_file_at: string;
-          content_opportunity_id: string;
-          created_at: string;
-          created_by: string | null;
-          id: string;
-          permitted_use: string;
-          recorded_by: string | null;
-          tenant_id: string;
-          updated_at: string;
-          updated_by: string | null;
-          usage_limits: string | null;
-        };
-        Insert: {
-          consent_on_file_at: string;
-          content_opportunity_id: string;
-          created_at?: string;
-          created_by?: string | null;
-          id?: string;
-          permitted_use: string;
-          recorded_by?: string | null;
-          tenant_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          usage_limits?: string | null;
-        };
-        Update: {
-          consent_on_file_at?: string;
-          content_opportunity_id?: string;
-          created_at?: string;
-          created_by?: string | null;
-          id?: string;
-          permitted_use?: string;
-          recorded_by?: string | null;
-          tenant_id?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          usage_limits?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "content_permissions_content_opportunity_id_fkey";
-            columns: ["tenant_id", "content_opportunity_id"];
-            isOneToOne: false;
-            referencedRelation: "content_opportunities";
-            referencedColumns: ["tenant_id", "id"];
-          },
-          {
-            foreignKeyName: "content_permissions_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "public_tenant";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "content_permissions_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -8793,10 +8463,6 @@ export type Database = {
           starts_at: string;
           title: string;
         }[];
-      };
-      get_calendar_annual_review_data: {
-        Args: { p_from: string; p_to: string };
-        Returns: Json;
       };
       get_event_impact_derived_data: {
         Args: { p_event_id: string };

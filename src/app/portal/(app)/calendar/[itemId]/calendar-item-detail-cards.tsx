@@ -7,10 +7,7 @@ import {
   datetimeLocalToUtcIsoInBrowser,
   utcIsoToDatetimeLocalInBrowser,
 } from "@/lib/time";
-import {
-  recordSensitiveTopicReviewAction,
-  updateCalendarItemAction,
-} from "../actions";
+import { updateCalendarItemAction } from "../actions";
 import {
   CALENDAR_STATUSES,
   DECISIONS,
@@ -18,9 +15,7 @@ import {
   PRIORITY_TIERS,
   VISIBILITIES,
   labelFor,
-  needsSensitiveReview,
   ownerName,
-  calendarActorName,
   ownerOptions,
   type CalendarItemRow,
   type CalendarOwner,
@@ -33,14 +28,9 @@ import {
   CalendarVisibilityBadge,
   CategoryBadges,
   DecisionBadge,
-  NeedsSensitiveReviewFlag,
   PriorityTierBadge,
   SensitiveTopicBadge,
 } from "../calendar-badges";
-import {
-  suggestedProgramIds,
-  type ProgramSuggestionRule,
-} from "../program-suggestion-shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -465,14 +455,12 @@ export function PlanningDecisionCard({
   item,
   owners,
   programs,
-  programSuggestionRules,
   canManage,
   categoryVocabulary,
 }: {
   item: CalendarItemRow;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
-  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   /** The tenant's category vocabulary (#834). */
   categoryVocabulary: CalendarCategory[];
@@ -678,37 +666,6 @@ export function PlanningDecisionCard({
                 <FieldLabel htmlFor="edit-programs-group">
                   Related programs
                 </FieldLabel>
-                {(() => {
-                  const suggestedIds = suggestedProgramIds(
-                    programSuggestionRules,
-                    form.itemType,
-                    form.categories,
-                    form.programIds,
-                  );
-                  const suggested = suggestedIds
-                    .map((id) => programs.find((program) => program.id === id))
-                    .filter((program): program is CalendarProgram =>
-                      Boolean(program),
-                    );
-                  if (suggested.length === 0) return null;
-                  return (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="app-muted text-xs">Suggested:</span>
-                      {suggested.map((program) => (
-                        <button
-                          key={program.id}
-                          type="button"
-                          onClick={() =>
-                            toggleListValue("programIds", program.id)
-                          }
-                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
-                        >
-                          + {program.name}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
                 <div id="edit-programs-group" className="flex flex-col gap-2">
                   {programs.map((program) => (
                     <label
@@ -784,29 +741,13 @@ export function PlanningDecisionCard({
 
 export function SensitiveTopicCard({
   item,
-  owners,
   canManage,
 }: {
   item: CalendarItemRow;
-  owners: CalendarOwner[];
   canManage: boolean;
 }) {
-  const router = useRouter();
   const card = useCalendarItemCardForm(item, "Sensitive topic");
   const { form, update } = card;
-  const [reviewError, setReviewError] = useState<string | null>(null);
-  const [isReviewPending, startReviewTransition] = useTransition();
-
-  function handleRecordSensitiveReview() {
-    setReviewError(null);
-    startReviewTransition(async () => {
-      await runAction(() => recordSensitiveTopicReviewAction(item.id), {
-        success: "Sensitive topic review recorded.",
-        onError: setReviewError,
-        onSuccess: () => router.refresh(),
-      });
-    });
-  }
 
   return (
     <EditableCard
@@ -815,7 +756,7 @@ export function SensitiveTopicCard({
       canEdit={canManage}
       editing={card.mode === "edit"}
       onEdit={card.startEditing}
-      error={card.error ?? reviewError}
+      error={card.error}
       warning={card.warning}
     >
       {card.mode === "view" ? (
@@ -823,38 +764,10 @@ export function SensitiveTopicCard({
           {item.is_sensitive_topic ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <SensitiveTopicBadge
-                  reviewed={Boolean(item.sensitive_review_by)}
-                />
-                {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
+                <SensitiveTopicBadge />
               </div>
               {item.tone_guidance && (
                 <p className="app-muted text-sm">{item.tone_guidance}</p>
-              )}
-              {item.sensitive_review_by ? (
-                <p className="app-muted text-xs">
-                  Reviewed {formatDateTime(item.sensitive_review_at)} by{" "}
-                  {calendarActorName(owners, item.sensitive_review_by)}
-                </p>
-              ) : (
-                canManage && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="self-start"
-                    disabled={isReviewPending}
-                    onClick={handleRecordSensitiveReview}
-                  >
-                    {isReviewPending ? (
-                      <>
-                        <Spinner /> Recording...
-                      </>
-                    ) : (
-                      "Record reviewer sign-off"
-                    )}
-                  </Button>
-                )
               )}
             </>
           ) : (
@@ -871,8 +784,7 @@ export function SensitiveTopicCard({
                   update("isSensitiveTopic", checked === true)
                 }
               />
-              Sensitive topic (requires reviewer sign-off distinct from content
-              approval)
+              Sensitive topic — write about it with care
             </label>
 
             {form.isSensitiveTopic && (

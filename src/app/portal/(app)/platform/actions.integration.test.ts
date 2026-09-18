@@ -726,39 +726,4 @@ describe("the starter vocabulary a tenant is provisioned with (#976)", () => {
     );
     expect(offenders).toEqual([]);
   });
-
-  test("no brief template or field label names another organization", async () => {
-    const rows = await must(
-      service
-        .from("content_brief_templates")
-        .select("key, name, description, current_version_id")
-        .eq("tenant_id", tenantB),
-      "provisioned brief templates",
-    );
-    expect(rows.length).toBeGreaterThan(0);
-
-    const versions = await must(
-      service
-        .from("content_brief_template_versions")
-        .select("fields")
-        .eq("tenant_id", tenantB),
-      "provisioned brief template versions",
-    );
-    expect(versions.length).toBeGreaterThan(0);
-
-    const offenders = rows.filter(
-      (r: { name: string; description: string | null }) =>
-        namesAnotherOrg(r.name) || namesAnotherOrg(r.description),
-    );
-    expect(offenders).toEqual([]);
-
-    // Labels only: `why_chatter_matters` is the key a filled-in brief's
-    // answers are stored against and is never displayed, so it stays.
-    const labels = versions.flatMap((v: { fields: { label?: string }[] }) =>
-      (v.fields ?? []).map((f) => f.label),
-    );
-    expect(
-      labels.filter((l: string | undefined) => namesAnotherOrg(l)),
-    ).toEqual([]);
-  });
 });

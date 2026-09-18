@@ -23,7 +23,6 @@ const SECTION_TITLES = [
   "Planning & decision",
   "Sensitive topic",
   "Content brief",
-  "Related items",
 ];
 
 test.describe("portal calendar item detail page", () => {

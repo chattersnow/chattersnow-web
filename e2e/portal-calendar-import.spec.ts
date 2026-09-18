@@ -13,10 +13,9 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
-import { pager, revealRow } from "./helpers/table";
 
 // Far enough out that these rows never collide with the seeded data the
-// annual review report and the coverage card read for nearby years.
+// coverage card reads for nearby years.
 const IMPORT_YEAR = new Date().getFullYear() + 3;
 
 function uniqueSuffix() {
@@ -152,20 +151,16 @@ test.describe("portal calendar import", () => {
       page.getByRole("button", { name: "Import 0 items as drafts" }),
     ).toBeDisabled();
 
-    // Both rows really landed. The work queue's Upcoming tab lists every
-    // non-archived calendar item, so it shows imported drafts as-is -- ten
-    // to a page, hence the paging to reach them.
-    await page.goto("/portal/calendar/work-queue?tab=queue");
-    const observanceRow = page
-      .getByRole("row")
-      .filter({ hasText: observanceTitle });
-    await revealRow(observanceRow, pager(page));
-    await expect(observanceRow).toBeVisible();
-    const campaignRow = page
-      .getByRole("row")
-      .filter({ hasText: campaignTitle });
-    await revealRow(campaignRow, pager(page));
-    await expect(campaignRow).toBeVisible();
+    // Both rows really landed. The calendar's list view lists every calendar
+    // item the active filters admit, unpaged, so the imported drafts show
+    // as-is.
+    await page.goto("/portal/calendar?view=list");
+    await expect(
+      page.getByRole("row").filter({ hasText: observanceTitle }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("row").filter({ hasText: campaignTitle }),
+    ).toBeVisible();
   });
 
   test("explains that imported items are never published automatically", async ({

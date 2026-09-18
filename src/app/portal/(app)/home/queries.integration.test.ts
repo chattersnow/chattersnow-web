@@ -11,7 +11,6 @@ import {
   SEEDED_USERS,
   adminClient,
   createAvailableGearItems,
-  createCalendarItem,
   createPerson,
   createPublishedEvent,
   signInAs,
@@ -19,7 +18,6 @@ import {
   unprivilegedActors,
 } from "../../../../../test/integration-setup";
 import {
-  getContentWorkSummary,
   getInventorySummary,
   getMyActiveEvents,
   getUpcomingSummary,
@@ -350,37 +348,6 @@ describe("getMyActiveEvents for unprivileged actors (integration)", () => {
     }
 
     await event.cleanup();
-    await person.cleanup();
-  });
-});
-
-describe("getContentWorkSummary for unprivileged actors (integration)", () => {
-  test("returns no items for a session without content_calendar access", async () => {
-    // A Tier 1 item with no decision recorded: the one content-work count
-    // that doesn't depend on who owns the opportunity.
-    const item = await createCalendarItem({ priorityTier: 1 });
-    const person = await createPerson();
-    const options = {
-      canSeeContentCalendar: true,
-      personId: person.id,
-    };
-
-    const privileged = await getContentWorkSummary(adminClient, options);
-    expect(
-      privileged.items.some((i) => i.key === "content_tier1_undecided"),
-    ).toBe(true);
-
-    // canSeeContentCalendar forced true for the same reason as above: the
-    // question is what RLS returns when the page-level gate is out of the way.
-    for (const { name, client } of await unprivilegedActors()) {
-      if (name === "volunteer") continue; // holds content_calendar:view
-      expect({
-        actor: name,
-        ...(await getContentWorkSummary(client, options)),
-      }).toEqual({ actor: name, items: [] });
-    }
-
-    await item.cleanup();
     await person.cleanup();
   });
 });

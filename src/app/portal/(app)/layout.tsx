@@ -19,7 +19,6 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrandStyle } from "@/components/brand-style";
 import { PortalHelpProvider } from "./help/help-context";
-import { getContentWorkSummary } from "./home/queries";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import {
   currentTenant,
@@ -185,11 +184,6 @@ export default async function PortalAppLayout({
     "volunteers",
     "view",
   );
-  const canSeeContentCalendar = hasPermission(
-    permissions,
-    "content_calendar",
-    "view",
-  );
   const canManageContentCalendar = hasPermission(
     permissions,
     "content_calendar",
@@ -217,7 +211,6 @@ export default async function PortalAppLayout({
     onboarding,
     pendingApprovals,
     opsInbox,
-    contentWork,
     calendarCoverageReminder,
     accessManagementAlerts,
   ] = await Promise.all([
@@ -248,14 +241,6 @@ export default async function PortalAppLayout({
           canSeeVolunteerHourSubmissions,
         })
       : { items: [] },
-    canSeeContentCalendar
-      ? currentPersonPromise.then((person) =>
-          getContentWorkSummary(supabase, {
-            canSeeContentCalendar,
-            personId: person?.person_id ?? null,
-          }),
-        )
-      : { items: [] },
     getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
   ]);
@@ -274,7 +259,6 @@ export default async function PortalAppLayout({
 
   const attentionItems = [
     ...pendingApprovals.items,
-    ...contentWork.items,
     ...opsInbox.items,
     ...calendarCoverageReminder.items,
     ...accessManagementAlerts.items,

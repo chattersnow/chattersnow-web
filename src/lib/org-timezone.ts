@@ -12,8 +12,7 @@ import { TIMEZONE_OPTIONS } from "@/lib/time";
  * to be cut somewhere, and cutting it at UTC midnight means a 7pm sale on the
  * last day of February counts in March.
  *
- * `get_finance_report_data` and `get_calendar_annual_review_data` read the
- * setting themselves in SQL. This module exists so the pages that choose a
+ * `get_finance_report_data` reads the setting itself in SQL. This module exists so the pages that choose a
  * *default range* -- fiscal-year-to-date, this month -- cut it on the same
  * boundary the RPC will bucket on; anchoring them on the server's UTC clock
  * instead is how the dashboard's month tile used to roll over at 6pm.

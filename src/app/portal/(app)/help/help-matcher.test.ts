@@ -4,7 +4,7 @@ import { resolveHelpKey } from "./help-matcher";
 const keys = [
   "/portal",
   "/portal/calendar",
-  "/portal/calendar/work-queue",
+  "/portal/calendar/import",
   "/portal/finance/reports",
 ];
 
@@ -14,8 +14,8 @@ describe("resolveHelpKey", () => {
   });
 
   test("longest prefix wins over shorter ones", () => {
-    expect(resolveHelpKey("/portal/calendar/work-queue", keys)).toBe(
-      "/portal/calendar/work-queue",
+    expect(resolveHelpKey("/portal/calendar/import", keys)).toBe(
+      "/portal/calendar/import",
     );
   });
 

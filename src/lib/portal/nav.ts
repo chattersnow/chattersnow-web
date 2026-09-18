@@ -133,30 +133,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "content_calendar", level: "view" }],
       },
       {
-        value: "work-queue",
-        label: "Work Queue",
-        href: "/portal/calendar/work-queue",
-        access: [{ resource: "content_calendar", level: "view" }],
-      },
-      {
-        value: "templates",
-        label: "Brief Templates",
-        href: "/portal/calendar/templates",
-        access: [{ resource: "content_calendar", level: "manage" }],
-      },
-      {
-        value: "program-suggestions",
-        label: "Program Suggestions",
-        href: "/portal/calendar/program-suggestions",
-        access: [{ resource: "content_calendar", level: "manage" }],
-      },
-      {
-        value: "reports",
-        label: "Annual Review",
-        href: "/portal/calendar/reports",
-        access: [{ resource: "content_calendar_reports", level: "view" }],
-      },
-      {
         value: "categories",
         label: "Categories",
         href: "/portal/calendar/categories",

@@ -557,37 +557,6 @@ beforeAll(async () => {
     person_id: SEEDED_PERSON_IDS.volunteer,
     disclosure_year: 2031,
   });
-  const calendarItems = await must(
-    service
-      .from("calendar_items")
-      .select("id")
-      .eq("tenant_id", tenantA)
-      .limit(2),
-    "a calendar items",
-  );
-  await fixture("calendar_item_links", {
-    item_id: calendarItems[0].id,
-    related_item_id: calendarItems[1].id,
-  });
-  await fixture("calendar_program_suggestion_rules", {
-    program_id: a.programId,
-    item_type: "own_event",
-    category: "own_events",
-  });
-  const opportunity = await must(
-    service
-      .from("content_opportunities")
-      .select("id")
-      .eq("tenant_id", tenantA)
-      .limit(1)
-      .single(),
-    "a content opportunity",
-  );
-  await fixture("content_permissions", {
-    content_opportunity_id: opportunity.id,
-    permitted_use: "isolation suite",
-    consent_on_file_at: "2030-01-01",
-  });
   await fixture(
     "person_merges",
     {
@@ -1174,19 +1143,6 @@ describe("security definer RPCs answer for the caller's tenant", () => {
       "finance report A",
     );
     expect(financeA.expenses.length).toBeGreaterThan(0);
-
-    const calendar = await must(
-      bAdmin.rpc("get_calendar_annual_review_data", {
-        p_from: "2000-01-01",
-        p_to: "2100-01-01",
-      }),
-      "calendar report",
-    );
-    // B's own calendar item -- the public_calendar_items fixture (#887) -- and
-    // none of A's two dozen.
-    expect(calendar.items.map((item: { id: string }) => item.id)).toEqual([
-      b.calendarItemId,
-    ]);
 
     const impact = await must(
       bAdmin.rpc("get_event_impact_derived_data", {

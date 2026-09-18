@@ -5,7 +5,6 @@ import { CalendarFiltersSheet } from "./calendar-filters-sheet";
 import { type CalendarOwner, type CalendarProgram } from "./calendar-shared";
 import type { CalendarCategory } from "./calendar-shared";
 import type { CalendarEntry } from "./calendar-entries";
-import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
 import { MonthView } from "./month-view";
@@ -21,7 +20,6 @@ export function CalendarWorkspace({
   eventsError,
   owners,
   programs,
-  programSuggestionRules,
   canManage,
   filterQuery,
   sort,
@@ -46,7 +44,6 @@ export function CalendarWorkspace({
   eventsError: boolean;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
-  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   filterQuery: string;
   sort: ListSortColumn;
@@ -141,7 +138,6 @@ export function CalendarWorkspace({
               categoryVocabulary={categoryVocabulary}
               owners={owners}
               programs={programs}
-              programSuggestionRules={programSuggestionRules}
             />
           )}
         </div>

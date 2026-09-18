@@ -329,7 +329,7 @@ describe("what the catalog says a module is", () => {
     ["sales", "finance"],
     ["reimbursement", "reimbursements"],
     ["incident", "events"],
-    ["brief template", "calendar"],
+    ["content brief", "calendar"],
   ];
 
   test("no module's description claims another module's subject", () => {
