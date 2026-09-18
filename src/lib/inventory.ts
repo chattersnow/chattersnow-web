@@ -31,9 +31,20 @@ export const GENDERS = [
  * HTML viewer page, not the raw image, so they can't be used as an <img>/
  * <Image> src directly. Rewrite them to Drive's thumbnail endpoint, which
  * serves the actual image bytes for anyone-with-the-link files.
+ *
+ * The fragment is split off before the rewrite and re-appended after, so
+ * whatever a stored value carries there survives. Without that the `?id=`
+ * branch below captured `ABC#crop=0.1,0,0.5,0.5` as the file id and emitted
+ * `...thumbnail?id=ABC#crop=0.1,0,0.5,0.5&sz=w1000` -- a broken id with `sz`
+ * stranded inside the fragment. This is generic fragment preservation and
+ * knows nothing about crops (`src/lib/image-crop.ts` owns those).
  */
 export function resolveImageUrl(url: string | null): string | null {
   if (!url) return null;
+
+  const hash = url.indexOf("#");
+  const fragment = hash === -1 ? "" : url.slice(hash);
+  const bare = hash === -1 ? url : url.slice(0, hash);
 
   // Matched on the parsed host, not as a substring: "drive.google.com" can sit
   // anywhere in a URL, so `https://evil.example/drive.google.com/x` passed the
@@ -42,17 +53,17 @@ export function resolveImageUrl(url: string | null): string | null {
   // fall through unchanged, exactly as they did before.
   let host: string;
   try {
-    host = new URL(url).hostname.toLowerCase();
+    host = new URL(bare).hostname.toLowerCase();
   } catch {
     return url;
   }
   if (host !== "drive.google.com") return url;
 
   const fileId =
-    url.match(/\/file\/d\/([^/]+)/)?.[1] ?? url.match(/[?&]id=([^&]+)/)?.[1];
+    bare.match(/\/file\/d\/([^/]+)/)?.[1] ?? bare.match(/[?&]id=([^&]+)/)?.[1];
   if (!fileId) return url;
 
-  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000${fragment}`;
 }
 
 /**
@@ -67,9 +78,14 @@ export function resolveImageUrl(url: string | null): string | null {
  */
 export function isRenderableImageSrc(value: string | null): value is string {
   if (!value) return false;
-  if (value.startsWith("/")) return true;
+  // Validated on the src the renderer will actually use: a caller strips a
+  // `#crop=` fragment off before handing the value to <Image>, so the fragment
+  // must not be what decides the answer either way.
+  const src = value.split("#")[0];
+  if (!src) return false;
+  if (src.startsWith("/")) return true;
   try {
-    new URL(value);
+    new URL(src);
     return true;
   } catch {
     return false;
