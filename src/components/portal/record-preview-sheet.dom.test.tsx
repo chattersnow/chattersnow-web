@@ -95,15 +95,16 @@ describe("RecordPreviewSheet", () => {
       }),
     ).toBeVisible();
     expect(screen.getByText("Event")).toBeVisible();
-    expect(screen.getByText(/Mar 13, 2026 at 7:00 PM MDT/)).toBeVisible();
+    // Asserted in parts, not as one string: `Intl` joins a date to a time with
+    // ", " on one ICU build and " at " on another, so the joined form passes
+    // here and fails on a runner. `event-registration-confirmation-email.test.ts`
+    // asserts the same way and for the same reason.
+    const when = screen.getByText((_, element) => element?.tagName === "TIME");
+    expect(when).toHaveTextContent("Mar 13, 2026");
+    expect(when).toHaveTextContent("7:00 PM MDT");
     // The viewer's own clock is the second line, never the only one.
-    expect(
-      screen.getByText((_, element) =>
-        (element?.textContent ?? "").startsWith(
-          "Mar 13, 2026 at 9:00 PM EDT your time",
-        ),
-      ),
-    ).toBeVisible();
+    expect(when.nextElementSibling).toHaveTextContent("9:00 PM EDT");
+    expect(when.nextElementSibling).toHaveTextContent("your time");
     expect(screen.getByText("Riverside Park")).toBeVisible();
     expect(screen.getByText("Published")).toBeVisible();
     expect(screen.getByText("42")).toBeVisible();
