@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   categoryLabelFor,
   groupInventoryCategories,
+  isRenderableImageSrc,
   resolveImageUrl,
   type InventoryCategory,
 } from "./inventory";
@@ -119,5 +120,60 @@ describe("resolveImageUrl", () => {
     expect(resolveImageUrl("https://drive.google.com/drive/my-drive")).toBe(
       "https://drive.google.com/drive/my-drive",
     );
+  });
+
+  // #1250 stores a presentational crop as a `#crop=` fragment on the link. The
+  // `?id=` capture used to have no `#` in its stop set, so it swallowed the
+  // fragment into the file id and stranded `sz=w1000` inside it.
+  test("preserves a fragment on the ?id= form instead of corrupting the id", () => {
+    expect(
+      resolveImageUrl(
+        "https://drive.google.com/open?id=ABC#crop=0.1000,0.0000,0.5000,0.5000",
+      ),
+    ).toBe(
+      "https://drive.google.com/thumbnail?id=ABC&sz=w1000#crop=0.1000,0.0000,0.5000,0.5000",
+    );
+  });
+
+  test("preserves a fragment on the /file/d/ form", () => {
+    expect(
+      resolveImageUrl(
+        "https://drive.google.com/file/d/ABC123/view#crop=0.1000,0.0000,0.5000,0.5000",
+      ),
+    ).toBe(
+      "https://drive.google.com/thumbnail?id=ABC123&sz=w1000#crop=0.1000,0.0000,0.5000,0.5000",
+    );
+  });
+
+  test("leaves a fragment on a non-Drive URL where it was", () => {
+    const url = "https://example.com/a.png#crop=0.1000,0,0.5,0.5";
+    expect(resolveImageUrl(url)).toBe(url);
+  });
+
+  // Generic fragment preservation: `resolveImageUrl` knows nothing about crops.
+  test("preserves a fragment that is not a crop", () => {
+    expect(resolveImageUrl("https://drive.google.com/open?id=ABC#gid=1")).toBe(
+      "https://drive.google.com/thumbnail?id=ABC&sz=w1000#gid=1",
+    );
+  });
+
+  test("stays idempotent over an already-resolved cropped URL", () => {
+    const resolved =
+      "https://drive.google.com/thumbnail?id=ABC&sz=w1000#crop=0.1000,0.0000,0.5000,0.5000";
+    expect(resolveImageUrl(resolved)).toBe(resolved);
+  });
+});
+
+describe("isRenderableImageSrc", () => {
+  test("judges the src a renderer will use, not the fragment", () => {
+    expect(
+      isRenderableImageSrc("https://example.com/a.png#crop=0.1,0,0.5,0.5"),
+    ).toBe(true);
+    expect(isRenderableImageSrc("/images/logo.png#crop=0.1,0,0.5,0.5")).toBe(
+      true,
+    );
+    expect(isRenderableImageSrc("not a url#crop=0.1,0,0.5,0.5")).toBe(false);
+    expect(isRenderableImageSrc("#crop=0.1,0,0.5,0.5")).toBe(false);
+    expect(isRenderableImageSrc(null)).toBe(false);
   });
 });

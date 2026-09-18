@@ -1,3 +1,5 @@
+import { parseImageCrop, withImageCrop } from "@/lib/image-crop";
+
 /**
  * The fields a person carries onto the public Meet the Team page (#1014), as
  * the card on their record submits them. Hand-rolled like `person-form.ts`:
@@ -32,6 +34,15 @@ export function parsePublicTeamForm(
   if (photoUrl && !/^https?:\/\//i.test(photoUrl)) {
     return { error: "Photo URL must start with http:// or https://." };
   }
+  // Round-tripped through the crop encoding, so this save is where a stored
+  // value is canonicalised: a rect is written back at the one precision the
+  // editor's dirty check expects, and a rect covering the whole picture stops
+  // being stored at all, since "never cropped" and "reset" have to be the same
+  // string (#1251). A fragment the parser does not recognise is deliberately
+  // left alone -- see `parseImageCrop`, which keeps it visible rather than
+  // silently eating something it does not own.
+  const { src, crop } = parseImageCrop(photoUrl);
+  const photo = src ? withImageCrop(src, crop) : "";
 
   let sort_order: number | null = null;
   if (sortOrderRaw) {
@@ -45,7 +56,7 @@ export function parsePublicTeamForm(
   return {
     data: {
       public_role: publicRole || null,
-      photo_url: photoUrl || null,
+      photo_url: photo || null,
       bio: bio || null,
       sort_order,
     },

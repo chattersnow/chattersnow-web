@@ -11,7 +11,9 @@ import {
 import { PUBLIC_ROLE_MAX_LENGTH } from "../public-team-form";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { runAction } from "@/components/portal/action-toast";
+import { ImageCropField } from "@/components/portal/image-crop-field";
 import { ImagePreviewBox, useImagePreview } from "../../website/image-preview";
+import { parseImageCrop, withTypedSrc } from "@/lib/image-crop";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,15 +95,41 @@ function PublicConsequence() {
   );
 }
 
-function PhotoPreview({ url }: { url: string }) {
+/**
+ * The photo at the aspect the team page draws it: a square, which is what
+ * `SiteImage` renders by default and so what this row has no registry entry
+ * for.
+ *
+ * Read-only in view mode and the crop control in the editor, where `onChange`
+ * puts the whole string -- crop fragment and all -- back into the form.
+ */
+function PhotoField({
+  url,
+  onChange,
+}: {
+  url: string;
+  onChange?: (url: string) => void;
+}) {
   const preview = useImagePreview(url);
-  if (!preview.url) return null;
+  if (!preview.url || !preview.src) return null;
+  if (!onChange) {
+    return (
+      <ImagePreviewBox
+        url={preview.src}
+        ratio="1/1"
+        crop={preview.crop}
+        onError={preview.markFailed}
+        className="h-20"
+      />
+    );
+  }
   return (
-    <ImagePreviewBox
-      url={preview.url}
+    <ImageCropField
+      url={url}
       ratio="1/1"
+      label="their photo"
       onError={preview.markFailed}
-      className="h-20"
+      onChange={onChange}
     />
   );
 }
@@ -201,11 +229,11 @@ export function PublicTeamCard({
                   {membership.public_role ?? "—"}
                 </p>
                 {membership.photo_url && (
-                  <PhotoPreview url={membership.photo_url} />
+                  <PhotoField url={membership.photo_url} />
                 )}
                 <p className="break-all">
                   <span className="app-muted">Photo:</span>{" "}
-                  {membership.photo_url ?? "—"}
+                  {parseImageCrop(membership.photo_url).src ?? "—"}
                 </p>
                 <div>
                   <span className="app-muted">Biography:</span>{" "}
@@ -282,16 +310,26 @@ export function PublicTeamCard({
                 <Input
                   id={`${formId}-photo`}
                   type="url"
-                  value={form.photoUrl}
+                  value={parseImageCrop(form.photoUrl).src ?? ""}
                   placeholder="https://..."
-                  onChange={(event) => update("photoUrl", event.target.value)}
+                  onChange={(event) =>
+                    update(
+                      "photoUrl",
+                      withTypedSrc(form.photoUrl, event.target.value),
+                    )
+                  }
                 />
                 <FieldDescription>
                   A Google Drive share link or a direct image URL, as the Site
                   Content photos take. Blank shows the site&apos;s team member
                   photo instead.
                 </FieldDescription>
-                {form.photoUrl && <PhotoPreview url={form.photoUrl} />}
+                {form.photoUrl && (
+                  <PhotoField
+                    url={form.photoUrl}
+                    onChange={(url) => update("photoUrl", url)}
+                  />
+                )}
               </Field>
               <Field>
                 <FieldLabel htmlFor={`${formId}-bio`}>
