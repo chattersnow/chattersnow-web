@@ -1,6 +1,4 @@
 import { addDays } from "@/lib/time";
-import type { TemplateField } from "./content-brief-template-shared";
-import type { ContentPermissionRow } from "./content-permission-shared";
 
 export const CONTENT_STATUSES = [
   { value: "not_planned", label: "Not planned" },
@@ -32,15 +30,6 @@ export type ContentOpportunityRow = {
   draft_due_at: string | null;
   status_changed_by: string | null;
   status_changed_at: string | null;
-  template_id: string | null;
-  template_version_id: string | null;
-  template_field_values: Record<string, string>;
-  template_version: {
-    id: string;
-    version: number;
-    fields: TemplateField[];
-  } | null;
-  content_permission: ContentPermissionRow | null;
 };
 
 /**
@@ -56,82 +45,4 @@ export function leadTimeSchedule(
     draftDueAt: addDays(publishDueAt, -Math.round((leadTimeDays * 2) / 3)),
     reviewDueAt: addDays(publishDueAt, -Math.round(leadTimeDays / 3)),
   };
-}
-
-const DRAFT_STAGE_STATUSES = ["not_planned", "idea", "draft"];
-const REVIEW_STAGE_STATUSES = ["in_review", "changes_requested"];
-const PUBLISH_STAGE_STATUSES = ["approved", "scheduled"];
-
-export type OverdueStage = "draft" | "review" | "publish";
-
-type StageDates = Pick<
-  ContentOpportunityRow,
-  "content_status" | "draft_due_at" | "review_due_at" | "publish_due_at"
->;
-
-/**
- * Which lead-time deadline is currently live for this opportunity's stage,
- * and whether it's already passed. Nothing is overdue once the opportunity
- * reaches a terminal status (published/skipped).
- */
-export function overdueStage(
-  opp: StageDates,
-  now: Date = new Date(),
-): OverdueStage | null {
-  if (DRAFT_STAGE_STATUSES.includes(opp.content_status)) {
-    return opp.draft_due_at && new Date(opp.draft_due_at) < now
-      ? "draft"
-      : null;
-  }
-  if (REVIEW_STAGE_STATUSES.includes(opp.content_status)) {
-    return opp.review_due_at && new Date(opp.review_due_at) < now
-      ? "review"
-      : null;
-  }
-  if (PUBLISH_STAGE_STATUSES.includes(opp.content_status)) {
-    return opp.publish_due_at && new Date(opp.publish_due_at) < now
-      ? "publish"
-      : null;
-  }
-  return null;
-}
-
-/** The due date relevant to the opportunity's current stage, for queue sorting. */
-export function effectiveDueDate(opp: StageDates): string | null {
-  if (DRAFT_STAGE_STATUSES.includes(opp.content_status))
-    return opp.draft_due_at;
-  if (REVIEW_STAGE_STATUSES.includes(opp.content_status))
-    return opp.review_due_at;
-  if (PUBLISH_STAGE_STATUSES.includes(opp.content_status))
-    return opp.publish_due_at;
-  return null;
-}
-
-/**
- * `personId` is a public.people id, not an auth.users id: owner_id and
- * reviewer_id were repointed at people in
- * 20260902010000_link_calendar_owners_to_people.sql. Callers must resolve the
- * signed-in user with ensure_current_person()/resolve_current_person_id()
- * first -- passing an auth id compiles fine and silently matches nothing.
- */
-export function isMyContentWork(
-  opp: Pick<
-    ContentOpportunityRow,
-    "content_status" | "owner_id" | "reviewer_id"
-  >,
-  personId: string,
-): boolean {
-  if (opp.content_status === "published" || opp.content_status === "skipped")
-    return false;
-  return opp.owner_id === personId || opp.reviewer_id === personId;
-}
-
-/** `personId` is a public.people id -- see isMyContentWork. */
-export function isChangesRequestedForMe(
-  opp: Pick<ContentOpportunityRow, "content_status" | "owner_id">,
-  personId: string,
-): boolean {
-  return (
-    opp.content_status === "changes_requested" && opp.owner_id === personId
-  );
 }

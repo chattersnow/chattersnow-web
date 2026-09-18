@@ -20,7 +20,6 @@ import { hasStructuredRecurrence } from "../calendar-recurrence";
 import {
   isPastUndecided,
   needsDecision,
-  needsSensitiveReview,
   type CalendarItemRow,
   type CalendarOwner,
   type CalendarProgram,
@@ -30,7 +29,6 @@ import {
   CalendarStatusBadge,
   CalendarVisibilityBadge,
   NeedsDecisionFlag,
-  NeedsSensitiveReviewFlag,
   PastUndecidedFlag,
   PriorityTierBadge,
 } from "../calendar-badges";
@@ -53,9 +51,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ContentOpportunityTab } from "../content-opportunity-tab";
-import { RelatedItemsTab } from "../related-items-tab";
-import type { ActiveContentBriefTemplate } from "../content-brief-template-shared";
-import type { ProgramSuggestionRule } from "../program-suggestion-shared";
 import {
   PlanningDecisionCard,
   ScheduleDetailsCard,
@@ -68,18 +63,14 @@ export function CalendarItemDetailView({
   item,
   owners,
   programs,
-  activeTemplates,
   defaultLeadTimeDays,
-  programSuggestionRules,
   canManage,
   categoryVocabulary,
 }: {
   item: CalendarItemRow;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
-  activeTemplates: ActiveContentBriefTemplate[];
   defaultLeadTimeDays: number;
-  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   /** The tenant's category vocabulary (#834). */
   categoryVocabulary: CalendarCategory[];
@@ -165,7 +156,6 @@ export function CalendarItemDetailView({
           <CalendarVisibilityBadge visibility={item.visibility} />
           {needsDecision(item) && <NeedsDecisionFlag />}
           {isPastUndecided(item) && <PastUndecidedFlag />}
-          {needsSensitiveReview(item) && <NeedsSensitiveReviewFlag />}
         </div>
       </div>
 
@@ -277,28 +267,11 @@ export function CalendarItemDetailView({
           item={item}
           owners={owners}
           programs={programs}
-          programSuggestionRules={programSuggestionRules}
           canManage={canManage}
           categoryVocabulary={categoryVocabulary}
         />
 
-        <SensitiveTopicCard item={item} owners={owners} canManage={canManage} />
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">
-              Related items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RelatedItemsTab
-              categoryVocabulary={categoryVocabulary}
-              itemId={item.id}
-              canManage={canManage}
-              open
-            />
-          </CardContent>
-        </Card>
+        <SensitiveTopicCard item={item} canManage={canManage} />
 
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -312,7 +285,6 @@ export function CalendarItemDetailView({
               itemStartsAt={item.starts_at}
               opportunity={item.content_opportunity}
               owners={owners}
-              activeTemplates={activeTemplates}
               defaultLeadTimeDays={defaultLeadTimeDays}
               canManage={canManage}
               isSensitiveTopic={item.is_sensitive_topic}
@@ -331,9 +303,8 @@ export function CalendarItemDetailView({
             <AlertDialogTitle>Delete this calendar item?</AlertDialogTitle>
             <AlertDialogDescription>
               This permanently deletes &ldquo;{item.title}&rdquo; along with its
-              content brief and related-item links. This can&apos;t be undone —
-              to keep it out of active views without losing it, archive it
-              instead.
+              content brief. This can&apos;t be undone — to keep it out of
+              active views without losing it, archive it instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

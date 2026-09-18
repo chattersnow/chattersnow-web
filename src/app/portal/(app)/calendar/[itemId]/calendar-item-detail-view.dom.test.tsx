@@ -1,16 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import * as RelatedItemsActions from "../related-items-actions";
 import type { CalendarItemRow } from "../calendar-shared";
-
-mock.module("../related-items-actions", () => ({
-  ...RelatedItemsActions,
-  listRelatedCalendarItemCandidatesAction: mock(async () => ({
-    data: { confirmed: [], suggested: [] },
-  })),
-}));
-
-const { CalendarItemDetailView } = await import("./calendar-item-detail-view");
+import { CalendarItemDetailView } from "./calendar-item-detail-view";
 
 function makeItem(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
   return {
@@ -34,8 +25,6 @@ function makeItem(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     exceptions: [],
     is_sensitive_topic: false,
     tone_guidance: null,
-    sensitive_review_by: null,
-    sensitive_review_at: null,
     series_key: null,
     recurrence_start_month: null,
     recurrence_start_day: null,
@@ -59,9 +48,7 @@ function renderView(
       item={item}
       owners={[]}
       programs={[]}
-      activeTemplates={[]}
       defaultLeadTimeDays={21}
-      programSuggestionRules={[]}
       canManage={canManage}
     />,
   );
@@ -77,7 +64,6 @@ describe("CalendarItemDetailView", () => {
       "Planning & decision",
       "Sensitive topic",
       "Content brief",
-      "Related items",
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
@@ -158,19 +144,13 @@ describe("CalendarItemDetailView", () => {
     expect(
       screen.queryByRole("button", { name: "Delete calendar item" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Record reviewer sign-off" }),
-    ).not.toBeInTheDocument();
   });
 
-  test("lets a manager record sensitive-topic sign-off from the page", () => {
+  test("surfaces tone guidance for a sensitive-topic item", () => {
     renderView(
       makeItem({ is_sensitive_topic: true, tone_guidance: "Be affirming." }),
     );
 
-    expect(
-      screen.getByRole("button", { name: "Record reviewer sign-off" }),
-    ).toBeInTheDocument();
     // Shown in both the Sensitive topic card and the content brief's
     // tone-guidance callout.
     expect(screen.getAllByText("Be affirming.").length).toBeGreaterThan(0);

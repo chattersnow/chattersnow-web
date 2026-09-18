@@ -92,7 +92,7 @@ describe("portal route guards", () => {
     expect(routes).toContain("attendees");
     // A nested route: the sweep used to look only one level deep, which is how
     // the calendar sub-routes went unguarded (#630).
-    expect(routes).toContain(join("calendar", "work-queue"));
+    expect(routes).toContain(join("calendar", "categories"));
   });
 
   // Route hiding is not authorization (spec section 7), but a missing guard is

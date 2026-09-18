@@ -125,13 +125,13 @@ For a data-heavy internal tool this is the difference between "that page is havi
 
 ### 6. No portal `not-found.tsx` — Serious
 
-All eight detail routes call `notFound()`:
+All seven detail routes call `notFound()`:
 
 ```
 events/[eventId]                          calendar/[itemId]
-people/[id]                               calendar/templates/[templateId]
-governance/meetings/[meetingId]           inventory/donations/[donationId]
-inventory/distribution/[movementId]       administration/access-management/assets/[assetId]
+people/[id]                               inventory/donations/[donationId]
+governance/meetings/[meetingId]           administration/access-management/assets/[assetId]
+inventory/distribution/[movementId]
 ```
 
 The only `not-found.tsx` in the repo is `src/app/(public)/not-found.tsx`, which is scoped to the public route group. So a stale bookmark, a deleted record, or a mistyped id in the portal drops the operator onto Next's default unstyled 404 — outside the shell, with no link back.
@@ -197,7 +197,6 @@ events/volunteers/shifts.tsx              events/volunteers/signups.tsx
 events/volunteers/hours.tsx               volunteers/participation/hours-table.tsx
 governance/meetings/attendees-tab.tsx     governance/meetings/decisions-tab.tsx
 governance/meetings/action-items-tab.tsx  governance/meetings/resolutions-tab.tsx
-calendar/templates/template-fields-editor.tsx
 people/[id]/organizations-card.tsx
 ```
 
@@ -223,7 +222,7 @@ No create dialog does. `new-expense-dialog.tsx` resets its form on _open_, so pr
 
 `grep -c 'hidden sm:table-cell\|hidden md:table-cell\|md:hidden'` across `src/app/portal` returns **0**. Every table renders every column at every viewport, inside the `overflow-x-auto` container that `src/components/ui/table.tsx` provides.
 
-Column counts run to 13 (`finance/reports`), 10 (`access-management/assets`), 9 (`calendar/work-queue`), and 7 across a dozen more including `events/registrants-tab` and `administration/users`. There is also no sticky first column anywhere (`sticky left-0` appears nowhere), so scrolling right to reach the action buttons — which are always last — takes the row's identifying name off screen. On a 375px phone, minus 48px of `main` padding, a 7-column table shows roughly two columns at a time.
+Column counts run to 13 (`finance/reports`), 10 (`access-management/assets`), and 7 across a dozen more including `events/registrants-tab` and `administration/users`. There is also no sticky first column anywhere (`sticky left-0` appears nowhere), so scrolling right to reach the action buttons — which are always last — takes the row's identifying name off screen. On a 375px phone, minus 48px of `main` padding, a 7-column table shows roughly two columns at a time.
 
 This matters most for the tasks that are inherently mobile: checking in registrants at an event, logging volunteer hours on site, recording a gear distribution from the van. Those are the portal's field workflows and they run through its widest tables.
 

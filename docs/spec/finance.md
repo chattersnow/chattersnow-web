@@ -62,7 +62,6 @@ All the date math lives in `src/lib/fiscal-year.ts` (pure, unit-tested, no serve
 
 - the portal dashboard's "this year" income/expense/revenue figures ([§5.15](programs.md#515-impact-tracking-and-reporting)), captioned with the FY label
 - the Financial Reports default range (§5.16), which opens on fiscal-year-to-date
-- the annual planning review ([§5.20](content-calendar.md#520-content-and-community-calendar)) — `get_calendar_annual_review_data` takes an explicit `(p_from, p_to)` date range rather than a year, the same period-agnostic shape as `get_finance_report_data`, so the fiscal-year math stays in one place instead of being split between TypeScript and SQL
 - `conflict_of_interest_disclosures.disclosure_year` ([§5.12](governance.md#512-governance)), which names the fiscal year the disclosure covers rather than a calendar year
 
 Deliberately left on calendar years: the content calendar's recurring-coverage reminder and series generation ([§5.20](content-calendar.md#520-content-and-community-calendar)), since public observances are calendar-anchored by nature and a fiscal split would break one season's holidays across two generation cohorts; and the public site's footer copyright.

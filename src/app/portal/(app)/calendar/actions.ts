@@ -548,60 +548,6 @@ export async function restoreCalendarItemAction(
   return { success: true };
 }
 
-/**
- * Records sensitive-topic reviewer sign-off, distinct from an ordinary
- * content-status approval: same content_calendar "manage" permission (no
- * separate reviewer role exists yet -- see open issue #114), but its own
- * actor/timestamp pair (sensitive_review_by/at) so it doesn't get
- * conflated with content_opportunities.status_changed_by/at.
- */
-export async function recordSensitiveTopicReviewAction(
-  calendarItemId: string,
-): Promise<CalendarActionResult> {
-  const supabase = await createSupabaseServerClient();
-  const userResult = await checkUser(
-    supabase,
-    "You must be signed in to record sensitive-topic review sign-off.",
-  );
-  if ("error" in userResult) return userResult;
-  const { user } = userResult;
-  const permissionError = await checkPermission(
-    supabase,
-    "content_calendar",
-    "manage",
-  );
-  if (permissionError) return permissionError;
-
-  const { data: item, error: fetchError } = await supabase
-    .from("calendar_items")
-    .select("is_sensitive_topic")
-    .eq("id", calendarItemId)
-    .single();
-  if (fetchError || !item) {
-    return { error: "Could not find the calendar item to review." };
-  }
-  if (!item.is_sensitive_topic) {
-    return { error: "This item is not flagged as a sensitive topic." };
-  }
-
-  const { error } = await supabase
-    .from("calendar_items")
-    .update({
-      sensitive_review_by: user.id,
-      sensitive_review_at: new Date().toISOString(),
-    })
-    .eq("id", calendarItemId);
-
-  if (error) {
-    return {
-      error: "Could not record sensitive-topic review. Please try again.",
-    };
-  }
-
-  revalidatePath("/portal/calendar");
-  return { success: true };
-}
-
 export async function listCalendarOwnersAction(): Promise<
   { data: CalendarOwner[] } | { error: string }
 > {

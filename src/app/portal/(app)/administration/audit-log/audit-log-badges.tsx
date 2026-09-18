@@ -14,7 +14,6 @@ export const TABLE_LABELS: Record<string, string> = {
   app_settings: "App settings",
   calendar_items: "Calendar items",
   content_opportunities: "Content opportunities",
-  content_permissions: "Content permissions",
   services: "Services",
   assets: "Assets",
   access_grants: "Access grants",

@@ -61,8 +61,6 @@ async function insertNextInstanceForSeries(
       exceptions: [],
       is_sensitive_topic: sourceItem.is_sensitive_topic,
       tone_guidance: sourceItem.tone_guidance,
-      sensitive_review_by: null,
-      sensitive_review_at: null,
       series_key: sourceItem.series_key,
       recurrence_start_month: sourceItem.recurrence_start_month,
       recurrence_start_day: sourceItem.recurrence_start_day,

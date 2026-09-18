@@ -95,8 +95,6 @@ export type CalendarItemRow = {
   exceptions: unknown[];
   is_sensitive_topic: boolean;
   tone_guidance: string | null;
-  sensitive_review_by: string | null;
-  sensitive_review_at: string | null;
   series_key: string | null;
   recurrence_start_month: number | null;
   recurrence_start_day: number | null;
@@ -113,10 +111,10 @@ export type CalendarItemRow = {
  * account holding admin or event_coordinator (see list_calendar_owners()).
  *
  * Carries auth_user_id as well as person_id because the calendar's owner
- * columns reference public.people while its audit stamps
- * (calendar_items.sensitive_review_by, content_opportunities.
- * status_changed_by) deliberately still reference auth.users -- one array
- * resolves both, see ownerName vs. calendarActorName below.
+ * columns reference public.people while its audit stamp
+ * (content_opportunities.status_changed_by) deliberately still references
+ * auth.users -- one array resolves both, see ownerName vs. calendarActorName
+ * below.
  */
 export type CalendarOwner = {
   person_id: string;
@@ -149,19 +147,6 @@ export function isPastUndecided(
   );
 }
 
-export function needsSensitiveReview(
-  item: Pick<
-    CalendarItemRow,
-    "is_sensitive_topic" | "sensitive_review_by" | "calendar_status"
-  >,
-): boolean {
-  return (
-    item.is_sensitive_topic &&
-    !item.sensitive_review_by &&
-    item.calendar_status !== "archived"
-  );
-}
-
 /**
  * Adapts the owner list to PersonSelect's structural option type, whose id
  * field is `id` rather than `person_id`.
@@ -189,8 +174,8 @@ export function ownerName(
 }
 
 /**
- * Resolves an auth.users id -- an audit stamp such as sensitive_review_by or
- * status_changed_by -- to a display name, using the same array.
+ * Resolves an auth.users id -- an audit stamp such as status_changed_by --
+ * to a display name, using the same array.
  */
 export function calendarActorName(
   owners: CalendarOwner[],
