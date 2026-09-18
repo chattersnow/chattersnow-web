@@ -134,6 +134,10 @@ export function parsePersonForm(
   ).trim();
   const addressCountry = String(formData.get("addressCountry") ?? "").trim();
 
+  // Also a check constraint since #1206 (donor_identified_or_anonymous): this
+  // form writes public.people directly, so the table is reachable over
+  // PostgREST by anything holding the permission, and a person nothing names
+  // is a row nobody can find in the directory, a merge review or an export.
   if (!name) return { error: "Name is required." };
   if (!isPersonType(personTypeRaw)) {
     return {

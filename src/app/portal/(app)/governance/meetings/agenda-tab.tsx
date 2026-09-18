@@ -16,6 +16,24 @@ import {
   type Agenda,
 } from "./agenda-actions";
 import type { AgendaOngoingItem, AgendaUpcomingDate } from "./agenda-form";
+import {
+  getMeetingTopicContextAction,
+  listMeetingDatedContextAction,
+} from "./meeting-context-actions";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import { TopicContext } from "./meeting-topic-context";
+import {
+  meetingContextEntryDay,
+  meetingContextSourceId,
+  meetingContextSourceKey,
+  type MeetingContextEntry,
+  type MeetingDatedContext as MeetingDatedContextData,
+} from "./meeting-context-shared";
+import { MeetingDatedContext } from "./meeting-dated-context";
+import {
+  forbiddenPreviewKinds,
+  MEETING_RECORD_PREVIEW_LOADERS,
+} from "./meeting-record-preview";
 import type {
   ActiveAgendaTemplate,
   AgendaTemplateSection,
@@ -31,10 +49,16 @@ import {
   type PreviousMeetingMinutes,
 } from "./minutes-approval-actions";
 import { MinutesApprovalDialog } from "./minutes-approval-dialog";
+import { RecordPreviewProvider } from "@/components/portal/record-preview-sheet";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
@@ -55,20 +79,25 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { AgendaExportDialog } from "./agenda-export-dialog";
+import { MeetingExportDialog } from "./meeting-export-dialog";
+import {
+  formatAgendaMarkdown,
+  formatAgendaPlainText,
+  type AgendaExportInput,
+} from "./agenda-export";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
 
-const APPROVE_MINUTES_ITEM = "Approve previous meeting minutes";
-
-const OPENING_CHECKLIST = [
-  "Welcome and call to order",
-  "Confirm quorum",
-  APPROVE_MINUTES_ITEM,
-  "Review agenda",
-];
-
-function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
+/**
+ * The template's reference topics for a section, behind a dotted-underline
+ * count so a long list does not push the agenda's own content down the page.
+ *
+ * Exported for the Minutes tab (#1200), which renders the same topics beside
+ * each snapshot item -- they are what the section is *for*, and a notetaker
+ * needs them in front of them as much as the agenda's author did.
+ */
+export function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
   if (topics.length === 0) return null;
   return (
     <Tooltip>
@@ -91,6 +120,36 @@ function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
       </TooltipContent>
     </Tooltip>
   );
+}
+
+/**
+ * The agenda's half of the shared export dialog (#1201): the dialog takes two
+ * formatted strings, and this is where an agenda becomes them. The minutes tab
+ * has the same three lines over `minutes-export.ts`.
+ */
+function AgendaExport({ input }: { input: AgendaExportInput }) {
+  return (
+    <MeetingExportDialog
+      title="Export agenda"
+      markdown={formatAgendaMarkdown(input)}
+      plainText={formatAgendaPlainText(input)}
+    />
+  );
+}
+
+/**
+ * Titles for the rows the editor shows as linked, keyed the way a pinned row
+ * names its source. Only what is in the live window is here; a pinned row whose
+ * record has since moved out of it keeps its link and reads generically.
+ */
+function sourceTitles(
+  context: MeetingDatedContextData | undefined,
+): Record<string, string> {
+  const titles: Record<string, string> = {};
+  for (const entry of context?.entries ?? []) {
+    titles[meetingContextSourceKey(entry)] = entry.title;
+  }
+  return titles;
 }
 
 function ReadOnlySection({
@@ -152,6 +211,8 @@ function AgendaForm({
   templateId,
   templateVersionId,
   meetingId,
+  datedContext,
+  datedContextError,
   onSaved,
   onCancel,
   onDirtyChange,
@@ -161,6 +222,8 @@ function AgendaForm({
   templateId: string | null;
   templateVersionId: string | null;
   meetingId: string;
+  datedContext: MeetingDatedContextData | undefined;
+  datedContextError: string | null;
   onSaved: () => void;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -242,6 +305,31 @@ function AgendaForm({
       },
     }));
   }
+
+  /**
+   * Copies one live entry into the agenda's own list. A copy, not a reference:
+   * the saved row is what the frozen minutes and the printed export read, and
+   * the description stays editable because the board's wording for a date is
+   * often not the calendar's.
+   */
+  function pinEntry(entry: MeetingContextEntry) {
+    setUpcomingDates((prev) => [
+      ...prev,
+      {
+        date: meetingContextEntryDay(entry),
+        description: entry.title,
+        owner: "",
+        source_kind: entry.kind,
+        source_id: meetingContextSourceId(entry),
+      },
+    ]);
+  }
+
+  const pinnedKeys = new Set(
+    upcomingDates
+      .filter((item) => item.source_kind && item.source_id)
+      .map((item) => `${item.source_kind}:${item.source_id}`),
+  );
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -351,7 +439,17 @@ function AgendaForm({
           items={parkingLot}
           onChange={setParkingLot}
         />
-        <DatedListEditor items={upcomingDates} onChange={setUpcomingDates} />
+        <MeetingDatedContext
+          context={datedContext}
+          loadError={datedContextError}
+          pinnedKeys={pinnedKeys}
+          onPin={pinEntry}
+        />
+        <DatedListEditor
+          items={upcomingDates}
+          onChange={setUpcomingDates}
+          sourceTitles={sourceTitles(datedContext)}
+        />
 
         <Field orientation="responsive">
           <Field>
@@ -378,13 +476,22 @@ function AgendaForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="agenda-body">Meeting notes</FieldLabel>
+          <FieldLabel htmlFor="agenda-body">Agenda notes</FieldLabel>
           <Textarea
             id="agenda-body"
             rows={6}
             value={bodyText}
             onChange={(event) => setBodyText(event.target.value)}
           />
+          {/* Renamed in #1201. This field has been "the minutes" since #408,
+              and since #1200 it is not: it is pre-meeting context, and what
+              happened belongs in the Minutes tab. Removing it outright is a
+              follow-up -- meetings that predate the minutes record still hold
+              their only account of themselves here. */}
+          <FieldDescription>
+            Context to have in front of the board before the meeting. What
+            actually happened goes in the Minutes tab.
+          </FieldDescription>
         </Field>
 
         {error && (
@@ -459,6 +566,20 @@ export function AgendaTab({
     () => getPreviousMeetingMinutesAction(meetingId, meetingDate),
     [meetingId, meetingDate],
   );
+  // Its own read rather than part of the agenda's: this is live reference
+  // material, and it must stay right when the agenda row does not move.
+  const { data: datedContext, loadError: datedContextError } =
+    useTabData<MeetingDatedContextData>(async () => {
+      const result = await listMeetingDatedContextAction(meetingId);
+      return "error" in result ? { error: result.error.message } : result;
+    }, [meetingId]);
+  // The records behind each standing section (#1224). One read for the whole
+  // page, not one per section: seven sections times two sources would be a
+  // page that fetches fourteen times to show a reference list.
+  const { data: topicContext } = useTabData<MeetingTopicContext>(async () => {
+    const result = await getMeetingTopicContextAction(meetingId);
+    return "error" in result ? { error: result.error.message } : result;
+  }, [meetingId]);
 
   if (agenda === undefined) {
     return <TabLoadingSkeleton />;
@@ -472,25 +593,41 @@ export function AgendaTab({
   const templateVersionId =
     agenda?.template_version_id ?? activeTemplate?.version_id ?? null;
 
+  // Both branches below sit inside it, so a "Next 30 days" row opens over the
+  // agenda instead of navigating off it (#1225) -- while writing the agenda as
+  // much as while reading it, since deciding whether to pin a date is exactly
+  // when somebody wants to look at the record. No host: the agenda has no
+  // quick-reference panel to replace, on a phone or anywhere else.
+  const preview = (body: ReactNode) => (
+    <RecordPreviewProvider
+      loaders={MEETING_RECORD_PREVIEW_LOADERS}
+      forbiddenKinds={forbiddenPreviewKinds(datedContext)}
+    >
+      {body}
+    </RecordPreviewProvider>
+  );
+
   if (mode === "edit") {
-    return (
+    return preview(
       <AgendaForm
         agenda={agenda}
         sections={sections}
         templateId={templateId}
         templateVersionId={templateVersionId}
         meetingId={meetingId}
+        datedContext={datedContext}
+        datedContextError={datedContextError}
         onSaved={() => {
           onExitEdit();
           refreshAgenda();
         }}
         onCancel={onExitEdit}
         onDirtyChange={onDirtyChange}
-      />
+      />,
     );
   }
 
-  return (
+  return preview(
     <div className="flex flex-col gap-6">
       {loadError && (
         <Alert variant="destructive">
@@ -510,7 +647,7 @@ export function AgendaTab({
       ) : (
         <>
           <div className="flex justify-end">
-            <AgendaExportDialog
+            <AgendaExport
               input={{
                 meetingDate,
                 agenda,
@@ -519,6 +656,8 @@ export function AgendaTab({
                 carriedOverItems: carriedOverItems ?? [],
                 createdItems: createdItems ?? [],
                 decisions: decisions ?? [],
+                datedContext,
+                topicContext,
               }}
             />
           </div>
@@ -619,6 +758,14 @@ export function AgendaTab({
                           </p>
                         </div>
                       </div>
+                      {/* Beside the sentence being written about it, rather
+                          than in a panel two columns away. The Events section
+                          gets no calendar block here: the agenda already has
+                          its own "Next 30 days" further down the page. */}
+                      <TopicContext
+                        itemKey={`section:${section.key}`}
+                        context={topicContext}
+                      />
                     </div>
                   );
                 })
@@ -659,6 +806,11 @@ export function AgendaTab({
           <ReadOnlyListSection
             title="New business"
             items={agenda.new_business}
+          />
+
+          <MeetingDatedContext
+            context={datedContext}
+            loadError={datedContextError}
           />
 
           <div>
@@ -727,7 +879,11 @@ export function AgendaTab({
           </div>
 
           <FieldGroup>
-            <ReadOnlyField label="Meeting notes" htmlFor="agenda-body-view">
+            {/* Still `whitespace-pre-wrap`, not `MarkdownText`. The agenda is
+                a plan someone reads back while editing it, and #1201 scoped
+                rendering to the three surfaces that present a finished
+                document. Widening it here is a follow-up. */}
+            <ReadOnlyField label="Agenda notes" htmlFor="agenda-body-view">
               <span className="whitespace-pre-wrap">
                 {agenda.body_text || "—"}
               </span>
@@ -735,6 +891,6 @@ export function AgendaTab({
           </FieldGroup>
         </>
       )}
-    </div>
+    </div>,
   );
 }

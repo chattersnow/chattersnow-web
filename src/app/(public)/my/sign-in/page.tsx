@@ -38,7 +38,7 @@ export default async function MySignInPage() {
     // PageShell owns the column: the page used to centre itself inside a shell
     // it never had, which left it flush against the viewport and outside the
     // <main> the skip link aims at.
-    <PageShell maxWidth="max-w-md">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

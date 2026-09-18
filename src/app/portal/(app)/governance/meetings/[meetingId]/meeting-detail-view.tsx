@@ -10,6 +10,7 @@ import { AgendaTab } from "../agenda-tab";
 import { ActionItemsTab } from "../action-items-tab";
 import { DecisionsTab } from "../decisions-tab";
 import { ResolutionsTab } from "../resolutions-tab";
+import { MinutesTab, type MinutesLeaveGuard } from "../minutes-tab";
 import { MeetingDetailsCards } from "./meeting-details-cards";
 import {
   AlertDialog,
@@ -32,10 +33,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime } from "@/lib/format";
 
-type TabValue = "overview" | "agenda";
+type TabValue = "overview" | "agenda" | "minutes";
 
 function isTabValue(value: string): value is TabValue {
-  return value === "overview" || value === "agenda";
+  return value === "overview" || value === "agenda" || value === "minutes";
 }
 
 /**
@@ -143,6 +144,14 @@ export function MeetingDetailView({
   const [agendaMode, setAgendaMode] = useState<"view" | "edit">("view");
   const [agendaDirty, setAgendaDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<TabValue | null>(null);
+  // Which unsaved thing the discard confirm is about. The agenda's behaviour is
+  // unchanged; minutes only ever reach it after a save has actually failed.
+  const [discardSubject, setDiscardSubject] = useState<
+    "this agenda" | "these minutes"
+  >("this agenda");
+  // Published by MinutesTab while its panel is mounted and writable, so a tab
+  // switch can save before Base UI unmounts the textarea being typed into.
+  const minutesGuardRef = useRef<MinutesLeaveGuard | null>(null);
   const pendingScrollRef = useRef<string | null>(null);
   const hashHandledRef = useRef(false);
 
@@ -178,9 +187,14 @@ export function MeetingDetailView({
     pendingScrollRef.current = null;
   }, [tab]);
 
+  // Through `handleTabChange`, not `setTab`: since #1201 the Minutes tab links
+  // here too, and Base UI unmounts its panel on the way out. That path is
+  // where the minutes' autosave is flushed and where a save that failed turns
+  // into the discard confirm, so a link that bypassed it would be the one way
+  // out of the minutes that still loses a sentence.
   function goToOverviewSection(id: string) {
     pendingScrollRef.current = id;
-    setTab("overview");
+    handleTabChange("overview");
   }
 
   // Base UI's Tabs unmounts an inactive TabsContent's subtree by default, so
@@ -191,13 +205,44 @@ export function MeetingDetailView({
   function handleTabChange(value: string) {
     const next = value as TabValue;
     if (tab === "agenda" && agendaMode === "edit" && agendaDirty) {
+      setDiscardSubject("this agenda");
       setPendingTab(next);
+      return;
+    }
+    if (tab === "minutes" && minutesGuardRef.current) {
+      void leaveMinutes(next);
       return;
     }
     setTab(next);
   }
 
-  function confirmDiscardAgenda() {
+  /**
+   * The minutes save themselves, so leaving is normally free -- but Base UI
+   * unmounts this panel on the way out, and the unmount flush cannot report
+   * whether it landed. So the switch waits for the save it would otherwise
+   * fire blind, and only asks about discarding when that save actually failed.
+   */
+  async function leaveMinutes(next: TabValue) {
+    const saved = (await minutesGuardRef.current?.flush()) ?? true;
+    if (saved) {
+      setTab(next);
+      return;
+    }
+    setDiscardSubject("these minutes");
+    setPendingTab(next);
+  }
+
+  /**
+   * Staying put. The queued scroll goes with it -- it was set by the link that
+   * asked to leave, and leaving it armed would yank the page to that section
+   * the next time they switched to Overview for their own reasons.
+   */
+  function cancelPendingTab() {
+    setPendingTab(null);
+    pendingScrollRef.current = null;
+  }
+
+  function confirmDiscard() {
     setAgendaMode("view");
     setAgendaDirty(false);
     if (pendingTab) {
@@ -228,6 +273,7 @@ export function MeetingDetailView({
           <TabsList variant="line" className="flex-wrap">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="agenda">Agenda</TabsTrigger>
+            <TabsTrigger value="minutes">Minutes</TabsTrigger>
           </TabsList>
         </div>
 
@@ -270,25 +316,37 @@ export function MeetingDetailView({
             onViewDecisions={() => goToOverviewSection("decisions-section")}
           />
         </TabsContent>
+
+        <TabsContent value="minutes" className="mt-4">
+          <SectionCard title="Minutes">
+            <MinutesTab
+              meetingId={meeting.id}
+              meetingDate={meeting.meeting_date}
+              canManage={canManage}
+              onViewDecisions={() => goToOverviewSection("decisions-section")}
+              guardRef={minutesGuardRef}
+            />
+          </SectionCard>
+        </TabsContent>
       </Tabs>
 
       <AlertDialog
         open={pendingTab !== null}
-        onOpenChange={(next) => !next && setPendingTab(null)}
+        onOpenChange={(next) => !next && cancelPendingTab()}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to this agenda. Leaving now will discard
-              them.
+              You have unsaved changes to {discardSubject}. Leaving now will
+              discard them.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingTab(null)}>
+            <AlertDialogCancel onClick={cancelPendingTab}>
               Keep editing
             </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscardAgenda}>
+            <AlertDialogAction onClick={confirmDiscard}>
               Discard changes
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EventDetailLoading() {
   return (
-    <PageShell maxWidth="max-w-3xl">
+    <PageShell>
       <Skeleton className="mb-6 aspect-[16/9] w-full rounded-lg" />
 
       <section>

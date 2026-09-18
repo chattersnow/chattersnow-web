@@ -5,7 +5,7 @@ import {
   withPersonRoleTerms,
 } from "@/lib/person-roles";
 import { DEFAULT_LEXICON } from "@/lib/lexicon";
-import { rolesFor } from "./people-shared";
+import { accountEmailToShow, rolesFor } from "./people-shared";
 
 const NONE = {
   is_donor: false,
@@ -91,5 +91,45 @@ describe("rolesFor", () => {
     expect(
       rolesFor({ ...NONE, is_attendee: true, is_staff: true }, STUDIO),
     ).toEqual(["Student", "Instructor"]);
+  });
+});
+
+/**
+ * #1193. The Accounts segment's one column of real news: most records share an
+ * address with the account linked to them, because that is how the claim was
+ * matched in the first place, so the useful case is the one where they differ.
+ */
+describe("accountEmailToShow", () => {
+  test("names the account when it signs in as somebody else", () => {
+    expect(
+      accountEmailToShow({
+        email: "robin@work.example",
+        account_email: "robin.ashford@gmail.example",
+      }),
+    ).toBe("robin.ashford@gmail.example");
+  });
+
+  test("says nothing when the two are the same address", () => {
+    expect(
+      accountEmailToShow({
+        email: "Robin@Example.test",
+        account_email: "robin@example.test",
+      }),
+    ).toBeNull();
+  });
+
+  test("names the account when the record has no address of its own", () => {
+    expect(
+      accountEmailToShow({ email: null, account_email: "robin@example.test" }),
+    ).toBe("robin@example.test");
+  });
+
+  // Null is what a reader without constituent_claims:view gets back from the
+  // computed column, and what every segment but Accounts gets for not asking.
+  test("says nothing when the account email was not read", () => {
+    expect(accountEmailToShow({ email: "robin@example.test" })).toBeNull();
+    expect(
+      accountEmailToShow({ email: "robin@example.test", account_email: null }),
+    ).toBeNull();
   });
 });

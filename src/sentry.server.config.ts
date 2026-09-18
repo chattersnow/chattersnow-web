@@ -2,12 +2,15 @@ import * as Sentry from "@sentry/nextjs";
 
 // Node.js runtime -- Server Components, route handlers and server actions.
 // Loaded by `src/instrumentation.ts` when NEXT_RUNTIME is "nodejs".
-// See `src/instrumentation-client.ts` for why the DSN is inline and why
-// `dataCollection` is deliberately omitted.
+// See `src/instrumentation-client.ts` for why the DSN has a committed
+// fallback, why tracing is off, and why `dataCollection` is deliberately
+// omitted.
 Sentry.init({
-  dsn: "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
+  dsn:
+    process.env.NEXT_PUBLIC_SENTRY_DSN ??
+    "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
 
-  tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
+  tracesSampleRate: 0,
 
   // Server-side, Vercel's system variables are available unprefixed.
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,

@@ -25,8 +25,58 @@ export const STAFF_MESSAGE_KIND = "staff_message";
 export const MAX_MESSAGE_SUBJECT_LENGTH = 200;
 export const MAX_MESSAGE_BODY_LENGTH = 5000;
 
-/** What `outbound_messages.record_type` holds for a public gear request. */
+/**
+ * What `outbound_messages.record_type` holds for each record a message can be
+ * about. The column is free text and the read policy keys on `module`, not on
+ * these, so a new one costs no migration (#1203) -- but it is the join between
+ * a record and its history, so every writer and every reader of one queue has
+ * to spell it the same way.
+ */
 export const GEAR_REQUEST_RECORD_TYPE = "gear_request";
+export const VOLUNTEER_APPLICATION_RECORD_TYPE = "volunteer_application";
+export const CONTACT_MESSAGE_RECORD_TYPE = "contact_message";
+
+/**
+ * One row of a record's message history, and the names behind `sent_by`.
+ *
+ * Here rather than beside the list that renders them because both a Server
+ * Component loading them and a client component displaying them need the
+ * shape, and this module is the one with no runtime imports either way.
+ */
+export type RecordMessageRow = {
+  id: string;
+  subject: string;
+  kind: string;
+  status: string;
+  created_at: string;
+  sent_by: string | null;
+};
+
+export type MessageActor = {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+};
+
+/**
+ * A page's worth of message history: every record's messages, and the names
+ * behind every `sent_by` in them. `loadRecordMessages()`
+ * (`@/lib/portal/record-messages`) is what fills it.
+ *
+ * `byRecord` is keyed by `record_id`, and a record with no history is absent
+ * rather than empty. A plain object rather than a Map because two of the three
+ * callers hand it through a client component, and this is what the RSC
+ * boundary takes without anyone having to think about it.
+ */
+export type RecordMessages = {
+  byRecord: Record<string, RecordMessageRow[]>;
+  actors: MessageActor[];
+};
+
+/** Nothing sent, and nobody to name: what a reader without the module's
+ * `manage` sees, and what a caller passes instead of loading a page's worth
+ * it will not render. */
+export const NO_RECORD_MESSAGES: RecordMessages = { byRecord: {}, actors: [] };
 
 /**
  * The outcome at send time. `skipped` is not here: nothing was sent, so no row
@@ -61,4 +111,26 @@ export function outboundMessageStatusTone(
  */
 export function resendDedupeSuffix(now: Date = new Date()): string {
   return `resend:${now.toISOString().slice(0, 16)}`;
+}
+
+/**
+ * Why a queue's message buttons are off, in a sentence, rather than simply
+ * being absent (#1203, shared in #1204).
+ *
+ * A person whose record the retention purge cleared and an organization that
+ * has switched outbound email off look identical from the card, and the
+ * difference decides whether there is anything to be done about it. The
+ * address sentence is each queue's own, because only it can say which record
+ * is missing what.
+ */
+export function messagingDisabledReason(
+  orgEmailEnabled: boolean,
+  toEmail: string | null | undefined,
+  noAddressReason: string,
+): string | undefined {
+  if (!orgEmailEnabled) {
+    return "Outbound email is switched off for this organization.";
+  }
+  if (!toEmail?.trim()) return noAddressReason;
+  return undefined;
 }

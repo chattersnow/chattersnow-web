@@ -14,6 +14,7 @@ import {
   type SiteContentRow,
 } from "@/lib/site-content";
 import { getPublicLexicon, type Lexicon } from "@/lib/lexicon";
+import { tagTenant } from "@/lib/observability/tenant-tag";
 
 /**
  * Everything the public site needs to know about the organization it is
@@ -92,6 +93,11 @@ export const getPublicSite = cache(
 
     const tenant =
       tenantResult.status === "resolved" ? tenantResult.tenant : null;
+
+    // Which tenant a Sentry event from this request is about (#1210). Nothing
+    // is tagged on an unresolved or unavailable host, which is the honest
+    // answer: there is no tenant to name.
+    tagTenant(tenant?.slug);
 
     return {
       status: tenantResult.status,

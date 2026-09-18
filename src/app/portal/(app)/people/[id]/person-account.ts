@@ -4,8 +4,15 @@ export type PersonAccount = {
   user_id: string;
   email: string | null;
   roles: string[];
-  created_at: string;
+  created_at: string | null;
   deactivated_at: string | null;
+  /**
+   * Which read this came from (#1193). `administration` is `list_portal_users()`
+   * and carries roles and the account's dates; `directory` is the person row
+   * itself, which is all a claims reviewer can see -- an account's sign-in
+   * address and nothing else. The card renders less rather than guessing.
+   */
+  source: "administration" | "directory";
 };
 
 export type LinkableAccount = { user_id: string; email: string };
@@ -30,6 +37,7 @@ export function resolvePersonAccount(
         roles: linked.roles,
         created_at: linked.created_at,
         deactivated_at: linked.deactivated_at,
+        source: "administration",
       },
       linkable: [],
     };
@@ -54,4 +62,30 @@ export function resolvePersonAccount(
         }));
 
   return { account: null, linkable };
+}
+
+/**
+ * The account as the directory itself knows it (#1193).
+ *
+ * `resolvePersonAccount` above is fed by `listUsersAction()`, which is gated on
+ * `administration:manage` and degrades to an empty list for everyone else -- so
+ * a claims reviewer opening a person record would be told there was no account
+ * at all, which is the opposite of the truth and the reason they opened the
+ * page. `people_with_roles` carries `auth_user_id` and, for a reader with
+ * `constituent_claims:view`, `account_email` (20260916150000), which is enough
+ * to say that an account exists, name it, and offer to unlink it.
+ */
+export function directoryPersonAccount(person: {
+  auth_user_id: string | null;
+  account_email?: string | null;
+}): PersonAccount | null {
+  if (!person.auth_user_id) return null;
+  return {
+    user_id: person.auth_user_id,
+    email: person.account_email ?? null,
+    roles: [],
+    created_at: null,
+    deactivated_at: null,
+    source: "directory",
+  };
 }

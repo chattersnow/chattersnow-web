@@ -65,7 +65,7 @@ export default async function MyPage() {
     : [EMPTY_HISTORY, DEFAULT_VOCABULARY];
 
   return (
-    <PageShell maxWidth="max-w-3xl">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

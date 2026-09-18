@@ -5,9 +5,11 @@ import * as Sentry from "@sentry/nextjs";
 // init because the edge runtime is a separate JavaScript environment with no
 // access to the Node APIs the server config relies on.
 Sentry.init({
-  dsn: "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
+  dsn:
+    process.env.NEXT_PUBLIC_SENTRY_DSN ??
+    "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
 
-  tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
+  tracesSampleRate: 0,
 
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   release: process.env.VERCEL_GIT_COMMIT_SHA,

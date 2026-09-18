@@ -55,7 +55,7 @@ export default async function MyDetailsPage() {
   if (!details) redirect(MY_PATH_PREFIX);
 
   return (
-    <PageShell maxWidth="max-w-2xl">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

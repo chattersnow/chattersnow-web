@@ -1,16 +1,18 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 import * as AttendeesActions from "../attendees-actions";
 import * as AgendaActions from "../agenda-actions";
 import * as ActionItemsActions from "../action-items-actions";
 import * as DecisionsActions from "../decisions-actions";
 import * as MinutesApprovalActions from "../minutes-approval-actions";
+import * as MinutesActions from "../minutes-actions";
+import * as MeetingContextActions from "../meeting-context-actions";
 import * as ResolutionsActions from "../../resolutions/resolutions-actions";
 import * as PeopleActions from "../../../people/actions";
 import type { MeetingRow } from "../meeting-badges";
 import { mockUrlTabState } from "@/../test/url-tab-state-mock";
 
-mockUrlTabState();
+const urlTabState = mockUrlTabState();
 
 mock.module("../attendees-actions", () => ({
   ...AttendeesActions,
@@ -33,6 +35,54 @@ mock.module("../decisions-actions", () => ({
 mock.module("../minutes-approval-actions", () => ({
   ...MinutesApprovalActions,
   getPreviousMeetingMinutesAction: mock(async () => ({ data: null })),
+}));
+mock.module("../minutes-actions", () => ({
+  ...MinutesActions,
+  getMinutesAction: mock(async () => ({ data: null })),
+}));
+// The agenda tab's live "Next 30 days" read (#1223). Answered with an empty
+// window rather than left unmocked: unstubbed it reaches `cookies()`, which
+// throws outside a request scope.
+mock.module("../meeting-context-actions", () => ({
+  ...MeetingContextActions,
+  listMeetingDatedContextAction: mock(async () => ({
+    data: {
+      timeZone: "America/Denver",
+      asOf: "2026-09-01",
+      window: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+      entries: [],
+      gaps: [],
+    },
+  })),
+  // #1224's supporting-records read. Stubbed with empty payloads rather than
+  // absent-with-reason ones, so the blocks render nothing at all and these
+  // files stay about the lifecycle they were written for.
+  getMeetingTopicContextAction: mock(async () => ({
+    data: {
+      timeZone: "America/Denver",
+      asOf: "2026-09-01",
+      review: { fromDate: "2026-08-01", toDate: "2026-09-01" },
+      lookahead: { fromDate: "2026-09-01", toDate: "2026-10-01" },
+      finance_activity: {
+        window: { fromDate: "2026-08-01", toDate: "2026-09-01" },
+        income: 0,
+        cashDonations: 0,
+        paidSpend: 0,
+        net: 0,
+        approvedUnpaidSpend: 0,
+        pendingSpend: 0,
+        outstandingReimbursements: null,
+        upcomingEventBudget: null,
+      },
+      grants: { rows: [], total: 0 },
+      nonprofit_compliance: {
+        milestones: { rows: [], total: 0 },
+        requirements: { rows: [], total: 0 },
+        disclosures: { year: 2027, missing: 0, boardMembers: 0 },
+      },
+      partnerships: { rows: [], total: 0 },
+    },
+  })),
 }));
 mock.module("../../resolutions/resolutions-actions", () => ({
   ...ResolutionsActions,
@@ -61,12 +111,15 @@ function makeMeeting(overrides: Partial<MeetingRow> = {}): MeetingRow {
 }
 
 describe("MeetingDetailView", () => {
-  test("shows an Overview and an Agenda tab, with Overview active", () => {
+  afterEach(() => urlTabState.seed(null));
+
+  test("shows Overview, Agenda and Minutes tabs, with Overview active", () => {
     render(<MeetingDetailView meeting={makeMeeting()} canManage={true} />);
 
-    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Agenda" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Minutes" })).toBeInTheDocument();
 
     // Overview holds everything but the agenda.
     expect(screen.getByText("Meeting details")).toBeInTheDocument();
@@ -168,5 +221,22 @@ describe("MeetingDetailView", () => {
 
     expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
     expect(screen.getByText("Meeting details")).toBeInTheDocument();
+  });
+
+  test("opens on the Minutes tab from a ?tab=minutes link", async () => {
+    urlTabState.seed("minutes");
+    render(<MeetingDetailView meeting={makeMeeting()} canManage={true} />);
+
+    expect(screen.getByRole("tab", { name: "Minutes" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // The panel is really mounted, not merely selected: Base UI unmounts the
+    // inactive ones, so a deep link is the only way this subtree renders
+    // without a click.
+    expect(
+      await screen.findByText("No minutes started yet", {}, { timeout: 4_000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Meeting details")).not.toBeInTheDocument();
   });
 });

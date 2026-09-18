@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyHoursLoading() {
   return (
-    <PageShell maxWidth="max-w-2xl">
+    <PageShell>
       <div className="space-y-8">
         <section>
           <div className="w-fit">

@@ -18,8 +18,12 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { personDisplayName } from "@/lib/format";
-import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import { sendStaffMessage } from "@/lib/notifications/staff-message";
+import {
+  explainSkippedSend,
+  RECORD_MESSAGE_ERRORS,
+  validateRecordMessage,
+} from "@/lib/notifications/record-message";
 import { recordOutboundMessage } from "@/lib/notifications/outbound-messages";
 import {
   gearRequestConfirmationDedupeKey,
@@ -28,8 +32,6 @@ import {
 import { GEAR_REQUEST_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import {
   GEAR_REQUEST_RECORD_TYPE,
-  MAX_MESSAGE_BODY_LENGTH,
-  MAX_MESSAGE_SUBJECT_LENGTH,
   resendDedupeSuffix,
 } from "@/lib/outbound-messages";
 
@@ -215,25 +217,16 @@ export async function updateGearRequestSettingsAction(
 // Messaging the requester (#1203)
 // ---------------------------------------------------------------------------
 
+// What names this record, said this queue's way. Everything else a composer
+// can answer -- an empty subject, a spent message id, the org switch being off
+// -- is shared with the other queues (#1204) in @/lib/notifications/record-message.
 const MESSAGE_ERRORS = {
   SIGNED_OUT: "You must be signed in to message a requester.",
   NOT_FOUND: "This request could not be found.",
   NO_EMAIL:
     "This request has no email address to write to — the requester's record was cleared or never carried one.",
-  SUBJECT_REQUIRED: "Write a subject.",
-  BODY_REQUIRED: "Write a message.",
-  SUBJECT_TOO_LONG: `Keep the subject to ${MAX_MESSAGE_SUBJECT_LENGTH} characters or fewer.`,
-  BODY_TOO_LONG: `Keep the message to ${MAX_MESSAGE_BODY_LENGTH} characters or fewer.`,
-  MESSAGE_ID_INVALID: "Reopen the message and try again.",
-  ALREADY_SENT:
-    "That message has already gone out. Reopen the composer to send another.",
-  EMAIL_OFF:
-    "Outbound email is switched off for this organization, so nothing was sent.",
-  FAILED: "The message could not be sent. Please try again.",
+  FAILED: RECORD_MESSAGE_ERRORS.FAILED,
 } as const;
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type RequesterRow = {
   tenant_id: string;
@@ -276,19 +269,9 @@ export async function sendGearRequestMessageAction(input: {
   );
   if (permissionError) return permissionError;
 
-  if (!UUID_PATTERN.test(input.messageId)) {
-    return { error: MESSAGE_ERRORS.MESSAGE_ID_INVALID };
-  }
-  const subject = input.subject.trim();
-  const body = input.body.trim();
-  if (!subject) return { error: MESSAGE_ERRORS.SUBJECT_REQUIRED };
-  if (!body) return { error: MESSAGE_ERRORS.BODY_REQUIRED };
-  if (subject.length > MAX_MESSAGE_SUBJECT_LENGTH) {
-    return { error: MESSAGE_ERRORS.SUBJECT_TOO_LONG };
-  }
-  if (body.length > MAX_MESSAGE_BODY_LENGTH) {
-    return { error: MESSAGE_ERRORS.BODY_TOO_LONG };
-  }
+  const validated = validateRecordMessage(input);
+  if ("error" in validated) return validated;
+  const { subject, body } = validated;
 
   // Read under the caller's own session, so a request in another tenant is
   // not found rather than being mailed.
@@ -321,13 +304,10 @@ export async function sendGearRequestMessageAction(input: {
     fallbackOrigin: await getRequestOrigin(),
   });
 
+  // Two ways to get here and they are not the same news: the organization's
+  // switch is off, or this message id has already been spent.
   if (outcome === "skipped") {
-    // Two ways to get here and they are not the same news: the organization's
-    // switch is off, or this message id has already been spent.
-    const enabled = await getOrgEmailEnabled(supabase);
-    return {
-      error: enabled ? MESSAGE_ERRORS.ALREADY_SENT : MESSAGE_ERRORS.EMAIL_OFF,
-    };
+    return { error: await explainSkippedSend(supabase) };
   }
   if (outcome === "failed") return { error: MESSAGE_ERRORS.FAILED };
 
@@ -387,11 +367,11 @@ export async function resendGearRequestConfirmationAction(
   });
 
   if (outcome === "skipped") {
-    const enabled = await getOrgEmailEnabled(supabase);
     return {
-      error: enabled
-        ? "The confirmation has already been resent in the last minute."
-        : MESSAGE_ERRORS.EMAIL_OFF,
+      error: await explainSkippedSend(
+        supabase,
+        "The confirmation has already been resent in the last minute.",
+      ),
     };
   }
   if (outcome === "failed") {

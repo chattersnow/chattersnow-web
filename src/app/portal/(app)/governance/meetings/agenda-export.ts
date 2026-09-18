@@ -2,6 +2,15 @@ import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
+import type { MeetingDatedContext } from "./meeting-context-shared";
+import type { MeetingTopicContext } from "./meeting-context-catalog";
+import {
+  datedContextLines,
+  topicContextLines,
+  TOPIC_CONTEXT_MARKDOWN,
+  TOPIC_CONTEXT_PLAIN,
+  type TopicContextLineStyle,
+} from "./meeting-topic-context-text";
 import {
   formatCalendarDate,
   formatInstantDate,
@@ -16,6 +25,18 @@ export type AgendaExportInput = {
   carriedOverItems: ActionItem[];
   createdItems: ActionItem[];
   decisions: Decision[];
+  /**
+   * The live "Next 30 days" block (#1223), or undefined while it is still
+   * loading -- in which case the section is left out rather than printed as
+   * empty, which would read as "nothing is scheduled".
+   */
+  datedContext?: MeetingDatedContext;
+  /**
+   * The records behind each standing section (#1224), or undefined while the
+   * read is in flight -- in which case the blocks are left out rather than
+   * printed empty, the same rule `datedContext` follows.
+   */
+  topicContext?: MeetingTopicContext;
 };
 
 function actionItemLine(item: ActionItem): string {
@@ -26,6 +47,25 @@ function decisionLine(decision: Decision): string {
   const topic = decision.topic ? `${decision.topic}: ` : "";
   const vote = decision.vote_result ? ` (${decision.vote_result})` : "";
   return `${topic}${decision.description}${vote}`;
+}
+
+/**
+ * The blocks under one section heading.
+ *
+ * `datedContext` is deliberately not passed: the agenda prints its own
+ * "Next 30 days" section, and the Events block would repeat it verbatim a few
+ * headings earlier. The minutes, which have no such section, do pass it.
+ */
+function sectionContextLines(
+  input: AgendaExportInput,
+  sectionKey: string,
+  style: TopicContextLineStyle,
+): string[] {
+  return topicContextLines({
+    itemKey: `section:${sectionKey}`,
+    context: input.topicContext,
+    style,
+  });
 }
 
 export function formatAgendaMarkdown(input: AgendaExportInput): string {
@@ -62,6 +102,9 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
       lines.push(`### ${section.label}`);
       lines.push(`**Updates:** ${value?.updates || "—"}`);
       lines.push(`**Decisions needed:** ${value?.decisions_needed || "—"}`);
+      lines.push(
+        ...sectionContextLines(input, section.key, TOPIC_CONTEXT_MARKDOWN),
+      );
       lines.push("");
     }
   }
@@ -82,6 +125,14 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
     for (const item of agenda.new_business) lines.push(`- ${item}`);
   }
   lines.push("");
+
+  if (input.datedContext) {
+    lines.push("## Next 30 days");
+    lines.push(
+      ...datedContextLines(input.datedContext, TOPIC_CONTEXT_MARKDOWN),
+    );
+    lines.push("");
+  }
 
   lines.push("## Upcoming dates");
   if (agenda.upcoming_dates.length === 0) {
@@ -122,7 +173,7 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
   );
   lines.push("");
 
-  lines.push("## Meeting notes");
+  lines.push("## Agenda notes");
   lines.push(agenda.body_text || "—");
 
   return lines.join("\n");
@@ -162,6 +213,9 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
       lines.push(`  ${section.label}`);
       lines.push(`    Updates: ${value?.updates || "—"}`);
       lines.push(`    Decisions needed: ${value?.decisions_needed || "—"}`);
+      lines.push(
+        ...sectionContextLines(input, section.key, TOPIC_CONTEXT_PLAIN),
+      );
     }
   }
   lines.push("");
@@ -182,6 +236,12 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
     for (const item of agenda.new_business) lines.push(`  - ${item}`);
   }
   lines.push("");
+
+  if (input.datedContext) {
+    lines.push("NEXT 30 DAYS");
+    lines.push(...datedContextLines(input.datedContext, TOPIC_CONTEXT_PLAIN));
+    lines.push("");
+  }
 
   lines.push("UPCOMING DATES");
   if (agenda.upcoming_dates.length === 0) {
@@ -224,7 +284,7 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
   );
   lines.push("");
 
-  lines.push("MEETING NOTES");
+  lines.push("AGENDA NOTES");
   lines.push(`  ${agenda.body_text || "—"}`);
 
   return lines.join("\n");

@@ -40,6 +40,13 @@ import { toast } from "@/components/ui/toast";
 import { humanizeStatus } from "@/components/portal/status-badge";
 import { formatDateTime } from "@/lib/format";
 import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
+import { RecordMessages } from "@/components/portal/record-messages";
+import {
+  messagingDisabledReason,
+  type MessageActor,
+  type RecordMessageRow,
+} from "@/lib/outbound-messages";
+import { VolunteerApplicationMessageActions } from "./application-message-actions";
 
 // Base UI's Select.Value shows the raw value unless Root is told the labels,
 // so the trigger reads "Placed" like the option (and the badge) rather than
@@ -51,11 +58,24 @@ const APPLICATION_STATUS_ITEMS = VOLUNTEER_APPLICATION_STATUSES.map(
 export function VolunteerApplicationDetailsSheet({
   application,
   canManage,
+  messages,
+  messageActors,
+  orgName,
+  replyTo,
+  orgEmailEnabled,
   defaultOpen = false,
   withTrigger = true,
 }: {
   application: VolunteerApplication;
   canManage: boolean;
+  /** What has been sent to this applicant from the portal (#1204). */
+  messages: RecordMessageRow[];
+  messageActors: MessageActor[];
+  /** For the composer's default subject; blank if the tenant is unresolved. */
+  orgName: string;
+  /** The tenant's Reply-To, so the composer can say where a reply lands. */
+  replyTo: string | null;
+  orgEmailEnabled: boolean;
   /** True when `?application=` names this row. */
   defaultOpen?: boolean;
   /**
@@ -204,6 +224,29 @@ export function VolunteerApplicationDetailsSheet({
               </Alert>
             )}
           </FieldGroup>
+
+          {canManage ? (
+            <section className="mt-6 flex flex-col gap-3">
+              <h3 className="app-muted text-sm font-semibold">Messages</h3>
+              <VolunteerApplicationMessageActions
+                applicationId={application.id}
+                applicantName={application.name}
+                toEmail={application.email}
+                orgName={orgName}
+                replyTo={replyTo}
+                disabledReason={messagingDisabledReason(
+                  orgEmailEnabled,
+                  application.email,
+                  "This application has no email address to write to.",
+                )}
+              />
+              <RecordMessages
+                messages={messages}
+                actors={messageActors}
+                emptyMessage="Nothing has been sent to this applicant from the portal. The confirmation they received when they applied is not listed here — it was sent by the application itself."
+              />
+            </section>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

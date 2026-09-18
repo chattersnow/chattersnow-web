@@ -425,6 +425,49 @@ export async function linkPersonToAuthUserAction(
 }
 
 /**
+ * Detaches a website account from a directory record (#1193).
+ *
+ * Gated on `constituent_claims:manage` rather than `administration:manage`,
+ * which is the mirror of the link above: this undoes the decision a claim
+ * reviewer made (#1162), and the person who judged that an account really was
+ * that donor is the person who should be able to judge that it was not. The RPC
+ * re-checks, and refuses outright for an account that holds a role in this
+ * tenant -- unlinking a staffer is an Administration act.
+ */
+export async function unlinkPersonAccountAction(
+  personId: string,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to unlink an account.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "constituent_claims",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("unlink_person_account", {
+    p_person_id: personId,
+  });
+  if (error) {
+    // Readable refusals for the three cases the RPC knows about (no account, a
+    // staff account, a record in another organization), passed through the way
+    // linking and claim review both do.
+    return { error: error.message || "Could not unlink this account." };
+  }
+
+  revalidatePath("/portal/people");
+  revalidatePath("/portal/people/accounts");
+  revalidatePath(`/portal/people/${personId}`);
+  revalidatePath("/portal/administration/users");
+  return { success: true };
+}
+
+/**
  * Sets where one person's portal email is delivered (#1042). Empty clears the
  * override, returning delivery to the address they sign in with.
  *

@@ -44,7 +44,13 @@ export type RunActionOutcome<T> =
 
 const FALLBACK_ERROR = "Something went wrong. Please try again.";
 
-function errorMessage(result: unknown): string | null {
+/**
+ * The display copy out of either failure shape, or null when the result is a
+ * success. Exported because `useAutosave` needs the same reading without the
+ * toast: an autosave announces its outcome on a status line rather than in a
+ * toast, and a second copy of this would drift from the envelope.
+ */
+export function readActionError(result: unknown): string | null {
   if (result && typeof result === "object" && "error" in result) {
     const { error } = result as { error?: unknown };
     if (typeof error === "string" && error.length > 0) return error;
@@ -90,7 +96,7 @@ export async function runAction<T extends ActionResult>(
     return fail(options.error ?? FALLBACK_ERROR);
   }
 
-  const message = errorMessage(result);
+  const message = readActionError(result);
   if (message)
     return fail(
       message === FALLBACK_ERROR ? (options.error ?? message) : message,

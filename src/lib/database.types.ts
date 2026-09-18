@@ -4360,6 +4360,7 @@ export type Database = {
           due_date: string | null;
           id: string;
           meeting_id: string;
+          minutes_item_key: string | null;
           owner_person_id: string;
           status: string;
           tenant_id: string;
@@ -4373,6 +4374,7 @@ export type Database = {
           due_date?: string | null;
           id?: string;
           meeting_id: string;
+          minutes_item_key?: string | null;
           owner_person_id: string;
           status?: string;
           tenant_id?: string;
@@ -4386,6 +4388,7 @@ export type Database = {
           due_date?: string | null;
           id?: string;
           meeting_id?: string;
+          minutes_item_key?: string | null;
           owner_person_id?: string;
           status?: string;
           tenant_id?: string;
@@ -5042,6 +5045,92 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      meeting_minutes: {
+        Row: {
+          agenda_snapshot: Json;
+          approved_at: string | null;
+          approved_at_meeting_id: string | null;
+          approved_by: string | null;
+          body_text: string | null;
+          created_at: string;
+          created_by: string;
+          finalized_at: string | null;
+          finalized_by: string | null;
+          id: string;
+          meeting_id: string;
+          notes: Json;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          agenda_snapshot?: Json;
+          approved_at?: string | null;
+          approved_at_meeting_id?: string | null;
+          approved_by?: string | null;
+          body_text?: string | null;
+          created_at?: string;
+          created_by?: string;
+          finalized_at?: string | null;
+          finalized_by?: string | null;
+          id?: string;
+          meeting_id: string;
+          notes?: Json;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          agenda_snapshot?: Json;
+          approved_at?: string | null;
+          approved_at_meeting_id?: string | null;
+          approved_by?: string | null;
+          body_text?: string | null;
+          created_at?: string;
+          created_by?: string;
+          finalized_at?: string | null;
+          finalized_by?: string | null;
+          id?: string;
+          meeting_id?: string;
+          notes?: Json;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_approved_at_meeting_id_fkey";
+            columns: ["tenant_id", "approved_at_meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "governance_meetings";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "meeting_minutes_tenant_id_meeting_id_fkey";
+            columns: ["tenant_id", "meeting_id"];
+            isOneToOne: true;
+            referencedRelation: "governance_meetings";
+            referencedColumns: ["tenant_id", "id"];
           },
         ];
       };
@@ -7954,6 +8043,7 @@ export type Database = {
           updated_at: string | null;
           updated_by: string | null;
           website: string | null;
+          account_email: string | null;
           primary_contact: {
             address_city: string | null;
             address_country: string | null;
@@ -8431,6 +8521,12 @@ export type Database = {
       };
     };
     Functions: {
+      account_email: {
+        Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.account_email with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
+      };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
       approve_event_expense: {
         Args: { p_id: string };
@@ -9647,6 +9743,15 @@ export type Database = {
         };
         Returns: string;
       };
+      save_meeting_minutes_draft: {
+        Args: {
+          p_body_text: string;
+          p_body_text_set: boolean;
+          p_meeting_id: string;
+          p_notes: Json;
+        };
+        Returns: string;
+      };
       save_registrant_rider_profile: {
         Args: {
           p_honeypot?: string;
@@ -9846,6 +9951,10 @@ export type Database = {
         Returns: boolean;
       };
       trigger_retention_run: { Args: { p_dry_run?: boolean }; Returns: string };
+      unlink_person_account: {
+        Args: { p_person_id: string };
+        Returns: undefined;
+      };
       update_event_sponsor: {
         Args: {
           p_contribution_value: number;

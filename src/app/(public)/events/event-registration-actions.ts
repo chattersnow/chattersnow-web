@@ -21,6 +21,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     "The registration deadline for this event has passed.",
   EVENT_AT_CAPACITY: "This event has reached capacity.",
   ALREADY_REGISTERED: "This email is already registered for this event.",
+  NAME_REQUIRED: "Name is required.",
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
   PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",

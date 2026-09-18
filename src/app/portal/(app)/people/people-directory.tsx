@@ -38,7 +38,9 @@ import {
 import { StatTile } from "../home/stat-tile";
 import { NewPersonDialog } from "./new-person-dialog";
 import {
+  accountEmailToShow,
   PEOPLE_WITH_ROLES,
+  PersonAccountBadge,
   rolesFor,
   type PersonRow,
   type PersonType,
@@ -48,9 +50,11 @@ import {
   emptyManageDescription,
   resolveSegment,
   resolveStats,
+  visibleSegments,
   type PeopleSegment,
 } from "./people-segments";
 import { PeopleSegmentNav } from "./people-segment-nav";
+import { SegmentCounterpartNote } from "./segment-counterpart-note";
 
 /**
  * Every column the directory table and its row links need. `primary_contact`
@@ -131,9 +135,16 @@ export async function PeopleDirectory({
   const page = parsePage(raw("page"));
   const perPage = parsePerPage(raw("perPage"));
 
+  // Accounts is the only segment that asks for more than the shared list, and
+  // what it asks for is a security-definer lookup per row (20260916150000), so
+  // it is appended rather than folded into the constant.
+  const columns: string = segment.extraSelect
+    ? `${PERSON_COLUMNS}, ${segment.extraSelect}`
+    : PERSON_COLUMNS;
+
   let query = supabase
     .from(PEOPLE_WITH_ROLES)
-    .select(PERSON_COLUMNS, { count: "exact" })
+    .select(columns, { count: "exact" })
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
@@ -167,6 +178,11 @@ export async function PeopleDirectory({
     ]);
   const segmentStats = stats && resolveStats(stats, vocabulary);
   const peopleRows = (people ?? []) as unknown as PersonRow[];
+  // The Accounts segment is a list of accounts that happens to be rendered as
+  // people, so it says which door each one opens and, where it differs, which
+  // address it signs in as. No new column for either: the budget is three
+  // (`table-column-budget.test.ts`) and this table already spends it.
+  const showsAccounts = segment.filterColumn === "has_account";
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
@@ -226,11 +242,22 @@ export async function PeopleDirectory({
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
+      {segment.counterpart && (
+        <SegmentCounterpartNote
+          counterpart={segment.counterpart}
+          permissions={permissions}
+        />
+      )}
+
       {/* Everything below navigates through the URL -- segments, sort, page,
           search -- so it all shares one pending state, and the table card
           dims while any of it is in flight. */}
       <ListNavigationProvider>
-        <PeopleSegmentNav active={segment.value} vocabulary={vocabulary} />
+        <PeopleSegmentNav
+          segments={visibleSegments(permissions)}
+          active={segment.value}
+          vocabulary={vocabulary}
+        />
 
         {segmentStats && segmentStats.length > 0 && (
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -353,12 +380,23 @@ export async function PeopleDirectory({
                             >
                               {person.name ?? "—"}
                             </Link>
+                            {showsAccounts && (
+                              <>
+                                {" "}
+                                <PersonAccountBadge person={person} />
+                              </>
+                            )}
                           </TableCell>
                           <TableCell className="app-muted">
                             {rolesFor(person, vocabulary).join(", ") || "—"}
                           </TableCell>
                           <TableCell hideBelow="md" className="app-muted">
                             {person.email ?? "—"}
+                            {showsAccounts && accountEmailToShow(person) && (
+                              <span className="block text-xs">
+                                Signs in as {accountEmailToShow(person)}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell hideBelow="lg" className="app-muted">
                             {person.phone ?? "—"}

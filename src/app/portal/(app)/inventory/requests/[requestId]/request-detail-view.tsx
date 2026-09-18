@@ -21,10 +21,11 @@ import type { Lexicon } from "@/lib/lexicon";
 import { GearRequestStatusBadge } from "../request-status-badge";
 import { GearRequestStatusActions } from "./request-status-actions";
 import {
-  RequestMessagesCard,
+  messagingDisabledReason,
   type MessageActor,
-  type RequestMessageRow,
-} from "./request-messages-card";
+  type RecordMessageRow,
+} from "@/lib/outbound-messages";
+import { RequestMessagesCard } from "./request-messages-card";
 import { ViewerTime } from "@/components/viewer-time";
 
 export type GearRequestDetailRow = {
@@ -99,7 +100,7 @@ export function GearRequestDetailView({
   paymentMethods: PaymentMethod[];
   canManage: boolean;
   lexicon: Lexicon;
-  messages: RequestMessageRow[];
+  messages: RecordMessageRow[];
   messageActors: MessageActor[];
   orgName: string;
   replyTo: string | null;
@@ -322,28 +323,13 @@ export function GearRequestDetailView({
           toEmail={request.requester?.email ?? ""}
           orgName={orgName}
           replyTo={replyTo}
-          disabledReason={messagingDisabledReason(request, orgEmailEnabled)}
+          disabledReason={messagingDisabledReason(
+            orgEmailEnabled,
+            request.requester?.email,
+            "This request has no email address — the requester's record was cleared or never carried one.",
+          )}
         />
       )}
     </>
   );
-}
-
-/**
- * Why the two message buttons are off, in a sentence, rather than simply being
- * absent. A requester whose record the retention purge cleared and one whose
- * organization has switched outbound email off look identical from the card,
- * and the difference decides whether there is anything to do about it.
- */
-function messagingDisabledReason(
-  request: GearRequestDetailRow,
-  orgEmailEnabled: boolean,
-): string | undefined {
-  if (!orgEmailEnabled) {
-    return "Outbound email is switched off for this organization.";
-  }
-  if (!request.requester?.email) {
-    return "This request has no email address — the requester's record was cleared or never carried one.";
-  }
-  return undefined;
 }

@@ -23,6 +23,10 @@ import {
   type ContactMessage,
   type ContactMessageStatus,
 } from "./message-types";
+import {
+  NO_RECORD_MESSAGES,
+  type RecordMessages,
+} from "@/lib/outbound-messages";
 import { contactTopicLabel } from "@/lib/contact-topics";
 import { useLexicon } from "@/components/lexicon-context";
 import { formatInstantDate } from "@/lib/format";
@@ -35,12 +39,24 @@ export function MessagesTable({
   canManage,
   initialStatusFilter = null,
   linkedMessageId = null,
+  recordMessages = NO_RECORD_MESSAGES,
+  replyTo = null,
+  orgEmailEnabled = false,
 }: {
   messages: ContactMessage[];
   canManage: boolean;
   initialStatusFilter?: ContactMessageStatus | null;
   /** The `?message=` a notification email (#742) linked with, if any. */
   linkedMessageId?: string | null;
+  /**
+   * Every reply sent about the messages in this list, keyed by id (#1204).
+   * Defaulted, with the two settings beside it, so a caller that renders the
+   * table for a reader who cannot reply -- and every test that predates the
+   * replies -- says nothing about messaging at all.
+   */
+  recordMessages?: RecordMessages;
+  replyTo?: string | null;
+  orgEmailEnabled?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const {
@@ -124,12 +140,23 @@ export function MessagesTable({
           <MessageDetailsSheet
             message={message}
             canManage={canManage}
+            messages={recordMessages.byRecord[message.id] ?? []}
+            messageActors={recordMessages.actors}
+            replyTo={replyTo}
+            orgEmailEnabled={orgEmailEnabled}
             defaultOpen={message.id === linkedMessageId}
           />
         ),
       },
     ],
-    [canManage, linkedMessageId, lexicon],
+    [
+      canManage,
+      linkedMessageId,
+      lexicon,
+      recordMessages,
+      replyTo,
+      orgEmailEnabled,
+    ],
   );
 
   if (messages.length === 0) {

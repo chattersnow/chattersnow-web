@@ -71,6 +71,12 @@ export type PersonRow = {
    * reaches `/my` and nothing else.
    */
   has_portal_access: boolean;
+  /**
+   * The account's sign-in address, from the computed column added for the
+   * Accounts segment (#1193). Optional because only the surfaces that are about
+   * accounts select it, and null for a reader without `constituent_claims:view`.
+   */
+  account_email?: string | null;
   is_donor: boolean;
   is_sponsor: boolean;
   is_volunteer: boolean;
@@ -153,6 +159,25 @@ export function rolesFor(
   return LISTED_ROLES.filter((role) => person[role.key]).map((role) =>
     personRoleLabel(role.key, vocabulary),
   );
+}
+
+/**
+ * The account's sign-in address, but only when it is news.
+ *
+ * A record and the account linked to it usually share an address -- that is how
+ * most claims are matched in the first place (#1162) -- so repeating it beside
+ * the record's own email would be noise on every row. When they differ it is
+ * the most useful thing on the row: it says this person signs in as somebody
+ * the directory does not otherwise know about.
+ */
+export function accountEmailToShow(person: {
+  email?: string | null;
+  account_email?: string | null;
+}): string | null {
+  const account = person.account_email?.trim();
+  if (!account) return null;
+  const record = person.email?.trim().toLowerCase();
+  return record === account.toLowerCase() ? null : account;
 }
 
 /**

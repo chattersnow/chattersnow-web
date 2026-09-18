@@ -20,6 +20,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   ITEM_NOT_FOUND: "One of the items in your cart could not be found.",
   ITEM_ALREADY_REQUESTED:
     "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
+  NAME_REQUIRED: "Name is required.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
   DELIVERY_METHOD_INVALID: "Choose how you'd like to receive your items.",
   SHIPPING_UNAVAILABLE:

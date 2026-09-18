@@ -40,7 +40,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   return (
-    <PageShell maxWidth="max-w-3xl">
+    <PageShell>
       <EventDetailContent event={event} variant="page" />
     </PageShell>
   );
