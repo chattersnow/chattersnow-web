@@ -114,7 +114,7 @@ export default async function InventoryReportsPage({
   return (
     <>
       <div className="w-fit">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
           {lexicon.collection} Reports
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
@@ -128,7 +128,7 @@ export default async function InventoryReportsPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+            <p className="brand-display text-4xl font-semibold tracking-brand">
               {formatFaceValue(onHand?.totalValue ?? 0)}
             </p>
             <p className="app-muted mt-2 text-sm">Available inventory</p>
@@ -142,7 +142,7 @@ export default async function InventoryReportsPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+            <p className="brand-display text-4xl font-semibold tracking-brand">
               {onHand?.count ?? 0}
             </p>
             <p className="app-muted mt-2 text-sm">Available inventory</p>
@@ -156,7 +156,7 @@ export default async function InventoryReportsPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+            <p className="brand-display text-4xl font-semibold tracking-brand">
               {formatFaceValue(valueDonated)}
             </p>
             <dl className="app-muted mt-2 space-y-0.5 text-sm">
@@ -182,7 +182,7 @@ export default async function InventoryReportsPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+            <p className="brand-display text-4xl font-semibold tracking-brand">
               {formatFaceValue(valueDistributed)}
             </p>
             <p className="app-muted mt-2 text-sm">

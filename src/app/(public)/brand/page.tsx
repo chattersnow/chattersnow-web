@@ -158,7 +158,7 @@ export default async function BrandPage() {
         <header>
           <div className="rainbow-accent" />
           <p className="app-eyebrow mt-4">{shortName}</p>
-          <h1 className="brand-display mt-2 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          <h1 className="brand-display mt-2 text-4xl font-semibold tracking-brand sm:text-5xl">
             {content.text("brand.heading")}
           </h1>
           <p className="app-muted mt-4 max-w-2xl text-sm leading-relaxed sm:text-base">
@@ -295,7 +295,7 @@ export default async function BrandPage() {
                 <span>Headline</span>
                 <span className="font-mono">600 · -0.04em</span>
               </div>
-              <p className="brand-display mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+              <p className="brand-display mt-3 text-4xl font-semibold tracking-brand sm:text-5xl">
                 {tagline}
               </p>
             </div>

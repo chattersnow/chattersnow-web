@@ -59,7 +59,7 @@ export default async function PortalLoginPage() {
           {/* The page had no heading at all, so the only thing a screen
               reader met before the controls was the logo's alt text. The
               logo is decorative next to a real h1, hence alt="". */}
-          <h1 className="brand-display mt-2 text-center text-3xl font-semibold tracking-[-0.04em]">
+          <h1 className="brand-display mt-2 text-center text-3xl font-semibold tracking-brand">
             Operations Portal
           </h1>
         </CardHeader>

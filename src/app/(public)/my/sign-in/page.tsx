@@ -43,7 +43,7 @@ export default async function MySignInPage() {
         <section>
           <div className="w-fit">
             <div className="rainbow-accent w-full" />
-            <h1 className="brand-display mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            <h1 className="brand-display mt-4 text-3xl font-semibold tracking-brand sm:text-4xl">
               Sign in
             </h1>
           </div>

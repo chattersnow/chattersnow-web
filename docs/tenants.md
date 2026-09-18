@@ -469,9 +469,25 @@ re-planned locally while it is the only one.
 Both are the tenant admin's, not the operator's:
 
 - **Administration → Organization Settings → Branding**: the colour tokens, the
-  accent gradient and the logo, stored as `brand.*` rows in `app_settings`
-  and applied as a `<style>` over `globals.css` (`src/lib/branding.ts`). Blank
-  means the platform default, which is Chatter Snow's palette.
+  accent gradient, the logo and the typography set, stored as `brand.*` rows in
+  `app_settings` and applied as a `<style>` over `globals.css`
+  (`src/lib/branding.ts`). Blank means the platform default.
+
+  Typography (#1260) is the one brand token that is not a value an admin
+  types: `next/font/google` resolves at build time, so the families the
+  platform can offer are the ones declared in `src/app/layout.tsx`, and what a
+  tenant stores under `brand.typography` is a key into the five curated sets in
+  `src/lib/branding.ts` -- `neutral` (Inter, the platform's own), `rounded`
+  (Quicksand with a Rock Salt accent), `editorial` (Source Serif 4 over Inter),
+  `statement` (Fraunces over Nunito Sans) and `friendly` (Figtree). A set
+  carries three families and its display letter-spacing, because `-0.04em` is
+  tuned for Quicksand and is wrong on a serif. An unknown key resolves to the
+  default rather than reaching the `<style>` block. Chatter Snow's `rounded`
+  row is seeded by `20260918020000_brand_typography.sql`, which is why nothing
+  on its site changed when this shipped. Email is deliberately out of scope:
+  web fonts do not load in most mail clients, so a branded email carries the
+  tenant's colours and its logo and not its typeface.
+
 - **Administration → Organization Settings → General**: the words this
   organization uses for what it lends (#896). The platform says "Inventory"
   and "Items"; an organization that runs a gear library, a tool library or a

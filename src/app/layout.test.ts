@@ -8,6 +8,12 @@ import { PLATFORM_TITLE } from "@/lib/public-site";
 mock.module("next/font/google", () => ({
   Quicksand: () => ({ variable: "--font-quicksand" }),
   Rock_Salt: () => ({ variable: "--font-rock-salt" }),
+  Inter: () => ({ variable: "--font-inter" }),
+  Source_Serif_4: () => ({ variable: "--font-source-serif" }),
+  Fraunces: () => ({ variable: "--font-fraunces" }),
+  Nunito_Sans: () => ({ variable: "--font-nunito-sans" }),
+  Figtree: () => ({ variable: "--font-figtree" }),
+  Caveat: () => ({ variable: "--font-caveat" }),
 }));
 mock.module("@vercel/analytics/next", () => ({ Analytics: () => null }));
 mock.module("./globals.css", () => ({}));

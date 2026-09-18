@@ -58,7 +58,7 @@ export function LegalPageShell({
         <section id="top">
           <div className="w-fit">
             <div className="rainbow-accent w-full" />
-            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-brand sm:text-5xl">
               {title}
             </h1>
           </div>
