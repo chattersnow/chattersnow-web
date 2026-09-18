@@ -572,6 +572,70 @@ describe("image slots", () => {
     expect(preview()?.parentElement?.style.aspectRatio).toBe("21 / 9");
   });
 
+  // The crop is stored on the value as a `#crop=` fragment (#1250). The link
+  // box is where a person reads and retypes that value, and a rect nobody can
+  // picture has no business in it -- so the box shows the link alone while the
+  // slot goes on storing, saving and publishing the whole string (#1251).
+  test("keeps the crop out of the link box, and on the value", async () => {
+    const cropped = `${PHOTO_URL}#crop=0.1000,0.2000,0.5000,0.5000`;
+    renderEditor([editorSlot(CAROUSEL, cropped, true)]);
+
+    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    expect(box).toHaveValue(PHOTO_URL);
+    expect(
+      screen.getByRole("group", { name: `Crop of ${CAROUSEL.label}` }),
+    ).toBeInTheDocument();
+
+    // The same link back in the box is the same photo, so the crop it was
+    // given survives -- and the slot reads as unchanged, which is the only way
+    // to tell from out here that the whole string is still there. A link
+    // edited into a different one loses its crop by the same rule, which is
+    // the next test and the only way a crop goes on its own.
+    fireEvent.change(box, { target: { value: PHOTO_URL } });
+
+    expect(screen.queryAllByText("Unsaved")).toHaveLength(0);
+  });
+
+  test("drops the crop when the link is replaced with another photo", async () => {
+    renderEditor([
+      editorSlot(
+        CAROUSEL,
+        `${PHOTO_URL}#crop=0.1000,0.2000,0.5000,0.5000`,
+        true,
+      ),
+    ]);
+
+    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    fireEvent.change(box, {
+      target: { value: "https://example.test/carousel-2.jpg" },
+    });
+
+    expect(box).toHaveValue("https://example.test/carousel-2.jpg");
+    expect(screen.queryAllByText("Unsaved").length).toBeGreaterThan(0);
+    expect(saveBar()).toBeEnabled();
+
+    // A new photo needs a new crop, and the old rect framed a face that is no
+    // longer in the picture.
+    const form = saveBar().closest("form");
+    console.log("FORM?", !!form, "valid", form?.checkValidity?.());
+    console.log(
+      "invalid fields",
+      [...(form?.querySelectorAll(":invalid") ?? [])].map(
+        (n) =>
+          (n as HTMLInputElement).type + ":" + (n as HTMLInputElement).value,
+      ),
+    );
+    fireEvent.click(saveBar());
+    await waitFor(() =>
+      expect(saveMock).toHaveBeenCalledWith([
+        {
+          key: "site_images.home_carousel_1",
+          value: "https://example.test/carousel-2.jpg",
+        },
+      ]),
+    );
+  });
+
   test("says once per section what a photo link is and what blank does", () => {
     renderEditor([editorSlot(CAROUSEL, null), editorSlot(HEADING, null)]);
 

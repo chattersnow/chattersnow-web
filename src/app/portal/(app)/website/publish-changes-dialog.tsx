@@ -12,6 +12,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import type { ImageCrop } from "@/lib/image-crop";
 import type { ContentSlot } from "@/lib/site-content";
 import type { SlotChange } from "./content-diff";
 import { ImagePreviewBox, useImagePreview } from "./image-preview";
@@ -45,6 +46,7 @@ function PhotoSide({
   caption,
   absent,
   ratio,
+  crop,
   outgoing,
 }: {
   url: string | null;
@@ -53,6 +55,8 @@ function PhotoSide({
   absent: string;
   /** The aspect the public site crops this slot to, as a CSS ratio. */
   ratio: string;
+  /** This side's crop, without which a crop-only change is two identical pictures. */
+  crop: ImageCrop | null;
   /** Whether this is the picture coming off the site. */
   outgoing: boolean;
 }) {
@@ -64,8 +68,9 @@ function PhotoSide({
         <p className="app-muted">{absent}</p>
       ) : preview.url ? (
         <ImagePreviewBox
-          url={preview.url}
+          url={preview.src ?? preview.url}
           ratio={ratio}
+          crop={crop}
           onError={preview.markFailed}
           // Half the dialog rather than seven rems: here the picture is the
           // thing being judged, not a thumbnail beside the link box.
@@ -89,8 +94,10 @@ function PhotoSide({
  * is publishing has just seen the new one in the field above, while the old
  * one is the one they can no longer see anywhere (#923).
  *
- * Both sides are drawn at the slot's own aspect, so the comparison is the
- * crop the page will apply rather than two different crops of two pictures.
+ * Both sides are drawn at the slot's own aspect and with their own stored
+ * crop, so the comparison is the picture the page will draw rather than two
+ * different crops of two pictures -- and so a change that moves the crop and
+ * nothing else is visible here at all (#1251).
  */
 function PhotoChange({ change, ratio }: { change: SlotChange; ratio: string }) {
   return (
@@ -102,6 +109,7 @@ function PhotoChange({ change, ratio }: { change: SlotChange; ratio: string }) {
         caption="Now on the site"
         absent="No photo is published here yet."
         ratio={ratio}
+        crop={change.beforeCrop}
         outgoing
       />
       <PhotoSide
@@ -109,6 +117,7 @@ function PhotoChange({ change, ratio }: { change: SlotChange; ratio: string }) {
         caption="After publishing"
         absent="The placeholder icon will be shown instead."
         ratio={ratio}
+        crop={change.afterCrop}
         outgoing={false}
       />
     </div>
