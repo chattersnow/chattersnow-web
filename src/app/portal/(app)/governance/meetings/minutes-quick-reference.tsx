@@ -18,14 +18,7 @@ import {
 } from "./minutes-approval-actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { useRecordPreview } from "@/components/portal/record-preview-sheet";
 import { useTabData } from "@/hooks/use-tab-data";
 import { runAction } from "@/components/portal/action-toast";
 import {
@@ -156,7 +149,7 @@ function AttendeeList({
 }
 
 /** The panel's contents, identical under the aside and under the sheet. */
-function QuickReferenceBody({
+export function MinutesQuickReferenceBody({
   meetingId,
   meetingDate,
   actionItems,
@@ -301,7 +294,7 @@ export function MinutesQuickReferenceAside(props: QuickReferenceProps) {
       aria-label="Quick reference"
       className="sticky top-[calc(var(--portal-header-height)+1rem)] max-h-[calc(100vh-var(--portal-header-height)-2rem)] self-start overflow-y-auto rounded-lg border border-[var(--line)] p-4"
     >
-      <QuickReferenceBody {...props} />
+      <MinutesQuickReferenceBody {...props} />
     </aside>
   );
 }
@@ -310,27 +303,26 @@ export function MinutesQuickReferenceAside(props: QuickReferenceProps) {
  * Phone: the same contents behind a button, because there is no second column
  * to put them in and stacking them under twelve textareas is not reference
  * material -- it is more scrolling.
+ *
+ * The sheet itself belongs to `RecordPreviewProvider` since #1225, not to this
+ * component. On a phone a referenced event opens into that same sheet, in
+ * place of this panel; owning two of them would put a second backdrop and a
+ * second scroll container over a 390px screen. So this is the trigger, and the
+ * body it opens is `MinutesQuickReferenceBody`, handed to the provider as its
+ * host.
  */
-export function MinutesQuickReferenceSheet(props: QuickReferenceProps) {
+export function MinutesQuickReferenceTrigger() {
+  const preview = useRecordPreview();
+  if (!preview?.hasHost) return null;
+
   return (
-    <Sheet>
-      <SheetTrigger
-        render={
-          <Button type="button" variant="outline" size="sm">
-            <BookOpen /> Reference
-          </Button>
-        }
-      />
-      <SheetContent side="right" className="overflow-y-auto p-4">
-        <SheetHeader className="p-0">
-          <SheetTitle>Quick reference</SheetTitle>
-          <SheetDescription>
-            Action items, decisions and attendance for this meeting, without
-            leaving the minutes.
-          </SheetDescription>
-        </SheetHeader>
-        <QuickReferenceBody {...props} />
-      </SheetContent>
-    </Sheet>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={(event) => preview.openHost(event.currentTarget)}
+    >
+      <BookOpen /> Reference
+    </Button>
   );
 }

@@ -7,7 +7,9 @@ import { AlertTriangle, CalendarDays, Clock, ShieldAlert } from "lucide-react";
 import { DECISIONS, labelFor } from "./calendar-shared";
 import type { CalendarCategory } from "./calendar-shared";
 
-const CALENDAR_STATUS_STYLES: Record<string, StatusTone> = {
+/** Exported for the record preview sheet (#1225), which renders a tone
+ *  rather than a badge component: its payload crosses a server boundary. */
+export const CALENDAR_STATUS_STYLES: Record<string, StatusTone> = {
   idea: "neutral",
   active: "progress",
   complete: "success",
@@ -30,7 +32,7 @@ const VISIBILITY_LABELS: Record<string, string> = {
 };
 
 /** `events.status` -- a separate lifecycle from `calendar_status`, so it gets its own tones. */
-const EVENT_STATUS_STYLES: Record<string, StatusTone> = {
+export const EVENT_STATUS_STYLES: Record<string, StatusTone> = {
   draft: "neutral",
   published: "progress",
   completed: "success",

@@ -17,6 +17,45 @@ function uniqueSuffix() {
   return crypto.randomUUID().slice(0, 8);
 }
 
+/**
+ * An event inside the meeting's 30-day lookahead, so the Events section of the
+ * minutes has a reference to open (#1223/#1225).
+ *
+ * `events.created_by` is `not null default auth.uid()`, which resolves to null
+ * over the service-role client, so the row is stamped with the seeded admin's
+ * own user id.
+ */
+async function seedLookaheadEvent(
+  admin: ReturnType<typeof createAdminClient>,
+  name: string,
+) {
+  const { data: adminPerson, error: personError } = await admin
+    .from("people")
+    .select("auth_user_id")
+    .eq("email", "admin@example.test")
+    .not("auth_user_id", "is", null)
+    .limit(1)
+    .single();
+  if (personError) throw personError;
+
+  const { data, error } = await admin
+    .from("events")
+    .insert({
+      name,
+      // Six days after the meeting below, and well inside its lookahead.
+      starts_at: "2026-11-25T18:00:00.000Z",
+      timezone: "America/Denver",
+      location: "Riverside Park",
+      status: "published",
+      visibility: "private",
+      created_by: adminPerson.auth_user_id,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id as string;
+}
+
 test.describe("portal governance minutes", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
@@ -33,6 +72,8 @@ test.describe("portal governance minutes", () => {
     const secondNote = `Discussion recorded ${uniqueSuffix()}`;
     const actionItemText = `Chase the grant report ${uniqueSuffix()}`;
     const owner = await seedPerson(admin, "Minutes owner");
+    const eventName = `E2E Minutes Lookahead ${uniqueSuffix()}`;
+    const eventId = await seedLookaheadEvent(admin, eventName);
 
     try {
       await page.goto("/portal/governance/meetings");
@@ -122,6 +163,31 @@ test.describe("portal governance minutes", () => {
       }
       await expect(noteBoxes.nth(0)).toHaveValue(openingNote);
 
+      // #1225: the other half of "without leaving". The Events section carries
+      // the calendar's next 30 days, and opening one of those rows must show
+      // the record without costing the notetaker a single word.
+      await page.getByRole("button", { name: eventName }).click();
+      const previewSheet = modal(page).filter({
+        has: page.getByRole("heading", { name: eventName }),
+      });
+      await expect(previewSheet).toBeVisible({ timeout: 15_000 });
+      // The event's own clock, not the runner's: the sheet says which evening.
+      await expect(previewSheet.getByText(/MST|MDT/)).toBeVisible();
+      await expect(previewSheet.getByText("Riverside Park")).toBeVisible();
+      // "More details" has a floor -- whatever the sheet leaves out is one
+      // click away.
+      await expect(
+        previewSheet.getByRole("link", { name: "Open full record" }),
+      ).toHaveAttribute("href", `/portal/events/${eventId}`);
+
+      await previewSheet.getByRole("button", { name: "Close" }).click();
+      await expect(previewSheet).not.toBeVisible();
+      // The regression worth a test: a reference lookup that costs somebody
+      // their notes. Still on the page, still unsaved-free, still exactly what
+      // was typed.
+      await expect(noteBoxes.nth(0)).toHaveValue(openingNote);
+      await expect(noteBoxes.nth(1)).toHaveValue(secondNote);
+
       // The whole point. Leaving for another part of the meeting record used
       // to discard every word of this.
       await page.getByRole("tab", { name: "Overview" }).click();
@@ -169,6 +235,7 @@ test.describe("portal governance minutes", () => {
       // `meeting_minutes` and the action items both cascade from the meeting,
       // and the owner has to outlive the items that point at it.
       await admin.from("governance_meetings").delete().eq("location", location);
+      await admin.from("events").delete().eq("id", eventId);
       await admin.from("people").delete().eq("id", owner.id);
     }
   });
