@@ -29,13 +29,16 @@ function member(overrides: Partial<ListItem> = {}): ListItem {
   };
 }
 
-function renderEditor(item: ListItem) {
+function renderEditor(
+  item: ListItem,
+  images: Record<string, string | null> = IMAGES,
+) {
   const onChange = mock((_items: ListItem[]) => {});
   render(
     <ListEditor
       slot={slot}
       items={[item]}
-      images={IMAGES}
+      images={images}
       onChange={onChange}
     />,
   );
@@ -123,6 +126,38 @@ describe("a team member's photo control", () => {
     renderEditor(member());
     expect(
       screen.getByText("No photo of their own, so “Team member photo” shows."),
+    ).toBeTruthy();
+  });
+
+  // The crop is stored on the photo's own URL as a `#crop=` fragment (#1250),
+  // and the rule that buys is that the fragment never reaches a person as
+  // text: it is a rect nobody can picture, sitting in a box people type in.
+  test("crops the photo here when the row owns it, and hides the fragment", () => {
+    renderEditor(
+      member({
+        photo_url: "https://example.test/ada.jpg#crop=0.2,0.1,0.5,0.5",
+      }),
+    );
+
+    expect(screen.getByRole("group", { name: "Crop of Photo" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Photo link" })).toHaveValue(
+      "https://example.test/ada.jpg",
+    );
+  });
+
+  test("leaves a borrowed photo's crop with the photo", () => {
+    renderEditor(member({ photo_slot: "about_team_photo_cass" }), {
+      ...IMAGES,
+      about_team_photo_cass:
+        "https://example.test/cass.jpg#crop=0.2,0.1,0.5,0.5",
+    });
+
+    // The row is showing a slot's photo, so the crop belongs to that slot and
+    // is set where the slot is. Here the picture stays a preview -- cropped,
+    // so the row still shows what the page shows -- and the sentence says so.
+    expect(screen.queryByRole("group", { name: "Crop of Photo" })).toBeNull();
+    expect(
+      screen.getByText(/Its crop is set with “Team photo — Cass Lainez”/),
     ).toBeTruthy();
   });
 

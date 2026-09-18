@@ -1,3 +1,4 @@
+import { parseImageCrop, type ImageCrop } from "@/lib/image-crop";
 import type { Json } from "@/lib/supabase/types";
 import type {
   ContentSlot,
@@ -28,8 +29,35 @@ export function slotLines(slot: ContentSlot, value: unknown): string[] {
     case "document":
       return documentLines(value as LegalDocumentContent | null);
     case "image":
-      return typeof value === "string" && value ? [value] : [];
+      return imageLines(value);
   }
+}
+
+/**
+ * A photo as the link and, separately, the crop on it.
+ *
+ * The stored string carries its crop as a `#crop=x,y,w,h` fragment (#1250), so
+ * returning it whole made a crop-only change read as two near-identical
+ * 120-character URLs with four decimals of difference somewhere in the tail --
+ * unreadable as a URL and useless as a description of what moved. Split, the
+ * link stays stable between the two sides and the sentence is the change.
+ */
+function imageLines(value: unknown): string[] {
+  if (typeof value !== "string" || !value) return [];
+  const { src, crop } = parseImageCrop(value);
+  const lines = src ? [src] : [];
+  return crop ? [...lines, cropLine(crop)] : lines;
+}
+
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+/** The rect in words: how much of the photo is shown, and which part of it. */
+function cropLine(crop: ImageCrop): string {
+  return `Crop: ${percent(crop.w)} × ${percent(crop.h)} of the photo, centred ${percent(
+    crop.x + crop.w / 2,
+  )} across and ${percent(crop.y + crop.h / 2)} down.`;
 }
 
 /**
@@ -70,7 +98,21 @@ export type SlotChange = {
   after: string[];
   /** True when publishing this slot removes the override and restores the default. */
   toDefault: boolean;
+  /**
+   * For an `image` slot, the crop each side carries -- which the lines above
+   * deliberately describe in words rather than hand on as a URL fragment, and
+   * which the publish dialog needs as a rect to draw the two pictures cropped
+   * (#1251). Null on both sides for every other kind of slot.
+   */
+  beforeCrop: ImageCrop | null;
+  afterCrop: ImageCrop | null;
 };
+
+/** The crop on a slot's value, for the two sides of a photo change. */
+function cropOf(slot: ContentSlot, value: unknown): ImageCrop | null {
+  if (slot.type !== "image" || typeof value !== "string") return null;
+  return parseImageCrop(value).crop;
+}
 
 /**
  * What publishing these slots would change, for the confirmation dialog.
@@ -91,6 +133,8 @@ export function slotChanges(
       before: slotLines(slot, published),
       after: slotLines(slot, value),
       toDefault: isSame(value, slot.default),
+      beforeCrop: cropOf(slot, published),
+      afterCrop: cropOf(slot, value),
     }))
     .filter((change) => !isSame(change.before, change.after));
 }

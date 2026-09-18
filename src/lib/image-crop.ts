@@ -253,3 +253,36 @@ export function boostThumbnail(src: string, crop: ImageCrop | null): string {
   if (!crop || crop.w >= 1) return src;
   return src.replace("sz=w1000", "sz=w1600");
 }
+
+/**
+ * A CSS aspect ratio as a number: `"21/9"` -> 2.333.
+ *
+ * The registry stores every slot's aspect as the string it also hands to CSS
+ * (`src/lib/site-content.ts`), so the crop control has to read the same string
+ * rather than carry a second copy of each ratio as a number. Anything that is
+ * not `a/b` falls back to 1, which is what an unparseable aspect renders as.
+ */
+export function aspectRatioValue(ratio: string): number {
+  const parts = ratio.split("/");
+  if (parts.length !== 2) return 1;
+  const [w, h] = parts.map((part) => Number(part.trim()));
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return 1;
+  return w / h;
+}
+
+/**
+ * What to store when a human types into a link box that is hiding a crop.
+ *
+ * The boxes show `parseImageCrop(value).src`, because a 120-character URL with
+ * a `#crop=` fragment on the end is unreadable and invites hand-editing of a
+ * rect no one can picture. That leaves one question the fragment cannot answer
+ * itself: a typed value has no crop on it, so writing it back verbatim would
+ * drop the crop every time the box is touched. So the src decides -- a
+ * different photo needs a different crop and gets none, and the same string
+ * retyped (or a cursor moved through the box) keeps the one it had. This is
+ * the only way a crop disappears without the Reset button.
+ */
+export function withTypedSrc(stored: string | null, typed: string): string {
+  const { src, crop } = parseImageCrop(stored);
+  return typed === src ? withImageCrop(typed, crop) : typed;
+}

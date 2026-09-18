@@ -10,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImageCropField } from "@/components/portal/image-crop-field";
+import { parseImageCrop, withTypedSrc } from "@/lib/image-crop";
 import { isRenderableImageSrc } from "@/lib/inventory";
 import {
   imageSlotLabel,
@@ -48,22 +50,32 @@ function storedSource(field: PhotoListField, item: ListItem): string {
   return slot ? `${SLOT_PREFIX}${slot}` : SHARED;
 }
 
-/** What the row shows, in a sentence, wherever the picture came from. */
+/**
+ * What the row shows, in a sentence, wherever the picture came from.
+ *
+ * A borrowed photo that carries a crop says where that crop is set, because it
+ * belongs to the slot and is edited there rather than here (#1251). A row on a
+ * link of its own needs no such sentence: the frame above is the control.
+ */
 function sourceLine(
   from: "url" | "slot" | "fallback" | "none",
   slot: string | undefined,
   failed: boolean,
+  /** Whether the borrowed photo carries a crop, which is set where that photo is. */
+  cropped: boolean,
 ): string {
   if (failed) return "That picture did not load.";
+  const name = (slot && imageSlotLabel(slot)) ?? slot;
+  const borrowedCrop = cropped
+    ? ` Its crop is set with “${name}”, not here.`
+    : "";
   switch (from) {
     case "url":
       return "Showing the link below.";
     case "slot":
-      return `Showing “${(slot && imageSlotLabel(slot)) ?? slot}”.`;
+      return `Showing “${name}”.${borrowedCrop}`;
     case "fallback":
-      return `No photo of their own, so “${
-        (slot && imageSlotLabel(slot)) ?? slot
-      }” shows.`;
+      return `No photo of their own, so “${name}” shows.${borrowedCrop}`;
     case "none":
       return "No photo anywhere yet, so the page shows a placeholder icon.";
   }
@@ -135,13 +147,27 @@ export function ListPhotoField({
 
   return (
     <>
-      {preview.url && (
-        <ImagePreviewBox
-          url={preview.url}
-          ratio={field.ratio}
-          onError={preview.markFailed}
-        />
-      )}
+      {preview.url &&
+        // The crop belongs to whatever holds the photo. On a link of its own
+        // that is this row, so the picture is the control; borrowed from a
+        // slot it is the slot's, and this stays the read-only preview it has
+        // always been -- cropped, so the row still shows what the page shows.
+        (photo.from === "url" ? (
+          <ImageCropField
+            url={urlText}
+            ratio={field.ratio}
+            label={field.label}
+            onError={preview.markFailed}
+            onChange={(next) => onChange({ ...item, [field.key]: next })}
+          />
+        ) : (
+          <ImagePreviewBox
+            url={preview.src ?? preview.url}
+            ratio={field.ratio}
+            crop={preview.crop}
+            onError={preview.markFailed}
+          />
+        ))}
       <Select value={source} onValueChange={(value) => select(value ?? SHARED)}>
         <SelectTrigger id={id}>
           <SelectValue />
@@ -169,7 +195,12 @@ export function ListPhotoField({
       <FieldDescription
         className={preview.failed ? "text-destructive" : undefined}
       >
-        {sourceLine(photo.from, photo.slot, preview.failed)}
+        {sourceLine(
+          photo.from,
+          photo.slot,
+          preview.failed,
+          preview.crop !== null,
+        )}
       </FieldDescription>
 
       {source === LINK && (
@@ -181,9 +212,12 @@ export function ListPhotoField({
             id={`${id}-url`}
             type="url"
             placeholder="https://drive.google.com/file/d/..."
-            value={urlText}
+            value={parseImageCrop(urlText).src ?? ""}
             onChange={(event) =>
-              onChange({ ...item, [field.key]: event.target.value.trim() })
+              onChange({
+                ...item,
+                [field.key]: withTypedSrc(urlText, event.target.value.trim()),
+              })
             }
           />
           {urlText !== "" && !isRenderableImageSrc(urlText) && (

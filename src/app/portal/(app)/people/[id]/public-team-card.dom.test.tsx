@@ -41,6 +41,40 @@ describe("PublicTeamCard", () => {
     removeMock.mockClear();
   });
 
+  // The crop rides on the photo's URL as a `#crop=` fragment (#1250). This
+  // card prints that URL as text, which is the one place the encoding would
+  // read as gibberish to the person looking at it (#1251).
+  test("prints the photo link without the crop on the end of it", async () => {
+    render(
+      <PublicTeamCard
+        personId="p1"
+        personName="Rowan"
+        membership={{
+          ...listed,
+          photo_url: "https://example.test/rowan.jpg#crop=0.2,0.1,0.5,0.5",
+        }}
+        canManage={true}
+      />,
+    );
+
+    expect(
+      screen.getByText("https://example.test/rowan.jpg"),
+    ).toBeInTheDocument();
+
+    // And in the editor the picture is the control, so the rect is set by
+    // moving it rather than by typing four numbers no one can picture.
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit team page listing" }),
+    );
+
+    expect(screen.getByRole("textbox", { name: "Photo URL" })).toHaveValue(
+      "https://example.test/rowan.jpg",
+    );
+    expect(
+      screen.getByRole("group", { name: "Crop of their photo" }),
+    ).toBeInTheDocument();
+  });
+
   test("says the person is not listed, and what listing them would do", () => {
     render(
       <PublicTeamCard

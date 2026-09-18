@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  aspectRatioValue,
+  withTypedSrc,
   boostThumbnail,
   cropBoxStyle,
   cropObjectPosition,
@@ -229,5 +231,38 @@ describe("boostThumbnail", () => {
     expect(boostThumbnail("https://example.com/a.jpg", CROP)).toBe(
       "https://example.com/a.jpg",
     );
+  });
+});
+
+describe("aspectRatioValue", () => {
+  test("reads the registry's own CSS ratios as numbers", () => {
+    // The slot registry stores each aspect as the string it hands to CSS, so
+    // this is the one place that string becomes arithmetic.
+    expect(aspectRatioValue("21/9")).toBeCloseTo(21 / 9, 6);
+    expect(aspectRatioValue("1 / 1")).toBe(1);
+    expect(aspectRatioValue("nonsense")).toBe(1);
+    expect(aspectRatioValue("4/0")).toBe(1);
+  });
+});
+
+describe("withTypedSrc", () => {
+  const CROPPED = withImageCrop(PHOTO, CROP);
+
+  test("keeps the crop when the same link comes back", () => {
+    expect(withTypedSrc(CROPPED, PHOTO)).toBe(CROPPED);
+  });
+
+  test("drops it when the link points at another photo", () => {
+    // A new photo needs a new crop: the old rect framed a face that is not in
+    // this picture. It is the only way a crop goes without the Reset button.
+    expect(withTypedSrc(CROPPED, "https://example.com/other.jpg")).toBe(
+      "https://example.com/other.jpg",
+    );
+    expect(withTypedSrc(CROPPED, "")).toBe("");
+  });
+
+  test("passes a photo that never had a crop straight through", () => {
+    expect(withTypedSrc(null, PHOTO)).toBe(PHOTO);
+    expect(withTypedSrc(PHOTO, PHOTO)).toBe(PHOTO);
   });
 });

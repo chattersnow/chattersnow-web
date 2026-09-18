@@ -104,6 +104,30 @@ describe("slotChanges", () => {
     expect(changes[0].toDefault).toBe(true);
   });
 
+  // The crop rides on the URL as a `#crop=` fragment (#1250), so without this
+  // a crop-only change was two 120-character links side by side differing in
+  // four decimals somewhere near the end -- unreadable, and no answer at all
+  // to the only question the dialog is asked.
+  test("a change that only moves the crop reads as a crop change", () => {
+    const changes = slotChanges([
+      {
+        slot: PHOTO,
+        value: `${URL}#crop=0.2000,0.1000,0.5000,0.5000`,
+        published: URL,
+      },
+    ]);
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0].before).toEqual([URL]);
+    expect(changes[0].after).toEqual([
+      URL,
+      "Crop: 50% × 50% of the photo, centred 45% across and 35% down.",
+    ]);
+    // The dialog draws both pictures, so it needs the rect and not the words.
+    expect(changes[0].beforeCrop).toBeNull();
+    expect(changes[0].afterCrop).toEqual({ x: 0.2, y: 0.1, w: 0.5, h: 0.5 });
+  });
+
   test("clearing a photo reads as a change back to the placeholder", () => {
     const changes = slotChanges([{ slot: PHOTO, value: null, published: URL }]);
 
