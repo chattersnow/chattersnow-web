@@ -6,9 +6,9 @@ import {
   type MissingCoverageSeries,
 } from "./calendar-recurrence";
 
-export const CALENDAR_ITEM_WITH_CONTENT_OPPORTUNITY_SELECT = `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, source, region, exceptions, is_sensitive_topic, tone_guidance, series_key, recurrence_start_month, recurrence_start_day, recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end, calendar_item_categories(category), calendar_item_programs(program_id), content_opportunities(id, calendar_item_id, content_status, skip_reason, org_connection, recommended_formats, recommended_action, outstanding_work, internal_notes, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`;
+export const CALENDAR_ITEM_WITH_CONTENT_PIECES_SELECT = `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, source, region, exceptions, is_sensitive_topic, tone_guidance, series_key, recurrence_start_month, recurrence_start_day, recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end, calendar_item_categories(category), calendar_item_programs(program_id), content_opportunities(id, calendar_item_id, title, content, content_status, skip_reason, internal_notes, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`;
 
-/** Columns needed to compute coverage-reminder/generate-next-year gaps -- no content_opportunities join, this isn't rendered as a full calendar item. */
+/** Columns needed to compute coverage-reminder/generate-next-year gaps -- no content pieces join, this isn't rendered as a full calendar item. */
 const SERIES_CANDIDATE_SELECT =
   "id, title, item_type, starts_at, time_zone, summary, priority_tier, priority_rationale, calendar_status, recurrence_rule, source, region, is_sensitive_topic, tone_guidance, series_key, recurrence_start_month, recurrence_start_day, recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end, calendar_item_categories(category), calendar_item_programs(program_id)";
 
@@ -41,7 +41,7 @@ type RawCalendarItemRow = {
   recurrence_end_is_month_end: boolean;
   calendar_item_categories: { category: string }[] | null;
   calendar_item_programs: { program_id: string }[] | null;
-  content_opportunities: CalendarItemRow["content_opportunity"];
+  content_opportunities: CalendarItemRow["content_pieces"] | null;
 };
 
 export function mapCalendarItemRow(row: unknown): CalendarItemRow {
@@ -75,18 +75,28 @@ export function mapCalendarItemRow(row: unknown): CalendarItemRow {
     recurrence_end_is_month_end: r.recurrence_end_is_month_end,
     categories: (r.calendar_item_categories ?? []).map((c) => c.category),
     program_ids: (r.calendar_item_programs ?? []).map((p) => p.program_id),
-    content_opportunity: r.content_opportunities,
+    content_pieces: r.content_opportunities ?? [],
   };
 }
 
-/** One calendar item with its content opportunity, for the detail page. */
+/** One calendar item with its content pieces, for the detail page. */
 export async function getCalendarItem(
   supabase: SupabaseClient,
   itemId: string,
 ): Promise<{ item: CalendarItemRow | null; error: boolean }> {
   const { data, error } = await supabase
     .from("calendar_items")
-    .select(CALENDAR_ITEM_WITH_CONTENT_OPPORTUNITY_SELECT)
+    .select(CALENDAR_ITEM_WITH_CONTENT_PIECES_SELECT)
+    // The pieces are a list now, so they need an order of their own; oldest
+    // first keeps a row where the person who added it last saw it. `id` breaks
+    // the tie because `created_at` defaults to now(), which is transaction
+    // time: several pieces inserted in one statement share it exactly, and
+    // without a tie-break they shuffle between renders.
+    .order("created_at", {
+      referencedTable: "content_opportunities",
+      ascending: true,
+    })
+    .order("id", { referencedTable: "content_opportunities", ascending: true })
     .eq("id", itemId)
     .maybeSingle();
 

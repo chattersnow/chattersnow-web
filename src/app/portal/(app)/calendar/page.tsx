@@ -72,6 +72,7 @@ export default async function CalendarPage({
   const visibilityFilter = raw("visibility") || "all";
   const statusFilter = raw("status") || "all";
   const decisionFilter = raw("decision") || "all";
+  const contentStatusFilter = raw("contentStatus") || "all";
 
   const categorySelect =
     categoryFilter !== "all"
@@ -85,10 +86,20 @@ export default async function CalendarPage({
   let query = supabase
     .from("calendar_items")
     .select(
-      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, source, region, exceptions, is_sensitive_topic, tone_guidance, series_key, recurrence_start_month, recurrence_start_day, recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, content_status, skip_reason, org_connection, recommended_formats, recommended_action, outstanding_work, internal_notes, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`,
+      `id, title, item_type, starts_at, ends_at, time_zone, recurrence_rule, summary, priority_tier, priority_rationale, calendar_status, visibility, owner_id, decision, decision_note, source, region, exceptions, is_sensitive_topic, tone_guidance, series_key, recurrence_start_month, recurrence_start_day, recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end, ${categorySelect}, ${programSelect}, content_opportunities(id, calendar_item_id, title, content, content_status, skip_reason, internal_notes, owner_id, reviewer_id, lead_time_days, publish_due_at, review_due_at, draft_due_at, status_changed_by, status_changed_at)`,
     )
     .order(sort, { ascending: dir === "asc" })
-    .order("id", { ascending: true });
+    .order("id", { ascending: true })
+    // The pieces are a list now; oldest first with an `id` tie-break, the
+    // same order the item's detail page shows them in.
+    .order("created_at", {
+      referencedTable: "content_opportunities",
+      ascending: true,
+    })
+    .order("id", {
+      referencedTable: "content_opportunities",
+      ascending: true,
+    });
 
   if (typeFilter !== "all") query = query.eq("item_type", typeFilter);
   if (priorityFilter !== "all")
@@ -107,7 +118,21 @@ export default async function CalendarPage({
 
   const { data: rows, error } = await query;
 
-  const items: CalendarItemRow[] = (rows ?? []).map(mapCalendarItemRow);
+  const allItems: CalendarItemRow[] = (rows ?? []).map(mapCalendarItemRow);
+
+  // "Has a piece with this status" (#1231), applied here rather than in the
+  // query: an `!inner` embed with an `eq` on the embedded column narrows the
+  // embedded array as well as the parent rows, so the badge beside a matching
+  // item would then count only its matching pieces and claim the item has
+  // fewer than it does.
+  const items =
+    contentStatusFilter === "all"
+      ? allItems
+      : allItems.filter((item) =>
+          item.content_pieces.some(
+            (piece) => piece.content_status === contentStatusFilter,
+          ),
+        );
 
   // Portal events, drawn read-only alongside the editorial items (#530). Gated
   // on the `events` resource rather than `content_calendar` -- RLS would return
@@ -123,6 +148,7 @@ export default async function CalendarPage({
     visibility: visibilityFilter,
     status: statusFilter,
     decision: decisionFilter,
+    contentStatus: contentStatusFilter,
   };
   const eventsHidden = filtersExcludeEvents(filters);
   const canViewEvents = hasPermission(permissions, "events", "view");
@@ -154,6 +180,8 @@ export default async function CalendarPage({
     filterParams.set("visibility", visibilityFilter);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (decisionFilter !== "all") filterParams.set("decision", decisionFilter);
+  if (contentStatusFilter !== "all")
+    filterParams.set("contentStatus", contentStatusFilter);
 
   return (
     <>
@@ -191,6 +219,7 @@ export default async function CalendarPage({
             visibilityFilter={visibilityFilter}
             statusFilter={statusFilter}
             decisionFilter={decisionFilter}
+            contentStatusFilter={contentStatusFilter}
           />
         </div>
       )}

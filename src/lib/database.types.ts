@@ -1549,6 +1549,7 @@ export type Database = {
       content_opportunities: {
         Row: {
           calendar_item_id: string;
+          content: string | null;
           content_status: string;
           created_at: string;
           created_by: string;
@@ -1556,23 +1557,21 @@ export type Database = {
           id: string;
           internal_notes: string | null;
           lead_time_days: number;
-          org_connection: string | null;
-          outstanding_work: string | null;
           owner_id: string | null;
           publish_due_at: string | null;
-          recommended_action: string | null;
-          recommended_formats: string | null;
           review_due_at: string | null;
           reviewer_id: string | null;
           skip_reason: string | null;
           status_changed_at: string | null;
           status_changed_by: string | null;
           tenant_id: string;
+          title: string;
           updated_at: string;
           updated_by: string | null;
         };
         Insert: {
           calendar_item_id: string;
+          content?: string | null;
           content_status?: string;
           created_at?: string;
           created_by?: string;
@@ -1580,23 +1579,21 @@ export type Database = {
           id?: string;
           internal_notes?: string | null;
           lead_time_days?: number;
-          org_connection?: string | null;
-          outstanding_work?: string | null;
           owner_id?: string | null;
           publish_due_at?: string | null;
-          recommended_action?: string | null;
-          recommended_formats?: string | null;
           review_due_at?: string | null;
           reviewer_id?: string | null;
           skip_reason?: string | null;
           status_changed_at?: string | null;
           status_changed_by?: string | null;
           tenant_id?: string;
+          title: string;
           updated_at?: string;
           updated_by?: string | null;
         };
         Update: {
           calendar_item_id?: string;
+          content?: string | null;
           content_status?: string;
           created_at?: string;
           created_by?: string;
@@ -1604,18 +1601,15 @@ export type Database = {
           id?: string;
           internal_notes?: string | null;
           lead_time_days?: number;
-          org_connection?: string | null;
-          outstanding_work?: string | null;
           owner_id?: string | null;
           publish_due_at?: string | null;
-          recommended_action?: string | null;
-          recommended_formats?: string | null;
           review_due_at?: string | null;
           reviewer_id?: string | null;
           skip_reason?: string | null;
           status_changed_at?: string | null;
           status_changed_by?: string | null;
           tenant_id?: string;
+          title?: string;
           updated_at?: string;
           updated_by?: string | null;
         };

@@ -1,6 +1,6 @@
 import { personDisplayName } from "@/lib/format";
 import type { PersonSelectOption } from "../people/person-select";
-import type { ContentOpportunityRow } from "./content-opportunity-shared";
+import type { ContentPieceRow } from "./content-opportunity-shared";
 
 export const ITEM_TYPES = [
   { value: "own_event", label: "Our own event" },
@@ -103,7 +103,8 @@ export type CalendarItemRow = {
   recurrence_end_is_month_end: boolean;
   categories: string[];
   program_ids: string[];
-  content_opportunity: ContentOpportunityRow | null;
+  /** The posts and stories planned for this item -- several per item since #1231. */
+  content_pieces: ContentPieceRow[];
 };
 
 /**
@@ -111,7 +112,7 @@ export type CalendarItemRow = {
  * account holding admin or event_coordinator (see list_calendar_owners()).
  *
  * Carries auth_user_id as well as person_id because the calendar's owner
- * columns reference public.people while its audit stamp
+ * columns reference public.people while a content piece's audit stamp
  * (content_opportunities.status_changed_by) deliberately still references
  * auth.users -- one array resolves both, see ownerName vs. calendarActorName
  * below.

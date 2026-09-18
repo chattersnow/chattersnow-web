@@ -359,7 +359,7 @@ export const helpContent: Record<string, HelpEntry> = {
   },
   "/portal/calendar": {
     title: "How calendar items work",
-    description: "Priority tiers, sensitive topics, and content opportunities.",
+    description: "Priority tiers, sensitive topics, and content pieces.",
     body: (
       <>
         <HowToSection heading="Steps">
@@ -374,13 +374,14 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               <strong className="text-foreground">Sensitive topic</strong> —
               flagging an item this way surfaces its tone guidance on the
-              item&apos;s content brief, so whoever writes the content sees it.
+              item&apos;s Content card, so whoever writes the content sees it.
             </li>
             <li>
-              <strong className="text-foreground">Content opportunity</strong> —
-              items with a linked content brief move through their own
-              draft/review/publish stages, with due dates set from the
-              brief&apos;s lead time.
+              <strong className="text-foreground">Content pieces</strong> — one
+              item usually produces several posts or stories. Each piece is
+              added on the item&apos;s Content card and moves through its own
+              draft/review/publish stages, with due dates set from that
+              piece&apos;s lead time.
             </li>
           </ol>
         </HowToSection>
@@ -1589,8 +1590,8 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               Most write-heavy portal records are logged automatically:
               donations, inventory, event expenses, user roles, app settings,
-              calendar items, content opportunities, and access
-              management&apos;s services, assets, and grants, among others.
+              calendar items, content pieces, and access management&apos;s
+              services, assets, and grants, among others.
             </li>
             <li>
               Governance records (meetings, decisions, resolutions) and event

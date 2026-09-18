@@ -32,6 +32,7 @@ export function CalendarWorkspace({
   visibilityFilter,
   statusFilter,
   decisionFilter,
+  contentStatusFilter,
 }: {
   /** The tenant's category vocabulary (#834). */
   categoryVocabulary: CalendarCategory[];
@@ -56,6 +57,7 @@ export function CalendarWorkspace({
   visibilityFilter: string;
   statusFilter: string;
   decisionFilter: string;
+  contentStatusFilter: string;
 }) {
   const [search, setSearch] = useState("");
   const [range, setRange] = useState("all");
@@ -126,6 +128,7 @@ export function CalendarWorkspace({
             visibilityFilter={visibilityFilter}
             statusFilter={statusFilter}
             decisionFilter={decisionFilter}
+            contentStatusFilter={contentStatusFilter}
             search={search}
             onSearchChange={setSearch}
             range={range}

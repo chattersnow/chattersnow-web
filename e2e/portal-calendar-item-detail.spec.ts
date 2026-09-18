@@ -4,7 +4,7 @@
 // items seeded by supabase/seed.sql:
 //
 //   - "Winter Gear Swap Promotion" -- Tier 1, active, with categories, a
-//     linked program, and a content opportunity in `draft`.
+//     linked program, and three content pieces (#1231).
 //   - "Sample Recurring Observance" -- Tier 1 with structured recurrence
 //     (series_key + recurrence month/day), which is what unlocks the
 //     "Generate next year" header action.
@@ -22,7 +22,7 @@ const SECTION_TITLES = [
   "Schedule & details",
   "Planning & decision",
   "Sensitive topic",
-  "Content brief",
+  "Content",
 ];
 
 test.describe("portal calendar item detail page", () => {
@@ -57,6 +57,16 @@ test.describe("portal calendar item detail page", () => {
       page.getByText("Directly supports participant access and event turnout."),
     ).toBeVisible();
     await expect(page.getByText("Not flagged")).toBeVisible();
+
+    // The Content card lists every piece planned for the item (#1231), not one
+    // brief. The seed gives this one three, at three different statuses.
+    for (const piece of [
+      "Instagram carousel: how the gear swap works",
+      "Email to past participants",
+      "Day-of story: the swap in progress",
+    ]) {
+      await expect(page.getByText(piece, { exact: true })).toBeVisible();
+    }
 
     // The breadcrumb trail returns to the calendar list. Scoped to the
     // breadcrumb nav: the sidebar has its own "Calendar" nav entry.

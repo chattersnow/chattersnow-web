@@ -3,13 +3,11 @@ import type { ParseResult } from "@/lib/forms";
 
 const CONTENT_STATUS_VALUES = CONTENT_STATUSES.map((option) => option.value);
 
-export type ContentOpportunityFormData = {
+export type ContentPieceFormData = {
+  title: string;
+  content: string | null;
   contentStatus: (typeof CONTENT_STATUS_VALUES)[number];
   skipReason: string | null;
-  orgConnection: string | null;
-  recommendedFormats: string | null;
-  recommendedAction: string | null;
-  outstandingWork: string | null;
   internalNotes: string | null;
   ownerId: string | null;
   reviewerId: string | null;
@@ -19,19 +17,13 @@ export type ContentOpportunityFormData = {
   draftDueAt: string | null;
 };
 
-export function parseContentOpportunityForm(
+export function parseContentPieceForm(
   formData: FormData,
-): ParseResult<ContentOpportunityFormData> {
+): ParseResult<ContentPieceFormData> {
+  const title = String(formData.get("title") ?? "").trim();
+  const content = String(formData.get("content") ?? "").trim();
   const contentStatus = String(formData.get("contentStatus") ?? "");
   const skipReason = String(formData.get("skipReason") ?? "").trim();
-  const orgConnection = String(formData.get("orgConnection") ?? "").trim();
-  const recommendedFormats = String(
-    formData.get("recommendedFormats") ?? "",
-  ).trim();
-  const recommendedAction = String(
-    formData.get("recommendedAction") ?? "",
-  ).trim();
-  const outstandingWork = String(formData.get("outstandingWork") ?? "").trim();
   const internalNotes = String(formData.get("internalNotes") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "").trim();
   const reviewerId = String(formData.get("reviewerId") ?? "").trim();
@@ -40,6 +32,9 @@ export function parseContentOpportunityForm(
   const reviewDueAt = String(formData.get("reviewDueAt") ?? "");
   const draftDueAt = String(formData.get("draftDueAt") ?? "");
 
+  if (!title) {
+    return { error: "Give this piece a title." };
+  }
   if (
     !CONTENT_STATUS_VALUES.includes(
       contentStatus as (typeof CONTENT_STATUS_VALUES)[number],
@@ -49,15 +44,6 @@ export function parseContentOpportunityForm(
   }
   if (contentStatus === "skipped" && !skipReason) {
     return { error: "A reason is required when content is skipped." };
-  }
-  if (
-    !["not_planned", "idea", "skipped"].includes(contentStatus) &&
-    !orgConnection
-  ) {
-    return {
-      error:
-        "A stated connection to your organization is required once work begins on this content.",
-    };
   }
 
   const leadTimeDays = Number(leadTimeDaysRaw);
@@ -88,12 +74,10 @@ export function parseContentOpportunityForm(
 
   return {
     data: {
+      title,
+      content: content || null,
       contentStatus: contentStatus as (typeof CONTENT_STATUS_VALUES)[number],
       skipReason: contentStatus === "skipped" ? skipReason : null,
-      orgConnection: orgConnection || null,
-      recommendedFormats: recommendedFormats || null,
-      recommendedAction: recommendedAction || null,
-      outstandingWork: outstandingWork || null,
       internalNotes: internalNotes || null,
       ownerId: ownerId || null,
       reviewerId: reviewerId || null,
