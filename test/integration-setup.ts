@@ -465,15 +465,20 @@ export async function createCalendarItem(
   };
 }
 
-// A content_opportunities row for an existing calendar item (one-to-one),
-// for tests exercising the content-permission (consent) actions. Its
-// content_permissions row references it with `on delete cascade`, and the
-// row itself cascades from the calendar item, so callers usually only need
-// the parent item's cleanup.
-export async function createContentOpportunity(calendarItemId: string) {
+// A content piece on an existing calendar item -- several per item since
+// #1231. Rows cascade from the calendar item, so callers that created the
+// item usually only need its cleanup.
+export async function createContentPiece(
+  calendarItemId: string,
+  overrides: { title?: string; contentStatus?: string } = {},
+) {
   const { data, error } = await adminClient
     .from("content_opportunities")
-    .insert({ calendar_item_id: calendarItemId, content_status: "idea" })
+    .insert({
+      calendar_item_id: calendarItemId,
+      title: overrides.title ?? `Integration test piece ${crypto.randomUUID()}`,
+      content_status: overrides.contentStatus ?? "idea",
+    })
     .select("id")
     .single();
   if (error) throw error;

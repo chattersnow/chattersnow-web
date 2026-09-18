@@ -37,7 +37,7 @@ function item(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     recurrence_end_is_month_end: false,
     categories: [],
     program_ids: [],
-    content_opportunity: null,
+    content_pieces: [],
     ...overrides,
   };
 }

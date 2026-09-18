@@ -80,7 +80,7 @@ export const SEEDED_INVENTORY_IDS = {
 } as const;
 
 export const SEEDED_CALENDAR_IDS = {
-  /** "Winter Gear Swap Promotion" -- carries the content opportunity. */
+  /** "Winter Gear Swap Promotion" -- carries the three seeded content pieces. */
   promotion: "ffffffff-0000-4000-8000-000000000001",
   /** "Sample Recurring Observance" -- dated to today, drives the generate flow. */
   recurring: "ffffffff-0000-4000-8000-000000000002",

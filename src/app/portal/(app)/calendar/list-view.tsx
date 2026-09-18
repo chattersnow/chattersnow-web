@@ -29,6 +29,7 @@ import {
   ownerName,
   type CalendarOwner,
 } from "./calendar-shared";
+import { ContentPiecesBadge } from "./content-opportunity-badges";
 import type { CalendarEntry } from "./calendar-entries";
 import { formatDateTime } from "@/lib/format";
 
@@ -164,6 +165,9 @@ export function ListView({
                           <EventEntryBadge />
                         ) : (
                           <>
+                            <ContentPiecesBadge
+                              pieces={entry.item.content_pieces}
+                            />
                             {needsDecision(entry.item) && <NeedsDecisionFlag />}
                             {isPastUndecided(entry.item) && (
                               <PastUndecidedFlag />

@@ -33,6 +33,7 @@ import {
   ownerName,
 } from "./calendar-shared";
 import type { CalendarCategory } from "./calendar-shared";
+import { CONTENT_STATUSES } from "./content-opportunity-shared";
 import { personDisplayName } from "@/lib/format";
 import type { CalendarView } from "./view-toggle";
 import type { ListSortColumn } from "./list-view";
@@ -57,6 +58,7 @@ type CalendarFiltersSheetProps = {
   visibilityFilter: string;
   statusFilter: string;
   decisionFilter: string;
+  contentStatusFilter: string;
   search: string;
   onSearchChange: (value: string) => void;
   range: string;
@@ -80,6 +82,7 @@ export function CalendarFiltersSheet({
   visibilityFilter,
   statusFilter,
   decisionFilter,
+  contentStatusFilter,
   search,
   onSearchChange,
   range,
@@ -98,6 +101,7 @@ export function CalendarFiltersSheet({
   const [visibility, setVisibility] = useState(visibilityFilter);
   const [status, setStatus] = useState(statusFilter);
   const [decision, setDecision] = useState(decisionFilter);
+  const [contentStatus, setContentStatus] = useState(contentStatusFilter);
 
   const activeCount =
     [
@@ -109,6 +113,7 @@ export function CalendarFiltersSheet({
       visibilityFilter,
       statusFilter,
       decisionFilter,
+      contentStatusFilter,
     ].filter((value) => value !== "all").length +
     (search.trim() !== "" ? 1 : 0) +
     (range !== "all" ? 1 : 0);
@@ -123,6 +128,7 @@ export function CalendarFiltersSheet({
       setVisibility(visibilityFilter);
       setStatus(statusFilter);
       setDecision(decisionFilter);
+      setContentStatus(contentStatusFilter);
     }
     setOpen(next);
   }
@@ -137,6 +143,7 @@ export function CalendarFiltersSheet({
     if (visibility !== "all") sp.set("visibility", visibility);
     if (status !== "all") sp.set("status", status);
     if (decision !== "all") sp.set("decision", decision);
+    if (contentStatus !== "all") sp.set("contentStatus", contentStatus);
     sp.set("view", view);
     sp.set("sort", sort);
     sp.set("dir", dir);
@@ -154,6 +161,7 @@ export function CalendarFiltersSheet({
     setVisibility("all");
     setStatus("all");
     setDecision("all");
+    setContentStatus("all");
     onSearchChange("");
     onRangeChange("all");
     setOpen(false);
@@ -176,8 +184,8 @@ export function CalendarFiltersSheet({
           {eventsHidden && (
             <p className="app-muted text-xs">
               Your own events are hidden while these filters are active.
-              Priority, owner, decision and status are content-calendar fields
-              an event has no value for.
+              Priority, owner, decision, status and content status are
+              content-calendar fields an event has no value for.
             </p>
           )}
 
@@ -438,6 +446,42 @@ export function CalendarFiltersSheet({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="filter-content-status"
+              className={fieldLabelClassName}
+            >
+              Content status
+            </label>
+            <Select
+              value={contentStatus}
+              onValueChange={(v) => setContentStatus(v ?? "all")}
+            >
+              <SelectTrigger id="filter-content-status">
+                <SelectValue placeholder="Any">
+                  {(value: string) =>
+                    value === "all"
+                      ? "Any"
+                      : CONTENT_STATUSES.find(
+                          (option) => option.value === value,
+                        )?.label
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any</SelectItem>
+                {CONTENT_STATUSES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="app-muted text-xs">
+              Items with at least one content piece at this status.
+            </p>
           </div>
         </div>
 

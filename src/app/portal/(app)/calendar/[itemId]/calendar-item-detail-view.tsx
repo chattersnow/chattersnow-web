@@ -44,13 +44,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ContentOpportunityTab } from "../content-opportunity-tab";
+import { ContentPiecesCard } from "../content-pieces-card";
 import {
   PlanningDecisionCard,
   ScheduleDetailsCard,
@@ -273,25 +272,17 @@ export function CalendarItemDetailView({
 
         <SensitiveTopicCard item={item} canManage={canManage} />
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="app-muted text-sm font-semibold">
-              Content brief
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ContentOpportunityTab
-              calendarItemId={item.id}
-              itemStartsAt={item.starts_at}
-              opportunity={item.content_opportunity}
-              owners={owners}
-              defaultLeadTimeDays={defaultLeadTimeDays}
-              canManage={canManage}
-              isSensitiveTopic={item.is_sensitive_topic}
-              toneGuidance={item.tone_guidance}
-            />
-          </CardContent>
-        </Card>
+        <ContentPiecesCard
+          className="lg:col-span-2"
+          calendarItemId={item.id}
+          itemStartsAt={item.starts_at}
+          pieces={item.content_pieces}
+          owners={owners}
+          defaultLeadTimeDays={defaultLeadTimeDays}
+          canManage={canManage}
+          isSensitiveTopic={item.is_sensitive_topic}
+          toneGuidance={item.tone_guidance}
+        />
       </div>
 
       <AlertDialog
@@ -302,9 +293,9 @@ export function CalendarItemDetailView({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this calendar item?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes &ldquo;{item.title}&rdquo; along with its
-              content brief. This can&apos;t be undone — to keep it out of
-              active views without losing it, archive it instead.
+              This permanently deletes &ldquo;{item.title}&rdquo; along with
+              every content piece planned for it. This can&apos;t be undone — to
+              keep it out of active views without losing it, archive it instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

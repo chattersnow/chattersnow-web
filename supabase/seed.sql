@@ -514,16 +514,36 @@ begin
   insert into public.calendar_item_programs (item_id, program_id)
   values (v_calendar_promo_id, v_program_id);
 
+  -- Three content pieces on one calendar item (#1231): the shape the portal is
+  -- built for, and what the item-detail e2e spec reads. Deliberately at three
+  -- different statuses so the list badge ("least-advanced piece still needing
+  -- work") has something real to summarise, and the longest `content` runs to
+  -- the length a real plan reaches rather than a one-line sample.
+  -- `created_at` is staggered because it is what the portal orders the list
+  -- by, and its default is now() -- transaction time, identical for all three
+  -- rows of one insert.
   insert into public.content_opportunities (
-    calendar_item_id, content_status, org_connection, recommended_formats,
-    recommended_action, outstanding_work, owner_id, reviewer_id, lead_time_days,
-    publish_due_at, created_by
+    calendar_item_id, title, content, content_status, owner_id, reviewer_id,
+    lead_time_days, publish_due_at, created_at, created_by
   )
-  values (
-    v_calendar_promo_id, 'draft', 'Show how shared gear helps neighbors participate outdoors.',
-    'Instagram post; email; event page', 'Publish a participant-centered event announcement.',
-    'Confirm final registration link and accessibility details.', v_admin_person_id, v_admin_person_id, 14,
-    now() + interval '7 days', v_admin_id
+  values
+  (
+    v_calendar_promo_id, 'Instagram carousel: how the gear swap works',
+    E'Our connection: show how shared gear helps neighbors get outdoors, using last year''s participants rather than stock photography.\n\nFormats: five-slide Instagram carousel, cross-posted to the event page. Slide one is the date and the registration link; slides two to four walk through dropping off, browsing and taking home; slide five is the accessibility note and who to contact.\n\nCall to action: register, and bring one thing you have outgrown.\n\nStill outstanding: confirm the final registration link, get written permission for the two participant photos, and check the accessibility details against the venue''s own page before this goes out.',
+    'draft', v_admin_person_id, v_admin_person_id, 14,
+    now() + interval '7 days', now() - interval '3 hours', v_admin_id
+  ),
+  (
+    v_calendar_promo_id, 'Email to past participants',
+    E'Short, plain and personal: last year''s swap in two sentences, this year''s date, and the registration link. No images.\n\nCall to action: register, and forward it to one person who has been putting off trying a winter sport.',
+    'idea', v_admin_person_id, null, 21,
+    now() + interval '9 days', now() - interval '2 hours', v_admin_id
+  ),
+  (
+    v_calendar_promo_id, 'Day-of story: the swap in progress',
+    E'A handful of stories from the swap itself. Written the morning of, not planned in advance beyond knowing who is holding the phone.',
+    'not_planned', null, null, 3,
+    now() + interval '12 days', now() - interval '1 hour', v_admin_id
   );
 
   -- Structured-recurrence calendar item (issue #191): dated to today so the
@@ -1354,9 +1374,9 @@ begin
     );
   end loop;
 
-  -- ~65 more calendar items across every item type, with categories, and a
-  -- content_opportunities brief for the content/partner-opportunity ones so
-  -- the content pipeline board also gets volume.
+  -- ~65 more calendar items across every item type, with categories, and
+  -- content pieces on the content/partner-opportunity ones so the calendar
+  -- views also get volume.
   for i in 1..65 loop
     v_starts_at := now() + ((floor(random() * 300)::int - 100) || ' days')::interval;
     v_item_type := (array['own_event','partner_event','community_observance','heritage_social_justice_moment','winter_outdoor_sports_moment','content_campaign','fundraiser','partner_opportunity','content_opportunity'])[1 + floor(random()*9)::int];
@@ -1389,18 +1409,22 @@ begin
       on conflict do nothing;
     end if;
 
+    -- One or two content pieces per content/partner opportunity, so the list
+    -- view's "N pieces" summary has volume behind it as well as the seeded
+    -- three-piece item above.
     if v_item_type in ('content_opportunity', 'partner_opportunity') then
       insert into public.content_opportunities (
-        calendar_item_id, content_status, org_connection, recommended_formats,
-        recommended_action, owner_id, reviewer_id, lead_time_days, publish_due_at, created_by
+        calendar_item_id, title, content, content_status, owner_id, reviewer_id,
+        lead_time_days, publish_due_at, created_by
       )
-      values (
+      select
         v_calendar_item_id,
+        'Seed content piece #' || i || '.' || p,
+        'Seed bulk-data content plan: the angle, the channels and the call to action for volume testing.',
         (array['not_planned','idea','draft','in_review','changes_requested','approved','scheduled','published'])[1 + floor(random()*8)::int],
-        'Seed bulk-data content connection note.', 'Instagram post; email',
-        'Seed recommended action.', v_admin_person_id, v_admin_person_id,
+        v_admin_person_id, v_admin_person_id,
         7 + floor(random()*21)::int, v_starts_at - interval '7 days', v_admin_id
-      );
+      from generate_series(1, 1 + floor(random()*2)::int) as p;
     end if;
   end loop;
 

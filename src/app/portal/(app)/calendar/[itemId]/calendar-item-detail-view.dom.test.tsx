@@ -33,7 +33,7 @@ function makeItem(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     recurrence_end_is_month_end: false,
     categories: ["lgbtq_community"],
     program_ids: [],
-    content_opportunity: null,
+    content_pieces: [],
     ...overrides,
   };
 }
@@ -63,7 +63,7 @@ describe("CalendarItemDetailView", () => {
       "Schedule & details",
       "Planning & decision",
       "Sensitive topic",
-      "Content brief",
+      "Content",
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
@@ -151,7 +151,7 @@ describe("CalendarItemDetailView", () => {
       makeItem({ is_sensitive_topic: true, tone_guidance: "Be affirming." }),
     );
 
-    // Shown in both the Sensitive topic card and the content brief's
+    // Shown in both the Sensitive topic card and the Content card's
     // tone-guidance callout.
     expect(screen.getAllByText("Be affirming.").length).toBeGreaterThan(0);
   });
