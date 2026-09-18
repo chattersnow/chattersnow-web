@@ -1,6 +1,6 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
-import { modal } from "./helpers/dialog";
+import { modal, toastsCleared } from "./helpers/dialog";
 
 test.describe("portal governance nonprofit status milestones", () => {
   test.beforeEach(async ({ page }) => {
@@ -44,6 +44,9 @@ test.describe("portal governance nonprofit status milestones", () => {
       .click();
     await expect(row.getByText("Cancelled", { exact: true })).toBeVisible();
 
+    // Two writes have confirmed by now, and on the mobile viewport their
+    // toasts sit over the bottom of the table -- including this row.
+    await toastsCleared(page);
     await row.getByRole("button", { name: "View milestone" }).click();
     const editSheet = modal(page);
     await expect(editSheet.getByText(description)).toBeVisible();
