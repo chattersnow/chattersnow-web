@@ -125,14 +125,16 @@ export type CalendarFilters = {
   visibility: string;
   status: string;
   decision: string;
+  contentStatus: string;
 };
 
 /**
  * Whether events can survive the active filters at all.
  *
  * Half the calendar's filters are editorial concepts an event has no value
- * for -- priority tier, owner, decision, and `calendar_status`, whose
- * vocabulary (idea/active/complete) doesn't overlap the event lifecycle
+ * for -- priority tier, owner, decision, content status (an event has no
+ * content pieces at all), and `calendar_status`, whose vocabulary
+ * (idea/active/complete) doesn't overlap the event lifecycle
  * (draft/published/completed/cancelled). Rather than invent a mapping, a row
  * that can't answer the question is left out, so "priority: Tier 1" means the
  * same thing it always did. Type, category, visibility and program do have an
@@ -143,6 +145,7 @@ export function filtersExcludeEvents(filters: CalendarFilters): boolean {
   if (filters.owner !== "all") return true;
   if (filters.decision !== "all") return true;
   if (filters.status !== "all") return true;
+  if (filters.contentStatus !== "all") return true;
   if (filters.type !== "all" && filters.type !== EVENT_ITEM_TYPE) return true;
   if (filters.category !== "all" && filters.category !== EVENT_CATEGORY)
     return true;

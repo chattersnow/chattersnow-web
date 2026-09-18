@@ -22,6 +22,7 @@ const NO_FILTERS: CalendarFilters = {
   visibility: "all",
   status: "all",
   decision: "all",
+  contentStatus: "all",
 };
 
 function item(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
@@ -46,8 +47,6 @@ function item(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     exceptions: [],
     is_sensitive_topic: false,
     tone_guidance: null,
-    sensitive_review_by: null,
-    sensitive_review_at: null,
     series_key: null,
     recurrence_start_month: null,
     recurrence_start_day: null,
@@ -56,7 +55,7 @@ function item(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     recurrence_end_is_month_end: false,
     categories: [],
     program_ids: [],
-    content_opportunity: null,
+    content_pieces: [],
     ...overrides,
   };
 }
@@ -133,6 +132,7 @@ describe("filtersExcludeEvents", () => {
       { decision: "plan" },
       { status: "idea" },
       { visibility: "internal" },
+      { contentStatus: "draft" },
     ]) {
       expect(filtersExcludeEvents({ ...NO_FILTERS, ...filters })).toBe(true);
     }

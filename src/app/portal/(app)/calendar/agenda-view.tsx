@@ -19,6 +19,7 @@ import {
   needsDecision,
   ITEM_TYPES,
 } from "./calendar-shared";
+import { ContentPiecesBadge } from "./content-opportunity-badges";
 import { EVENT_ITEM_TYPE } from "@/lib/calendar-vocabulary";
 import type { CalendarEntry } from "./calendar-entries";
 
@@ -90,6 +91,9 @@ export function AgendaView({ entries }: { entries: CalendarEntry[] }) {
                           <PriorityTierBadge tier={entry.item.priority_tier} />
                           <CalendarStatusBadge
                             status={entry.item.calendar_status}
+                          />
+                          <ContentPiecesBadge
+                            pieces={entry.item.content_pieces}
                           />
                         </>
                       )}

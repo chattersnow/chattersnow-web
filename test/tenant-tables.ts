@@ -1,6 +1,6 @@
 /**
  * Every table that carries a `tenant_id` (#707 Phase 2, 20260906010000) --
- * the 73 tables given the column with a default, plus the three that take it
+ * the tables given the column with a default, plus the three that take it
  * from their role by trigger, plus the three retention tables Phase 5b scoped
  * (20260906160000), plus `tenant_modules` (#900), which is the one with no
  * default on the column at all: nothing a session writes goes there.
@@ -36,17 +36,12 @@ export const TENANT_TABLES = [
   "board_members",
   "bylaws",
   "calendar_item_categories",
-  "calendar_item_links",
   "calendar_item_programs",
   "calendar_items",
-  "calendar_program_suggestion_rules",
   "conflict_of_interest_disclosures",
   "contact_messages",
-  "content_brief_template_versions",
-  "content_brief_templates",
   "content_opportunities",
   "content_packs",
-  "content_permissions",
   "discount_codes",
   "donations",
   "event_checklist_items",

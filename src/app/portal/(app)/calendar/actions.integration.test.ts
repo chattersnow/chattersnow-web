@@ -34,7 +34,6 @@ const {
   duplicateCalendarItemAction,
   archiveCalendarItemAction,
   restoreCalendarItemAction,
-  recordSensitiveTopicReviewAction,
   listCalendarOwnersAction,
 } = await import("./actions");
 
@@ -166,26 +165,6 @@ describe("calendar item actions (integration)", () => {
     await item.cleanup();
   });
 
-  test("admin role can record sensitive-topic review sign-off", async () => {
-    const item = await createCalendarItem({
-      isSensitiveTopic: true,
-      toneGuidance: "Center community voices.",
-    });
-    currentSupabase = await signInAs(SEEDED_USERS.admin);
-
-    expect(await recordSensitiveTopicReviewAction(item.id)).toEqual({
-      success: true,
-    });
-    const { data } = await adminClient
-      .from("calendar_items")
-      .select("sensitive_review_by")
-      .eq("id", item.id)
-      .single();
-    expect(data?.sensitive_review_by).not.toBeNull();
-
-    await item.cleanup();
-  });
-
   test("event_coordinator role (content_calendar manage) can create an item", async () => {
     currentSupabase = await signInAs(SEEDED_USERS.coordinator);
     const title = `Integration test calendar item ${crypto.randomUUID()}`;
@@ -236,9 +215,6 @@ describe("calendar item actions (integration)", () => {
     expect(
       await updateCalendarItemsStatusAction([crypto.randomUUID()], "active"),
     ).toEqual(DENIED);
-    expect(await recordSensitiveTopicReviewAction(crypto.randomUUID())).toEqual(
-      DENIED,
-    );
     expect(await restoreCalendarItemAction(crypto.randomUUID())).toEqual(
       DENIED,
     );

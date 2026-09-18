@@ -29,8 +29,6 @@ function item(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     exceptions: [],
     is_sensitive_topic: false,
     tone_guidance: null,
-    sensitive_review_by: null,
-    sensitive_review_at: null,
     series_key: null,
     recurrence_start_month: null,
     recurrence_start_day: null,
@@ -39,7 +37,7 @@ function item(overrides: Partial<CalendarItemRow> = {}): CalendarItemRow {
     recurrence_end_is_month_end: false,
     categories: [],
     program_ids: [],
-    content_opportunity: null,
+    content_pieces: [],
     ...overrides,
   };
 }

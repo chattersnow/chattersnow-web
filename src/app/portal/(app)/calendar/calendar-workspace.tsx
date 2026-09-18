@@ -5,7 +5,6 @@ import { CalendarFiltersSheet } from "./calendar-filters-sheet";
 import { type CalendarOwner, type CalendarProgram } from "./calendar-shared";
 import type { CalendarCategory } from "./calendar-shared";
 import type { CalendarEntry } from "./calendar-entries";
-import type { ProgramSuggestionRule } from "./program-suggestion-shared";
 import { ListView, type ListSortColumn } from "./list-view";
 import { AgendaView } from "./agenda-view";
 import { MonthView } from "./month-view";
@@ -21,7 +20,6 @@ export function CalendarWorkspace({
   eventsError,
   owners,
   programs,
-  programSuggestionRules,
   canManage,
   filterQuery,
   sort,
@@ -34,6 +32,7 @@ export function CalendarWorkspace({
   visibilityFilter,
   statusFilter,
   decisionFilter,
+  contentStatusFilter,
 }: {
   /** The tenant's category vocabulary (#834). */
   categoryVocabulary: CalendarCategory[];
@@ -46,7 +45,6 @@ export function CalendarWorkspace({
   eventsError: boolean;
   owners: CalendarOwner[];
   programs: CalendarProgram[];
-  programSuggestionRules: ProgramSuggestionRule[];
   canManage: boolean;
   filterQuery: string;
   sort: ListSortColumn;
@@ -59,6 +57,7 @@ export function CalendarWorkspace({
   visibilityFilter: string;
   statusFilter: string;
   decisionFilter: string;
+  contentStatusFilter: string;
 }) {
   const [search, setSearch] = useState("");
   const [range, setRange] = useState("all");
@@ -129,6 +128,7 @@ export function CalendarWorkspace({
             visibilityFilter={visibilityFilter}
             statusFilter={statusFilter}
             decisionFilter={decisionFilter}
+            contentStatusFilter={contentStatusFilter}
             search={search}
             onSearchChange={setSearch}
             range={range}
@@ -141,7 +141,6 @@ export function CalendarWorkspace({
               categoryVocabulary={categoryVocabulary}
               owners={owners}
               programs={programs}
-              programSuggestionRules={programSuggestionRules}
             />
           )}
         </div>

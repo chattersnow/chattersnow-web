@@ -1,10 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
-import { overdueStage } from "../calendar/content-opportunity-shared";
-import type {
-  PendingApprovalItem,
-  PendingApprovalsSummary,
-} from "@/lib/portal/attention-items";
 import {
   computeFinanceSummary,
   type FinanceReportData,
@@ -454,82 +449,4 @@ export async function getOrganizationSummary(
     nextGrantDeadline,
     overdueGrantCount,
   };
-}
-
-/**
- * "My content work", "Overdue content work", and "Tier 1 needs a decision"
- * counts for the content calendar. All three are plain RLS-scoped queries
- * (unlike getPendingApprovalsSummary's RPC): content_calendar is granted
- * consistently across roles, so RLS already returns the right rows for
- * anyone who can see the counts.
- *
- * `personId` is a public.people id: content_opportunities.owner_id/reviewer_id
- * reference people, not auth.users (20260902010000). Passing an auth id here
- * compiles fine and silently counts zero.
- */
-export async function getContentWorkSummary(
-  supabase: SupabaseClient,
-  options: { canSeeContentCalendar: boolean; personId: string | null },
-): Promise<PendingApprovalsSummary> {
-  const items: PendingApprovalItem[] = [];
-  if (!options.canSeeContentCalendar || !options.personId) return { items };
-
-  const [
-    { count: myWorkCount },
-    { data: openOpportunities },
-    { count: tier1Count },
-  ] = await Promise.all([
-    supabase
-      .from("content_opportunities")
-      .select("id", { count: "exact", head: true })
-      .neq("content_status", "published")
-      .neq("content_status", "skipped")
-      .or(`owner_id.eq.${options.personId},reviewer_id.eq.${options.personId}`),
-    supabase
-      .from("content_opportunities")
-      .select("content_status, draft_due_at, review_due_at, publish_due_at")
-      .neq("content_status", "published")
-      .neq("content_status", "skipped"),
-    supabase
-      .from("calendar_items")
-      .select("id", { count: "exact", head: true })
-      .eq("priority_tier", 1)
-      .is("decision", null)
-      .neq("calendar_status", "archived"),
-  ]);
-
-  if ((myWorkCount ?? 0) > 0) {
-    items.push({
-      key: "content_my_work",
-      label: "My content work",
-      count: myWorkCount ?? 0,
-      href: "/portal/calendar/work-queue?tab=my-work",
-      severity: "info",
-    });
-  }
-
-  const overdueCount = (openOpportunities ?? []).filter(
-    (opp) => overdueStage(opp) !== null,
-  ).length;
-  if (overdueCount > 0) {
-    items.push({
-      key: "content_overdue",
-      label: "Overdue content work",
-      count: overdueCount,
-      href: "/portal/calendar/work-queue?tab=queue&filter=overdue",
-      severity: "urgent",
-    });
-  }
-
-  if ((tier1Count ?? 0) > 0) {
-    items.push({
-      key: "content_tier1_undecided",
-      label: "Tier 1 needs a decision",
-      count: tier1Count ?? 0,
-      href: "/portal/calendar?priority=1&decision=none",
-      severity: "info",
-    });
-  }
-
-  return { items };
 }

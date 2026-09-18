@@ -3,7 +3,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "@/components/portal/status-badge";
-import { AlertTriangle, CalendarDays, Clock, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock } from "lucide-react";
 import { DECISIONS, labelFor } from "./calendar-shared";
 import type { CalendarCategory } from "./calendar-shared";
 
@@ -129,25 +129,8 @@ export function NeedsDecisionFlag() {
   );
 }
 
-export function SensitiveTopicBadge({ reviewed }: { reviewed: boolean }) {
-  return (
-    <StatusBadge tone={reviewed ? "info" : "danger"}>
-      {reviewed ? "Sensitive topic — reviewed" : "Sensitive topic"}
-    </StatusBadge>
-  );
-}
-
-export function NeedsSensitiveReviewFlag() {
-  return (
-    <StatusBadge
-      tone="danger"
-      className="gap-1"
-      title="This is a flagged sensitive-topic moment with no reviewer sign-off yet"
-    >
-      <ShieldAlert className="size-3" />
-      Needs sensitive-topic review
-    </StatusBadge>
-  );
+export function SensitiveTopicBadge() {
+  return <StatusBadge tone="info">Sensitive topic</StatusBadge>;
 }
 
 export function PastUndecidedFlag() {
