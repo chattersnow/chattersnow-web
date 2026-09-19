@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 import type { DeviceClass } from "@/proxy";
 import { AutoReplyRail, type RailEntry } from "./auto-reply-rail";
 import { DisableReplyDialog } from "./disable-reply-dialog";
+import { AutoReplyPreviewPanel } from "./preview-panel";
 import { saveAutoReplyCopyAction, setAutoReplyEnabledAction } from "./actions";
 
 /** One tenant's row, as the page read it. */
@@ -272,9 +273,9 @@ export function AutoReplyEditor({
           onSelect={select}
         />
 
-        {/* The pane. #1236's preview becomes a second column inside it, which
-            is why the rail takes a column of its own rather than the editor
-            splitting this one. */}
+        {/* The pane, which holds the fields and the preview side by side --
+            which is why the rail takes a column of its own rather than the
+            editor splitting this one (#1235, #1236). */}
         <div className="min-w-0 space-y-6">
           {!emailEnabled && (
             <Alert>
@@ -313,57 +314,72 @@ export function AutoReplyEditor({
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Card>
-              <CardContent className="space-y-6">
-                {definition.slots.map((slot) => (
-                  <SlotField
-                    key={slot.key}
-                    kind={definition.kind}
-                    slot={slot}
-                    value={slots[slot.key]}
-                    invalid={problemSlots.has(slot.key)}
-                    disabled={isPending}
-                    register={(control) => {
-                      if (control) fields.current[slot.key] = control;
-                      else delete fields.current[slot.key];
-                    }}
-                    onChange={(value) => setSlot(slot.key, value)}
-                    onReset={() => setSlot(slot.key, null)}
-                    onInsertToken={(token) => insertToken(slot, token)}
-                  />
-                ))}
-              </CardContent>
-            </Card>
+          {/* The fields and the email they compose, side by side where there
+              is room: an administrator rewriting a sentence is checking it
+              against what the reader will see, and a preview a scroll away is
+              one they will stop looking at. It drops under the fields on a
+              narrow screen rather than shrinking to nothing. */}
+          <div className="grid gap-6 2xl:grid-cols-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <Card>
+                <CardContent className="space-y-6">
+                  {definition.slots.map((slot) => (
+                    <SlotField
+                      key={slot.key}
+                      kind={definition.kind}
+                      slot={slot}
+                      value={slots[slot.key]}
+                      invalid={problemSlots.has(slot.key)}
+                      disabled={isPending}
+                      register={(control) => {
+                        if (control) fields.current[slot.key] = control;
+                        else delete fields.current[slot.key];
+                      }}
+                      onChange={(value) => setSlot(slot.key, value)}
+                      onReset={() => setSlot(slot.key, null)}
+                      onInsertToken={(token) => insertToken(slot, token)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
 
-            {/* Sticky for the reason Site Content's is: the five fields plus
+              {/* Sticky for the reason Site Content's is: the five fields plus
                 their token chips run past a screen, and the control that
                 commits should not be the thing you scroll to find. */}
-            <div className="rainbow-surface sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-              <p className="app-muted text-sm" aria-live="polite">
-                {statusLine(dirty, customized)}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={isPending || customized === 0}
-                  onClick={resetTemplate}
-                >
-                  Reset all fields
-                </Button>
-                <Button type="submit" disabled={isPending || !dirty}>
-                  {isPending ? (
-                    <>
-                      <Spinner /> Saving...
-                    </>
-                  ) : (
-                    "Save"
-                  )}
-                </Button>
+              <div className="rainbow-surface sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+                <p className="app-muted text-sm" aria-live="polite">
+                  {statusLine(dirty, customized)}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={isPending || customized === 0}
+                    onClick={resetTemplate}
+                  >
+                    Reset all fields
+                  </Button>
+                  <Button type="submit" disabled={isPending || !dirty}>
+                    {isPending ? (
+                      <>
+                        <Spinner /> Saving...
+                      </>
+                    ) : (
+                      "Save"
+                    )}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
+
+            <AutoReplyPreviewPanel
+              kind={definition.kind}
+              label={definition.label}
+              slots={overrides(slots)}
+              enabled={saved[definition.kind]?.enabled ?? true}
+              emailEnabled={emailEnabled}
+            />
+          </div>
 
           <Alert>
             <Info />
