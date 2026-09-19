@@ -55,6 +55,36 @@ test("sidebar navigation shows a skeleton, not a blocking overlay", async ({
     await route.continue();
   });
 
+  // Watch for the skeleton rather than polling for it (#1288).
+  //
+  // `expect(...).toBeVisible()` samples; the skeleton is a state the page
+  // passes through. The delay above does not widen that window the way it
+  // looks like it does -- the boundary is flushed at the head of the streamed
+  // RSC response, so what is being delayed is when the window *starts*, not
+  // how long it lasts. Its length is a server-side streaming gap, and on a
+  // loaded runner it closes between two samples: 1 failure in 10 here under
+  // four parallel workers, which is the `element(s) not found` that failed CI.
+  //
+  // Holding the request open instead is worse, and measuring it says why: hold
+  // the navigation and the skeleton never arrives at all, because it arrives
+  // *in* that response (9 failures in 20). Hold the prefetches too and it is
+  // 5 in 20. So the window cannot be widened from out here -- but a
+  // MutationObserver cannot miss it however brief it is.
+  await page.evaluate(() => {
+    const w = window as unknown as { __sawSkeleton?: boolean };
+    w.__sawSkeleton = false;
+    const seen = () => {
+      if (!document.querySelector('[data-slot="skeleton"]')) return false;
+      w.__sawSkeleton = true;
+      observer.disconnect();
+      return true;
+    };
+    const observer = new MutationObserver(seen);
+    if (!seen()) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  });
+
   // People is one entry with no disclosure since #957 -- its segments are a
   // strip on the page rather than sub-links here -- so the sidebar renders a
   // plain link, the shape Events and Dashboard already have.
@@ -63,11 +93,19 @@ test("sidebar navigation shows a skeleton, not a blocking overlay", async ({
     .getByRole("link", { name: "People", exact: true })
     .click();
 
-  await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible();
   // The sidebar must stay visible and interactive while the route loads.
   await expect(page.getByRole("link", { name: "Events" })).toBeVisible();
 
   await expect(
     page.getByRole("heading", { level: 1, name: "People", exact: true }),
   ).toBeVisible();
+
+  // Asserted after arrival, because the observer above has been recording
+  // since before the click: whether a skeleton appeared is a fact by now, not
+  // something still to be caught.
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __sawSkeleton?: boolean }).__sawSkeleton,
+    ),
+  ).toBe(true);
 });
