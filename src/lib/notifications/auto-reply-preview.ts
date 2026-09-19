@@ -15,6 +15,17 @@ import {
   type VolunteerApplicationConfirmation,
 } from "@/lib/notifications/volunteer-application-confirmation-email";
 import {
+  renderContactMessageConfirmationEmail,
+  type ContactMessageConfirmation,
+} from "@/lib/notifications/contact-message-confirmation-email";
+import {
+  renderArtworkSubmissionConfirmationEmail,
+  type ArtworkSubmissionConfirmation,
+} from "@/lib/notifications/artwork-submission-confirmation-email";
+import { contactTopicLabel } from "@/lib/contact-topics";
+import {
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
@@ -144,6 +155,43 @@ export function sampleGearRequest(
   };
 }
 
+/** The message the contact acknowledgement is previewed against. */
+export function sampleContactMessage(
+  context: AutoReplyPreviewContext,
+): ContactMessageConfirmation {
+  const tokens = sampleTokens(CONTACT_MESSAGE_CONFIRMATION_KIND);
+  return {
+    orgName: context.orgName,
+    senderName: tokens.first_name ?? "",
+    // The platform's own label for the topic every contact form offers.
+    // Deliberately not resolved through the tenant's lexicon: the only topic
+    // whose label they own is the one about what they lend (#896), and a
+    // sample that picked that one would show a preview whose detail rows
+    // change meaning with an unrelated setting.
+    topicLabel: contactTopicLabel("general"),
+    // Now, because the row this stands in for is always minutes old: the
+    // acknowledgement goes out from the same after() block as the insert.
+    receivedAt: (context.now ?? new Date()).toISOString(),
+    timeZone: context.timeZone,
+  };
+}
+
+/** The submission the artwork acknowledgement is previewed against. */
+export function sampleArtworkSubmission(
+  context: AutoReplyPreviewContext,
+): ArtworkSubmissionConfirmation {
+  const tokens = sampleTokens(ARTWORK_SUBMISSION_CONFIRMATION_KIND);
+  return {
+    orgName: context.orgName,
+    artistName: tokens.first_name ?? "",
+    callTitle: "Winter Open Call",
+    title: "Snowline",
+    // More than one, so the count reads in its plural form -- the branch a
+    // tenant is least likely to have seen.
+    imageCount: 3,
+  };
+}
+
 /**
  * One automatic reply, rendered the way the sender would render it.
  *
@@ -176,6 +224,16 @@ export function renderAutoReplyPreview(
     case GEAR_REQUEST_CONFIRMATION_KIND:
       return renderGearRequestConfirmationEmail(
         sampleGearRequest(context),
+        copy,
+      );
+    case CONTACT_MESSAGE_CONFIRMATION_KIND:
+      return renderContactMessageConfirmationEmail(
+        sampleContactMessage(context),
+        copy,
+      );
+    case ARTWORK_SUBMISSION_CONFIRMATION_KIND:
+      return renderArtworkSubmissionConfirmationEmail(
+        sampleArtworkSubmission(context),
         copy,
       );
     default:

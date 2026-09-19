@@ -10,7 +10,7 @@ import type { DeviceClass } from "@/proxy";
 export type RailEntry = {
   kind: string;
   label: string;
-  /** The registry's module key: events, volunteers, inventory. */
+  /** The registry's module key: events, volunteers, inventory, ... */
   module: string;
   description: string;
   enabled: boolean;
@@ -32,6 +32,7 @@ const MODULE_LABELS: Record<string, string> = {
   volunteers: "Volunteers",
   inventory: "Inventory",
   communications: "Communications",
+  artwork: "Artwork",
 };
 
 function moduleLabel(module: string): string {

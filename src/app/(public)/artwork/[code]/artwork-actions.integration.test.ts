@@ -135,10 +135,12 @@ afterEach(async () => {
   // Settle the scheduled sends before deleting their rows, so a notify still
   // in flight cannot race the cleanup it is reading through.
   await Promise.all(afterTasks.splice(0));
+  // Both sends the action schedules (#1237): the review queue's notice and the
+  // artist's own acknowledgement.
   await service
     .from("notification_deliveries")
     .delete()
-    .eq("kind", "artwork_submission");
+    .in("kind", ["artwork_submission", "artwork_submission_confirmation"]);
   while (createdCalls.length) {
     await createdCalls.pop()!.cleanup();
   }

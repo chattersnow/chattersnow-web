@@ -7,6 +7,8 @@ import {
 import {
   hasRemoteImages,
   renderAutoReplyPreview,
+  sampleArtworkSubmission,
+  sampleContactMessage,
   sampleEventRegistration,
   sampleGearRequest,
   sampleVolunteerApplication,
@@ -16,7 +18,12 @@ import {
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
 import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
+import { renderContactMessageConfirmationEmail } from "@/lib/notifications/contact-message-confirmation-email";
+import { renderArtworkSubmissionConfirmationEmail } from "@/lib/notifications/artwork-submission-confirmation-email";
+import { AUTO_REPLIES } from "@/lib/notifications/auto-replies";
 import {
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
@@ -89,6 +96,56 @@ describe("the preview renders through the sender", () => {
     ).toEqual(
       renderGearRequestConfirmationEmail(sampleGearRequest(CONTEXT), copy),
     );
+  });
+
+  test("the contact message confirmation", () => {
+    const copy = autoReplyDefaults(
+      autoReplyDefinition(CONTACT_MESSAGE_CONFIRMATION_KIND)!,
+    );
+
+    expect(
+      renderAutoReplyPreview(CONTACT_MESSAGE_CONFIRMATION_KIND, copy, CONTEXT),
+    ).toEqual(
+      renderContactMessageConfirmationEmail(
+        sampleContactMessage(CONTEXT),
+        copy,
+      ),
+    );
+  });
+
+  test("the artwork submission confirmation", () => {
+    const copy = autoReplyDefaults(
+      autoReplyDefinition(ARTWORK_SUBMISSION_CONFIRMATION_KIND)!,
+    );
+
+    expect(
+      renderAutoReplyPreview(
+        ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+        copy,
+        CONTEXT,
+      ),
+    ).toEqual(
+      renderArtworkSubmissionConfirmationEmail(
+        sampleArtworkSubmission(CONTEXT),
+        copy,
+      ),
+    );
+  });
+
+  test("every registered reply has one, so the editor can never show a blank pane", () => {
+    // The guard the two tests above would not have given on their own: a sixth
+    // definition added to the registry without a branch here reaches the
+    // editor as "no preview", which reads as a rendering failure to the
+    // administrator looking at it.
+    for (const definition of AUTO_REPLIES) {
+      const rendered = renderAutoReplyPreview(
+        definition.kind,
+        autoReplyDefaults(definition),
+        CONTEXT,
+      );
+      expect(rendered, definition.kind).not.toBeNull();
+      expect(rendered!.subject, definition.kind).not.toBe("");
+    }
   });
 
   test("a kind with no sample says so rather than rendering nothing", () => {

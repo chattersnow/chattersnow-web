@@ -72,3 +72,40 @@ export async function getOrgTimeZone(
   const zone = data?.zone;
   return isOrgTimeZone(zone) ? zone : DEFAULT_ORG_TIME_ZONE;
 }
+
+/**
+ * The same value for a caller with no session: the send path (#1237).
+ *
+ * `org_timezone` isolates on `current_tenant_id()`, which resolves to null for
+ * the service-role client an `after()` block runs on, so that view can only
+ * ever answer "no row" there. This reads `app_settings` directly instead, with
+ * the tenant named explicitly -- the shape `sendGearRequestConfirmation()`
+ * already uses for the gear settings it reads on the same path, and the one
+ * every service-role read in this repository has to take, since there is no
+ * policy underneath it to catch an unscoped one.
+ *
+ * Falls back the same way `getOrgTimeZone()` does, and for the same reason: a
+ * date in UTC is the reading this application had before #1065, not a third
+ * answer nobody would recognise.
+ */
+export async function getTenantTimeZone(
+  admin: SupabaseClient,
+  tenantId: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .from("app_settings")
+    .select("value")
+    .eq("tenant_id", tenantId)
+    .eq("key", ORG_TIMEZONE_SETTING_KEY)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      `[org-timezone] could not read ${ORG_TIMEZONE_SETTING_KEY} for tenant ${tenantId}; falling back to ${DEFAULT_ORG_TIME_ZONE}`,
+      error,
+    );
+  }
+
+  const zone = data?.value;
+  return isOrgTimeZone(zone) ? zone : DEFAULT_ORG_TIME_ZONE;
+}

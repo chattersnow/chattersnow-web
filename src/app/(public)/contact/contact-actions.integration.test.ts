@@ -70,10 +70,12 @@ afterEach(async () => {
   // Settle the scheduled sends before deleting their rows, so a notify still
   // in flight cannot race the cleanup it is reading through.
   await drainAfterTasks();
+  // Both sends the action schedules (#1237): the ops inbox's notice and the
+  // sender's own acknowledgement.
   await service
     .from("notification_deliveries")
     .delete()
-    .eq("kind", "contact_message");
+    .in("kind", ["contact_message", "contact_message_confirmation"]);
   while (submittedEmails.length) {
     await deleteContactMessages(submittedEmails.pop()!);
   }
