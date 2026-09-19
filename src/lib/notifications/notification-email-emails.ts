@@ -1,3 +1,9 @@
+import {
+  emailPalette,
+  EMPTY_EMAIL_BRANDING,
+  renderEmailShell,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -24,7 +30,15 @@ export function renderNotificationEmailConfirmation(notice: {
   token: string;
   expiresAt: Date;
   siteUrl: string;
+  /**
+   * The tenant's logo and colours (#1238), from the same context. Omitted
+   * renders the platform's unbranded shell, which is what a tenant that has
+   * set no branding gets anyway.
+   */
+  branding?: EmailBranding;
 }): RenderedEmail {
+  const branding = notice.branding ?? EMPTY_EMAIL_BRANDING;
+  const palette = emailPalette(branding);
   const url = `${normalizeOrigin(notice.siteUrl)}${confirmNotificationEmailHref(notice.token)}`;
   const who = notice.personName?.trim() || "Someone";
   const lead = `${who} asked for ${notice.orgName}'s portal email to be delivered to this address.`;
@@ -45,14 +59,17 @@ export function renderNotificationEmailConfirmation(notice: {
       "",
       ignore,
     ].join("\n"),
-    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
+    html: renderEmailShell({
+      orgName: notice.orgName,
+      siteUrl: notice.siteUrl,
+      branding,
+      bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
   <p style="margin: 0 0 24px;">
-    <a href="${escapeHtml(url)}" style="color: #4c1d95; font-weight: 600; text-decoration: underline;">Confirm the address</a>
+    <a href="${escapeHtml(url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">Confirm the address</a>
   </p>
-  <p style="color: #57534e; font-size: 13px; margin: 0 0 6px;">${escapeHtml(expiry)}</p>
-  <p style="color: #57534e; font-size: 13px; margin: 0;">${escapeHtml(ignore)}</p>
-</div>`,
+  <p style="color: ${palette.muted}; font-size: 13px; margin: 0 0 6px;">${escapeHtml(expiry)}</p>
+  <p style="color: ${palette.muted}; font-size: 13px; margin: 0;">${escapeHtml(ignore)}</p>`,
+    }),
   };
 }
 
@@ -64,7 +81,15 @@ export function renderNotificationEmailChanged(notice: {
   orgName: string;
   confirmedEmail: string;
   siteUrl: string;
+  /**
+   * The tenant's logo and colours (#1238), from the same context. Omitted
+   * renders the platform's unbranded shell, which is what a tenant that has
+   * set no branding gets anyway.
+   */
+  branding?: EmailBranding;
 }): RenderedEmail {
+  const branding = notice.branding ?? EMPTY_EMAIL_BRANDING;
+  const palette = emailPalette(branding);
   const origin = normalizeOrigin(notice.siteUrl);
   const accountUrl = `${origin}/portal/account`;
   const lead = `${notice.orgName}'s portal email will now be delivered to ${notice.confirmedEmail} instead of this address.`;
@@ -74,13 +99,16 @@ export function renderNotificationEmailChanged(notice: {
   return {
     subject: `Your ${notice.orgName} email now goes somewhere else`,
     text: [lead, "", undo, "", `Your account: ${accountUrl}`].join("\n"),
-    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
+    html: renderEmailShell({
+      orgName: notice.orgName,
+      siteUrl: notice.siteUrl,
+      branding,
+      bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
   <p style="margin: 0 0 24px;">${escapeHtml(undo)}</p>
-  <p style="color: #57534e; font-size: 13px; margin: 0;">
-    <a href="${escapeHtml(accountUrl)}" style="color: #57534e;">Your account</a>
-  </p>
-</div>`,
+  <p style="color: ${palette.muted}; font-size: 13px; margin: 0;">
+    <a href="${escapeHtml(accountUrl)}" style="color: ${palette.muted};">Your account</a>
+  </p>`,
+    }),
   };
 }
 

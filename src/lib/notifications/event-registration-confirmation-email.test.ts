@@ -262,3 +262,45 @@ describe("the tenant's own copy (#1234)", () => {
     expect(html).toContain("white-space: pre-line;");
   });
 });
+
+/**
+ * One end of the threading, pinned where the whole chain is visible: a tenant's
+ * branding reaches the shell of a real receipt, and the text part is untouched
+ * by it. The shell's own rules are pinned in email-shell.test.ts.
+ */
+describe("the tenant's shell (#1238)", () => {
+  const branded: EventRegistrationConfirmation = {
+    ...base,
+    branding: {
+      logoUrl: "/chatter-logo-transparent.png",
+      primary: "#0f766e",
+      primaryDeep: "#134e4a",
+    },
+  };
+
+  test("puts the tenant's logo, resolved against its own origin, at the top", () => {
+    const { html } = renderEventRegistrationConfirmationEmail(branded);
+    expect(html).toContain(
+      'src="https://chattersnow.example/chatter-logo-transparent.png"',
+    );
+    expect(html).toContain('alt="Chatter Snow"');
+  });
+
+  test("links in the tenant's accent rather than the platform's purple", () => {
+    const { html } = renderEventRegistrationConfirmationEmail(branded);
+    expect(html).toContain("color: #0f766e");
+    expect(html).not.toContain("#4c1d95");
+  });
+
+  test("leaves the plain-text part byte-identical to the unbranded one", () => {
+    expect(renderEventRegistrationConfirmationEmail(branded).text).toBe(
+      renderEventRegistrationConfirmationEmail(base).text,
+    );
+  });
+
+  test("a tenant that has set nothing still gets its name, and no broken image", () => {
+    const { html } = renderEventRegistrationConfirmationEmail(base);
+    expect(html).not.toContain("<img");
+    expect(html).toContain("Chatter Snow");
+  });
+});

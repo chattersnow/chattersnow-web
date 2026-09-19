@@ -1,6 +1,13 @@
 import { contactTopicLabel } from "@/lib/contact-topics";
 import { deliveryMethodLabel } from "@/lib/gear-requests";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import {
+  emailPalette,
+  emailShellContext,
+  renderEmailShell,
+  type EmailOrgBrand,
+  type EmailShellContext,
+} from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -71,8 +78,10 @@ export function artworkSubmissionHref(submissionId: string): string {
 export function renderVolunteerApplicationEmail(
   notice: VolunteerApplicationNotice,
   siteUrl: string,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
+  const shell = emailShellContext(brand, origin);
   const url = `${origin}${volunteerApplicationHref(notice.applicationId)}`;
 
   const facts: Fact[] = [
@@ -88,7 +97,7 @@ export function renderVolunteerApplicationEmail(
       url,
       accountUrl: `${origin}/portal/account`,
     }),
-    html: renderHtml("Someone has applied to volunteer.", facts, {
+    html: renderHtml(shell, "Someone has applied to volunteer.", facts, {
       linkLabel: "Open the application",
       url,
       accountUrl: `${origin}/portal/account`,
@@ -106,8 +115,10 @@ export function renderContactMessageEmail(
   notice: ContactMessageNotice,
   siteUrl: string,
   lexicon: Lexicon = DEFAULT_LEXICON,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
+  const shell = emailShellContext(brand, origin);
   const url = `${origin}${contactMessageHref(notice.messageId)}`;
   const topic = contactTopicLabel(notice.topic, lexicon);
 
@@ -129,6 +140,7 @@ export function renderContactMessageEmail(
       },
     ),
     html: renderHtml(
+      shell,
       "Someone has written in through the contact form.",
       facts,
       {
@@ -150,8 +162,10 @@ export function renderContactMessageEmail(
 export function renderArtworkSubmissionEmail(
   notice: ArtworkSubmissionNotice,
   siteUrl: string,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
+  const shell = emailShellContext(brand, origin);
   const url = `${origin}${artworkSubmissionHref(notice.submissionId)}`;
 
   const facts: Fact[] = [
@@ -172,7 +186,7 @@ export function renderArtworkSubmissionEmail(
       url,
       accountUrl: `${origin}/portal/account`,
     }),
-    html: renderHtml("Someone has submitted artwork.", facts, {
+    html: renderHtml(shell, "Someone has submitted artwork.", facts, {
       linkLabel: "Review the submission",
       url,
       accountUrl: `${origin}/portal/account`,
@@ -192,8 +206,10 @@ export function renderGearRequestEmail(
   notice: GearRequestNotice,
   siteUrl: string,
   lexicon: Lexicon = DEFAULT_LEXICON,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
+  const shell = emailShellContext(brand, origin);
   const url = `${origin}${gearRequestHref(notice.requestId)}`;
   const collection = lexicon.collection_public.toLowerCase();
   const items = notice.itemCount === 1 ? "1 item" : `${notice.itemCount} items`;
@@ -220,6 +236,7 @@ export function renderGearRequestEmail(
       },
     ),
     html: renderHtml(
+      shell,
       `Someone has requested ${items} from the ${collection}.`,
       facts,
       {
@@ -253,27 +270,34 @@ function renderText(lead: string, facts: Fact[], link: Link): string {
   return lines.join("\n");
 }
 
-function renderHtml(lead: string, facts: Fact[], link: Link): string {
+function renderHtml(
+  shell: EmailShellContext,
+  lead: string,
+  facts: Fact[],
+  link: Link,
+): string {
+  const palette = emailPalette(shell.branding);
   const rows = facts
     .map(
       (fact) => `    <p style="margin: 0 0 6px;">
-      <span style="color: #57534e;">${escapeHtml(fact.label)}:</span> ${escapeHtml(fact.value)}
+      <span style="color: ${palette.muted};">${escapeHtml(fact.label)}:</span> ${escapeHtml(fact.value)}
     </p>`,
     )
     .join("\n");
 
-  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
+  return renderEmailShell({
+    ...shell,
+    bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
   <div style="margin: 0 0 20px;">
 ${rows}
   </div>
   <p style="margin: 0 0 24px;">
-    <a href="${escapeHtml(link.url)}" style="color: #4c1d95; font-weight: 600; text-decoration: underline;">${escapeHtml(link.linkLabel)}</a>
+    <a href="${escapeHtml(link.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(link.linkLabel)}</a>
   </p>
-  <p style="color: #57534e; font-size: 13px; margin: 0;">
-    <a href="${escapeHtml(link.accountUrl)}" style="color: #57534e;">Change what you get here</a>
-  </p>
-</div>`;
+  <p style="color: ${palette.muted}; font-size: 13px; margin: 0;">
+    <a href="${escapeHtml(link.accountUrl)}" style="color: ${palette.muted};">Change what you get here</a>
+  </p>`,
+  });
 }
 
 /**

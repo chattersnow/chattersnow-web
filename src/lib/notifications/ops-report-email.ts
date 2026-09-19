@@ -4,22 +4,35 @@ import {
   type OpsReport,
   type OpsReportLine,
 } from "@/lib/notifications/ops-report";
+import {
+  emailPalette,
+  emailShellContext,
+  renderEmailShell,
+  type EmailOrgBrand,
+  type EmailPalette,
+} from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
  * The daily leadership ops report as text and HTML (#743).
  *
  * Built to the same rules as the task digest's renderer: scannable in a few
- * seconds, no branding, no preamble, and a plain-text part that reads on its
- * own rather than being the markup with the tags taken out. It differs in
- * being sectioned -- the digest is one list of one person's commitments, this
- * is four unrelated queues -- and in having no greeting, because it is
- * addressed to an inbox rather than to anyone in particular.
+ * seconds, no preamble, a plain-text part that reads on its own rather than
+ * being the markup with the tags taken out, and an HTML part in the tenant's
+ * own shell (#1238). It differs in being sectioned -- the digest is one list of
+ * one person's commitments, this is four unrelated queues -- and in having no
+ * greeting, because it is addressed to an inbox rather than to anyone in
+ * particular.
  */
 
+/**
+ * @param brand The tenant's name and branding, from `tenantMailContext()`.
+ *   Omitted renders the shell with no header or footer.
+ */
 export function renderOpsReport(
   report: OpsReport,
   siteUrl: string,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = siteUrl.replace(/\/+$/, "");
   // The tab, not just the page: the recipient list this email is asking
@@ -29,7 +42,7 @@ export function renderOpsReport(
   return {
     subject: subjectFor(report),
     text: renderText(report, origin, settingsUrl),
-    html: renderHtml(report, origin, settingsUrl),
+    html: renderHtml(report, origin, settingsUrl, brand),
   };
 }
 
@@ -78,33 +91,43 @@ function renderHtml(
   report: OpsReport,
   origin: string,
   settingsUrl: string,
+  brand: EmailOrgBrand | undefined,
 ): string {
+  const shell = emailShellContext(brand, origin);
+  const palette = emailPalette(shell.branding);
   const sections = report.sections
     .map(
       (
         section,
-      ) => `  <h2 style="color: #1c1917; font-size: 15px; margin: 24px 0 8px;">${escapeHtml(section.title)}</h2>
+      ) => `  <h2 style="color: ${palette.text}; font-size: 15px; margin: 24px 0 8px;">${escapeHtml(section.title)}</h2>
   <ul style="margin: 0; padding-left: 20px;">
-${section.lines.map((line) => renderLine(line, origin)).join("\n")}
+${section.lines.map((line) => renderLine(line, origin, palette)).join("\n")}
   </ul>`,
     )
     .join("\n");
 
-  // Inline styles and a table-free single column, the same constraints the
-  // task digest's markup works under: every mail client strips a stylesheet
-  // and half of them still disagree about flexbox.
-  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="color: #57534e; font-size: 13px; margin: 0;">${escapeHtml(coverage(report))}</p>
+  return renderEmailShell({
+    ...shell,
+    bodyHtml: `  <p style="color: ${palette.muted}; font-size: 13px; margin: 0;">${escapeHtml(coverage(report))}</p>
 ${sections}
-  <p style="color: #57534e; font-size: 13px; margin: 24px 0 0;">
-    <a href="${escapeHtml(settingsUrl)}" style="color: #57534e;">Change who receives this</a>
-  </p>
-</div>`;
+  <p style="color: ${palette.muted}; font-size: 13px; margin: 24px 0 0;">
+    <a href="${escapeHtml(settingsUrl)}" style="color: ${palette.muted};">Change who receives this</a>
+  </p>`,
+  });
 }
 
-function renderLine(line: OpsReportLine, origin: string): string {
-  return `    <li style="margin: 0 0 10px; color: ${line.severity === "urgent" ? "#b91c1c" : "#1c1917"};">
-      <a href="${escapeHtml(`${origin}${line.href}`)}" style="color: ${line.severity === "urgent" ? "#b91c1c" : "#4c1d95"}; font-weight: 600; text-decoration: underline;">${escapeHtml(line.label)}</a>
+/**
+ * The urgent red is the platform's and stays the platform's: it is a status,
+ * not a brand colour, and a tenant whose accent happened to be red would
+ * otherwise erase the only distinction this list draws.
+ */
+function renderLine(
+  line: OpsReportLine,
+  origin: string,
+  palette: EmailPalette,
+): string {
+  return `    <li style="margin: 0 0 10px; color: ${line.severity === "urgent" ? "#b91c1c" : palette.text};">
+      <a href="${escapeHtml(`${origin}${line.href}`)}" style="color: ${line.severity === "urgent" ? "#b91c1c" : palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(line.label)}</a>
     </li>`;
 }
 

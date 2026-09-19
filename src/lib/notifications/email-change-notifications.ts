@@ -70,6 +70,7 @@ export async function sendEmailChangeConfirmation(
         token: request.token,
         expiresAt: request.expiresAt,
         siteUrl: mail.origin,
+        branding: mail.branding,
       }),
     logPrefix: "[email-change]",
   });
@@ -113,6 +114,7 @@ export async function sendEmailChanged(
         orgName: mail.displayName,
         confirmedEmail: request.confirmedEmail,
         siteUrl: mail.origin,
+        branding: mail.branding,
       }),
     logPrefix: "[email-change]",
   });

@@ -8,6 +8,12 @@ import {
   joinTextBlocks,
   requireAutoReplyDefinition,
 } from "@/lib/notifications/auto-reply-email";
+import {
+  emailPalette,
+  EMPTY_EMAIL_BRANDING,
+  renderEmailShell,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
 import { renderEventIcs } from "@/lib/notifications/event-ics";
 import { EVENT_REGISTRATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
@@ -65,6 +71,12 @@ export type EventRegistrationConfirmation = {
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
+  /**
+   * The tenant's logo and colours (#1238), from the same context. Omitted
+   * renders the platform's unbranded shell, which is what a tenant that has
+   * set no branding gets anyway.
+   */
+  branding?: EmailBranding;
 };
 
 /**
@@ -76,6 +88,8 @@ export function renderEventRegistrationConfirmationEmail(
   copy?: AutoReplyCopy,
 ): RenderedEmail {
   const { eventName } = confirmation;
+  const branding = confirmation.branding ?? EMPTY_EMAIL_BRANDING;
+  const palette = emailPalette(branding);
   const words = autoReplyWords(DEFINITION, copy, {
     org_name: confirmation.orgName,
     first_name: confirmation.registrantName,
@@ -115,15 +129,21 @@ export function renderEventRegistrationConfirmationEmail(
     copyParagraphHtml(words.greeting, "margin: 0 0 16px;"),
     copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
     `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${rowsHtml}\n  </ul>`,
-    `  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: #4c1d95; font-weight: 600; text-decoration: underline;">See the event page</a></p>`,
+    `  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">See the event page</a></p>`,
     `  <p style="margin: 0 0 12px;">${escapeHtml(calendarNote)}</p>`,
     copyParagraphHtml(words.closing, "margin: 0 0 12px;"),
-    copyParagraphHtml(words.signoff, "color: #57534e; margin: 12px 0 0;"),
+    copyParagraphHtml(
+      words.signoff,
+      `color: ${palette.muted}; margin: 12px 0 0;`,
+    ),
   ]);
 
-  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-${body}
-</div>`;
+  const html = renderEmailShell({
+    orgName: confirmation.orgName,
+    siteUrl: confirmation.siteUrl,
+    branding,
+    bodyHtml: body,
+  });
 
   return {
     subject: words.subject,

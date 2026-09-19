@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  emailBrandingFromRows,
   formatSender,
   resolveTenantOrigin,
   isAllowedFromAddress,
@@ -314,5 +315,61 @@ describe("resolveTenantOrigin", () => {
     expect(resolveTenantOrigin("example.org", FALLBACK)).not.toContain(
       "portal.",
     );
+  });
+});
+
+/**
+ * The `brand.*` half of the same read (#1238). Pure for the same reason the
+ * identity rules are, and worth pinning here rather than only through a
+ * renderer: the rows arrive as raw jsonb an administrator typed into.
+ */
+describe("emailBrandingFromRows", () => {
+  test("reads the three tokens an email can use", () => {
+    expect(
+      emailBrandingFromRows([
+        { key: "brand.primary", value: "#0f766e" },
+        { key: "brand.primary_deep", value: "#134e4a" },
+        { key: "brand.logo_url", value: "https://cdn.example.org/l.png" },
+      ]),
+    ).toEqual({
+      primary: "#0f766e",
+      primaryDeep: "#134e4a",
+      logoUrl: "https://cdn.example.org/l.png",
+    });
+  });
+
+  test("ignores the settings rows that share the read", () => {
+    expect(
+      emailBrandingFromRows([
+        { key: "notifications.reply_to", value: "hello@example.org" },
+        { key: "notifications.from_address", value: "no-reply@example.org" },
+      ]),
+    ).toEqual({ primary: null, primaryDeep: null, logoUrl: null });
+  });
+
+  test("drops a colour that is not a six-digit hex", () => {
+    expect(
+      emailBrandingFromRows([{ key: "brand.primary", value: "teal" }]).primary,
+    ).toBeNull();
+  });
+
+  /** The same resolution the website uses, so one field has one answer. */
+  test("turns a Google Drive share link into something a client can fetch", () => {
+    expect(
+      emailBrandingFromRows([
+        {
+          key: "brand.logo_url",
+          value: "https://drive.google.com/file/d/ABC123/view",
+        },
+      ]).logoUrl,
+    ).toBe("https://drive.google.com/thumbnail?id=ABC123&sz=w1000");
+  });
+
+  test("keeps a path this site serves, for the shell to resolve", () => {
+    expect(
+      emailBrandingFromRows([
+        { key: "brand.logo_url", value: "/chatter-logo-transparent.png" },
+      ]).logoUrl,
+    ).toBe("/chatter-logo-transparent.png");
   });
 });

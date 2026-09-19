@@ -277,8 +277,12 @@ tracking the defaults rather than freezing a copy of them.
 
 Branding is deliberately not part of that editor. The logo, the colours and the
 footer around the words come from the tenant's `brand.*` tokens through the
-shared email shell, set under Organization Settings → Branding: a slot is a
-sentence, the shell is the paper it is printed on.
+shared email shell (`src/lib/notifications/email-shell.ts`, #1238), set under
+Organization Settings → Branding: a slot is a sentence, the shell is the paper
+it is printed on. The shell is not only the automatic replies' — every
+renderer in `src/lib/notifications/` composes into it, so the digest, the ops
+report, the staff submission notices, a staff message and the address-change
+and claim notices all leave a tenant looking like one sender.
 
 Two more things can be varied per tenant, and they need very different amounts
 of work.
@@ -520,6 +524,25 @@ Both are the tenant admin's, not the operator's:
   making a flyer can install the same faces. Email is deliberately out of scope:
   web fonts do not load in most mail clients, so a branded email carries the
   tenant's colours and its logo and not its typeface.
+
+  **Branding reaches email** (#1238). `tenantMailContext()` brings
+  `brand.primary`, `brand.primary_deep` and `brand.logo_url` back in the same
+  read as the sender identity, and `renderEmailShell()` puts the logo at the
+  top of every outbound message and the tenant's accent on its links. Three
+  consequences worth knowing before changing a token:
+
+  - **The logo URL has to be fetchable with no session.** A Drive link that
+    renders in a browser because you are signed in to Drive is a broken image
+    in an inbox. A `brand.logo_url` stored as a path this site serves is
+    resolved against the tenant's own origin, so those work.
+  - **A brand colour that fails a contrast floor is not used.** Link text needs
+    4.5:1 against the shell's white background and the wordmark 3:1; a colour
+    that fails falls to the tenant's deep colour and then to the platform's
+    purple, rather than rendering something nobody can read.
+  - **Nothing exists only inside the logo.** Most clients block remote images,
+    so a tenant with no logo gets its name as a text wordmark, a blocked logo
+    falls back to that name as alt text, and the footer names the organization
+    either way. The plain-text part carries no logo and never will.
 
 - **Administration → Organization Settings → General**: the words this
   organization uses for what it lends (#896). The platform says "Inventory"

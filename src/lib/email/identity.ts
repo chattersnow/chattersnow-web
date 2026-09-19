@@ -1,4 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  BRAND_PREFIX,
+  brandingFromRows,
+  brandSettingKey,
+  LOGO_URL_TOKEN,
+  type BrandingRow,
+} from "@/lib/branding";
+import {
+  EMPTY_EMAIL_BRANDING,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
 
 /**
  * Who a tenant's mail comes from, where a reply to it goes (#857), and which
@@ -35,6 +46,49 @@ export const REPLY_TO_SETTING_KEY = "notifications.reply_to";
  * its domain with the provider. Constrained -- see isAllowedFromAddress().
  */
 export const FROM_ADDRESS_SETTING_KEY = "notifications.from_address";
+
+/**
+ * The `brand.*` rows the email shell reads (#1238), fetched in the same pass
+ * as the sender identity.
+ *
+ * Here rather than in a reader of its own because it is the same row set, on
+ * the same table, for the same tenant: a job that walks fifty tenants should
+ * do one `app_settings` read each, not two. Only the three tokens an email can
+ * use -- the rest of the namespace is a gradient, an app icon and a typeface,
+ * and none of those belongs in a mail client.
+ */
+export const BRAND_MAIL_SETTING_KEYS = [
+  brandSettingKey("primary"),
+  brandSettingKey("primary_deep"),
+  brandSettingKey(LOGO_URL_TOKEN),
+] as const;
+
+/**
+ * The `brand.*` rows as the shell's narrow view of them.
+ *
+ * Folded through `brandingFromRows()` rather than read straight off the rows,
+ * so a malformed colour is dropped and a Google Drive share link is turned
+ * into a thumbnail URL by exactly the same code the website uses. Two
+ * resolutions of one field would be two answers to "what is this tenant's
+ * logo?".
+ */
+export function emailBrandingFromRows(
+  rows: readonly { key: string; value: unknown }[],
+): EmailBranding {
+  const branding = brandingFromRows(
+    rows
+      .filter((row) => row.key.startsWith(BRAND_PREFIX))
+      .map((row) => ({
+        token: row.key.slice(BRAND_PREFIX.length),
+        value: row.value,
+      })) as BrandingRow[],
+  );
+  return {
+    logoUrl: branding.logoUrl,
+    primary: branding.colors.primary ?? null,
+    primaryDeep: branding.colors.primary_deep ?? null,
+  };
+}
 
 /** What a message is sent as. `from` is a composed header, `replyTo` a bare address. */
 export type MailIdentity = { from: string; replyTo?: string };
@@ -290,6 +344,12 @@ export type TenantMailContext = {
    * wording when the tenant read failed, for the same reason `origin` does.
    */
   displayName: string;
+  /**
+   * The logo and the two colours the shared email shell draws with (#1238).
+   * Empty for a tenant that has set no branding, which renders the platform's
+   * own shell -- the same thing every tenant's mail looked like before this.
+   */
+  branding: EmailBranding;
 };
 
 /**
@@ -323,7 +383,11 @@ export async function tenantMailContext(
       .from("app_settings")
       .select("key, value")
       .eq("tenant_id", tenantId)
-      .in("key", [REPLY_TO_SETTING_KEY, FROM_ADDRESS_SETTING_KEY]),
+      .in("key", [
+        REPLY_TO_SETTING_KEY,
+        FROM_ADDRESS_SETTING_KEY,
+        ...BRAND_MAIL_SETTING_KEYS,
+      ]),
   ]);
 
   if (tenant.error) {
@@ -376,5 +440,13 @@ export async function tenantMailContext(
     // recoverable, a digest that was never sent is not.
     origin: resolveTenantOrigin(tenantCustomDomain, options.fallbackOrigin),
     displayName: ((tenant.data?.name as string) ?? "").trim() || "the portal",
+    // A failed settings read leaves this empty, which is the unbranded shell
+    // rather than no email -- the same trade the identity and the origin make
+    // above, and the logo is the least load-bearing thing in the message.
+    branding: settings.error
+      ? EMPTY_EMAIL_BRANDING
+      : emailBrandingFromRows(
+          (settings.data ?? []) as { key: string; value: unknown }[],
+        ),
   };
 }
