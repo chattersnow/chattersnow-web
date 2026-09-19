@@ -69,6 +69,30 @@ Linking that account to a directory record is a **reviewed claim** (#1162), and 
 
 What the claimant types — name, and optionally email, phone, Instagram handle and a note — is stored **as typed, on the claim, and never normalized into `people`**. It is evidence for a reviewer, and a claim that is refused must leave nothing behind in the directory.
 
+### A registration is a claim source
+
+A registration is the moment somebody has told the organization who they are, so the confirmation that follows one offers to keep it (#1258). The offer sits in the **post-registration follow-up slot**, after the write and authorized by the returned registration id, and it is **never a gate**: the registration is already saved, the confirmation email is already on its way, and skipping is one click that changes nothing.
+
+Three readers, three offers, decided on the server because only the server sees the module and the session:
+
+| Who                             | What they are offered                                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Signed out                      | An account: `/my/sign-in` carrying `/my/registration/[registrationId]` as its `next`, and the claim made there |
+| Signed in, no record linked yet | One button, nothing to retype — the registration row already holds what they typed                             |
+| Signed in and linked            | Nothing. It is already on their record, and the confirmation already links to `/my`                            |
+
+The hand-off is a **route** rather than a query parameter because `safeMyDestination()` only carries a `next` that is a path inside `/my`, and the registration has to survive whatever making an account costs — a password, a Google round trip, or an email confirmation opened tomorrow on another device. That page reads nothing about the registration: an id that names nothing, an id from another tenant and an id belonging to somebody else all render the same thing, because a page that said "we could not find that registration" would be a way to test ids.
+
+`submit_claim_from_registration()` is the claimant's half again, with the evidence taken from the registration instead of a form. It copies `stated_name`, `stated_email`, `stated_phone` and `stated_instagram_handle` **as typed** off `event_registrations` and notes which event they came from, so the reviewer gets a claim whose tier-1 candidate is normally the record the registration attached to — `person_claim_candidates()` needs no change. **`claimed_person_id` stays null**: the registration knows which record it matched, but the claimant never picked it from anything they were shown, and a claim that named a record would be the application deciding on self-asserted evidence.
+
+Everything that makes the form's half safe is kept, because it is the same half. It returns nothing in every branch — matched, unmatched, already linked, a claim already open, module off, no such registration — it is rate-limited (5 per 15 minutes by IP) as the one thing it will say out loud, it carries the module gate in the database rather than only on the page, and it never writes `people.auth_user_id`. The demo tenant is covered by that same gate, permanently (#1177).
+
+The copy promises only what happens. It reads identically whether the registration matched a record or nobody, it never says "we found you", and the most it offers is that somebody will check: _"You'll be able to see this on your account once we've confirmed who you are."_
+
+**A verified email does not auto-approve.** GoTrue has confirmed the address and `people.email` matching it is the same tier-1 evidence a reviewer acts on — but a registration is self-asserted, one wrong approval hands somebody another person's giving history, and the queue is small. An approved claim remains the only path that writes `people.auth_user_id`. Auto-approval is a separate decision, to be taken with reviewer volume in hand.
+
+**Order in the slot, with the rider profile.** Two follow-ups want the same place, and the order is decided rather than incidental: the account offer first, because it is the one with a deadline — the reader is about to close the sheet and the registration it carries is claimable for a week — then the rider profile ([§5.9](people.md#59-people-directory)), which keeps as long as the person does. Both are skippable in one click and neither is a gate. If the two ever stop reading calmly as two, the rider profile moves into the confirmation email rather than the sheet becoming a three-step wizard.
+
 ### Reviewing a claim
 
 The staff side is `/portal/people/claims`, gated on the `constituent_claims` resource — a permission distinct from managing the directory, because deciding whether an account gets to read one person's giving and volunteering history is a different question from whether a staffer may correct that person's phone number. It ships as `admin`-only, the conservative default this schema uses for a new resource with no obvious fit among the existing roles, and an administrator can widen it from Administration › Permissions. A pending claim also raises an attention item on the portal home and a `person_claim` notification kind, both of which carry the module gate with them, so on a tenant without the area they are silent for everyone.

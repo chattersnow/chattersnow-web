@@ -190,6 +190,39 @@ test.describe("public events", () => {
     ).toBeVisible();
   });
 
+  // #1258. The seeded tenant has `constituent_accounts` on (#1175), so a
+  // signed-out registrant is offered an account -- and the offer has to carry
+  // the registration through sign-up, since a claim made afterwards from a
+  // blank form is the retyping this exists to remove.
+  test("a signed-out registrant is offered an account that keeps this", async ({
+    page,
+  }) => {
+    await eventLink(page).click();
+
+    const dialog = page.getByRole("dialog", { name: EVENT_NAME });
+    await registerFromSheet(
+      dialog,
+      "E2E Keeping Registrant",
+      `e2e-keep-${Date.now()}@example.test`,
+    );
+
+    await expect(
+      dialog.getByRole("heading", { name: "Keep this" }),
+    ).toBeVisible();
+    // Nothing about whether a record matched: the offer reads the same either
+    // way, and says only what will happen next.
+    await expect(
+      dialog.getByText(/once we've confirmed who you are/),
+    ).toBeVisible();
+
+    await dialog.getByRole("link", { name: "Make an account" }).click();
+
+    await expect(page).toHaveURL(
+      /\/my\/sign-in\?next=%2Fmy%2Fregistration%2F[0-9a-f-]{36}$/,
+    );
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  });
+
   test("skipping the rider profile leaves the registration confirmed", async ({
     page,
   }) => {
