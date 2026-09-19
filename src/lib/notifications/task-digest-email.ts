@@ -3,6 +3,12 @@ import type {
   DigestItem,
   DigestRecipient,
 } from "@/lib/notifications/task-digest";
+import {
+  emailPalette,
+  emailShellContext,
+  renderEmailShell,
+  type EmailOrgBrand,
+} from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -10,18 +16,27 @@ import type { RenderedEmail } from "@/lib/notifications/rendered-email";
  *
  * Short on purpose. This lands in someone's inbox every morning they have
  * something outstanding, so it earns its place by being scannable in two
- * seconds: what is due, when, and a link straight to it. No branding, no
- * preamble, and a plain-text part that is genuinely readable rather than a
- * stripped copy of the markup.
+ * seconds: what is due, when, and a link straight to it. No preamble, and a
+ * plain-text part that is genuinely readable rather than a stripped copy of
+ * the markup.
+ *
+ * The HTML part sits in the tenant's shell (#1238) -- its logo above, its name
+ * below and its accent on the links. The text part is untouched by that and
+ * always will be: there is no logo in text/plain.
  */
 
 // Re-exported so this module's existing importers keep working; the type moved
 // to its own file when #742 gave it a second renderer.
 export type { RenderedEmail };
 
+/**
+ * @param brand The tenant's name and branding, from `tenantMailContext()`.
+ *   Omitted renders the shell with no header or footer.
+ */
 export function renderTaskDigest(
   recipient: DigestRecipient,
   siteUrl: string,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = siteUrl.replace(/\/+$/, "");
   const accountUrl = `${origin}/portal/account`;
@@ -33,7 +48,7 @@ export function renderTaskDigest(
   return {
     subject: subjectFor(count, overdue),
     text: renderText(recipient, origin, accountUrl),
-    html: renderHtml(recipient, origin, accountUrl),
+    html: renderHtml(recipient, origin, accountUrl, brand),
   };
 }
 
@@ -76,28 +91,30 @@ function renderHtml(
   recipient: DigestRecipient,
   origin: string,
   accountUrl: string,
+  brand: EmailOrgBrand | undefined,
 ): string {
+  const shell = emailShellContext(brand, origin);
+  const palette = emailPalette(shell.branding);
   const items = recipient.items
     .map(
       (item) => `      <li style="margin: 0 0 16px;">
-        <a href="${escapeHtml(`${origin}${item.href}`)}" style="color: #4c1d95; font-weight: 600; text-decoration: underline;">${escapeHtml(item.description)}</a>
-        <div style="color: ${item.severity === "urgent" ? "#b91c1c" : "#57534e"}; font-size: 14px; margin-top: 2px;">${escapeHtml(dueLabel(item))}</div>
+        <a href="${escapeHtml(`${origin}${item.href}`)}" style="color: ${item.severity === "urgent" ? "#b91c1c" : palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(item.description)}</a>
+        <div style="color: ${item.severity === "urgent" ? "#b91c1c" : palette.muted}; font-size: 14px; margin-top: 2px;">${escapeHtml(dueLabel(item))}</div>
       </li>`,
     )
     .join("\n");
 
-  // Inline styles and a table-free single column: every mail client strips a
-  // stylesheet, and half of them still disagree about flexbox.
-  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(greeting(recipient.name))}</p>
+  return renderEmailShell({
+    ...shell,
+    bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(greeting(recipient.name))}</p>
   <p style="margin: 0 0 16px;">These meeting action items are assigned to you:</p>
   <ul style="margin: 0 0 24px; padding-left: 20px;">
 ${items}
   </ul>
-  <p style="color: #57534e; font-size: 13px; margin: 0;">
-    <a href="${escapeHtml(accountUrl)}" style="color: #57534e;">Change what you get here</a>
-  </p>
-</div>`;
+  <p style="color: ${palette.muted}; font-size: 13px; margin: 0;">
+    <a href="${escapeHtml(accountUrl)}" style="color: ${palette.muted};">Change what you get here</a>
+  </p>`,
+  });
 }
 
 function greeting(name: string | null): string {

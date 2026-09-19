@@ -75,7 +75,12 @@ export function markAsTest(rendered: RenderedEmail): RenderedEmail {
     ...rendered,
     subject: `${AUTO_REPLY_TEST_SUBJECT_PREFIX}${rendered.subject}`,
     text: `${AUTO_REPLY_TEST_NOTE}\n\n${rendered.text}`,
-    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #57534e; font-size: 13px; line-height: 1.5; max-width: 560px; margin: 0 0 16px; padding: 8px 12px; border-left: 3px solid #d6d3d1;">${AUTO_REPLY_TEST_NOTE}</div>
+    // Above the shell rather than inside it, with the shell's own side padding
+    // repeated so the two line up: the body is the thing under review, and an
+    // administrator checking their wording should be able to read past the
+    // banner and see exactly the email a member of the public would get --
+    // logo, colours and all.
+    html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #57534e; font-size: 13px; line-height: 1.5; max-width: 560px; margin: 24px 16px 0; padding: 8px 12px; border-left: 3px solid #d6d3d1;">${AUTO_REPLY_TEST_NOTE}</div>
 ${rendered.html}`,
   };
 }
@@ -116,6 +121,7 @@ export async function sendAutoReplyTest(
     orgName: request.mail.displayName,
     siteUrl: request.mail.origin,
     timeZone: request.timeZone,
+    branding: request.mail.branding,
   });
   if (!rendered) return "no-sample";
 

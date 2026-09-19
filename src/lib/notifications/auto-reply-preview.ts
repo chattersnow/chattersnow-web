@@ -24,6 +24,10 @@ import {
 } from "@/lib/notifications/artwork-submission-confirmation-email";
 import { contactTopicLabel } from "@/lib/contact-topics";
 import {
+  EMPTY_EMAIL_BRANDING,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
+import {
   ARTWORK_SUBMISSION_CONFIRMATION_KIND,
   CONTACT_MESSAGE_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
@@ -71,7 +75,25 @@ export type AutoReplyPreviewContext = {
    * a fixed date that will read as stale. Injectable so a test can pin it.
    */
   now?: Date;
+  /**
+   * The tenant's logo and colours (#1238), from the same context as the two
+   * above. A preview that showed the platform's shell would be a preview of
+   * an email nobody receives, so this is not optional in practice -- it is
+   * optional in the type only so a test can leave it out.
+   */
+  branding?: EmailBranding;
 };
+
+/** The shell inputs every sample shares. */
+function shellFields(context: AutoReplyPreviewContext): {
+  siteUrl: string;
+  branding: EmailBranding;
+} {
+  return {
+    siteUrl: context.siteUrl,
+    branding: context.branding ?? EMPTY_EMAIL_BRANDING,
+  };
+}
 
 /**
  * Ten days out, at 17:00 UTC. Far enough ahead to read as a real invitation,
@@ -120,7 +142,7 @@ export function sampleEventRegistration(
     // branch a tenant is least likely to have seen.
     partySize: 2,
     eventId: "00000000-0000-4000-8000-000000000001",
-    siteUrl: context.siteUrl,
+    ...shellFields(context),
   };
 }
 
@@ -133,7 +155,7 @@ export function sampleVolunteerApplication(
     orgName: context.orgName,
     applicantName: tokens.first_name ?? "",
     referenceCode: tokens.reference_code ?? "",
-    siteUrl: context.siteUrl,
+    ...shellFields(context),
   };
 }
 
@@ -152,6 +174,7 @@ export function sampleGearRequest(
     // theirs.
     instructions: "We'll be in touch to arrange a time and place to meet.",
     paymentMethod: null,
+    ...shellFields(context),
   };
 }
 
@@ -173,6 +196,7 @@ export function sampleContactMessage(
     // acknowledgement goes out from the same after() block as the insert.
     receivedAt: (context.now ?? new Date()).toISOString(),
     timeZone: context.timeZone,
+    ...shellFields(context),
   };
 }
 
@@ -189,6 +213,7 @@ export function sampleArtworkSubmission(
     // More than one, so the count reads in its plural form -- the branch a
     // tenant is least likely to have seen.
     imageCount: 3,
+    ...shellFields(context),
   };
 }
 

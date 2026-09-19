@@ -358,7 +358,12 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
                 <FieldDescription>
                   A Google Drive link, any image URL, or a path to a file this
                   site serves, starting with <code>/</code>. Shown in the site
-                  header and footer and in the portal sidebar.
+                  header and footer, in the portal sidebar, and at the top of
+                  every email you send &mdash; so it has to be reachable without
+                  signing in. A link that only works while you are signed in to
+                  Drive will show as a broken image in an inbox. About
+                  360&times;120 or larger keeps it sharp; email caps it at 180px
+                  wide.
                 </FieldDescription>
               </Field>
             </FieldGroup>

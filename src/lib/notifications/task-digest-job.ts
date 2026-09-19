@@ -139,7 +139,11 @@ async function deliver(
     kind: TASK_DIGEST_KIND,
     dedupeKey,
     to: recipient.email,
-    render: () => renderTaskDigest(recipient, mail.origin),
+    render: () =>
+      renderTaskDigest(recipient, mail.origin, {
+        orgName: mail.displayName,
+        branding: mail.branding,
+      }),
     logPrefix: "[task-digest]",
   });
 

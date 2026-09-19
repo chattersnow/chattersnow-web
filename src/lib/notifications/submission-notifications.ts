@@ -6,6 +6,7 @@ import {
 } from "@/lib/notifications/deliver";
 import { resolveAutoReply } from "@/lib/notifications/auto-replies-resolver";
 import { tenantMailContext } from "@/lib/email/identity";
+import type { EmailOrgBrand } from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -122,7 +123,7 @@ export async function notifyNewVolunteerApplication(
     minLevel: "manage",
     dedupeKey: `${VOLUNTEER_APPLICATION_KIND}:${data.id as string}`,
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderVolunteerApplicationEmail(
         {
           applicationId: data.id as string,
@@ -131,6 +132,7 @@ export async function notifyNewVolunteerApplication(
           roleInterest: (data.role_interest as string | null) ?? null,
         },
         origin,
+        brand,
       ),
   });
 }
@@ -194,7 +196,7 @@ export async function notifyNewContactMessage(
     // answered from the queue, where the reply is recorded.
     replyTo: submitterEmail || undefined,
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderContactMessageEmail(
         {
           messageId: data.id as string,
@@ -204,6 +206,7 @@ export async function notifyNewContactMessage(
         },
         origin,
         lexicon,
+        brand,
       ),
   });
 
@@ -266,7 +269,7 @@ export async function notifyNewArtworkSubmission(
     // been looked at, not by replying to the notice -- the same call the
     // volunteer notice makes.
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderArtworkSubmissionEmail(
         {
           submissionId: data.id as string,
@@ -276,6 +279,7 @@ export async function notifyNewArtworkSubmission(
           imageCount: images.length,
         },
         origin,
+        brand,
       ),
   });
 
@@ -391,6 +395,8 @@ export async function sendContactMessageConfirmation(
           topicLabel: contactTopicLabel(data.topic ?? "", lexicon),
           receivedAt: data.created_at,
           timeZone,
+          siteUrl: mail.origin,
+          branding: mail.branding,
         },
         reply.slots,
       ),
@@ -485,6 +491,8 @@ export async function sendArtworkSubmissionConfirmation(
           callTitle: call?.title ?? "",
           title: data.title,
           imageCount: images.length,
+          siteUrl: mail.origin,
+          branding: mail.branding,
         },
         reply.slots,
       ),
@@ -603,7 +611,7 @@ export async function notifyNewGearRequest(
     // No replyTo: a request is answered from its page, where the quote and
     // the handover are recorded -- the same call the volunteer notice makes.
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderGearRequestEmail(
         {
           requestId: data.id,
@@ -614,6 +622,7 @@ export async function notifyNewGearRequest(
         },
         origin,
         lexicon,
+        brand,
       ),
   });
 }
@@ -758,6 +767,8 @@ export async function sendGearRequestConfirmation(
                   (method) => method.key === data.payment_method,
                 ) ?? null)
               : null,
+          siteUrl: mail.origin,
+          branding: mail.branding,
         },
         reply.slots,
       );
@@ -879,6 +890,7 @@ export async function notifyVolunteerApplicationConfirmation(
           applicantName: (data.name ?? "").trim(),
           referenceCode: data.reference_code,
           siteUrl: mail.origin,
+          branding: mail.branding,
         },
         reply.slots,
       );
@@ -1021,6 +1033,7 @@ export async function sendEventRegistrationConfirmation(
           partySize: data.party_size ?? 1,
           eventId: data.event_id,
           siteUrl: mail.origin,
+          branding: mail.branding,
         },
         reply.slots,
       ),
@@ -1046,7 +1059,12 @@ export async function notifyRoleHolders(
      * lets that be decided here, after the tenant is known.
      */
     fallbackOrigin: string;
-    render: (origin: string) => RenderedEmail;
+    /**
+     * The message, given this tenant's origin and its branding (#1238) -- both
+     * resolved below, after the tenant is known, for the reason the origin is
+     * a parameter at all.
+     */
+    render: (origin: string, brand: EmailOrgBrand) => RenderedEmail;
   },
 ): Promise<NotifySummary> {
   const summary: NotifySummary = { ...NOTHING };
@@ -1083,7 +1101,11 @@ export async function notifyRoleHolders(
       kind: options.kind,
       dedupeKey: options.dedupeKey,
       to: recipient.email,
-      render: () => options.render(mail.origin),
+      render: () =>
+        options.render(mail.origin, {
+          orgName: mail.displayName,
+          branding: mail.branding,
+        }),
       replyTo: options.replyTo,
       logPrefix: "[submission-notify]",
     });

@@ -7,6 +7,11 @@ import {
   joinTextBlocks,
   requireAutoReplyDefinition,
 } from "@/lib/notifications/auto-reply-email";
+import {
+  EMPTY_EMAIL_BRANDING,
+  renderEmailShell,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
 import { CONTACT_MESSAGE_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { formatDateTimeInZone } from "@/lib/time";
@@ -62,6 +67,18 @@ export type ContactMessageConfirmation = {
    * "we got it on the 4th" agree with what its own staff see in the portal.
    */
   timeZone: string;
+  /**
+   * The tenant's own origin, from tenantMailContext(). Nothing in this message
+   * links anywhere, but the shell needs it: a tenant's logo may be stored as a
+   * path this site serves (#1267), and a path is meaningless in an inbox.
+   */
+  siteUrl?: string;
+  /**
+   * The tenant's logo and colours (#1238), from the same context. Omitted
+   * renders the platform's unbranded shell, which is what a tenant that has
+   * set no branding gets anyway.
+   */
+  branding?: EmailBranding;
 };
 
 /** The date the message arrived: "September 19, 2026". */
@@ -116,9 +133,12 @@ export function renderContactMessageConfirmationEmail(
     copyParagraphHtml(words.signoff, "color: #57534e; margin: 12px 0 0;"),
   ]);
 
-  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-${body}
-</div>`;
+  const html = renderEmailShell({
+    orgName: confirmation.orgName,
+    siteUrl: confirmation.siteUrl ?? "",
+    branding: confirmation.branding ?? EMPTY_EMAIL_BRANDING,
+    bodyHtml: body,
+  });
 
   return { subject: words.subject, text, html };
 }

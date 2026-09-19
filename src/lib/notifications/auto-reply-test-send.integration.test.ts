@@ -34,6 +34,11 @@ const MAIL: TenantMailContext = {
   },
   origin: "https://chattersnow.example",
   displayName: "Riverside Community Center",
+  branding: {
+    logoUrl: "https://cdn.example.org/riverside.png",
+    primary: "#0f766e",
+    primaryDeep: "#134e4a",
+  },
 };
 
 let tenantId: string;

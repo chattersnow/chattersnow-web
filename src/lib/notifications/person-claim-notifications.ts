@@ -53,7 +53,7 @@ export async function notifyNewPersonClaim(
     minLevel: "manage",
     dedupeKey: `${PERSON_CLAIM_KIND}:${claim.id}`,
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderClaimReviewEmail(
         {
           statedName: claim.stated_name,
@@ -62,6 +62,7 @@ export async function notifyNewPersonClaim(
           candidateCount: (candidates ?? []).length,
         },
         origin,
+        brand,
       ),
   });
 }
@@ -120,6 +121,7 @@ export async function notifyPersonClaimDecision(
     renderClaimDecisionEmail(
       { approved, organizationName: mail.displayName },
       mail.origin,
+      { orgName: mail.displayName, branding: mail.branding },
     );
 
   await deliverEmail(admin, {

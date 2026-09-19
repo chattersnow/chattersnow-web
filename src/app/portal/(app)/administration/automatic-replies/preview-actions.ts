@@ -32,8 +32,9 @@ export type AutoReplyPreview = {
   /** Null when the caller's record carries no address at all. */
   testSendTo: string | null;
   /**
-   * Whether an images-off toggle would change anything. False until the
-   * branded shell (#1238) puts a logo in these emails, and the pane hides the
+   * Whether an images-off toggle would change anything -- which since the
+   * branded shell (#1238) means "has this tenant set a logo?". A tenant that
+   * has not set one has nothing for a client to block, and the pane hides the
    * control rather than offering one that does nothing.
    */
   hasImages: boolean;
@@ -76,6 +77,7 @@ export async function renderAutoReplyPreviewAction(
       orgName: caller.mail.displayName,
       siteUrl: caller.mail.origin,
       timeZone: caller.timeZone,
+      branding: caller.mail.branding,
     },
   );
   if (!rendered) {

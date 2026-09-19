@@ -73,6 +73,7 @@ export async function sendNotificationEmailConfirmation(
         token: request.token,
         expiresAt: request.expiresAt,
         siteUrl: mail.origin,
+        branding: mail.branding,
       }),
     logPrefix: "[notification-email]",
   });
@@ -117,6 +118,7 @@ export async function sendNotificationEmailChanged(
         orgName: mail.displayName,
         confirmedEmail: request.confirmedEmail,
         siteUrl: mail.origin,
+        branding: mail.branding,
       }),
     logPrefix: "[notification-email]",
   });
