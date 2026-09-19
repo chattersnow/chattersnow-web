@@ -65,9 +65,13 @@ function EventsGroup({
           <Table stickyHeader="page" aria-label={label}>
             <TableHeader>
               <TableRow>
+                {/* Three columns at 390px (#1090). The event's own status is
+                    the one to drop: this block is read for what is coming and
+                    what still owes a report, and the status is on the event's
+                    page, which the name links to. */}
                 <TableHead>Event</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead hideBelow="sm">Status</TableHead>
                 <TableHead>Report</TableHead>
               </TableRow>
             </TableHeader>
@@ -116,7 +120,7 @@ function EventRow({ event, past }: { event: AgendaEvent; past?: boolean }) {
       <TableCell>
         <ViewerTime iso={event.starts_at} fallbackZone={event.timezone} />
       </TableCell>
-      <TableCell>
+      <TableCell hideBelow="sm">
         <StatusBadge status={event.status} />
       </TableCell>
       <TableCell>

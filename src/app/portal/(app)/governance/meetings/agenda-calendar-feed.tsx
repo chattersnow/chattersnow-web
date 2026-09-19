@@ -136,16 +136,21 @@ export function AgendaCalendarFeed({
           <Table stickyHeader="page" aria-label={label}>
             <TableHeader>
               <TableRow>
+                {/* Three columns is what a 390px phone reads without
+                    scrolling sideways (#1090), so what survives that width is
+                    when it happens, what it is, and how far its content has
+                    got. The rest is a tap away on the item's own page, which
+                    every title here links to. */}
                 <TableHead>Date</TableHead>
                 <TableHead>Item</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead hideBelow="sm">Type</TableHead>
                 {showContentState ? (
                   <>
                     <TableHead>Content</TableHead>
-                    <TableHead>Publish due</TableHead>
+                    <TableHead hideBelow="sm">Publish due</TableHead>
                   </>
                 ) : (
-                  <TableHead>Categories</TableHead>
+                  <TableHead hideBelow="sm">Categories</TableHead>
                 )}
               </TableRow>
             </TableHeader>
@@ -173,7 +178,7 @@ export function AgendaCalendarFeed({
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell hideBelow="sm">
                       {labelFor(ITEM_TYPES, item.item_type)}
                     </TableCell>
                     {showContentState ? (
@@ -188,7 +193,7 @@ export function AgendaCalendarFeed({
                             <ContentPiecesBadge pieces={item.content_pieces} />
                           )}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell hideBelow="sm" className="whitespace-nowrap">
                           {item.publish_due_at === null ? (
                             <span className="app-muted text-xs">—</span>
                           ) : item.content_overdue ? (
@@ -201,7 +206,7 @@ export function AgendaCalendarFeed({
                         </TableCell>
                       </>
                     ) : (
-                      <TableCell className="app-muted text-xs">
+                      <TableCell hideBelow="sm" className="app-muted text-xs">
                         {/* The tenant's own words, not the seeded keys -- and a
                           key it has since deactivated still labels the items
                           already tagged with it, through `labelFor`'s fallback. */}

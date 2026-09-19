@@ -59,10 +59,14 @@ export function AgendaPartnershipsFeed({
           <Table stickyHeader="page" aria-label="Open partnerships">
             <TableHeader>
               <TableRow>
+                {/* Three columns at 390px (#1090). Who a partnership is with,
+                    where it has got to and when it is next due are what this
+                    block is for; the owner is on the Partnerships page the
+                    organization links to. */}
                 <TableHead>Organization</TableHead>
                 <TableHead>Stage</TableHead>
                 <TableHead>Next step</TableHead>
-                <TableHead>Owner</TableHead>
+                <TableHead hideBelow="sm">Owner</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,7 +99,7 @@ export function AgendaPartnershipsFeed({
                       "—"
                     )}
                   </TableCell>
-                  <TableCell className="app-muted text-xs">
+                  <TableCell hideBelow="sm" className="app-muted text-xs">
                     {row.owner_name ?? "—"}
                   </TableCell>
                 </TableRow>
