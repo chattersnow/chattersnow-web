@@ -5,7 +5,12 @@ import {
   hasPermission,
   requirePermission,
 } from "@/lib/auth/permissions";
-import { getPageVisibility } from "@/lib/page-visibility";
+import {
+  getPageVisibility,
+  getTenantModules,
+  getTenantPageVisibility,
+} from "@/lib/page-visibility";
+import { collectionSurface } from "@/lib/legal-surface";
 import {
   getTenantLayoutValues,
   PROGRAMS_SOURCE_SLOT,
@@ -85,18 +90,31 @@ export default async function SiteContentPage({
   // editor, which is exactly the CMS access widening the gate was meant to
   // avoid granting them.
   await requirePermission(supabase, "site_content", "view", "Pages");
-  const [permissions, { data }, visibility, tenants, layoutValues] =
-    await Promise.all([
-      getCurrentUserPermissions(supabase),
-      supabase
-        .from("site_content")
-        .select(
-          "key, value, draft_value, has_draft, draft_updated_at, draft_updated_by, published_at, published_by",
-        ),
-      getPageVisibility(supabase),
-      getTenantContext(supabase),
-      getTenantLayoutValues(supabase),
-    ]);
+  const [
+    permissions,
+    { data },
+    visibility,
+    tenants,
+    layoutValues,
+    tenantVisibility,
+    tenantModules,
+  ] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    supabase
+      .from("site_content")
+      .select(
+        "key, value, draft_value, has_draft, draft_updated_at, draft_updated_by, published_at, published_by",
+      ),
+    getPageVisibility(supabase),
+    getTenantContext(supabase),
+    getTenantLayoutValues(supabase),
+    // The *selected* tenant's configuration, not the request host's, for the
+    // starter document below (#1291) -- the same split the org context on the
+    // next screenful already observes. An administrator editing their privacy
+    // policy has to start from one that matches the site they are editing.
+    getTenantPageVisibility(supabase),
+    getTenantModules(supabase),
+  ]);
   const rows = (data ?? []) as SiteContentDraftRow[];
   const { published, draft } = resolveDraftAndPublished(rows);
   const rowsByKey = new Map(rows.map((row) => [row.key, row]));
@@ -118,6 +136,7 @@ export default async function SiteContentPage({
     emailGeneral: published.text("org.email_general"),
     emailPrivacy: published.text("org.email_privacy"),
     emailConduct: published.text("org.email_conduct"),
+    surfaces: collectionSurface(tenantVisibility, tenantModules),
   };
 
   // The editor gets, for every slot on the page, the copy it edits (the draft

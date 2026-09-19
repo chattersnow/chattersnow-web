@@ -11,6 +11,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../test/toast-testing";
 import { platformLegalDocument } from "@/lib/legal-defaults";
+import { collectionSurface } from "@/lib/legal-surface";
 import type {
   ContentPage,
   ContentSection,
@@ -167,6 +168,7 @@ function editorSlot(
             emailGeneral: "hello@example.org",
             emailPrivacy: "privacy@example.org",
             emailConduct: "conduct@example.org",
+            surfaces: collectionSurface({}, {}),
           })
         : null,
   };

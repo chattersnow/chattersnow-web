@@ -1,3 +1,4 @@
+import type { CollectionSurface } from "@/lib/legal-surface";
 import { RETENTION_POLICIES } from "@/lib/retention";
 import {
   LEGAL_DOCUMENT_OUTLINES,
@@ -32,6 +33,14 @@ import {
  *      documents name the forms they describe rather than linking to them. The
  *      exceptions are /privacy, which #859 keeps served for every tenant, and a
  *      #fragment, which stays inside the document it is written in.
+ *   4. **Only what *this tenant's* software does** (#1291). Rule 1 was read too
+ *      narrowly at first: the prose described every form in the repository, so
+ *      a tenant running a contact form and nothing else published a policy
+ *      about volunteer applications, rider profiles, gear requests and open
+ *      calls, hedged by one sentence admitting some of them might not exist.
+ *      A bullet, a retention row or a whole section that belongs to a
+ *      collection surface now names it -- `CollectionSurface` in
+ *      `@/lib/legal-surface` -- and drops out when that surface is off.
  *
  * This is a starting point for an organization's own counsel to rewrite, not
  * legal advice, and the Site Content editor says so where the slot is edited.
@@ -46,13 +55,19 @@ export type LegalOrgContext = {
   emailPrivacy: string;
   /** `org.email_conduct` -- code of conduct reports. */
   emailConduct: string;
+  /**
+   * What this tenant's site actually collects (#1291), from the page
+   * visibility and module entitlements it is running under. Decides which
+   * bullets, retention rows and whole sections the documents below carry.
+   */
+  surfaces: CollectionSurface;
 };
 
 /**
  * Printed on all three documents. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 10, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 19, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -66,8 +81,20 @@ type DocumentProse = {
 
 const mailto = (address: string) => `[${address}](mailto:${address})`;
 
-const bullets = (items: readonly string[]) =>
-  items.map((item) => `- ${item}`).join("\n");
+/**
+ * A bullet list. `false` entries are dropped rather than rendered, so a bullet
+ * that belongs to a collection surface can be written inline as
+ * `surfaces.x && "..."` and simply not appear when that surface is off (#1291).
+ */
+const bullets = (items: readonly (string | false)[]) =>
+  items
+    .filter((item): item is string => item !== false)
+    .map((item) => `- ${item}`)
+    .join("\n");
+
+/** The same, for whole paragraphs in a section's list. */
+const paragraphs = (items: readonly (string | false)[]) =>
+  items.filter((item): item is string => item !== false);
 
 const PRIVACY: DocumentProse = {
   description: (org) =>
@@ -77,18 +104,29 @@ const PRIVACY: DocumentProse = {
     `The short version: we try to collect only what we need to run our programs and keep in touch with you, we don't sell or rent it to anyone, and you can ask us to delete it — apart from the few records we're legally required to keep — by emailing ${mailto(org.emailPrivacy)}.`,
   ],
   sections: {
-    "what-we-collect": () => [
+    // One bullet per form this site actually has (#1291). The list used to be
+    // every form in the software, followed by a sentence saying some of them
+    // might not exist -- an honest dodge rather than an accurate policy.
+    "what-we-collect": ({ surfaces }) => [
       "Everything below is information you type into a form yourself. We don't buy personal information about you from anyone else.",
       bullets([
-        "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you, and we email you back to confirm it arrived — that confirmation names the topic and the date, never what you wrote.",
-        "**Volunteer application** — your name, email address, and, if you choose to give them, your phone number, the roles you're interested in, and your availability. We use it to review your application, follow up with you, and let you check its status with the reference code we give you.",
-        "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details.",
-        "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
-        "**Artwork submissions** — your name, email address, the images you upload, and, if you give them, the title, the medium, an artist statement, a credit name and a link to your work. We use it to review your submission for the open call you sent it to, and we email you back to confirm it arrived — that confirmation names the piece, the call and how many images we received, and never sends the images themselves.",
-        "**Portal accounts** — for the people who run the organization: the email address you sign in with, and a session cookie that keeps you signed in. Signing in with Google shares that account's email address and name with us.",
+        surfaces.contact &&
+          "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you, and we email you back to confirm it arrived — that confirmation names the topic and the date, never what you wrote.",
+        surfaces.volunteerApplications &&
+          "**Volunteer application** — your name, email address, and, if you choose to give them, your phone number, the roles you're interested in, and your availability. We use it to review your application, follow up with you, and let you check its status with the reference code we give you.",
+        surfaces.eventRegistrations &&
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details.",
+        surfaces.gearRequests &&
+          "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
+        surfaces.artworkSubmissions &&
+          "**Artwork submissions** — your name, email address, the images you upload, and, if you give them, the title, the medium, an artist statement, a credit name and a link to your work. We use it to review your submission for the open call you sent it to, and we email you back to confirm it arrived — that confirmation names the piece, the call and how many images we received, and never sends the images themselves.",
+        `**Portal accounts** — for the people who run the organization: the email address you sign in with, and a session cookie that keeps you signed in.${
+          surfaces.googleSignIn
+            ? " Signing in with Google shares that account's email address and name with us."
+            : ""
+        }`,
       ]),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",
-      "Not every form above is open on every site. Where a section of this site is turned off, its form collects nothing, because there is nothing to submit.",
     ],
     "what-we-dont-do": () => [
       bullets([
@@ -98,29 +136,38 @@ const PRIVACY: DocumentProse = {
         "We don't publish your information. Names and photos appear on the public site only where someone has agreed to that separately.",
       ]),
     ],
-    "how-long-we-keep-it": () => [
+    "how-long-we-keep-it": ({ surfaces }) => [
       "We keep personal information only for as long as we reasonably need it for the purposes described here. When we no longer need it, we delete it, or we strip the personal details and keep only the count — how many people came to an event, how many were there for the first time — which tells us nothing about you.",
+      // Only the clocks that can run here (#1291). Every period below is still
+      // enforced by the purge for every tenant; this is about which of them
+      // this organization's policy has any business publishing.
       bullets(
-        RETENTION_POLICIES.map(
-          (policy) => `**${policy.what}** — ${policy.howLong}`,
-        ),
+        RETENTION_POLICIES.filter(
+          (policy) => policy.surface === undefined || surfaces[policy.surface],
+        ).map((policy) => `**${policy.what}** — ${policy.howLong}`),
       ),
       "These periods are enforced by a scheduled job, not by hand: it runs nightly and removes or anonymizes whatever has passed its date, and keeps a record of what it did so we can check the policy is being applied.",
       "We also keep encrypted backups of the database so the site can be restored after a failure. A backup is taken nightly and deleted after 90 days, so information removed from the live site — by the scheduled job or at your request — may persist in a backup for up to 90 days after that. Backups are used only to restore the site, not to look up information that has been deleted.",
       "Some records have to outlive those periods because the law or our own accounting requires it — donation and financial records we need for our reporting and tax filings, for example. A few organizational records, such as tax filings, financial statements, and governance records, we keep permanently. If you ask us to delete your information and something falls into one of those categories, we'll tell you what we have to keep and why.",
     ],
-    "who-can-see-it": (org) => [
-      `Inside ${org.name}, what you submit is visible to the people whose role covers it — the people running events see event registrations, whoever coordinates volunteers sees volunteer applications, and so on. Access is enforced in the database by the permissions attached to each role, not just hidden in the interface.`,
-      "Running an event means the volunteers staffing it may need to see who registered — a check-in list, a head count, who asked for something or noted something we should know about on the day. We don't publish participant lists, and we don't give your name or contact details to a venue, a partner, or a sponsor unless you have agreed to that separately, or the venue requires it to let the group in and we've told you so when you registered.",
-      "Outside the organization, we rely on a small number of service providers to run the site. They handle information on our behalf, under their own terms and privacy policies:",
-      bullets([
-        "**Supabase** — hosts our database and handles portal sign-in.",
-        "**Vercel** — hosts this website and provides the aggregate traffic counts we use to see which pages get visited.",
-        "**Resend** — delivers the email this site sends, such as a confirmation or a reply to something you submitted.",
-        "**Google** — only if someone chooses to sign in to the portal with a Google account.",
+    "who-can-see-it": (org) =>
+      paragraphs([
+        `Inside ${org.name}, what you submit is visible to the people whose role covers it — the people running events see event registrations, whoever coordinates volunteers sees volunteer applications, and so on. Access is enforced in the database by the permissions attached to each role, not just hidden in the interface.`,
+        // Both halves of this paragraph have to be true for it to be: it is
+        // about volunteers seeing registrations.
+        org.surfaces.eventRegistrations &&
+          org.surfaces.volunteerApplications &&
+          "Running an event means the volunteers staffing it may need to see who registered — a check-in list, a head count, who asked for something or noted something we should know about on the day. We don't publish participant lists, and we don't give your name or contact details to a venue, a partner, or a sponsor unless you have agreed to that separately, or the venue requires it to let the group in and we've told you so when you registered.",
+        "Outside the organization, we rely on a small number of service providers to run the site. They handle information on our behalf, under their own terms and privacy policies:",
+        bullets([
+          "**Supabase** — hosts our database and handles portal sign-in.",
+          "**Vercel** — hosts this website and provides the aggregate traffic counts we use to see which pages get visited.",
+          "**Resend** — delivers the email this site sends, such as a confirmation or a reply to something you submitted.",
+          org.surfaces.googleSignIn &&
+            "**Google** — only if someone chooses to sign in to the portal with a Google account.",
+        ]),
+        "We'll also share information if we're legally required to, or if it's necessary to protect someone's safety.",
       ]),
-      "We'll also share information if we're legally required to, or if it's necessary to protect someone's safety.",
-    ],
     "how-we-protect-it": () => [
       "We use reasonable administrative, technical, and organizational safeguards to protect what you give us: information travels to the site over an encrypted connection, portal accounts are individual rather than shared, and access to each kind of record is limited to the roles that need it and enforced by the database itself.",
       "No website or database is perfectly secure, and we can't promise otherwise. If a breach ever affects your information, we'll tell you and the authorities we're required to tell, as promptly as we can.",
@@ -314,6 +361,11 @@ function prose(slotKey: string): DocumentProse {
  * The section order and headings come from `LEGAL_DOCUMENT_OUTLINES` and the
  * prose is looked up by id, so a heading with no prose is a build-time-visible
  * mistake rather than an empty section on a published page.
+ *
+ * A section whose `requires` surface is off is removed from the outline before
+ * that lookup happens (#1291), so it takes its heading, its anchor and its
+ * entry in the section rail with it. The "prose must exist" throw is unchanged
+ * for every section that survives.
  */
 export function platformLegalDocument(
   slotKey: string,
@@ -325,13 +377,24 @@ export function platformLegalDocument(
     title: outline.title,
     last_updated: PLATFORM_LEGAL_LAST_UPDATED,
     summary: prose(slotKey).summary(org),
-    sections: outline.sections.map((section) => {
-      const write = sections[section.id];
-      if (!write) {
-        throw new Error(`No prose for ${slotKey} section "${section.id}"`);
-      }
-      return { ...section, paragraphs: write(org) };
-    }),
+    sections: outline.sections
+      .filter(
+        (section) =>
+          section.requires === undefined || org.surfaces[section.requires],
+      )
+      .map((section) => {
+        const write = sections[section.id];
+        if (!write) {
+          throw new Error(`No prose for ${slotKey} section "${section.id}"`);
+        }
+        // `requires` is outline metadata, not content: the published document
+        // carries an id, a title and prose and nothing else.
+        return {
+          id: section.id,
+          title: section.title,
+          paragraphs: write(org),
+        };
+      }),
   };
 }
 
