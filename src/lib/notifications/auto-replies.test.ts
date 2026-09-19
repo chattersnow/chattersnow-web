@@ -9,6 +9,7 @@ import {
   autoReplyDefaults,
   autoReplyDefinition,
   mergeAutoReplySlots,
+  validateAutoReplySlots,
 } from "./auto-replies";
 import { isNotificationKind } from "./kinds";
 
@@ -225,5 +226,70 @@ describe("applyAutoReplyCopy", () => {
       EVENT.sample,
     );
     expect(rendered.closing).toBe("");
+  });
+});
+
+describe("validateAutoReplySlots (#1235)", () => {
+  test("says nothing about slots the tenant has not rewritten", () => {
+    // The sparse object is the input on purpose: a slot still on the
+    // platform's wording cannot be wrong, and validating the merged copy
+    // would make every default answerable to rules written for tenant text.
+    expect(validateAutoReplySlots(EVENT, {})).toEqual([]);
+  });
+
+  test("names the slot when a token is misspelled", () => {
+    const [problem] = validateAutoReplySlots(EVENT, {
+      greeting: "Hi {{first_nmae}},",
+    });
+    expect(problem.slot).toBe("greeting");
+    expect(problem.message).toContain("Greeting");
+    expect(problem.message).toContain("{{first_nmae}}");
+    expect(problem.message).toContain("{{first_name}}");
+  });
+
+  test("catches a token this slot does not offer", () => {
+    // {{reference_code}} is real, and means nothing on an event
+    // registration. Rendered it would simply vanish.
+    const [problem] = validateAutoReplySlots(EVENT, {
+      intro: "Your code is {{reference_code}}.",
+    });
+    expect(problem.slot).toBe("intro");
+    expect(problem.message).toContain("{{reference_code}}");
+  });
+
+  test("catches a token the substituting pattern would not even match", () => {
+    // TOKEN_PATTERN takes lower case only, so {{First_Name}} renders as
+    // itself -- the one failure a reader sees in full.
+    const [problem] = validateAutoReplySlots(EVENT, {
+      greeting: "Hi {{First_Name}},",
+    });
+    expect(problem.slot).toBe("greeting");
+  });
+
+  test("refuses an empty subject and allows an empty paragraph", () => {
+    expect(validateAutoReplySlots(EVENT, { subject: "   " })).toHaveLength(1);
+    expect(validateAutoReplySlots(EVENT, { closing: "" })).toEqual([]);
+  });
+
+  test("counts characters over the slot's own limit", () => {
+    const [problem] = validateAutoReplySlots(EVENT, {
+      subject: "x".repeat(AUTO_REPLY_LINE_MAX_LENGTH + 3),
+    });
+    expect(problem.slot).toBe("subject");
+    expect(problem.message).toContain("3 characters over");
+  });
+
+  test("a paragraph gets the paragraph limit, not the line one", () => {
+    expect(
+      validateAutoReplySlots(VOLUNTEER, {
+        intro: "x".repeat(AUTO_REPLY_PARAGRAPH_MAX_LENGTH),
+      }),
+    ).toEqual([]);
+  });
+
+  test("blames no slot for a key no slot claims", () => {
+    const [problem] = validateAutoReplySlots(EVENT, { footer: "..." });
+    expect(problem.slot).toBeNull();
+    expect(problem.message).toContain("footer");
   });
 });

@@ -727,6 +727,26 @@ export const NAV_ITEMS: readonly NavItem[] = [
         ],
       },
       {
+        // Administration rather than Communications: these five replies span
+        // events, volunteers, inventory and communications, and what governs
+        // the organization as a whole is filed here while feature-local
+        // vocabulary stays with its feature (docs/portal-navigation.md).
+        //
+        // A page of its own rather than a sixth tab on Organization Settings:
+        // a tab is another view of one object, and five templates are five
+        // objects. Organization Settings -> Notifications still owns the kill
+        // switch and the sender identity, and the two cross-link (#1235).
+        //
+        // `system_settings:manage` alone, matching the table's RLS rather
+        // than Organization Settings' wider nav entry, so the sidebar shows
+        // this to exactly the people the row-level policies admit.
+        value: "automatic-replies",
+        label: "Automatic Replies",
+        href: "/portal/administration/automatic-replies",
+        group: "Organization",
+        access: [{ resource: "system_settings", level: "manage" }],
+      },
+      {
         value: "audit-log",
         label: "Audit Log",
         href: "/portal/administration/audit-log",

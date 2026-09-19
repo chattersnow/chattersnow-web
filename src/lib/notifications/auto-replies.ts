@@ -402,3 +402,100 @@ export function applyAutoReplyCopy(
   }
   return rendered;
 }
+
+/** A save that has to be refused, named by the slot it is about (#1235). */
+export type AutoReplySlotProblem = {
+  /** Null only for a key no slot claims, which no field can be blamed for. */
+  slot: AutoReplySlotKey | null;
+  message: string;
+};
+
+/**
+ * `{{anything at all}}`, however it is spelled.
+ *
+ * Deliberately looser than TOKEN_PATTERN above, which is what the renderer
+ * substitutes with. The renderer only has to recognise the tokens it can
+ * answer; validation has to recognise everything an administrator might have
+ * *meant* as a token, because the failure this exists to prevent is silent.
+ * `{{first_nmae}}` renders empty and `{{First_Name}}` renders as itself, and
+ * both reach a member of the public looking like a defect in the email.
+ */
+const ANY_TOKEN_PATTERN = /\{\{([^{}]*)\}\}/g;
+
+/** The tokens a slot offers, written the way they are typed. */
+function tokenList(slot: AutoReplySlot): string {
+  return slot.tokens.map((token) => `{{${token}}}`).join(", ");
+}
+
+/**
+ * What is wrong with a tenant's slots, if anything (#1235).
+ *
+ * Pure, and in the registry rather than beside the Server Action, because the
+ * editor checks before it submits and the action checks again before it
+ * writes -- the action is the control and the editor is the explanation, and
+ * one rule in two files is one rule that drifts. It reads the *sparse*
+ * overrides, not a merged copy: a slot the tenant has not rewritten is the
+ * platform's own wording and cannot be wrong.
+ *
+ * Every message names its slot, because a save error that says only "invalid
+ * token" leaves an administrator hunting through five fields for it.
+ */
+export function validateAutoReplySlots(
+  definition: AutoReplyDefinition,
+  overrides: Record<string, unknown>,
+): AutoReplySlotProblem[] {
+  const problems: AutoReplySlotProblem[] = [];
+  const slots = new Map(definition.slots.map((slot) => [slot.key, slot]));
+
+  for (const [key, value] of Object.entries(overrides)) {
+    const slot = slots.get(key as AutoReplySlotKey);
+    // Only reachable by a hand-made request: the editor writes the registry's
+    // own keys. Refused rather than dropped, so a renamed slot fails loudly
+    // instead of quietly discarding what somebody wrote.
+    if (!slot) {
+      problems.push({
+        slot: null,
+        message: `"${key}" is not a field of the ${definition.label.toLowerCase()}.`,
+      });
+      continue;
+    }
+    if (typeof value !== "string") {
+      problems.push({
+        slot: slot.key,
+        message: `${slot.label} must be text.`,
+      });
+      continue;
+    }
+
+    if (slot.key === "subject" && value.trim() === "") {
+      problems.push({
+        slot: slot.key,
+        message:
+          "Subject cannot be empty — an email with no subject line is what a spam filter looks for.",
+      });
+    }
+
+    if (value.length > slot.maxLength) {
+      problems.push({
+        slot: slot.key,
+        message: `${slot.label} is ${value.length - slot.maxLength} character${
+          value.length - slot.maxLength === 1 ? "" : "s"
+        } over the ${slot.maxLength}-character limit.`,
+      });
+    }
+
+    for (const match of value.matchAll(ANY_TOKEN_PATTERN)) {
+      const token = match[1].trim();
+      if ((slot.tokens as string[]).includes(token)) continue;
+      problems.push({
+        slot: slot.key,
+        message:
+          slot.tokens.length > 0
+            ? `${slot.label} uses {{${token}}}, which nothing fills in here. Use ${tokenList(slot)}.`
+            : `${slot.label} uses {{${token}}}, and this field takes no placeholders.`,
+      });
+    }
+  }
+
+  return problems;
+}
