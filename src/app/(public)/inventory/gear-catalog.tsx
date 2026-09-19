@@ -72,6 +72,13 @@ export function GearCatalog({
     setCartOpen(true);
   };
 
+  // From the detail sheet, which the cart tray cannot be seen or reached
+  // through: hand the catalog straight over to the cart.
+  const viewCartFromDetail = () => {
+    setDetailOpen(false);
+    openCart();
+  };
+
   const toggleCartItem = (itemId: string) => {
     setCartIds((current) => {
       const next = new Set(current);
@@ -362,6 +369,8 @@ export function GearCatalog({
         onOpenChange={setDetailOpen}
         inCart={selectedItem ? cartIds.has(selectedItem.id) : false}
         onToggleCart={() => selectedItem && toggleCartItem(selectedItem.id)}
+        cartCount={cartItems.length}
+        onViewCart={viewCartFromDetail}
         placeholderUrl={placeholderUrl}
       />
 
