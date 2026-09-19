@@ -56,6 +56,10 @@ export default async function MyPage() {
     getPageVisibility(supabase),
   ]);
   const hidden = hiddenSlots(visibility);
+  // The claim form names the signed-in address itself, and for a reason: it is
+  // the identifier the request gets attached to. The foot of the page does not
+  // repeat it in the one state where that form is on screen.
+  const claimFormOnScreen = !personId && !pendingClaim;
 
   // A second wave, and only for an account that has a record to read. An
   // unlinked one would spend four round trips learning what the guard already
@@ -146,7 +150,21 @@ export default async function MyPage() {
           </Card>
         )}
 
-        <SignOutButton />
+        {/* Not a loose button under the card: on its own it read as one more
+          thing to do with your record. A rule and the address it signs out of
+          say what it belongs to, and answer "which account am I in?" -- the
+          question someone with both a portal and a personal account asks
+          before they press it. The header menu (#1175) is still the way out
+          from the other twenty pages. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-[var(--line)] pt-6">
+          {!claimFormOnScreen && auth.user?.email && (
+            <p className="app-muted text-sm">
+              Signed in as{" "}
+              <span className="text-foreground">{auth.user.email}</span>
+            </p>
+          )}
+          <SignOutButton />
+        </div>
       </div>
     </PageShell>
   );
