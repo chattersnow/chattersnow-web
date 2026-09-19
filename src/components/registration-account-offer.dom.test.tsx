@@ -130,8 +130,17 @@ describe("RegistrationAccountOffer", () => {
 
     expect(await screen.findByText(/too many requests/i)).toBeVisible();
     // Still offered: nothing was lost, and the registration was never at risk.
+    //
+    // Awaited, not read (#1288). `setError` is called inside the
+    // `startTransition` callback, so React paints the message while
+    // `isPending` is still true and the button still reads "Sending...".
+    // `findByText` above resolves inside that window, and a synchronous
+    // `getByRole` here read the pending button -- which passed on an idle
+    // machine, where the transition ends in the same flush, and failed on a
+    // loaded CI runner. The component is right to show both at once; this
+    // waits for the state it is actually asserting.
     expect(
-      screen.getByRole("button", { name: "Add to my account" }),
+      await screen.findByRole("button", { name: "Add to my account" }),
     ).toBeInTheDocument();
   });
 });
