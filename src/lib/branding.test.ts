@@ -1,14 +1,20 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
   DARK_ACCENT,
   DARK_DEEP,
+  DEFAULT_TYPOGRAPHY,
   EMPTY_BRANDING,
+  TYPOGRAPHY_FAMILIES,
+  TYPOGRAPHY_SETS,
   accentStops,
   brandColorPairs,
   brandingCss,
   brandingFromRows,
   darkVariantHex,
   normalizeHexColor,
+  resolvedTypography,
+  typographySet,
 } from "./branding";
 
 describe("brandingFromRows", () => {
@@ -54,6 +60,7 @@ describe("brandingCss", () => {
       accentStops: ["#aabbcc", "#ddeeff"],
       logoUrl: null,
       appIconUrl: null,
+      typography: null,
     });
     expect(css).toContain("--purple: #112233;");
     expect(css).toContain("--purple-deep: #001122;");
@@ -81,6 +88,7 @@ describe("brandingCss", () => {
       accentStops: null,
       logoUrl: null,
       appIconUrl: null,
+      typography: null,
     });
     expect(css).toContain(":root:not(.dark) {");
     expect(css).not.toContain(":root {");
@@ -101,6 +109,7 @@ describe("brandingCss", () => {
       accentStops: null,
       logoUrl: null,
       appIconUrl: null,
+      typography: null,
     });
     expect(css).toContain(
       "--purple: oklch(from #70419a 0.783 min(c, 0.098) h);",
@@ -120,6 +129,7 @@ describe("brandingCss", () => {
       accentStops: ["#aabbcc", "#ddeeff"],
       logoUrl: null,
       appIconUrl: null,
+      typography: null,
     });
     const dark = css.slice(css.indexOf(".dark {"));
     expect(dark).toContain(
@@ -134,6 +144,7 @@ describe("brandingCss", () => {
       accentStops: ["#aabbcc"],
       logoUrl: null,
       appIconUrl: null,
+      typography: null,
     });
     expect(css).toContain("linear-gradient(90deg, #aabbcc 0%, #aabbcc 0%)");
   });
@@ -212,5 +223,119 @@ describe("accentStops", () => {
 
   test("falls back to the platform's six", () => {
     expect(accentStops(EMPTY_BRANDING)).toHaveLength(6);
+  });
+});
+
+describe("typography", () => {
+  test("every set resolves to three families and a tracking value", () => {
+    expect(TYPOGRAPHY_SETS.length).toBe(5);
+    for (const set of TYPOGRAPHY_SETS) {
+      // `accent` is the one optional role, and an unset one falls back to
+      // `heading` rather than to nothing -- which is what keeps
+      // `--brand-font-accent` resolvable for every set.
+      const accent = set.accent ?? set.heading;
+      for (const family of [set.sans, set.heading, accent]) {
+        expect(family.name.length).toBeGreaterThan(0);
+        expect(family.cssVar).toMatch(/^--font-[a-z0-9-]+$/);
+      }
+      expect(set.headingTracking).toMatch(/^-?\d*\.?\d+em$/);
+      // The labels describe the typography and never an organization: a set
+      // named after the first tenant would appear on everybody else's
+      // settings screen.
+      expect(set.label).not.toMatch(/chatter/i);
+      expect(set.key).not.toMatch(/chatter/i);
+    }
+  });
+
+  test("keys are unique and the default is one of them", () => {
+    const keys = TYPOGRAPHY_SETS.map((set) => set.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).toContain(DEFAULT_TYPOGRAPHY.key);
+  });
+
+  test("every family a set names is loaded by the root layout", () => {
+    // The registry can only offer what `next/font/google` was called with,
+    // because it is a compile-time transform over literal arguments. A set
+    // naming a variable nothing declares renders the browser's default font
+    // and looks like a CSS bug rather than a missing import.
+    const layout = readFileSync("src/app/layout.tsx", "utf8");
+    for (const family of TYPOGRAPHY_FAMILIES) {
+      expect(layout).toContain(`variable: "${family.cssVar}"`);
+    }
+  });
+
+  test("the option families are not preloaded", () => {
+    // `next/font` preloads every family a root layout declares, on every
+    // route, so the obvious wiring would have each visitor fetch eight
+    // typefaces to render two. Counted rather than asserted per family: the
+    // point is that no call was left without it.
+    const layout = readFileSync("src/app/layout.tsx", "utf8");
+    const declarations = layout.match(/variable: "--font-/g) ?? [];
+    const optedOut = layout.match(/\n  preload: false,/g) ?? [];
+    expect(declarations.length).toBe(TYPOGRAPHY_FAMILIES.length);
+    expect(optedOut.length).toBe(declarations.length);
+  });
+
+  test("an unknown or malformed value resolves to nothing", () => {
+    expect(typographySet("rounded")?.key).toBe("rounded");
+    expect(typographySet("ROUNDED")).toBeNull();
+    expect(typographySet("comic-sans")).toBeNull();
+    expect(typographySet("")).toBeNull();
+    expect(typographySet(null)).toBeNull();
+    expect(typographySet(42)).toBeNull();
+    expect(typographySet({ key: "rounded" })).toBeNull();
+  });
+
+  test("an unset or rejected set renders the platform's own", () => {
+    expect(resolvedTypography(EMPTY_BRANDING)).toBe(DEFAULT_TYPOGRAPHY);
+    expect(
+      resolvedTypography(brandingFromRows([{ token: "typography", value: 7 }])),
+    ).toBe(DEFAULT_TYPOGRAPHY);
+    expect(DEFAULT_TYPOGRAPHY.key).toBe("neutral");
+  });
+
+  test("nothing outside the registry reaches the style block", () => {
+    for (const value of [
+      "quicksand, sans-serif; } body { display: none",
+      "var(--font-quicksand)",
+      "comic-sans",
+    ]) {
+      const branding = brandingFromRows([{ token: "typography", value }]);
+      expect(branding.typography).toBeNull();
+      expect(brandingCss(branding)).toBe("");
+    }
+  });
+
+  test("a set emits the three roles and its heading tracking", () => {
+    const css = brandingCss(
+      brandingFromRows([{ token: "typography", value: "rounded" }]),
+    );
+    expect(css).toContain("--brand-font-sans: var(--font-quicksand);");
+    expect(css).toContain("--brand-font-heading: var(--font-quicksand);");
+    expect(css).toContain("--brand-font-accent: var(--font-rock-salt);");
+    expect(css).toContain("--brand-heading-tracking: -0.04em;");
+    // A plain `:root`, not `:root:not(.dark)`: a dark page is set in the same
+    // families as a light one.
+    expect(css).toContain(":root { --brand-font-sans");
+  });
+
+  test("a set without an accent falls back to its heading", () => {
+    const css = brandingCss(
+      brandingFromRows([{ token: "typography", value: "editorial" }]),
+    );
+    expect(css).toContain("--brand-font-heading: var(--font-source-serif);");
+    expect(css).toContain("--brand-font-accent: var(--font-source-serif);");
+    expect(css).toContain("--brand-font-sans: var(--font-inter);");
+  });
+
+  test("typography and colours land in their own blocks", () => {
+    const css = brandingCss(
+      brandingFromRows([
+        { token: "typography", value: "friendly" },
+        { token: "primary", value: "#112233" },
+      ]),
+    );
+    expect(css).toContain(":root { --brand-font-sans: var(--font-figtree);");
+    expect(css).toContain(":root:not(.dark) { --purple: #112233;");
   });
 });

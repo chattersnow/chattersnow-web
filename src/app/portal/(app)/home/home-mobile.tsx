@@ -41,7 +41,7 @@ export function HomeMobile({
 }: DashboardData) {
   return (
     <section>
-      <h1 className="brand-display text-3xl font-semibold tracking-[-0.04em]">
+      <h1 className="brand-display text-3xl font-semibold tracking-brand">
         Dashboard
       </h1>
       <div className="rainbow-accent mt-2 w-24" />

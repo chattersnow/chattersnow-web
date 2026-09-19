@@ -41,7 +41,7 @@ export default function PortalError({
   return (
     <div className="max-w-2xl">
       <div className="w-fit">
-        <h1 className="brand-display flex items-center gap-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <h1 className="brand-display flex items-center gap-3 text-4xl font-semibold tracking-brand sm:text-5xl">
           <TriangleAlert className="size-8 shrink-0 text-[var(--purple)]" />
           Something went wrong
         </h1>

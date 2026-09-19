@@ -172,7 +172,7 @@ export function CategoryEditor({
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="brand-display text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+        <h1 className="brand-display text-3xl font-semibold tracking-brand sm:text-4xl">
           {body.title || category.slug}
         </h1>
         {category.unpublished ? (

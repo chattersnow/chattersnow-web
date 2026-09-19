@@ -185,7 +185,7 @@ export default async function FinancialReportsPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="w-fit">
-            <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+            <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
               Financial Reports
             </h1>
             <div className="rainbow-accent mt-3 w-full" />
@@ -223,7 +223,7 @@ export default async function FinancialReportsPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                <p className="brand-display text-4xl font-semibold tracking-brand">
                   {card.value}
                 </p>
                 <p className="app-muted mt-2 text-sm">{card.caption}</p>
