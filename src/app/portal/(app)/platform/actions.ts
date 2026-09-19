@@ -181,9 +181,13 @@ async function withLegalGates(
     .eq("tenant_id", tenantId)
     .like("key", `${LEGAL_PUBLICATION_PREFIX}%`);
   if (error) {
+    // The id goes beside the message rather than inside it: it arrives as a
+    // Server Action argument, so it is caller-controlled, and interpolating it
+    // into the format string lets a caller forge log lines (CodeQL
+    // js/log-injection, js/tainted-format-string).
     console.error(
-      `[platform] could not read the legal publication of tenant ${tenantId}; every gated module is showing as blocked`,
-      error,
+      "[platform] could not read a tenant's legal publication; every gated module is showing as blocked",
+      { tenantId, error },
     );
   }
 
