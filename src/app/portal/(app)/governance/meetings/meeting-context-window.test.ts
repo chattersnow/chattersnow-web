@@ -4,7 +4,9 @@
 // before it.
 import { describe, expect, test } from "bun:test";
 import {
+  AGENDA_EVENTS_LOOKAHEAD_DAYS,
   AGENDA_LOOKAHEAD_DAYS,
+  resolveAgendaEventWindows,
   resolveMeetingWindows,
 } from "./meeting-context-window";
 
@@ -68,5 +70,70 @@ describe("resolveMeetingWindows", () => {
 
     expect(lookahead.fromDate).toBe("2026-12-20");
     expect(lookahead.toDate).toBe("2027-01-19");
+  });
+});
+
+// The Events section's windows (#1241). Same zone handling, three different
+// answers: no previous meeting means no period rather than a fallback one, the
+// agenda's own next meeting date caps the lookahead, and the two windows must
+// abut without overlapping or an event lands in both groups.
+describe("resolveAgendaEventWindows", () => {
+  test("spans the previous meeting's day through this one's", () => {
+    const { since } = resolveAgendaEventWindows({
+      meetingDate: "2026-03-18T02:00:00.000Z",
+      previousMeetingDate: "2026-02-11T02:00:00.000Z",
+      timeZone: "America/Los_Angeles",
+    });
+
+    // 7pm Pacific on the 17th, not the 18th UTC reads it as.
+    expect(since?.fromDate).toBe("2026-02-10");
+    expect(since?.toDate).toBe("2026-03-17");
+  });
+
+  test("has no period to review when there is no previous meeting", () => {
+    const { since, upcoming } = resolveAgendaEventWindows({
+      meetingDate: "2026-03-18T18:00:00.000Z",
+      previousMeetingDate: null,
+      timeZone: "America/Denver",
+    });
+
+    expect(since).toBeNull();
+    // And the lookahead is unaffected: a first meeting still looks forward.
+    expect(upcoming.fromDate).toBe("2026-03-19");
+  });
+
+  test("starts the lookahead the day after the meeting, so the two abut", () => {
+    const { since, upcoming } = resolveAgendaEventWindows({
+      meetingDate: "2026-03-18T18:00:00.000Z",
+      previousMeetingDate: "2026-02-11T18:00:00.000Z",
+      timeZone: "America/Denver",
+    });
+
+    expect(since?.toDate).toBe("2026-03-18");
+    expect(upcoming.fromDate).toBe("2026-03-19");
+    // One second apart: nothing falls between them and nothing is in both.
+    expect(
+      Date.parse(upcoming.fromInstant) - Date.parse(since!.toInstant),
+    ).toBe(1000);
+  });
+
+  test("caps the lookahead at the agenda's next meeting date", () => {
+    const { upcoming } = resolveAgendaEventWindows({
+      meetingDate: "2026-03-18T18:00:00.000Z",
+      nextMeetingDate: "2026-04-15",
+      timeZone: "America/Denver",
+    });
+
+    expect(upcoming.toDate).toBe("2026-04-15");
+  });
+
+  test("looks 90 days ahead when the agenda names no next meeting", () => {
+    const { upcoming } = resolveAgendaEventWindows({
+      meetingDate: "2026-03-18T18:00:00.000Z",
+      timeZone: "America/Denver",
+    });
+
+    expect(AGENDA_EVENTS_LOOKAHEAD_DAYS).toBe(90);
+    expect(upcoming.toDate).toBe("2026-06-16");
   });
 });

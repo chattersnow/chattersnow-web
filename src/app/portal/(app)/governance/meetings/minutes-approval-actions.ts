@@ -12,6 +12,7 @@ import {
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
 import { isMinutesSnapshot, type MinutesSnapshot } from "./minutes-snapshot";
+import { findPreviousMeeting } from "./previous-meeting";
 
 export type PreviousMeetingMinutes = {
   meetingId: string;
@@ -73,20 +74,13 @@ export async function getPreviousMeetingMinutesAction(
   );
   if (permissionError) return permissionError;
 
-  const { data: priorMeeting, error: priorMeetingError } = await supabase
-    .from("governance_meetings")
-    .select("id, meeting_date")
-    .lt("meeting_date", beforeDate)
-    .neq("id", meetingId)
-    .order("meeting_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (priorMeetingError) {
+  const previous = await findPreviousMeeting(supabase, meetingId, beforeDate);
+  if ("error" in previous) {
     return {
       error: "Could not load the previous meeting's minutes. Please try again.",
     };
   }
+  const priorMeeting = previous.meeting;
   if (!priorMeeting) return { data: null };
 
   const [minutesResult, agendaResult, decisionsResult, actionItemsResult] =

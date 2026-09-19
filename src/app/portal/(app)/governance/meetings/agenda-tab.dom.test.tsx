@@ -5,6 +5,8 @@ import * as AgendaActions from "./agenda-actions";
 import * as DecisionsActions from "./decisions-actions";
 import * as MinutesApprovalActions from "./minutes-approval-actions";
 import * as MeetingContextActions from "./meeting-context-actions";
+import * as AgendaEventsActions from "./agenda-events-actions";
+import type { AgendaEventsFeed } from "./agenda-events-actions";
 import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 
@@ -65,8 +67,7 @@ mock.module("./minutes-approval-actions", () => ({
   getPreviousMeetingMinutesAction: mock(async () => ({ data: null })),
 }));
 // Both reference reads are stubbed absent: this file is about how a section
-// branches on its source, not about what the module feeds will eventually put
-// above the box.
+// branches on its source, not about what the module feeds put above the box.
 mock.module("./meeting-context-actions", () => ({
   ...MeetingContextActions,
   listMeetingDatedContextAction: mock(async () => ({
@@ -75,6 +76,56 @@ mock.module("./meeting-context-actions", () => ({
   getMeetingTopicContextAction: mock(async () => ({
     error: { message: "not under test" },
   })),
+}));
+// The Events feed (#1241), stubbed down to one row in each group -- enough to
+// show that the sourced Events section renders it and the manual one does not.
+const listAgendaEventsAction = mock(
+  async (
+    _meetingId: string,
+    _meetingDate: string,
+  ): Promise<{ data: AgendaEventsFeed }> => ({
+    data: {
+      timeZone: "America/Denver",
+      since: {
+        fromDate: "2026-02-11",
+        toDate: "2026-03-18",
+        events: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Winter gear swap",
+            starts_at: "2026-02-20T18:00:00.000Z",
+            ends_at: null,
+            timezone: "America/Denver",
+            status: "completed",
+            report_status: "not_started",
+            event_lead_id: null,
+            event_lead_name: null,
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Called-off clinic",
+            starts_at: "2026-02-24T18:00:00.000Z",
+            ends_at: null,
+            timezone: "America/Denver",
+            status: "cancelled",
+            report_status: "not_started",
+            event_lead_id: null,
+            event_lead_name: null,
+          },
+        ],
+      },
+      upcoming: {
+        fromDate: "2026-03-19",
+        toDate: "2026-06-17",
+        events: [],
+      },
+      unavailable: null,
+    },
+  }),
+);
+mock.module("./agenda-events-actions", () => ({
+  ...AgendaEventsActions,
+  listAgendaEventsAction,
 }));
 
 const { AgendaTab } = await import("./agenda-tab");
@@ -222,5 +273,77 @@ describe("AgendaTab ongoing board items", () => {
     );
     expect(screen.getByText("Written under version 1.")).toBeDefined();
     expect(screen.getByText("Approve the venue.")).toBeDefined();
+  });
+});
+
+// The Events feed in the slot #1240 left for it (#1241). What the rows say is
+// the action's business and the integration test's; what matters here is that
+// the section sourced to Events renders them, that the manual one never asks
+// for them, and that a section the caller cannot see keeps its Discussion box.
+describe("AgendaTab events feed", () => {
+  test("renders the feed above the Events section's Discussion box", async () => {
+    agendaRow = agenda(SOURCED_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getByText("Winter gear swap")).toBeDefined(),
+      SETTLE,
+    );
+    expect(
+      screen
+        .getByRole("link", { name: "Winter gear swap" })
+        .getAttribute("href"),
+    ).toBe("/portal/events/11111111-1111-4111-8111-111111111111");
+    // Behind the meeting, held, and no report in: the one row the board acts
+    // on. The cancelled event beside it owed no report and is not flagged.
+    expect(screen.getAllByText("Outstanding")).toHaveLength(1);
+    expect(screen.getAllByText("Not started")).toHaveLength(1);
+    // Named for a screen reader, which cannot see the heading above it.
+    expect(
+      screen.getByRole("table", { name: "Events since the last meeting" }),
+    ).toBeDefined();
+    expect(
+      screen.getByText("No events scheduled before the next meeting"),
+    ).toBeDefined();
+  });
+
+  test("does not read the feed for a template with no sourced Events section", async () => {
+    listAgendaEventsAction.mockClear();
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getAllByText("Updates").length).toBeGreaterThan(0),
+      SETTLE,
+    );
+    expect(listAgendaEventsAction).not.toHaveBeenCalled();
+  });
+
+  test("keeps the Discussion box when the caller cannot see Events", async () => {
+    listAgendaEventsAction.mockResolvedValueOnce({
+      data: {
+        timeZone: "America/Denver",
+        since: { fromDate: "2026-02-11", toDate: "2026-03-18", events: [] },
+        upcoming: { fromDate: "2026-03-19", toDate: "2026-06-17", events: [] },
+        unavailable: "forbidden",
+      },
+    });
+    agendaRow = agenda(SOURCED_SECTIONS, {
+      events: { discussion: "Said so." },
+    });
+    renderTab("view");
+
+    await waitFor(
+      () =>
+        expect(
+          screen.getByText(
+            "Events are not shown — your role does not include Events.",
+          ),
+        ).toBeDefined(),
+      SETTLE,
+    );
+    // A quiet line, not an alert, and the section still carries what was said.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Said so.")).toBeDefined();
   });
 });

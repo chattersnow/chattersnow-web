@@ -117,3 +117,70 @@ export function resolveMeetingWindows(
     ),
   };
 }
+
+// ---------------------------------------------------------------------------
+// The Events section's two windows (#1241).
+//
+// Close to `resolveMeetingWindows` above and deliberately not the same call.
+// The agenda's "Next 30 days" block is a fixed lookahead with a fallback, and
+// both are wrong for a board reading the Events section: a board with no prior
+// meeting has nothing to review rather than a month of it, and a board that
+// has already set its next meeting date should be shown the events it will next
+// be asked about rather than the whole season.
+
+/** How far ahead the Events section looks when the agenda names no next meeting. */
+export const AGENDA_EVENTS_LOOKAHEAD_DAYS = 90;
+
+export type AgendaEventWindows = {
+  /**
+   * The previous meeting's day through this one's. **Null** when there is no
+   * previous meeting: the section then says so rather than falling back to a
+   * period, because "everything before the first meeting" is not a review.
+   */
+  since: MeetingWindow | null;
+  /**
+   * The day after the meeting through the agenda's `next_meeting_date`, or
+   * `AGENDA_EVENTS_LOOKAHEAD_DAYS` out when the agenda names none. Starts the
+   * day after so the meeting's own day belongs to `since` alone -- the two
+   * windows abut without overlapping, and an event cannot be listed twice.
+   */
+  upcoming: MeetingWindow;
+};
+
+export type ResolveAgendaEventWindowsInput = {
+  /** `governance_meetings.meeting_date`, a `timestamptz`. */
+  meetingDate: string;
+  /** The prior meeting's `meeting_date`, when there is one. */
+  previousMeetingDate?: string | null;
+  /** `agendas.next_meeting_date`, a `date` -- already "YYYY-MM-DD". */
+  nextMeetingDate?: string | null;
+  /** The organization's zone, from `getOrgTimeZone`. */
+  timeZone: string;
+};
+
+export function resolveAgendaEventWindows(
+  input: ResolveAgendaEventWindowsInput,
+): AgendaEventWindows {
+  const { timeZone } = input;
+  const meetingDay = utcIsoToDateInZone(input.meetingDate, timeZone);
+  const dayAfter = shiftIsoDay(meetingDay, 1);
+
+  // A `next_meeting_date` on or before the meeting itself is a typo somebody
+  // can fix on the agenda; it leaves `toDate` behind `fromDate`, the query
+  // matches nothing, and the section reads "No events scheduled before the
+  // next meeting" -- which is what that agenda literally says.
+  const upcomingEnd =
+    input.nextMeetingDate ||
+    shiftIsoDay(meetingDay, AGENDA_EVENTS_LOOKAHEAD_DAYS);
+
+  return {
+    since: input.previousMeetingDate
+      ? windowBetween(
+          utcIsoToDateInZone(input.previousMeetingDate, timeZone),
+          meetingDay,
+          timeZone,
+        )
+      : null,
+    upcoming: windowBetween(dayAfter, upcomingEnd, timeZone),
+  };
+}
