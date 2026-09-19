@@ -9,7 +9,10 @@ import {
   type CalendarEntry,
   type CalendarItemEntryRow,
 } from "../../calendar/calendar-entries";
-import { computeNextInstanceWindow } from "../../calendar/calendar-recurrence";
+import {
+  computeNextInstanceWindow,
+  type RecurrenceAnchors,
+} from "../../calendar/calendar-recurrence";
 import type { CalendarItemRow } from "../../calendar/calendar-shared";
 import type { MeetingWindow } from "./meeting-context-window";
 
@@ -97,9 +100,13 @@ export function meetingContextSourceKey(entry: MeetingContextEntry): string {
  * The month/day anchors are non-null whenever `series_key` is
  * (`calendar_items_recurrence_anchor_pair_check`), which is the same assumption
  * `computeNextInstanceWindow` already makes.
+ *
+ * Typed to the anchors it actually reads rather than to this block's row, so
+ * the agenda's calendar-sourced sections (#1242) can project a row carrying
+ * different columns through the same arithmetic.
  */
 export function nextInstanceInWindow(
-  item: MeetingCalendarItemRow,
+  item: RecurrenceAnchors & Pick<CalendarItemRow, "time_zone">,
   window: MeetingWindow,
 ): { startsAt: string; endsAt: string } | null {
   const years = new Set([

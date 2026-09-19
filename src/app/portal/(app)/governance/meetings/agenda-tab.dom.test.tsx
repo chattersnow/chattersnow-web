@@ -7,6 +7,11 @@ import * as MinutesApprovalActions from "./minutes-approval-actions";
 import * as MeetingContextActions from "./meeting-context-actions";
 import * as AgendaEventsActions from "./agenda-events-actions";
 import type { AgendaEventsFeed } from "./agenda-events-actions";
+import * as AgendaCalendarActions from "./agenda-calendar-actions";
+import type {
+  AgendaCalendarFeed,
+  AgendaPartnershipsFeed,
+} from "./agenda-calendar-actions";
 import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 
@@ -36,6 +41,22 @@ const SOURCED_SECTIONS: AgendaTemplateSection[] = [
       kind: "calendar",
       categories: ["campaigns_fundraising", "retired_by_this_tenant"],
       item_types: ["content_campaign"],
+    },
+  },
+];
+
+// Version 2's Community & Partnerships section, beside Marketing & Social:
+// both are `{kind: "calendar"}`, and only one of them carries partnerships.
+const COMMUNITY_SECTIONS: AgendaTemplateSection[] = [
+  SOURCED_SECTIONS[2]!,
+  {
+    key: "community_partnerships",
+    label: "Community & Partnerships",
+    topics: ["Partner relationships"],
+    source: {
+      kind: "calendar",
+      categories: ["partner_opportunities"],
+      item_types: ["partner_event", "partner_opportunity"],
     },
   },
 ];
@@ -126,6 +147,69 @@ const listAgendaEventsAction = mock(
 mock.module("./agenda-events-actions", () => ({
   ...AgendaEventsActions,
   listAgendaEventsAction,
+}));
+// The calendar feed (#1242), stubbed to one row -- enough to show that a
+// calendar-sourced section renders it, links it, and labels its categories in
+// the tenant's own words rather than in the seeded keys.
+const listAgendaCalendarItemsAction = mock(
+  async (
+    _meetingId: string,
+    _meetingDate: string,
+    _source: unknown,
+  ): Promise<{ data: AgendaCalendarFeed }> => ({
+    data: {
+      timeZone: "America/Denver",
+      window: { fromDate: "2026-09-01", toDate: "2026-11-30" },
+      items: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          title: "Pride planning coffee",
+          item_type: "partner_event",
+          starts_at: "2026-09-12T06:00:00.000Z",
+          time_zone: "America/Denver",
+          calendar_status: "active",
+          priority_tier: 2,
+          owner_id: null,
+          owner_name: null,
+          categories: ["partner_opportunities"],
+        },
+      ],
+      categoryOptions: [
+        { value: "partner_opportunities", label: "Partners & coalitions" },
+      ],
+      unavailable: null,
+    },
+  }),
+);
+const listOpenPartnershipsAction = mock(
+  async (): Promise<{ data: AgendaPartnershipsFeed }> => ({
+    data: {
+      partnerships: [
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          organization: "Mountain Pride Collective",
+          stage: "negotiating",
+          next_step_date: "2026-08-01",
+          owner_name: "Dana Lead",
+          overdue: true,
+        },
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          organization: "Nordic Center",
+          stage: "contacted",
+          next_step_date: null,
+          owner_name: null,
+          overdue: false,
+        },
+      ],
+      unavailable: null,
+    },
+  }),
+);
+mock.module("./agenda-calendar-actions", () => ({
+  ...AgendaCalendarActions,
+  listAgendaCalendarItemsAction,
+  listOpenPartnershipsAction,
 }));
 
 const { AgendaTab } = await import("./agenda-tab");
@@ -345,5 +429,105 @@ describe("AgendaTab events feed", () => {
     // A quiet line, not an alert, and the section still carries what was said.
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByText("Said so.")).toBeDefined();
+  });
+});
+
+// The calendar half of a sourced section, and the partnerships block beside it
+// (#1242). What the rows say is the action's business and the integration
+// test's; what matters here is which sections ask for which feed.
+describe("AgendaTab calendar and partnerships feeds", () => {
+  test("renders both blocks above the Community & Partnerships box", async () => {
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    // Both sections are calendar-sourced and the stub answers both, so every
+    // calendar assertion here is doubled.
+    await waitFor(
+      () =>
+        expect(screen.getAllByText("Pride planning coffee")).toHaveLength(2),
+      SETTLE,
+    );
+    expect(
+      screen
+        .getAllByRole("link", { name: "Pride planning coffee" })[0]!
+        .getAttribute("href"),
+    ).toBe("/portal/calendar/33333333-3333-4333-8333-333333333333");
+    // The item type through ITEM_TYPES, the category through the tenant's own
+    // label rather than the seeded `partner_opportunities` key.
+    expect(screen.getAllByText("Partner / co-hosted event")).toHaveLength(2);
+    expect(screen.getAllByText("Partners & coalitions")).toHaveLength(2);
+    // The relationships, with the one whose next step has passed flagged.
+    expect(screen.getByText("Mountain Pride Collective")).toBeDefined();
+    expect(screen.getByText(/^Overdue/)).toBeDefined();
+    expect(screen.getByText("Nordic Center")).toBeDefined();
+  });
+
+  test("reads the calendar once per calendar-sourced section", async () => {
+    listAgendaCalendarItemsAction.mockClear();
+    listOpenPartnershipsAction.mockClear();
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getAllByText("On the calendar")).toHaveLength(2),
+      SETTLE,
+    );
+    expect(listAgendaCalendarItemsAction).toHaveBeenCalledTimes(2);
+    // Each section filters on its own source, which is what the one reader is
+    // parameterized by.
+    expect(listAgendaCalendarItemsAction.mock.calls[0]![2]).toEqual(
+      COMMUNITY_SECTIONS[0]!.source,
+    );
+    expect(listAgendaCalendarItemsAction.mock.calls[1]![2]).toEqual(
+      COMMUNITY_SECTIONS[1]!.source,
+    );
+    // Only Community & Partnerships carries the relationships, and it is read
+    // once for the tab rather than once per section.
+    expect(listOpenPartnershipsAction).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText("Open partnerships")).toHaveLength(1);
+  });
+
+  test("reads neither feed for a template with no calendar section", async () => {
+    listAgendaCalendarItemsAction.mockClear();
+    listOpenPartnershipsAction.mockClear();
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getAllByText("Updates").length).toBeGreaterThan(0),
+      SETTLE,
+    );
+    expect(listAgendaCalendarItemsAction).not.toHaveBeenCalled();
+    expect(listOpenPartnershipsAction).not.toHaveBeenCalled();
+  });
+
+  test("keeps the Discussion box when the caller cannot see the calendar", async () => {
+    listAgendaCalendarItemsAction.mockResolvedValue({
+      data: {
+        timeZone: "America/Denver",
+        window: { fromDate: "2026-09-01", toDate: "2026-11-30" },
+        items: [],
+        categoryOptions: [],
+        unavailable: "forbidden",
+      },
+    });
+    agendaRow = agenda(COMMUNITY_SECTIONS, {
+      community_partnerships: { discussion: "Said so." },
+    });
+    renderTab("view");
+
+    await waitFor(
+      () =>
+        expect(
+          screen.getAllByText(
+            "Calendar items are not shown — your role does not include the Content Calendar.",
+          ),
+        ).toHaveLength(2),
+      SETTLE,
+    );
+    // A quiet line, not an alert, and the section still carries what was said.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Said so.")).toBeDefined();
+    listAgendaCalendarItemsAction.mockClear();
   });
 });

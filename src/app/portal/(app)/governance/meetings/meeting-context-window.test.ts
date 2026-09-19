@@ -4,8 +4,10 @@
 // before it.
 import { describe, expect, test } from "bun:test";
 import {
+  AGENDA_CALENDAR_LOOKAHEAD_DAYS,
   AGENDA_EVENTS_LOOKAHEAD_DAYS,
   AGENDA_LOOKAHEAD_DAYS,
+  resolveAgendaCalendarWindow,
   resolveAgendaEventWindows,
   resolveMeetingWindows,
 } from "./meeting-context-window";
@@ -135,5 +137,42 @@ describe("resolveAgendaEventWindows", () => {
 
     expect(AGENDA_EVENTS_LOOKAHEAD_DAYS).toBe(90);
     expect(upcoming.toDate).toBe("2026-06-16");
+  });
+});
+
+describe("resolveAgendaCalendarWindow", () => {
+  test("starts on the meeting's own local day, not UTC's next one", () => {
+    // 7pm on the 17th in Los Angeles is already the 18th in UTC; the section
+    // has to cover the day the board is sitting in.
+    const window = resolveAgendaCalendarWindow({
+      meetingDate: "2026-03-18T02:00:00.000Z",
+      timeZone: "America/Los_Angeles",
+    });
+
+    expect(window.fromDate).toBe("2026-03-17");
+    expect(window.fromInstant).toBe("2026-03-17T07:00:00.000Z");
+  });
+
+  test("ends at the agenda's next meeting date when it has one", () => {
+    const window = resolveAgendaCalendarWindow({
+      meetingDate: "2026-03-18T18:00:00.000Z",
+      nextMeetingDate: "2026-04-15",
+      timeZone: "America/Denver",
+    });
+
+    expect(window.toDate).toBe("2026-04-15");
+    // Inclusive to the end of that day, so an item dated on it is in.
+    expect(window.toInstant).toBe("2026-04-16T05:59:59.000Z");
+  });
+
+  test("looks 90 days ahead when the agenda names no next meeting", () => {
+    const window = resolveAgendaCalendarWindow({
+      meetingDate: "2026-03-18T18:00:00.000Z",
+      timeZone: "America/Denver",
+    });
+
+    expect(AGENDA_CALENDAR_LOOKAHEAD_DAYS).toBe(90);
+    expect(window.fromDate).toBe("2026-03-18");
+    expect(window.toDate).toBe("2026-06-16");
   });
 });

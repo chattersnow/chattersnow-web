@@ -16,6 +16,11 @@ export type AgendaSectionSource =
   | { kind: "events" }
   | { kind: "calendar"; categories?: string[]; item_types?: string[] };
 
+export type CalendarSectionSource = Extract<
+  AgendaSectionSource,
+  { kind: "calendar" }
+>;
+
 export type AgendaTemplateSection = {
   key: string;
   label: string;
@@ -93,23 +98,37 @@ export function agendaSectionSource(
 
   if (source.kind === "events") return { kind: "events" };
 
-  if (source.kind === "calendar") {
-    const categories = stringList(source.categories);
-    const itemTypes = stringList(source.item_types);
-    if (source.categories !== undefined && categories === undefined) {
-      return undefined;
-    }
-    if (source.item_types !== undefined && itemTypes === undefined) {
-      return undefined;
-    }
-    return {
-      kind: "calendar",
-      ...(categories ? { categories } : {}),
-      ...(itemTypes ? { item_types: itemTypes } : {}),
-    };
-  }
+  return calendarSectionSource(source);
+}
 
-  return undefined;
+/**
+ * The calendar source in `value`, or `undefined` for anything else.
+ *
+ * Separate from `agendaSectionSource` because the calendar feed (#1242) is a
+ * Server Action taking a source the browser handed it: the template row is
+ * tenant-owned jsonb that reached the client before it reached the server, so
+ * the server validates it again rather than trusting the round trip. It
+ * decides nothing but which rows are filtered in -- RLS decides which rows
+ * exist -- so a bad one is an empty section, never an exposure.
+ */
+export function calendarSectionSource(
+  value: unknown,
+): CalendarSectionSource | undefined {
+  if (!isRecord(value) || value.kind !== "calendar") return undefined;
+
+  const categories = stringList(value.categories);
+  const itemTypes = stringList(value.item_types);
+  if (value.categories !== undefined && categories === undefined) {
+    return undefined;
+  }
+  if (value.item_types !== undefined && itemTypes === undefined) {
+    return undefined;
+  }
+  return {
+    kind: "calendar",
+    ...(categories ? { categories } : {}),
+    ...(itemTypes ? { item_types: itemTypes } : {}),
+  };
 }
 
 /** Whether the section asks for one Discussion box instead of the manual pair. */

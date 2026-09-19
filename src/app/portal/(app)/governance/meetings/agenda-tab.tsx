@@ -20,7 +20,11 @@ import {
   getMeetingTopicContextAction,
   listMeetingDatedContextAction,
 } from "./meeting-context-actions";
-import type { MeetingTopicContext } from "./meeting-context-catalog";
+import {
+  contextSourcesForItem,
+  type ContextSourceKey,
+  type MeetingTopicContext,
+} from "./meeting-context-catalog";
 import { TopicContext } from "./meeting-topic-context";
 import {
   meetingContextEntryDay,
@@ -39,12 +43,21 @@ import {
   isSourcedSection,
   type ActiveAgendaTemplate,
   type AgendaTemplateSection,
+  type CalendarSectionSource,
 } from "./agenda-template-shared";
 import {
   listAgendaEventsAction,
   type AgendaEventsFeed as AgendaEventsFeedData,
 } from "./agenda-events-actions";
 import { AgendaEventsFeed } from "./agenda-events-feed";
+import {
+  listAgendaCalendarItemsAction,
+  listOpenPartnershipsAction,
+  type AgendaCalendarFeed as AgendaCalendarFeedData,
+  type AgendaPartnershipsFeed as AgendaPartnershipsFeedData,
+} from "./agenda-calendar-actions";
+import { AgendaCalendarFeed } from "./agenda-calendar-feed";
+import { AgendaPartnershipsFeed } from "./agenda-partnerships-feed";
 import {
   listActionItemsAction,
   listCarriedOverActionItemsAction,
@@ -109,26 +122,88 @@ function OngoingItemBlock({ label, text }: { label: string; text: string }) {
 }
 
 /**
+ * Whether a sourced section carries the open-partnerships block (#1242).
+ *
+ * Read off #1224's section-to-source catalog rather than off the template's
+ * own `source`, because the source cannot answer it: Community & Partnerships
+ * and Marketing & Social are both `{kind: "calendar"}`, and only their
+ * category keys differ. The catalog already names `community_partnerships` as
+ * the section partnerships belong under, and one mapping is what keeps the two
+ * from drifting apart.
+ */
+function sectionShowsPartnerships(section: AgendaTemplateSection): boolean {
+  return (
+    isSourcedSection(section) &&
+    contextSourcesForItem(`section:${section.key}`).includes("partnerships")
+  );
+}
+
+/**
+ * The topic-context sources a sourced section's feed already renders in full.
+ *
+ * The feed lists every open partnership, ordered by next step and flagged when
+ * it is overdue; the three-row block below would be the same records a second
+ * time, under a second heading, in a different order.
+ */
+function sectionFeedSources(
+  section: AgendaTemplateSection,
+): ContextSourceKey[] {
+  return sectionShowsPartnerships(section) ? ["partnerships"] : [];
+}
+
+export type SectionModuleFeeds = {
+  eventsFeed: AgendaEventsFeedData | undefined;
+  eventsFeedError: string | null;
+  /** Keyed by section key: each calendar-sourced section filters on its own source. */
+  calendarFeeds: Record<string, AgendaCalendarFeedData> | undefined;
+  calendarFeedsError: string | null;
+  partnershipsFeed: AgendaPartnershipsFeedData | undefined;
+  partnershipsFeedError: string | null;
+};
+
+/**
  * What a sourced section's module contributes, above its Discussion box.
  *
  * One place where a section key meets a feed, so the section's own markup does
- * not grow a branch per module. #1241 fills the `events` arm; #1242 and #1243
- * add the two calendar-sourced ones beside it, and a source this build does not
- * render yet falls through to nothing rather than to an error -- the same
- * stance `agendaSectionSource` takes about a `kind` it has never heard of.
+ * not grow a branch per module. #1241 filled the `events` arm and #1242 the
+ * calendar one; a source this build does not render yet falls through to
+ * nothing rather than to an error -- the same stance `agendaSectionSource`
+ * takes about a `kind` it has never heard of.
  */
 function SectionModuleFeed({
   section,
-  eventsFeed,
-  eventsFeedError,
+  feeds,
 }: {
   section: AgendaTemplateSection;
-  eventsFeed: AgendaEventsFeedData | undefined;
-  eventsFeedError: string | null;
+  feeds: SectionModuleFeeds;
 }) {
   const source = agendaSectionSource(section);
   if (source?.kind === "events") {
-    return <AgendaEventsFeed feed={eventsFeed} loadError={eventsFeedError} />;
+    return (
+      <AgendaEventsFeed
+        feed={feeds.eventsFeed}
+        loadError={feeds.eventsFeedError}
+      />
+    );
+  }
+  if (source?.kind === "calendar") {
+    return (
+      <>
+        <AgendaCalendarFeed
+          feed={feeds.calendarFeeds?.[section.key]}
+          loadError={feeds.calendarFeedsError}
+          title="On the calendar"
+          label={`${section.label} items on the calendar`}
+          emptyTitle="Nothing on the calendar before the next meeting"
+        />
+        {sectionShowsPartnerships(section) && (
+          <AgendaPartnershipsFeed
+            feed={feeds.partnershipsFeed}
+            loadError={feeds.partnershipsFeedError}
+          />
+        )}
+      </>
+    );
   }
   return null;
 }
@@ -257,8 +332,7 @@ function AgendaForm({
   meetingId,
   datedContext,
   datedContextError,
-  eventsFeed,
-  eventsFeedError,
+  feeds,
   onSaved,
   onCancel,
   onDirtyChange,
@@ -270,8 +344,7 @@ function AgendaForm({
   meetingId: string;
   datedContext: MeetingDatedContextData | undefined;
   datedContextError: string | null;
-  eventsFeed: AgendaEventsFeedData | undefined;
-  eventsFeedError: string | null;
+  feeds: SectionModuleFeeds;
   onSaved: () => void;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -441,14 +514,10 @@ function AgendaForm({
                     {isSourcedSection(section) ? (
                       <>
                         {/* MODULE FEED SLOT (#1240): the rows this section's
-                            source names go here, above the box. #1242/#1243
-                            add their arms inside SectionModuleFeed rather
-                            than restructuring the section. */}
-                        <SectionModuleFeed
-                          section={section}
-                          eventsFeed={eventsFeed}
-                          eventsFeedError={eventsFeedError}
-                        />
+                            source names go here, above the box. #1243 adds
+                            its arm inside SectionModuleFeed rather than
+                            restructuring the section. */}
+                        <SectionModuleFeed section={section} feeds={feeds} />
                         <Field>
                           <FieldLabel
                             htmlFor={`agenda-discussion-${section.key}`}
@@ -683,6 +752,71 @@ export function AgendaTab({
       [meetingId, meetingDate],
       hasEventsSection,
     );
+  // The calendar-sourced sections' rows (#1242). One read per such section --
+  // two on version 2's template -- because what separates Community &
+  // Partnerships from Marketing & Social is the category keys on the section's
+  // own source, so one query cannot answer for both. Keyed by section key,
+  // since the form and the read view each hand a section its own feed.
+  const calendarSections = sections
+    .map((section) => ({
+      key: section.key,
+      source: agendaSectionSource(section),
+    }))
+    .filter(
+      (entry): entry is { key: string; source: CalendarSectionSource } =>
+        entry.source?.kind === "calendar",
+    );
+  // `sections` is a fresh array on every render, and the sources are what
+  // actually decide the reads -- so the dependency is their text, not theirs.
+  const calendarSectionsKey = JSON.stringify(calendarSections);
+  const { data: calendarFeeds, loadError: calendarFeedsError } = useTabData<
+    Record<string, AgendaCalendarFeedData>
+  >(
+    async () => {
+      const results = await Promise.all(
+        calendarSections.map(
+          async (entry) =>
+            [
+              entry.key,
+              await listAgendaCalendarItemsAction(
+                meetingId,
+                meetingDate,
+                entry.source,
+              ),
+            ] as const,
+        ),
+      );
+      const feeds: Record<string, AgendaCalendarFeedData> = {};
+      for (const [key, result] of results) {
+        // A refusal is about the caller, not about one section, so it fails
+        // the read rather than leaving the other section silently short. A
+        // module that is merely off comes back inside `data` as `unavailable`.
+        if ("error" in result) return { error: result.error };
+        feeds[key] = result.data;
+      }
+      return { data: feeds };
+    },
+    [meetingId, meetingDate, calendarSectionsKey],
+    calendarSections.length > 0,
+  );
+  // The relationships half of Community & Partnerships. Not part of the
+  // calendar read: it is a different module under a different order, and it
+  // has no window -- an open partnership is open whenever the board meets.
+  const hasPartnershipsSection = sections.some(sectionShowsPartnerships);
+  const { data: partnershipsFeed, loadError: partnershipsFeedError } =
+    useTabData<AgendaPartnershipsFeedData>(
+      () => listOpenPartnershipsAction(),
+      [meetingId],
+      hasPartnershipsSection,
+    );
+  const feeds: SectionModuleFeeds = {
+    eventsFeed,
+    eventsFeedError,
+    calendarFeeds,
+    calendarFeedsError,
+    partnershipsFeed,
+    partnershipsFeedError,
+  };
 
   if (agenda === undefined) {
     return <TabLoadingSkeleton />;
@@ -716,8 +850,7 @@ export function AgendaTab({
         meetingId={meetingId}
         datedContext={datedContext}
         datedContextError={datedContextError}
-        eventsFeed={eventsFeed}
-        eventsFeedError={eventsFeedError}
+        feeds={feeds}
         onSaved={() => {
           onExitEdit();
           refreshAgenda();
@@ -847,11 +980,7 @@ export function AgendaTab({
                               in AgendaForm above -- the same feed, since the
                               section is the same section on both sides of the
                               tab. */}
-                          <SectionModuleFeed
-                            section={section}
-                            eventsFeed={eventsFeed}
-                            eventsFeedError={eventsFeedError}
-                          />
+                          <SectionModuleFeed section={section} feeds={feeds} />
                           <OngoingItemBlock
                             label="Discussion"
                             text={value?.discussion || "—"}
@@ -908,6 +1037,7 @@ export function AgendaTab({
                       <TopicContext
                         itemKey={`section:${section.key}`}
                         context={topicContext}
+                        omitSources={sectionFeedSources(section)}
                       />
                     </div>
                   );

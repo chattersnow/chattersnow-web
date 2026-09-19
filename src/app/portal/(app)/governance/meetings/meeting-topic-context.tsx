@@ -411,6 +411,7 @@ export function TopicContext({
   itemKey,
   context,
   datedContext,
+  omitSources,
 }: {
   /** The qualified item key, e.g. `section:finance_fundraising`. */
   itemKey: string;
@@ -418,8 +419,18 @@ export function TopicContext({
   context: MeetingTopicContext | undefined;
   /** #1223's calendar block, for the Events section. Omitted on the agenda. */
   datedContext?: MeetingDatedContextData;
+  /**
+   * Sources the surface already shows in full, in its own words. The agenda's
+   * sourced sections (#1242) pass the ones their module feed renders: the
+   * Community & Partnerships feed lists every open partnership ordered by its
+   * next step, and the three-row block beside it would be the same records a
+   * second time, under a second heading, in a different order.
+   */
+  omitSources?: readonly ContextSourceKey[];
 }) {
-  const sources = contextSourcesForItem(itemKey);
+  const sources = contextSourcesForItem(itemKey).filter(
+    (source) => !omitSources?.includes(source),
+  );
   if (sources.length === 0) return null;
 
   // Only the calendar-only sections can render from `datedContext` alone.
