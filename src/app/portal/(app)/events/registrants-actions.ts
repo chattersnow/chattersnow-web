@@ -52,6 +52,18 @@ export type EventRegistrant = {
   created_at: string;
   person_id: string | null;
   checked_in_at: string | null;
+  /**
+   * What this registrant said about having been before (#1259), null when
+   * they were not asked or did not answer. Self-reported, and never the source
+   * of a first-time figure that leaves this screen -- `EventImpactDerived`
+   * stays the only one of those.
+   *
+   * Not gated on `events: manage` the way `rider` is: it is an answer the
+   * person volunteered about their own relationship to the organization, the
+   * same class of thing as the name and party size beside it, and the door
+   * staff who work an `events: view` shift are exactly who it is for.
+   */
+  attended_before: boolean | null;
   rider: RegistrantRiderProfile | null;
 };
 
@@ -82,7 +94,7 @@ export async function listEventRegistrantsAction(
 }
 
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";

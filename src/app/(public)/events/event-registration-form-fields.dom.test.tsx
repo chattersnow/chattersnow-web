@@ -110,4 +110,59 @@ describe("EventRegistrationForm", () => {
 
     expect(lastSubmission()).toMatchObject({ email: "sam@example.com" });
   });
+
+  // #1259. The acceptance criterion in one test: the question reads the same
+  // for a visitor with no session and for an account, because a question only
+  // some people see answers "do you have a record of me?" for anybody who can
+  // fill in a form.
+  test("asks everyone whether they have been before, in the same words", () => {
+    const { unmount } = render(<EventRegistrationForm eventId="event-1" />);
+    expect(
+      screen.getByLabelText("Have you been to one of our events before?"),
+    ).toBeVisible();
+    unmount();
+
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        account={{ email: "jane@example.com", name: "Jane Rivers" }}
+      />,
+    );
+    expect(
+      screen.getByLabelText("Have you been to one of our events before?"),
+    ).toBeVisible();
+  });
+
+  test("submits nothing for the question when it is left alone", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    // Empty, which `parseAttendedBefore` reads as unanswered. Not "no".
+    expect(lastSubmission().attendedBefore).toBe("");
+  });
+
+  test("submits a first-timer's answer", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.click(
+      screen.getByLabelText("Have you been to one of our events before?"),
+    );
+    await user.click(
+      screen.getByRole("option", { name: "No, this would be my first" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission().attendedBefore).toBe("no");
+  });
 });

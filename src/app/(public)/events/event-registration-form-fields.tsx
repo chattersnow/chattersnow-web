@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AttendedBeforeField } from "@/components/attended-before-field";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
@@ -52,6 +53,9 @@ export function EventRegistrationForm({
   const [phone, setPhone] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [pronouns, setPronouns] = useState("");
+  // #1259. Starts empty and stays empty unless the registrant picks something:
+  // the unanswered state is a real third value and must not default to "no".
+  const [attendedBefore, setAttendedBefore] = useState("");
   const [partySize, setPartySize] = useState("1");
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
@@ -71,6 +75,7 @@ export function EventRegistrationForm({
     formData.set("phone", phone);
     formData.set("instagramHandle", instagramHandle);
     formData.set("pronouns", pronouns);
+    formData.set("attendedBefore", attendedBefore);
     formData.set("partySize", partySize);
     formData.set("notes", notes);
     formData.set("company", company);
@@ -184,6 +189,17 @@ export function EventRegistrationForm({
           id="registration-pronouns"
           value={pronouns}
           onChange={setPronouns}
+        />
+        {/* Asked of everyone, unconditionally (#1259). It is not gated on the
+            email matching a directory record and it is not moved into the
+            post-registration step: a question only some people see answers
+            "do you have a record of me?", and a step after the write is one
+            that can be abandoned. Placed with the questions about the person
+            rather than with the ones about this attendance. */}
+        <AttendedBeforeField
+          id="registration-attended-before"
+          value={attendedBefore}
+          onChange={setAttendedBefore}
         />
         <Field>
           <FieldLabel htmlFor="registration-party-size">

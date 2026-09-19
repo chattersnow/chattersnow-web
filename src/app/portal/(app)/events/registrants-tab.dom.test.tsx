@@ -23,6 +23,7 @@ const registrants: EventRegistrant[] = [
     notes: null,
     created_at: "2026-08-01T12:00:00Z",
     person_id: "person-1",
+    attended_before: false,
     checked_in_at: null,
     rider: {
       riding_discipline_at_event: null,
@@ -45,6 +46,10 @@ const registrants: EventRegistrant[] = [
     notes: null,
     created_at: "2026-08-01T12:05:00Z",
     person_id: "person-2",
+    // Unanswered, so the fixture covers all three states across the two rows
+    // (#1259) -- and proves the summary's first-timer count does not pick this
+    // one up alongside Jamie's "no".
+    attended_before: null,
     checked_in_at: "2026-08-28T09:00:00Z",
     rider: {
       riding_discipline_at_event: "snowboard",
@@ -137,9 +142,14 @@ describe("RegistrantsTab", () => {
 
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.getByText("Alex Chen")).toBeInTheDocument();
+    // Two first-time figures, side by side and worded apart (#1259). "1
+    // first-time" is derived from check-ins and is the one impact reporting
+    // uses; "1 said it would be their first" is what a registrant told us. They
+    // agree here by coincidence -- Alex checked in and had never been, Jamie
+    // said no and has not turned up -- and nothing merges them.
     expect(
       await screen.findByText(
-        "2 registrations, 3 attending of 10 capacity · 1 checked in · 0 recurring, 1 first-time",
+        "2 registrations, 3 attending of 10 capacity · 1 checked in · 0 recurring, 1 first-time · 1 said it would be their first",
       ),
     ).toBeInTheDocument();
   });
@@ -359,5 +369,49 @@ describe("RegistrantsTab", () => {
 
     expect(undoCheckInActionMock).toHaveBeenCalledWith("reg-2");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  // #1259
+  test("names the been-before answer per row, and an unanswered one as a dash", async () => {
+    render(<RegistrantsTab capacity={10} mode="view" {...slices()} />);
+
+    const jamie = (await screen.findByText("Jamie Rivera")).closest("tr")!;
+    expect(within(jamie).getByText("First time")).toBeInTheDocument();
+
+    // Alex never answered. A dash, and emphatically not "First time": the
+    // difference between "said no" and "was never asked" is the difference
+    // between a fact and an assumption.
+    const alex = screen.getByText("Alex Chen").closest("tr")!;
+    expect(within(alex).getByText("—")).toBeInTheDocument();
+    expect(within(alex).queryByText("First time")).toBeNull();
+  });
+
+  test("hides the column and the count on an event where nobody was asked", async () => {
+    const unasked = registrants.map((registrant) => ({
+      ...registrant,
+      attended_before: null,
+    }));
+
+    render(
+      <RegistrantsTab
+        capacity={10}
+        mode="view"
+        {...slices()}
+        registrants={{
+          data: unasked,
+          loadError: null,
+          refresh: refreshRegistrants,
+        }}
+      />,
+    );
+
+    expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
+    expect(screen.queryByText("Been before")).toBeNull();
+    // The derived figure is still there; only the self-reported one goes.
+    expect(
+      screen.getByText(
+        "2 registrations, 3 attending of 10 capacity · 1 checked in · 0 recurring, 1 first-time",
+      ),
+    ).toBeInTheDocument();
   });
 });

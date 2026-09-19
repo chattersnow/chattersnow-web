@@ -64,6 +64,7 @@ describe("parseEventRegistrationForm", () => {
         pronouns: "  she/her  ",
         partySize: "3",
         notes: "Bringing kids",
+        attendedBefore: "yes",
       }),
     );
     expect(result).toEqual({
@@ -75,8 +76,42 @@ describe("parseEventRegistrationForm", () => {
         pronouns: "she/her",
         party_size: 3,
         notes: "Bringing kids",
+        attended_before: true,
       },
     });
+  });
+
+  // #1259. Three states, and the third is the common one: the question is
+  // optional, so most rows will carry null and nothing may read that as "no".
+  test("leaves the been-before answer null when it is not given", () => {
+    const result = parseEventRegistrationForm(
+      formData({ name: "Jane", email: "jane@example.com" }),
+    );
+    expect("data" in result && result.data.attended_before).toBe(null);
+  });
+
+  test("reads a first-timer's answer as false, not as unanswered", () => {
+    const result = parseEventRegistrationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        attendedBefore: "no",
+      }),
+    );
+    expect("data" in result && result.data.attended_before).toBe(false);
+  });
+
+  // A hand-crafted post is the only way to get here, and there is no answer to
+  // salvage from it: anything the form did not offer is no answer at all.
+  test("treats an unrecognised been-before value as unanswered", () => {
+    const result = parseEventRegistrationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        attendedBefore: "maybe",
+      }),
+    );
+    expect("data" in result && result.data.attended_before).toBe(null);
   });
 
   test("leaves pronouns null when the field is blank", () => {

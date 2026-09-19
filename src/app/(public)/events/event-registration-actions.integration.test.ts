@@ -101,7 +101,7 @@ async function assignedRegistrationIds(eventId: string) {
 async function registrationFor(eventId: string, email: string) {
   const { data, error } = await adminClient
     .from("event_registrations")
-    .select("id, person_id, pronouns")
+    .select("id, person_id, pronouns, attended_before")
     .eq("event_id", eventId)
     .ilike("email", email)
     .single();
@@ -198,6 +198,107 @@ describe("registerForEventAction (integration)", () => {
     expect(await personPronouns(person.id)).toBe("she/her");
     // The registration still snapshots what was submitted on the day.
     expect((await registrationFor(second.id, email)).pronouns).toBe("he/him");
+  });
+
+  // #1259 -------------------------------------------------------------------
+
+  test("stores the been-before answer on the registration", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("been-before-yes");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({ name: "Jamie Rivera", email, attendedBefore: "yes" }),
+      ),
+    ).toMatchObject({ success: true });
+
+    expect((await registrationFor(id, email)).attended_before).toBe(true);
+  });
+
+  test("stores a first-timer's answer as false, not as unanswered", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("been-before-no");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({ name: "Jamie Rivera", email, attendedBefore: "no" }),
+      ),
+    ).toMatchObject({ success: true });
+
+    expect((await registrationFor(id, email)).attended_before).toBe(false);
+  });
+
+  test("leaves the answer null when the question was not answered", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("been-before-skipped");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({ name: "Jamie Rivera", email }),
+      ),
+    ).toMatchObject({ success: true });
+
+    // Null, and nothing downstream may read it as "no". Before this shipped
+    // every row on every event looks exactly like this one.
+    expect((await registrationFor(id, email)).attended_before).toBe(null);
+  });
+
+  // The enumeration guard, stated as a test: the RPC does the same thing with
+  // the answer whether the address already has a `people` row or mints one.
+  // Anything that varied here would leak whether the organization holds a
+  // record of an address to anybody who can post a form (§5.23).
+  test("handles the answer identically for a matched and an unmatched address", async () => {
+    currentIp = uniqueIp();
+    const known = uniqueEmail("been-before-known");
+    const person = await createPerson({ email: known });
+    cleanups.push(person.cleanup);
+    const unknown = uniqueEmail("been-before-unknown");
+
+    const matched = await event();
+    expect(
+      await registerForEventAction(
+        matched.id,
+        formData({ name: "Jamie Rivera", email: known, attendedBefore: "yes" }),
+      ),
+    ).toMatchObject({ success: true });
+
+    const minted = await event();
+    expect(
+      await registerForEventAction(
+        minted.id,
+        formData({
+          name: "Sam Okafor",
+          email: unknown,
+          attendedBefore: "yes",
+        }),
+      ),
+    ).toMatchObject({ success: true });
+
+    const matchedRow = await registrationFor(matched.id, known);
+    const mintedRow = await registrationFor(minted.id, unknown);
+    expect(matchedRow.attended_before).toBe(true);
+    expect(mintedRow.attended_before).toBe(true);
+    // The matched one attached to the record that already existed; the minted
+    // one got a new person. The answer is the same either way.
+    expect(matchedRow.person_id).toBe(person.id);
+    expect(mintedRow.person_id).not.toBe(person.id);
+
+    cleanups.push(async () => {
+      await adminClient
+        .from("event_registrations")
+        .delete()
+        .eq("id", mintedRow.id as string);
+      await adminClient
+        .from("people")
+        .delete()
+        .eq("id", mintedRow.person_id as string);
+    });
   });
 
   test("rejects when registration is closed", async () => {
