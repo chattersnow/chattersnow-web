@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { formatDateTimeInZone } from "@/lib/time";
+import { ViewerTime } from "@/components/viewer-time";
 
 /**
  * Spelled out component by component rather than as `dateStyle`/`timeStyle`,
@@ -7,9 +7,9 @@ import { formatDateTimeInZone } from "@/lib/time";
  * throws a RangeError rather than ignoring the option, and
  * formatDateTimeInZone's fallback re-throws it.
  *
- * The zone name is the part worth the verbosity. This is a cutoff, the reader
- * may not be in the event's zone, and "11:59 PM" without a zone is exactly the
- * kind of detail someone misses by a day.
+ * The zone name is the part worth the verbosity. This is a cutoff, and
+ * "11:59 PM" without a zone is exactly the kind of detail someone misses by a
+ * day.
  */
 const DEADLINE_FORMAT: Intl.DateTimeFormatOptions = {
   month: "long",
@@ -46,17 +46,28 @@ export function CallBrief({
   maxImages: number;
   rightsNote: string | null;
 }) {
-  const deadline = closesAt
-    ? `Submissions close ${formatDateTimeInZone(
-        closesAt,
-        timeZone,
-        DEADLINE_FORMAT,
-        "en-US",
-      )}.`
-    : // The wording the portal's own field description promises: a call with
-      // no window is governed by its open switch alone, which is what a
-      // curator wants when the deadline is "when we have enough".
-      "Open until we have enough work — send yours before it closes.";
+  const deadline = closesAt ? (
+    <>
+      {/* The viewer's own clock, not the call's. A deadline is not a place a
+          reader travels to the way an event is -- the only clock they have to
+          compare it against is their own, and a call with neither its own zone
+          nor an event resolves to UTC, which is nobody's. `timeZone` is only
+          the server paint's fallback, and the zone label stays on so that
+          first moment is honest too. */}
+      Submissions close{" "}
+      <ViewerTime
+        iso={closesAt}
+        fallbackZone={timeZone}
+        options={DEADLINE_FORMAT}
+      />
+      .
+    </>
+  ) : (
+    // The wording the portal's own field description promises: a call with no
+    // window is governed by its open switch alone, which is what a curator
+    // wants when the deadline is "when we have enough".
+    "Open until we have enough work — send yours before it closes."
+  );
 
   return (
     <Card className="rainbow-surface">
