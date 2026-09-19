@@ -1,5 +1,9 @@
 import type { Agenda } from "./agenda-actions";
-import type { AgendaTemplateSection } from "./agenda-template-shared";
+import {
+  isSourcedSection,
+  sectionShowsContentState,
+  type AgendaTemplateSection,
+} from "./agenda-template-shared";
 import type { ActionItem } from "./action-items-actions";
 import type { Decision } from "./decisions-actions";
 import type { MeetingDatedContext } from "./meeting-context-shared";
@@ -11,6 +15,7 @@ import {
   TOPIC_CONTEXT_PLAIN,
   type TopicContextLineStyle,
 } from "./meeting-topic-context-text";
+import { sectionFeedLines, type AgendaSectionFeeds } from "./agenda-feed-text";
 import {
   formatCalendarDate,
   formatInstantDate,
@@ -37,6 +42,14 @@ export type AgendaExportInput = {
    * printed empty, the same rule `datedContext` follows.
    */
   topicContext?: MeetingTopicContext;
+  /**
+   * The module rows each sourced section had on screen (#1244), keyed by
+   * section key. Absent for a manual section, and for a sourced one whose
+   * reads are still in flight -- the export prints what the meeting was
+   * looking at, and issues no reads of its own, for the same reason
+   * `carriedOverItems` and `decisions` are handed in rather than fetched.
+   */
+  sourcedSections?: Record<string, AgendaSectionFeeds>;
 };
 
 function actionItemLine(item: ActionItem): string {
@@ -66,6 +79,43 @@ function sectionContextLines(
     context: input.topicContext,
     style,
   });
+}
+
+/**
+ * What one standing section prints between its heading and its context block.
+ *
+ * A manual section is the pair of boxes it has always been, down to the byte.
+ * A sourced one prints its module's rows and the single Discussion box that
+ * replaced the pair (#1240) -- printing the pair for it would head the three
+ * sections with the most on the screen with two empty placeholders. Text left
+ * behind by a template that moved from manual to sourced still prints, and
+ * only when it holds something: this is the one place it is still readable,
+ * exactly as the read view treats it.
+ */
+function sectionBodyLines(
+  input: AgendaExportInput,
+  section: AgendaTemplateSection,
+  style: TopicContextLineStyle,
+  /** One labelled paragraph, in this export's own shape. */
+  field: (label: string, text: string) => string,
+): string[] {
+  const value = input.agenda.ongoing_items[section.key];
+  if (!isSourcedSection(section)) {
+    return [
+      field("Updates", value?.updates || "—"),
+      field("Decisions needed", value?.decisions_needed || "—"),
+    ];
+  }
+  const lines = sectionFeedLines(
+    input.sourcedSections?.[section.key],
+    style,
+    sectionShowsContentState(section),
+  );
+  lines.push(field("Discussion", value?.discussion || "—"));
+  if (value?.updates) lines.push(field("Updates", value.updates));
+  if (value?.decisions_needed)
+    lines.push(field("Decisions needed", value.decisions_needed));
+  return lines;
 }
 
 export function formatAgendaMarkdown(input: AgendaExportInput): string {
@@ -98,10 +148,15 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
     lines.push("No agenda template is configured.");
   } else {
     for (const section of sections) {
-      const value = agenda.ongoing_items[section.key];
       lines.push(`### ${section.label}`);
-      lines.push(`**Updates:** ${value?.updates || "—"}`);
-      lines.push(`**Decisions needed:** ${value?.decisions_needed || "—"}`);
+      lines.push(
+        ...sectionBodyLines(
+          input,
+          section,
+          TOPIC_CONTEXT_MARKDOWN,
+          (label, text) => `**${label}:** ${text}`,
+        ),
+      );
       lines.push(
         ...sectionContextLines(input, section.key, TOPIC_CONTEXT_MARKDOWN),
       );
@@ -209,10 +264,15 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
     lines.push("  No agenda template is configured.");
   } else {
     for (const section of sections) {
-      const value = agenda.ongoing_items[section.key];
       lines.push(`  ${section.label}`);
-      lines.push(`    Updates: ${value?.updates || "—"}`);
-      lines.push(`    Decisions needed: ${value?.decisions_needed || "—"}`);
+      lines.push(
+        ...sectionBodyLines(
+          input,
+          section,
+          TOPIC_CONTEXT_PLAIN,
+          (label, text) => `    ${label}: ${text}`,
+        ),
+      );
       lines.push(
         ...sectionContextLines(input, section.key, TOPIC_CONTEXT_PLAIN),
       );
