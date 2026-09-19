@@ -52,6 +52,13 @@ mock.module("./actions", () => ({
   setAutoReplyEnabledAction: enabledMock,
 }));
 
+// The preview pane (#1236) reaches two `"use server"` modules and, through
+// them, `server-only` -- which throws outside Next's bundler. Nothing here is
+// about the preview; it has a test of its own beside this one.
+mock.module("./preview-panel", () => ({
+  AutoReplyPreviewPanel: () => null,
+}));
+
 const { AutoReplyEditor } = await import("./auto-reply-editor");
 
 const EVENT = autoReplyDefinition("event_registration_confirmation")!;
