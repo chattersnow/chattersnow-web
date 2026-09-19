@@ -10,10 +10,34 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
+import type { EventViewerAccount } from "./my-registration";
 
-export function EventRegistrationForm({ eventId }: { eventId: string }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+/**
+ * The anonymous registration form, optionally prefilled from the caller's own
+ * account (#1257).
+ *
+ * `account` is a *prefill*, not an attribution: both fields stay editable and
+ * the submission still goes through `registerForEventAction`, which matches or
+ * mints a `people` row exactly as it does for a visitor with no session. The
+ * point is narrower than that -- an account between signing up and having its
+ * claim (#1162) approved was being asked to type an address the application
+ * had already verified, and a typo there mints the duplicate #1165 removed.
+ *
+ * Everything it puts on screen is derivable from the caller's own session, and
+ * that is the line: nothing here may differ according to whether the address
+ * matches a directory record, because a form that behaved differently would
+ * answer "do you have a record of this person?" for anybody who can make an
+ * account.
+ */
+export function EventRegistrationForm({
+  eventId,
+  account = null,
+}: {
+  eventId: string;
+  account?: EventViewerAccount | null;
+}) {
+  const [name, setName] = useState(account?.name ?? "");
+  const [email, setEmail] = useState(account?.email ?? "");
   const [phone, setPhone] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [pronouns, setPronouns] = useState("");
@@ -73,6 +97,12 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        {account?.email && (
+          // One line, and no more than that. It says which session is filling
+          // the fields in, so a shared browser can correct them; it says
+          // nothing about what the organization knows.
+          <p className="app-muted text-sm">Signed in as {account.email}.</p>
+        )}
         <RequiredFieldsNote />
         <Field>
           <FieldLabel htmlFor="registration-name" required>
@@ -171,13 +201,17 @@ export function EventRegistrationForm({ eventId }: { eventId: string }) {
           </Alert>
         )}
 
+        {/* Not "Register": that is the disclosure's trigger above the form
+            (#1256), and two buttons of the same name in one section are one
+            for the reader to disambiguate and one for a test to pick the
+            wrong one of. */}
         <Button
           type="submit"
           variant="rainbow"
           disabled={isPending}
           className="w-full sm:w-fit"
         >
-          {isPending ? "Registering..." : "Register"}
+          {isPending ? "Registering..." : "Complete registration"}
         </Button>
       </FieldGroup>
     </form>

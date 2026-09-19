@@ -168,8 +168,10 @@ export function MyEventRegistrationForm({
         </Field>
 
         <Field orientation="horizontal">
+          {/* Named apart from the disclosure's "Register" trigger above it
+              (#1256), the same way the anonymous form's submit is. */}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Registering…" : "Register"}
+            {isPending ? "Registering…" : "Complete registration"}
           </Button>
         </Field>
       </FieldGroup>
