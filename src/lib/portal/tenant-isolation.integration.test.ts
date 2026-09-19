@@ -549,6 +549,19 @@ beforeAll(async () => {
     event_id: SEEDED_EVENT_IDS.past,
     description: "Isolation incident",
   });
+  // Via `service`: auto_reply_templates has no delete grant for
+  // `authenticated` at all (#1233 -- resetting a reply is an empty `slots`
+  // object, not a missing row), so an admin session could create this fixture
+  // but not clean it up.
+  await fixture(
+    "auto_reply_templates",
+    {
+      tenant_id: tenantA,
+      kind: "event_registration_confirmation",
+      slots: { intro: `Isolation intro ${run}` },
+    },
+    service,
+  );
   await fixture("person_organizations", {
     organization_id: SEEDED_PERSON_IDS.sponsor,
     person_id: SEEDED_PERSON_IDS.volunteer,

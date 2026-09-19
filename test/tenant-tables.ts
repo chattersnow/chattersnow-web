@@ -33,6 +33,7 @@ export const TENANT_TABLES = [
   "article_categories",
   "articles",
   "assets",
+  "auto_reply_templates",
   "board_members",
   "bylaws",
   "calendar_item_categories",
