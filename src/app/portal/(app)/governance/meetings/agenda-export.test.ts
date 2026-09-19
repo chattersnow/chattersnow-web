@@ -11,6 +11,12 @@ import type {
   MeetingDatedContext,
 } from "./meeting-context-shared";
 import type { MeetingTopicContext } from "./meeting-context-catalog";
+import type { AgendaTemplateSection } from "./agenda-template-shared";
+import type { AgendaEventsFeed } from "./agenda-events-actions";
+import type {
+  AgendaCalendarFeed,
+  AgendaPartnershipsFeed,
+} from "./agenda-calendar-actions";
 
 const baseAgenda: Agenda = {
   id: "agenda-1",
@@ -145,6 +151,163 @@ const topicContext: MeetingTopicContext = {
     ],
     total: 2,
   },
+};
+
+// Version 2's shape: three sections naming a module (#1240-#1243), and the
+// feeds they had on screen. The times sit near midday UTC so the two rows
+// formatted in the reader's own zone land on the same day wherever CI runs.
+const eventsSection: AgendaTemplateSection = {
+  key: "events",
+  label: "Events",
+  topics: [],
+  source: { kind: "events" },
+};
+
+const marketingSection: AgendaTemplateSection = {
+  key: "marketing_social",
+  label: "Marketing & Social",
+  topics: [],
+  source: {
+    kind: "calendar",
+    categories: ["campaigns_fundraising"],
+    item_types: ["content_campaign", "winter_outdoor_sports_moment"],
+  },
+};
+
+const communitySection: AgendaTemplateSection = {
+  key: "community_partnerships",
+  label: "Community & Partnerships",
+  topics: [],
+  source: {
+    kind: "calendar",
+    categories: ["partner_opportunities"],
+    item_types: ["partner_event"],
+  },
+};
+
+const eventsFeed: AgendaEventsFeed = {
+  timeZone: "America/Denver",
+  since: {
+    fromDate: "2026-02-11",
+    toDate: "2026-03-18",
+    events: [
+      {
+        id: "event-1",
+        name: "Winter gear swap",
+        starts_at: "2026-02-20T12:00:00.000Z",
+        ends_at: null,
+        timezone: "America/Denver",
+        status: "completed",
+        report_status: "not_started",
+        event_lead_id: null,
+        event_lead_name: "Dana Lead",
+      },
+      {
+        id: "event-2",
+        name: "Called-off clinic",
+        starts_at: "2026-02-24T12:00:00.000Z",
+        ends_at: null,
+        timezone: "America/Denver",
+        status: "cancelled",
+        report_status: "not_started",
+        event_lead_id: null,
+        event_lead_name: null,
+      },
+    ],
+  },
+  upcoming: { fromDate: "2026-03-19", toDate: "2026-06-17", events: [] },
+  unavailable: null,
+};
+
+const CALENDAR_WINDOW = { fromDate: "2026-09-01", toDate: "2026-11-30" };
+
+const marketingFeed: AgendaCalendarFeed = {
+  timeZone: "America/Denver",
+  window: CALENDAR_WINDOW,
+  items: [
+    {
+      id: "calendar-1",
+      title: "Pride month campaign",
+      item_type: "content_campaign",
+      starts_at: "2026-09-15T12:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "active",
+      priority_tier: 1,
+      owner_id: null,
+      owner_name: "Sam Comms",
+      categories: ["campaigns_fundraising"],
+      content_pieces: [{ content_status: "draft" }, { content_status: "idea" }],
+      publish_due_at: "2026-09-10T12:00:00.000Z",
+      content_overdue: true,
+    },
+    {
+      id: "calendar-2",
+      title: "First snow day",
+      item_type: "winter_outdoor_sports_moment",
+      starts_at: "2026-10-02T12:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "idea",
+      priority_tier: 3,
+      owner_id: null,
+      owner_name: null,
+      categories: [],
+      content_pieces: [],
+      publish_due_at: null,
+      content_overdue: false,
+    },
+  ],
+  categoryOptions: [
+    { value: "campaigns_fundraising", label: "Campaigns & fundraising" },
+  ],
+  unavailable: null,
+};
+
+const communityFeed: AgendaCalendarFeed = {
+  timeZone: "America/Denver",
+  window: CALENDAR_WINDOW,
+  items: [
+    {
+      id: "calendar-3",
+      title: "Pride planning coffee",
+      item_type: "partner_event",
+      starts_at: "2026-09-12T12:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "active",
+      priority_tier: 2,
+      owner_id: null,
+      owner_name: null,
+      categories: ["partner_opportunities"],
+      content_pieces: [],
+      publish_due_at: null,
+      content_overdue: false,
+    },
+  ],
+  categoryOptions: [
+    { value: "partner_opportunities", label: "Partners & coalitions" },
+  ],
+  unavailable: null,
+};
+
+const partnershipsFeed: AgendaPartnershipsFeed = {
+  partnerships: [
+    {
+      id: "partnership-1",
+      organization: "Mountain Pride Collective",
+      stage: "negotiating",
+      next_step_date: "2026-08-01",
+      owner_name: "Dana Lead",
+      overdue: true,
+    },
+    {
+      id: "partnership-2",
+      organization: "Nordic Center",
+      stage: "contacted",
+      next_step_date: null,
+      owner_name: null,
+      overdue: false,
+    },
+  ],
+  unavailable: null,
 };
 
 const seededSections = [
@@ -355,7 +518,140 @@ describe("formatAgendaMarkdown", () => {
   });
 });
 
+// A template whose sections name their modules (#1240-#1243), and what those
+// modules had on the screen when the export was taken (#1244).
+describe("formatAgendaMarkdown with sourced sections", () => {
+  test("prints the Events feed, its empty group and one Discussion box", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      agenda: {
+        ...baseAgenda,
+        ongoing_items: { events: { discussion: "Two need volunteers." } },
+      },
+      sections: [eventsSection],
+      sourcedSections: { events: { events: eventsFeed } },
+    });
+
+    expect(markdown).toContain("### Events");
+    expect(markdown).toContain(
+      "**Since the last meeting** (Feb 11, 2026 – Mar 18, 2026)",
+    );
+    expect(markdown).toContain(
+      "- Feb 20, 2026 — Winter gear swap — Completed — report outstanding — Dana Lead",
+    );
+    // Held, behind us, report in: not flagged. The cancelled one owed none.
+    expect(markdown).toContain(
+      "- Feb 24, 2026 — Called-off clinic — Cancelled — report not started",
+    );
+    // An empty group says so rather than being skipped: a board needs to read
+    // that nothing is scheduled, not to wonder whether the block was dropped.
+    expect(markdown).toContain("**Coming up** (Mar 19, 2026 – Jun 17, 2026)");
+    expect(markdown).toContain("None scheduled before the next meeting.");
+    expect(markdown).toContain("**Discussion:** Two need volunteers.");
+    // The pair a sourced section no longer has boxes for.
+    expect(markdown).not.toContain("**Updates:**");
+    expect(markdown).not.toContain("**Decisions needed:**");
+  });
+
+  test("prints a calendar section's rows, its content work state and its partnerships", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: [marketingSection, communitySection],
+      sourcedSections: {
+        marketing_social: { calendar: marketingFeed },
+        community_partnerships: {
+          calendar: communityFeed,
+          partnerships: partnershipsFeed,
+        },
+      },
+    });
+
+    // Marketing & Social shows how far each item's content has got (#1243).
+    expect(markdown).toContain(
+      "**On the calendar** (Sep 1, 2026 – Nov 30, 2026)",
+    );
+    expect(markdown).toContain(
+      "- Sep 15, 2026 — Pride month campaign — Content campaign — Idea (2 pieces) — publish due Sep 10, 2026 (overdue) — Sam Comms",
+    );
+    // Nothing drafted against a date is the row the board most needs to see,
+    // so it prints rather than being filtered out.
+    expect(markdown).toContain(
+      "- Oct 2, 2026 — First snow day — Winter / outdoor sports moment — nothing planned",
+    );
+    // Community & Partnerships shows the tenant's own category words instead.
+    expect(markdown).toContain(
+      "- Sep 12, 2026 — Pride planning coffee — Partner / co-hosted event — Partners & coalitions",
+    );
+    expect(markdown).toContain("**Open partnerships**");
+    expect(markdown).toContain(
+      "- Mountain Pride Collective — Negotiating — next step Aug 1, 2026 (overdue) — Dana Lead",
+    );
+    expect(markdown).toContain("- Nordic Center — Contacted — no next step");
+    // Only the section the catalog names carries them.
+    expect(markdown.match(/\*\*Open partnerships\*\*/g)).toHaveLength(1);
+  });
+
+  test("prints a section whose module is off, and one still loading", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      sections: [eventsSection, marketingSection],
+      sourcedSections: {
+        events: {
+          events: { ...eventsFeed, unavailable: "forbidden" },
+        },
+        // Its read had not come back when the export was taken.
+        marketing_social: {},
+      },
+    });
+
+    expect(markdown).toContain(
+      "Events are not shown — your role does not include Events.",
+    );
+    // Nothing invented for the section still loading: an empty group would
+    // read as "the calendar is clear", which is not what was known.
+    expect(markdown).toContain("### Marketing & Social");
+    expect(markdown).not.toContain("**On the calendar**");
+    expect(markdown).toContain("**Discussion:** —");
+  });
+
+  test("keeps text a section wrote before its template was sourced", () => {
+    const markdown = formatAgendaMarkdown({
+      ...emptyInput,
+      agenda: {
+        ...baseAgenda,
+        ongoing_items: {
+          events: { updates: "Written under version 1.", discussion: "" },
+        },
+      },
+      sections: [eventsSection],
+      sourcedSections: { events: { events: eventsFeed } },
+    });
+
+    expect(markdown).toContain("**Discussion:** —");
+    expect(markdown).toContain("**Updates:** Written under version 1.");
+    // The half that was empty stays out; only what holds something prints.
+    expect(markdown).not.toContain("**Decisions needed:**");
+  });
+});
+
 describe("formatAgendaPlainText", () => {
+  test("indents a sourced section's module rows without markdown emphasis", () => {
+    const text = formatAgendaPlainText({
+      ...emptyInput,
+      sections: [eventsSection],
+      sourcedSections: { events: { events: eventsFeed } },
+    });
+
+    expect(text).toContain(
+      "  Since the last meeting (Feb 11, 2026 – Mar 18, 2026)",
+    );
+    expect(text).toContain(
+      "  - Feb 20, 2026 — Winter gear swap — Completed — report outstanding — Dana Lead",
+    );
+    expect(text).toContain("    Discussion: —");
+    expect(text).not.toContain("**");
+  });
+
   test("uses plain uppercase headers instead of markdown syntax", () => {
     const text = formatAgendaPlainText(emptyInput);
     expect(text).toContain("AGENDA — Aug 31, 2026");

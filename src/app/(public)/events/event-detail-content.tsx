@@ -9,11 +9,17 @@ import { formatDateTimeInZone } from "@/lib/time";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
+import { EventRegistrationDisclosure } from "./event-registration-disclosure";
 import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
 import { EventSponsors } from "./event-sponsors";
 import { MyEventRegistrationForm } from "./my-registration-form";
-import { loadEventViewer, type EventViewer } from "./my-registration";
+import {
+  loadEventViewer,
+  loadRegistrationAccountOffer,
+  type EventViewer,
+} from "./my-registration";
+import type { AccountOffer } from "@/components/registration-account-offer";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -82,13 +88,20 @@ function EventDetailBody({
   event,
   variant,
   viewer,
+  accountOffer,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
   viewer: EventViewer | null;
+  accountOffer: AccountOffer | null;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
+  // Only a linked constituent can have one to find: `my_event_registration()`
+  // looks the caller up through their `people` row, so an account without one
+  // is never "already registered" as far as this page can tell.
+  const existingRegistration =
+    viewer?.kind === "linked" ? viewer.registration : null;
 
   return (
     <>
@@ -112,60 +125,65 @@ function EventDetailBody({
       <EventSponsors sponsors={event.sponsors} />
 
       {event.registration_enabled && (
+        /* No "Register" heading above this any more (#1256): the button is
+           the heading's job now, and a heading over a status sentence
+           ("you're registered", "the deadline has passed") only announced a
+           form that is not there. */
         <section className={page ? "mt-10 max-w-lg" : "mt-6"}>
-          {page ? (
-            <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-              Register
-            </h2>
-          ) : (
-            <h3 className="brand-display text-lg font-semibold tracking-[-0.02em]">
-              Register
-            </h3>
-          )}
-          <div className="mt-4">
-            {viewer?.registration ? (
-              /* Already signed up. Showing the state instead of a second form
-                 is the point of knowing who is reading: the database would
-                 refuse the duplicate anyway, and being told "you are already
-                 registered" after filling a form in is a worse way to learn
-                 it.
+          {existingRegistration ? (
+            /* Already signed up. Showing the state instead of a second form
+               is the point of knowing who is reading: the database would
+               refuse the duplicate anyway, and being told "you are already
+               registered" after filling a form in is a worse way to learn
+               it.
 
-                 There is no "cancel" here, and deliberately not. #1165 made
-                 that conditional on the existing model supporting it, and it
-                 does not: `event_registrations` has no cancelled state and no
-                 delete path anywhere in the application, staff included, so
-                 the only thing a button could do is destroy the row -- taking
-                 the attendance figure and the discount code with it. Changing
-                 your mind is a message to the organization until there is a
-                 model for it. */
-              <div className="space-y-2">
-                <Alert>
-                  <div className="rainbow-accent mb-2 w-10" />
-                  <AlertDescription>
-                    You&apos;re registered
-                    {viewer.registration.party_size > 1
-                      ? `, for ${viewer.registration.party_size} of you`
-                      : ""}
-                    . If you can no longer make it, let us know.
-                  </AlertDescription>
-                </Alert>
-                <p className="app-muted text-sm">
-                  <Link href={MY_PATH_PREFIX} className="underline">
-                    See this on your account
-                  </Link>
-                </p>
-              </div>
-            ) : !registrationWindow.open ? (
-              <p className="app-muted text-sm">{registrationWindow.reason}</p>
-            ) : viewer ? (
-              <MyEventRegistrationForm
-                eventId={event.id}
-                person={viewer.person}
-              />
-            ) : (
-              <EventRegistrationForm eventId={event.id} />
-            )}
-          </div>
+               There is no "cancel" here, and deliberately not. #1165 made
+               that conditional on the existing model supporting it, and it
+               does not: `event_registrations` has no cancelled state and no
+               delete path anywhere in the application, staff included, so
+               the only thing a button could do is destroy the row -- taking
+               the attendance figure and the discount code with it. Changing
+               your mind is a message to the organization until there is a
+               model for it. */
+            <div className="space-y-2">
+              <Alert>
+                <div className="rainbow-accent mb-2 w-10" />
+                <AlertDescription>
+                  You&apos;re registered
+                  {existingRegistration.party_size > 1
+                    ? `, for ${existingRegistration.party_size} of you`
+                    : ""}
+                  . If you can no longer make it, let us know.
+                </AlertDescription>
+              </Alert>
+              <p className="app-muted text-sm">
+                <Link href={MY_PATH_PREFIX} className="underline">
+                  See this on your account
+                </Link>
+              </p>
+            </div>
+          ) : !registrationWindow.open ? (
+            <p className="app-muted text-sm">{registrationWindow.reason}</p>
+          ) : (
+            <EventRegistrationDisclosure variant={variant}>
+              {viewer?.kind === "linked" ? (
+                <MyEventRegistrationForm
+                  eventId={event.id}
+                  person={viewer.person}
+                />
+              ) : (
+                /* Signed in without an approved claim (#1162) still registers
+                   down the anonymous path, and still mints or matches a
+                   `people` row -- it just does not have to be told its own
+                   name and address to do it (#1257). */
+                <EventRegistrationForm
+                  eventId={event.id}
+                  account={viewer?.kind === "account" ? viewer.account : null}
+                  accountOffer={accountOffer}
+                />
+              )}
+            </EventRegistrationDisclosure>
+          )}
         </section>
       )}
     </>
@@ -191,9 +209,13 @@ export async function EventDetailContent({
 }) {
   // Loaded here rather than by each caller, so the page and the sheet cannot
   // drift into showing a signed-in visitor two different things about the same
-  // registration. Null for everyone who is not a linked constituent, which is
-  // most visitors and costs them one `getUser()`.
+  // registration. Null for everyone with no session at all, which is most
+  // visitors and costs them one `getUser()`.
   const viewer = await loadEventViewer(event.id);
+  // What the registration can offer afterwards (#1258), decided here for the
+  // same reason the viewer is: the page and the sheet must not drift into two
+  // different answers about the same registration.
+  const accountOffer = await loadRegistrationAccountOffer(viewer);
 
   if (variant === "sheet") {
     return (
@@ -206,7 +228,12 @@ export async function EventDetailContent({
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           <EventFlier event={event} variant="sheet" />
-          <EventDetailBody event={event} variant="sheet" viewer={viewer} />
+          <EventDetailBody
+            event={event}
+            variant="sheet"
+            viewer={viewer}
+            accountOffer={accountOffer}
+          />
         </div>
       </>
     );
@@ -224,7 +251,12 @@ export async function EventDetailContent({
           {formatWhen(event)}
         </p>
       </section>
-      <EventDetailBody event={event} variant="page" viewer={viewer} />
+      <EventDetailBody
+        event={event}
+        variant="page"
+        viewer={viewer}
+        accountOffer={accountOffer}
+      />
     </>
   );
 }

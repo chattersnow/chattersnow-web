@@ -8,6 +8,7 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
+import { parseAttendedBefore } from "@/lib/attended-before";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
 
@@ -58,6 +59,15 @@ export async function registerMyselfForEventAction(
     p_phone: String(formData.get("phone") ?? ""),
     p_pronouns: String(formData.get("pronouns") ?? ""),
     p_instagram_handle: String(formData.get("instagramHandle") ?? ""),
+    // #1259, and worth being explicit about why it is asked of somebody the
+    // organization already has a full record for: the check-in ledger only
+    // knows the events this tenant ran on this platform, so "have you been
+    // before?" is still a fact only they hold. It stays self-reported -- it is
+    // never derived from `my_event_history()`, which would quietly turn the
+    // one column that is a person's own answer into a second copy of the
+    // derived figure.
+    p_attended_before:
+      parseAttendedBefore(formData.get("attendedBefore")) ?? undefined,
     p_ip_address: await getClientIp(),
   });
 

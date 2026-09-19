@@ -5,7 +5,7 @@ unchanged. This file holds §5.8. Technology, system boundaries, security, the
 route tree and the key workflows stay in the hub. A plain `§N` below is in this
 file; a `§N` that lives in another file is always a link.
 
-**Also relevant:** `giveaways`, `giveaway_prizes` and `giveaway_winners` are catalogued in [§6, "Finance and giveaways"](finance.md#6-data-model-finance-and-giveaways); the tier, bucket, ticket and package tables are specified below. The donated-gear path writes through the [§5.4](inventory.md#54-inventory-and-donation-management) intake RPC.
+**Also relevant:** `giveaways`, `giveaway_prizes` and `giveaway_winners` are catalogued in [§6, "Finance and giveaways"](finance.md#6-data-model--finance-and-giveaways); the tier, bucket, ticket and package tables are specified below. The donated-gear path writes through the [§5.4](inventory.md#54-inventory-and-donation-management) intake RPC.
 
 ## 5.8 Giveaways
 

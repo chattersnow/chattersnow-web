@@ -35,6 +35,7 @@ function registrant(
     notes: null,
     created_at: "2026-08-01T12:00:00Z",
     person_id: "person-1",
+    attended_before: null,
     checked_in_at: null,
     rider: {
       riding_discipline_at_event: null,

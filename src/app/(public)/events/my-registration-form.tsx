@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
+import { AttendedBeforeField } from "@/components/attended-before-field";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
@@ -46,6 +47,12 @@ export function MyEventRegistrationForm({
     person.instagram_handle ?? "",
   );
   const [partySize, setPartySize] = useState("1");
+  // Empty until they say otherwise (#1259). Deliberately not seeded from
+  // `my_event_history()`: prefilling it would cost this public page a second
+  // round trip to pre-tick a control that is one click either way, and it
+  // would blur the one self-reported answer into the derived figure it exists
+  // to sit beside.
+  const [attendedBefore, setAttendedBefore] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
@@ -64,6 +71,7 @@ export function MyEventRegistrationForm({
     formData.set("phone", phone);
     formData.set("pronouns", pronouns);
     formData.set("instagramHandle", instagramHandle);
+    formData.set("attendedBefore", attendedBefore);
 
     startTransition(async () => {
       const result = await registerMyselfForEventAction(eventId, formData);
@@ -155,6 +163,18 @@ export function MyEventRegistrationForm({
           />
         </Field>
 
+        {/* The same question the anonymous form asks, in the same words, from
+            the same component (#1259). This reader is the one place the ticket
+            allows it to be skipped or prefilled from their own history, and it
+            is neither: a self-reported answer is a different fact from the
+            check-in ledger, and the ledger only knows the events this tenant
+            ran here. */}
+        <AttendedBeforeField
+          id="my-registration-attended-before"
+          value={attendedBefore}
+          onChange={setAttendedBefore}
+        />
+
         <Field>
           <FieldLabel htmlFor="my-registration-notes">
             Anything we should know?
@@ -168,8 +188,10 @@ export function MyEventRegistrationForm({
         </Field>
 
         <Field orientation="horizontal">
+          {/* Named apart from the disclosure's "Register" trigger above it
+              (#1256), the same way the anonymous form's submit is. */}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Registering…" : "Register"}
+            {isPending ? "Registering…" : "Complete registration"}
           </Button>
         </Field>
       </FieldGroup>

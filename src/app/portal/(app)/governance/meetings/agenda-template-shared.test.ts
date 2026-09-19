@@ -3,6 +3,7 @@ import {
   agendaSectionSource,
   isSourcedSection,
   isValidSectionKey,
+  sectionShowsContentState,
   type AgendaTemplateSection,
 } from "./agenda-template-shared";
 
@@ -84,6 +85,54 @@ describe("agendaSectionSource", () => {
     ]) {
       expect(agendaSectionSource(section(source))).toBeUndefined();
       expect(isSourcedSection(section(source))).toBe(false);
+    }
+  });
+});
+
+// Which of two calendar-sourced sections shows the content work state (#1243).
+// Version 2 seeds both as `{kind: "calendar"}`, so this is what tells
+// Marketing & Social's rows from Community & Partnerships'.
+describe("sectionShowsContentState", () => {
+  const marketing = section({
+    kind: "calendar",
+    categories: ["campaigns_fundraising"],
+    item_types: [
+      "content_campaign",
+      "content_opportunity",
+      "community_observance",
+      "heritage_social_justice_moment",
+      "winter_outdoor_sports_moment",
+    ],
+  });
+  const community = section({
+    kind: "calendar",
+    categories: ["partner_opportunities", "community_social_justice"],
+    item_types: ["partner_event", "partner_opportunity"],
+  });
+
+  test("the section reading content items shows it, the one beside it does not", () => {
+    expect(sectionShowsContentState(marketing)).toBe(true);
+    expect(sectionShowsContentState(community)).toBe(false);
+  });
+
+  test("one content item type is enough", () => {
+    expect(
+      sectionShowsContentState(
+        section({ kind: "calendar", item_types: ["content_opportunity"] }),
+      ),
+    ).toBe(true);
+  });
+
+  test("a section naming no content item type keeps the narrower table", () => {
+    for (const source of [
+      undefined,
+      { kind: "events" },
+      { kind: "calendar" },
+      { kind: "calendar", categories: ["campaigns_fundraising"] },
+      // Malformed, so it is not a calendar source at all.
+      { kind: "calendar", item_types: "content_campaign" },
+    ]) {
+      expect(sectionShowsContentState(section(source))).toBe(false);
     }
   });
 });

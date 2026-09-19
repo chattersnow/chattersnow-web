@@ -1,12 +1,23 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import {
+  expectToast,
+  renderWithToaster,
+} from "../../../../../../test/toast-testing";
 import * as ActionItemsActions from "./action-items-actions";
+import type { ActionItem } from "./action-items-actions";
 import * as AgendaActions from "./agenda-actions";
 import * as DecisionsActions from "./decisions-actions";
 import * as MinutesApprovalActions from "./minutes-approval-actions";
 import * as MeetingContextActions from "./meeting-context-actions";
 import * as AgendaEventsActions from "./agenda-events-actions";
 import type { AgendaEventsFeed } from "./agenda-events-actions";
+import * as AgendaCalendarActions from "./agenda-calendar-actions";
+import type {
+  AgendaCalendarFeed,
+  AgendaPartnershipsFeed,
+} from "./agenda-calendar-actions";
 import type { Agenda } from "./agenda-actions";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 
@@ -40,6 +51,22 @@ const SOURCED_SECTIONS: AgendaTemplateSection[] = [
   },
 ];
 
+// Version 2's Community & Partnerships section, beside Marketing & Social:
+// both are `{kind: "calendar"}`, and only one of them carries partnerships.
+const COMMUNITY_SECTIONS: AgendaTemplateSection[] = [
+  SOURCED_SECTIONS[2]!,
+  {
+    key: "community_partnerships",
+    label: "Community & Partnerships",
+    topics: ["Partner relationships"],
+    source: {
+      kind: "calendar",
+      categories: ["partner_opportunities"],
+      item_types: ["partner_event", "partner_opportunity"],
+    },
+  },
+];
+
 let agendaRow: Agenda | null = null;
 const upsertAgendaAction = mock(
   async (_meetingId: string, _formData: FormData) => ({
@@ -53,10 +80,18 @@ mock.module("./agenda-actions", () => ({
   listActiveAgendaTemplatesAction: mock(async () => ({ data: [] })),
   upsertAgendaAction,
 }));
+// What the previous meeting left open, and closing one from here (#1245).
+let carriedOver: ActionItem[] = [];
+const updateActionItemStatusAction = mock(
+  async (_id: string, _status: "open" | "done") => ({
+    success: true as const,
+  }),
+);
 mock.module("./action-items-actions", () => ({
   ...ActionItemsActions,
   listActionItemsAction: mock(async () => ({ data: [] })),
-  listCarriedOverActionItemsAction: mock(async () => ({ data: [] })),
+  listCarriedOverActionItemsAction: mock(async () => ({ data: carriedOver })),
+  updateActionItemStatusAction,
 }));
 mock.module("./decisions-actions", () => ({
   ...DecisionsActions,
@@ -127,6 +162,127 @@ mock.module("./agenda-events-actions", () => ({
   ...AgendaEventsActions,
   listAgendaEventsAction,
 }));
+// The calendar feed (#1242/#1243). One reader answers both sourced sections,
+// so the stub answers off the source it was handed -- which is the whole point
+// of the parameterized action, and what lets these tests show that the two
+// sections render different rows.
+const CALENDAR_WINDOW = { fromDate: "2026-09-01", toDate: "2026-11-30" };
+
+const COMMUNITY_FEED: AgendaCalendarFeed = {
+  timeZone: "America/Denver",
+  window: CALENDAR_WINDOW,
+  items: [
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      title: "Pride planning coffee",
+      item_type: "partner_event",
+      starts_at: "2026-09-12T06:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "active",
+      priority_tier: 2,
+      owner_id: null,
+      owner_name: null,
+      categories: ["partner_opportunities"],
+      // Its section never asks for content work state, so its read never
+      // joined the pieces.
+      content_pieces: [],
+      publish_due_at: null,
+      content_overdue: false,
+    },
+  ],
+  categoryOptions: [
+    { value: "partner_opportunities", label: "Partners & coalitions" },
+  ],
+  unavailable: null,
+};
+
+// Marketing & Social's rows carry what is written for them (#1243): one
+// campaign with two pieces and a publish date already behind us, and one date
+// with nothing planned against it at all.
+const MARKETING_FEED: AgendaCalendarFeed = {
+  timeZone: "America/Denver",
+  window: CALENDAR_WINDOW,
+  items: [
+    {
+      id: "66666666-6666-4666-8666-666666666666",
+      title: "Pride month campaign",
+      item_type: "content_campaign",
+      starts_at: "2026-09-15T06:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "active",
+      priority_tier: 1,
+      owner_id: null,
+      owner_name: "Sam Comms",
+      categories: ["campaigns_fundraising"],
+      content_pieces: [{ content_status: "draft" }, { content_status: "idea" }],
+      publish_due_at: "2026-09-10T16:00:00.000Z",
+      content_overdue: true,
+    },
+    {
+      id: "77777777-7777-4777-8777-777777777777",
+      title: "First snow day",
+      item_type: "winter_outdoor_sports_moment",
+      starts_at: "2026-10-02T06:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "idea",
+      priority_tier: 3,
+      owner_id: null,
+      owner_name: null,
+      categories: [],
+      content_pieces: [],
+      publish_due_at: null,
+      content_overdue: false,
+    },
+  ],
+  categoryOptions: [
+    { value: "campaigns_fundraising", label: "Campaigns & fundraising" },
+  ],
+  unavailable: null,
+};
+
+const listAgendaCalendarItemsAction = mock(
+  async (
+    _meetingId: string,
+    _meetingDate: string,
+    source: unknown,
+  ): Promise<{ data: AgendaCalendarFeed }> => ({
+    data: (source as { item_types?: string[] })?.item_types?.includes(
+      "content_campaign",
+    )
+      ? MARKETING_FEED
+      : COMMUNITY_FEED,
+  }),
+);
+const listOpenPartnershipsAction = mock(
+  async (): Promise<{ data: AgendaPartnershipsFeed }> => ({
+    data: {
+      partnerships: [
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          organization: "Mountain Pride Collective",
+          stage: "negotiating",
+          next_step_date: "2026-08-01",
+          owner_name: "Dana Lead",
+          overdue: true,
+        },
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          organization: "Nordic Center",
+          stage: "contacted",
+          next_step_date: null,
+          owner_name: null,
+          overdue: false,
+        },
+      ],
+      unavailable: null,
+    },
+  }),
+);
+mock.module("./agenda-calendar-actions", () => ({
+  ...AgendaCalendarActions,
+  listAgendaCalendarItemsAction,
+  listOpenPartnershipsAction,
+}));
 
 const { AgendaTab } = await import("./agenda-tab");
 
@@ -151,13 +307,15 @@ function agenda(
   };
 }
 
-function renderTab(mode: "view" | "edit") {
-  return render(
+// With a toaster throughout: the tab announces a failed action through one,
+// and a tab rendered without it would swallow the only evidence a tick failed.
+function renderTab(mode: "view" | "edit", canManage = true) {
+  return renderWithToaster(
     <AgendaTab
       meetingId="meeting-1"
       meetingDate="2026-09-01"
       mode={mode}
-      canManage
+      canManage={canManage}
       minutesApprovedAt={null}
       onViewActionItems={() => {}}
       onViewDecisions={() => {}}
@@ -166,9 +324,24 @@ function renderTab(mode: "view" | "edit") {
   );
 }
 
+function carriedOverItem(description: string): ActionItem {
+  return {
+    id: "action-1",
+    meeting_id: "meeting-0",
+    description,
+    due_date: null,
+    status: "open",
+    minutes_item_key: null,
+    owner: { id: "person-1", name: "Dana Lead", email: null, phone: null },
+  };
+}
+
 beforeEach(() => {
   upsertAgendaAction.mockClear();
+  updateActionItemStatusAction.mockClear();
+  updateActionItemStatusAction.mockResolvedValue({ success: true as const });
   agendaRow = null;
+  carriedOver = [];
 });
 
 describe("AgendaTab ongoing board items", () => {
@@ -345,5 +518,224 @@ describe("AgendaTab events feed", () => {
     // A quiet line, not an alert, and the section still carries what was said.
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByText("Said so.")).toBeDefined();
+  });
+});
+
+// The calendar half of a sourced section, and the partnerships block beside it
+// (#1242). What the rows say is the action's business and the integration
+// test's; what matters here is which sections ask for which feed.
+describe("AgendaTab calendar and partnerships feeds", () => {
+  test("renders both blocks above the Community & Partnerships box", async () => {
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getByText("Pride planning coffee")).toBeDefined(),
+      SETTLE,
+    );
+    expect(
+      screen
+        .getByRole("link", { name: "Pride planning coffee" })
+        .getAttribute("href"),
+    ).toBe("/portal/calendar/33333333-3333-4333-8333-333333333333");
+    // The item type through ITEM_TYPES, the category through the tenant's own
+    // label rather than the seeded `partner_opportunities` key.
+    expect(screen.getByText("Partner / co-hosted event")).toBeDefined();
+    expect(screen.getByText("Partners & coalitions")).toBeDefined();
+    // The relationships, with the one whose next step has passed flagged.
+    expect(screen.getByText("Mountain Pride Collective")).toBeDefined();
+    expect(
+      screen.getAllByText(/^Overdue/).some((node) => node.textContent?.trim()),
+    ).toBe(true);
+    expect(screen.getByText("Nordic Center")).toBeDefined();
+  });
+
+  // The two sourced sections read one action with two sources, and what comes
+  // back is not the same table (#1243). Marketing & Social is reporting on
+  // posts being written; Community & Partnerships is reporting on dates.
+  test("shows content work state in Marketing & Social and not beside it", async () => {
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getByText("Pride month campaign")).toBeDefined(),
+      SETTLE,
+    );
+    const marketingTable = screen.getByRole("table", {
+      name: "Marketing & Social items on the calendar",
+    });
+    const communityTable = screen.getByRole("table", {
+      name: "Community & Partnerships items on the calendar",
+    });
+
+    // The columns each section carries.
+    expect(within(marketingTable).getByText("Content")).toBeDefined();
+    expect(within(marketingTable).getByText("Publish due")).toBeDefined();
+    expect(within(marketingTable).queryByText("Categories")).toBeNull();
+    expect(within(communityTable).getByText("Categories")).toBeDefined();
+    expect(within(communityTable).queryByText("Content")).toBeNull();
+
+    // Two pieces, summarised by the least-advanced one still needing work.
+    expect(within(marketingTable).getByText("Idea")).toBeDefined();
+    expect(within(marketingTable).getByText("2 pieces")).toBeDefined();
+    // Past its publish date with nothing published: the row the board acts on.
+    expect(within(marketingTable).getByText(/^Overdue/)).toBeDefined();
+    // Owner and tier share the line under the title rather than taking two
+    // more columns.
+    expect(
+      within(marketingTable).getByText("Sam Comms · Tier 1"),
+    ).toBeDefined();
+  });
+
+  test("keeps a date with nothing planned against it", async () => {
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    // Not filtered out for having no content piece -- an undrafted date is the
+    // one the board most needs to see.
+    await waitFor(
+      () => expect(screen.getByText("First snow day")).toBeDefined(),
+      SETTLE,
+    );
+    const row = screen.getByText("First snow day").closest("tr")!;
+    expect(within(row).getAllByText("—")).toHaveLength(2);
+    expect(within(row).queryByText(/^Overdue/)).toBeNull();
+  });
+
+  test("reads the calendar once per calendar-sourced section", async () => {
+    listAgendaCalendarItemsAction.mockClear();
+    listOpenPartnershipsAction.mockClear();
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getAllByText("On the calendar")).toHaveLength(2),
+      SETTLE,
+    );
+    expect(listAgendaCalendarItemsAction).toHaveBeenCalledTimes(2);
+    // Each section filters on its own source, which is what the one reader is
+    // parameterized by.
+    expect(listAgendaCalendarItemsAction.mock.calls[0]![2]).toEqual(
+      COMMUNITY_SECTIONS[0]!.source,
+    );
+    expect(listAgendaCalendarItemsAction.mock.calls[1]![2]).toEqual(
+      COMMUNITY_SECTIONS[1]!.source,
+    );
+    // Only Community & Partnerships carries the relationships, and it is read
+    // once for the tab rather than once per section.
+    expect(listOpenPartnershipsAction).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText("Open partnerships")).toHaveLength(1);
+  });
+
+  test("reads neither feed for a template with no calendar section", async () => {
+    listAgendaCalendarItemsAction.mockClear();
+    listOpenPartnershipsAction.mockClear();
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getAllByText("Updates").length).toBeGreaterThan(0),
+      SETTLE,
+    );
+    expect(listAgendaCalendarItemsAction).not.toHaveBeenCalled();
+    expect(listOpenPartnershipsAction).not.toHaveBeenCalled();
+  });
+
+  test("keeps the Discussion box when the caller cannot see the calendar", async () => {
+    listAgendaCalendarItemsAction.mockResolvedValue({
+      data: {
+        timeZone: "America/Denver",
+        window: { fromDate: "2026-09-01", toDate: "2026-11-30" },
+        items: [],
+        categoryOptions: [],
+        unavailable: "forbidden",
+      },
+    });
+    agendaRow = agenda(COMMUNITY_SECTIONS, {
+      community_partnerships: { discussion: "Said so." },
+    });
+    renderTab("view");
+
+    await waitFor(
+      () =>
+        expect(
+          screen.getAllByText(
+            "Calendar items are not shown — your role does not include the Content Calendar.",
+          ),
+        ).toHaveLength(2),
+      SETTLE,
+    );
+    // A quiet line, not an alert, and the section still carries what was said.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Said so.")).toBeDefined();
+    listAgendaCalendarItemsAction.mockClear();
+  });
+});
+
+// Closing a carried-over item without leaving the agenda (#1245). Going
+// through these is the first real thing a board does, and the round trip to
+// the Action Items tab is what stopped anyone doing it mid-meeting.
+describe("AgendaTab carried-over action items", () => {
+  test("ticking one closes it and keeps the row on screen", async () => {
+    const user = userEvent.setup();
+    carriedOver = [carriedOverItem("Book the venue")];
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    const box = await waitFor(
+      () => screen.getByRole("checkbox", { name: "Book the venue" }),
+      SETTLE,
+    );
+    await user.click(box);
+
+    await waitFor(
+      () =>
+        expect(updateActionItemStatusAction).toHaveBeenCalledWith(
+          "action-1",
+          "done",
+        ),
+      SETTLE,
+    );
+    // The row stays, visibly done: the read filters on `status = 'open'`, so
+    // dropping it here would make it vanish mid-meeting.
+    expect(screen.getByText(/Book the venue/)).toBeDefined();
+    expect(box.getAttribute("aria-checked")).toBe("true");
+  });
+
+  test("a failed update reverts the tick and says so", async () => {
+    const user = userEvent.setup();
+    updateActionItemStatusAction.mockResolvedValue({
+      error: "Could not update this action item. Please try again.",
+    } as never);
+    carriedOver = [carriedOverItem("Send the thank-you notes")];
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    const box = await waitFor(
+      () => screen.getByRole("checkbox", { name: "Send the thank-you notes" }),
+      SETTLE,
+    );
+    await user.click(box);
+
+    await expectToast("Could not update this action item. Please try again.");
+    // Reverted: a tick that quietly did nothing would leave the meeting
+    // believing the item closed.
+    await waitFor(
+      () => expect(box.getAttribute("aria-checked")).toBe("false"),
+      SETTLE,
+    );
+  });
+
+  test("a read-only viewer sees the list with no checkbox", async () => {
+    carriedOver = [carriedOverItem("Book the venue")];
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view", false);
+
+    await waitFor(
+      () => expect(screen.getByText(/Book the venue/)).toBeDefined(),
+      SETTLE,
+    );
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(updateActionItemStatusAction).not.toHaveBeenCalled();
   });
 });

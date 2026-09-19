@@ -479,7 +479,11 @@ export async function createCalendarItem(
 // item usually only need its cleanup.
 export async function createContentPiece(
   calendarItemId: string,
-  overrides: { title?: string; contentStatus?: string } = {},
+  overrides: {
+    title?: string;
+    contentStatus?: string;
+    publishDueAt?: string | null;
+  } = {},
 ) {
   const { data, error } = await adminClient
     .from("content_opportunities")
@@ -487,6 +491,7 @@ export async function createContentPiece(
       calendar_item_id: calendarItemId,
       title: overrides.title ?? `Integration test piece ${crypto.randomUUID()}`,
       content_status: overrides.contentStatus ?? "idea",
+      publish_due_at: overrides.publishDueAt ?? null,
     })
     .select("id")
     .single();
