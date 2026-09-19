@@ -13,6 +13,14 @@ import * as SettingsActions from "./actions";
 const saveMock = mock(async (_formData: FormData) => ({ success: true }));
 
 mock.module("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
+// The preview above each field. `next/image` resolves its `src` against
+// `location` through `new URL()`, which throws under happy-dom for the
+// root-relative paths #1267 is about; the browser has no such trouble.
+mock.module("next/image", () => ({
+  default: ({ src, alt }: { src: unknown; alt: string }) => (
+    <img src={typeof src === "string" ? src : ""} alt={alt} />
+  ),
+}));
 mock.module("./actions", () => ({
   ...SettingsActions,
   updateBrandingAction: saveMock,
@@ -117,5 +125,48 @@ describe("BrandingPanel typography (#1261)", () => {
     // Empty, not absent: `app_settings` has no delete grant, so "no choice of
     // my own" is written as a blank value the readers treat as unset.
     expect(savedTypography()).toBe("");
+  });
+});
+
+describe("BrandingPanel image links (#1267)", () => {
+  beforeEach(() => {
+    saveMock.mockClear();
+  });
+
+  /**
+   * The panel's own submit path cannot see this bug: jsdom does not run
+   * constraint validation, so these tests posted happily through the
+   * `type="url"` that stopped a real browser dead. The assertion is therefore
+   * on the field itself, and on the validity the browser would compute.
+   */
+  test.each([
+    ["brand-logo-url", "/chatter-logo-transparent.png"],
+    ["brand-app-icon-url", "/icon-512.png"],
+  ])("%s accepts a path this site serves", (id, path) => {
+    renderPanel(brandingFromRows([{ token: "logo_url", value: path }]));
+
+    const input = document.getElementById(id) as HTMLInputElement;
+    // `type="url"` demands a scheme, and a file in `public/` has none -- so it
+    // would fail the form, taking the colours and the typeface down with it.
+    expect(input.type).not.toBe("url");
+    expect(input.inputMode).toBe("url");
+
+    input.value = path;
+    expect(input.validity.typeMismatch).toBe(false);
+  });
+
+  test("a stored path survives a save untouched", async () => {
+    const user = userEvent.setup();
+    renderPanel(
+      brandingFromRows([
+        { token: "logo_url", value: "/chatter-logo-transparent.png" },
+      ]),
+    );
+
+    await user.click(screen.getByRole("button", { name: /Save branding/ }));
+    await waitFor(() => expect(saveMock).toHaveBeenCalled());
+    expect(saveMock.mock.calls.at(-1)?.[0].get("logo_url")).toBe(
+      "/chatter-logo-transparent.png",
+    );
   });
 });
