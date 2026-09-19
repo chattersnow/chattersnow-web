@@ -20,12 +20,28 @@ describe("createSupabaseAdminClient (integration)", () => {
     // `events.created_by` has no session to default `auth.uid()` from under
     // the service-role key, so it must be supplied explicitly with a real
     // auth.users id -- reuse the seeded admin account for that.
-    const { data: usersPage, error: listError } =
-      await admin.auth.admin.listUsers();
-    expect(listError).toBeNull();
-    const seededUser = usersPage!.users.find(
-      (user) => user.email === "admin@example.test",
-    );
+    //
+    // Paged, rather than reading the first page and hoping (#1258).
+    // `listUsers()` defaults to 50 per page, newest first, and the seeded
+    // account is the oldest row in the table -- so it falls off page one the
+    // moment the rest of the suite has created fifty accounts of its own.
+    // Adding seven more to the suite was enough to do it, and the failure that
+    // followed said "seeded admin@example.test not found", which reads like a
+    // broken seed rather than an exhausted page.
+    let seededUser:
+      | Awaited<
+          ReturnType<typeof admin.auth.admin.listUsers>
+        >["data"]["users"][number]
+      | undefined;
+    for (let page = 1; !seededUser; page++) {
+      const { data: usersPage, error: listError } =
+        await admin.auth.admin.listUsers({ page, perPage: 200 });
+      expect(listError).toBeNull();
+      if (!usersPage!.users.length) break;
+      seededUser = usersPage!.users.find(
+        (user) => user.email === "admin@example.test",
+      );
+    }
     if (!seededUser) throw new Error("seeded admin@example.test not found");
 
     const { data: inserted, error: insertError } = await admin
