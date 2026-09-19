@@ -142,36 +142,74 @@ export const TYPOGRAPHY_TOKEN = "typography";
  * 3. Pairings are a design decision. Two families chosen by someone who has
  *    seen them together is a different artifact from two names in a form.
  */
+/**
+ * The two licences these families ship under, as `google/fonts` records them
+ * in each family's `METADATA.pb`. Both let anyone download the family and set
+ * a flyer in it, which is what /brand tells an organization (#1262) -- but
+ * they are not the same licence, so a family carries its own rather than the
+ * page asserting one sentence over all eight.
+ */
+const OFL = "SIL Open Font License 1.1";
+const APACHE = "Apache License 2.0";
+
 export type TypographyFamily = {
   /** The family, as Google Fonts spells it. Shown in the picker (#1261). */
   name: string;
   /** The custom property `src/app/layout.tsx` binds the loaded family to. */
   cssVar: string;
+  /** Printed on /brand beside the link to the family's Google Fonts page. */
+  license: string;
 };
 
 const QUICKSAND: TypographyFamily = {
   name: "Quicksand",
   cssVar: "--font-quicksand",
+  license: OFL,
 };
 const ROCK_SALT: TypographyFamily = {
   name: "Rock Salt",
   cssVar: "--font-rock-salt",
+  license: APACHE,
 };
-const INTER: TypographyFamily = { name: "Inter", cssVar: "--font-inter" };
+const INTER: TypographyFamily = {
+  name: "Inter",
+  cssVar: "--font-inter",
+  license: OFL,
+};
 const SOURCE_SERIF: TypographyFamily = {
   name: "Source Serif 4",
   cssVar: "--font-source-serif",
+  license: OFL,
 };
 const FRAUNCES: TypographyFamily = {
   name: "Fraunces",
   cssVar: "--font-fraunces",
+  license: OFL,
 };
 const NUNITO_SANS: TypographyFamily = {
   name: "Nunito Sans",
   cssVar: "--font-nunito-sans",
+  license: OFL,
 };
-const FIGTREE: TypographyFamily = { name: "Figtree", cssVar: "--font-figtree" };
-const CAVEAT: TypographyFamily = { name: "Caveat", cssVar: "--font-caveat" };
+const FIGTREE: TypographyFamily = {
+  name: "Figtree",
+  cssVar: "--font-figtree",
+  license: OFL,
+};
+const CAVEAT: TypographyFamily = {
+  name: "Caveat",
+  cssVar: "--font-caveat",
+  license: OFL,
+};
+
+/**
+ * Where to download a family. Derived rather than stored: `name` is the family
+ * as Google Fonts spells it, which is the only thing its specimen URL is built
+ * from, so a second field would only be a second chance to be wrong.
+ */
+export function googleFontsUrl(family: TypographyFamily): string {
+  return `https://fonts.google.com/specimen/${family.name.replaceAll(" ", "+")}`;
+}
 
 export type TypographySet = {
   key: string;
@@ -198,8 +236,8 @@ export type TypographySet = {
 };
 
 /**
- * The five sets. All latin-subset variable fonts under the SIL Open Font
- * License, except Rock Salt, which ships at a single weight.
+ * The five sets. All latin-subset variable fonts, except Rock Salt, which
+ * ships at a single weight; each family carries its own licence above.
  *
  * Note which role the eyebrow follows: `heading`, not `accent`. `.app-eyebrow`
  * is uppercase, 12px, at `0.2em` letter-spacing -- a script face set that way
@@ -211,7 +249,10 @@ const NEUTRAL_SET: TypographySet = {
   key: "neutral",
   label: "Neutral",
   description:
-    "Inter throughout. The platform's own default -- a UI typeface that reads as nobody's brand.",
+    // An em dash rather than the `--` this file writes in its comments: since
+    // #1262 these descriptions are printed on the public /brand page, not only
+    // in the settings picker.
+    "Inter throughout. The platform's own default — a UI typeface that reads as nobody's brand.",
   sans: INTER,
   heading: INTER,
   accent: null,
@@ -271,14 +312,31 @@ export const DEFAULT_TYPOGRAPHY: TypographySet = NEUTRAL_SET;
 
 export const DEFAULT_TYPOGRAPHY_KEY = DEFAULT_TYPOGRAPHY.key;
 
+/**
+ * The distinct families one set is built from, in role order: body, display,
+ * then the script accent where it has one. A set whose display face is also
+ * its body face lists it once, which is what /brand shows as the families an
+ * organization has to install to rebuild its own materials (#1262).
+ */
+export function typographyFamilies(
+  set: TypographySet,
+): readonly TypographyFamily[] {
+  return [
+    ...new Map(
+      [set.sans, set.heading, set.accent]
+        .filter((family): family is TypographyFamily => family !== null)
+        .map((family) => [family.cssVar, family]),
+    ).values(),
+  ];
+}
+
 /** Every family any set uses, for the loader in `src/app/layout.tsx`. */
 export const TYPOGRAPHY_FAMILIES: readonly TypographyFamily[] = [
   ...new Map(
-    TYPOGRAPHY_SETS.flatMap((set) =>
-      [set.sans, set.heading, set.accent].filter(
-        (family): family is TypographyFamily => family !== null,
-      ),
-    ).map((family) => [family.cssVar, family]),
+    TYPOGRAPHY_SETS.flatMap(typographyFamilies).map((family) => [
+      family.cssVar,
+      family,
+    ]),
   ).values(),
 ];
 

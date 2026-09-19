@@ -491,7 +491,10 @@ Both are the tenant admin's, not the operator's:
   option and stores a blank value, so it follows the platform's default rather
   than pinning today's. That page is the one screen that renders all eight
   families at once, and it is a signed-in portal page, so the `preload: false`
-  discipline stays as it is. Email is deliberately out of scope:
+  discipline stays as it is. The public `/brand` guide documents whatever the
+  tenant has picked (#1262): §02 reads the set through `resolvedTypography()`
+  and names each family, its licence and its Google Fonts page, so a volunteer
+  making a flyer can install the same faces. Email is deliberately out of scope:
   web fonts do not load in most mail clients, so a branded email carries the
   tenant's colours and its logo and not its typeface.
 
