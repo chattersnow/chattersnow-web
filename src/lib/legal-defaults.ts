@@ -120,11 +120,22 @@ const PRIVACY: DocumentProse = {
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&
           "**Artwork submissions** — your name, email address, the images you upload, and, if you give them, the title, the medium, an artist statement, a credit name and a link to your work. We use it to review your submission for the open call you sent it to, and we email you back to confirm it arrived — that confirmation names the piece, the call and how many images we received, and never sends the images themselves.",
-        `**Portal accounts** — for the people who run the organization: the email address you sign in with, and a session cookie that keeps you signed in.${
-          surfaces.googleSignIn
+        // Two shapes of the same bullet. "For the people who run the
+        // organization" was true until #1161 put sign-up on the public site,
+        // and is the wrong sentence on a tenant that has turned that on.
+        (surfaces.constituentAccounts
+          ? "**Accounts** — the email address you sign in with, the password you set, and a session cookie that keeps you signed in. Anyone can create an account on this site to see their own records; the people who run the organization sign in to the operations portal with the same kind of account."
+          : "**Portal accounts** — for the people who run the organization: the email address you sign in with, and a session cookie that keeps you signed in.") +
+          (surfaces.googleSignIn
             ? " Signing in with Google shares that account's email address and name with us."
-            : ""
-        }`,
+            : ""),
+        surfaces.constituentAccounts &&
+          "**Matching your account to our records** — the name we would have you under, and, if you give them, an email address, a phone number, a social handle and a note explaining who you are. Somebody here reads it and decides whether the record is yours. We keep what you sent either way, so there is a record of the decision.",
+        surfaces.constituentAccounts &&
+          "**What you keep up to date yourself** — once your account is matched to a record, you can correct the name you prefer, your pronouns, your phone number, your social handle and your postal address, tell us which activity you do, your experience level and where you prefer to go, and choose which of our emails you get. What you save replaces what we had.",
+        surfaces.constituentAccounts &&
+          surfaces.volunteerHours &&
+          "**Hours you log yourself** — how many, the date, which event and which role they were for, and any note you add. They stay pending until somebody here confirms them.",
       ]),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",
     ],
@@ -158,13 +169,15 @@ const PRIVACY: DocumentProse = {
         org.surfaces.eventRegistrations &&
           org.surfaces.volunteerApplications &&
           "Running an event means the volunteers staffing it may need to see who registered — a check-in list, a head count, who asked for something or noted something we should know about on the day. We don't publish participant lists, and we don't give your name or contact details to a venue, a partner, or a sponsor unless you have agreed to that separately, or the venue requires it to let the group in and we've told you so when you registered.",
+        org.surfaces.constituentAccounts &&
+          "An account on this site shows you your own record and nothing else. It carries no role here and no access to anyone else's information, and holding one does not admit you to the operations portal.",
         "Outside the organization, we rely on a small number of service providers to run the site. They handle information on our behalf, under their own terms and privacy policies:",
         bullets([
-          "**Supabase** — hosts our database and handles portal sign-in.",
+          `**Supabase** — hosts our database and handles ${org.surfaces.constituentAccounts ? "sign-in" : "portal sign-in"}.`,
           "**Vercel** — hosts this website and provides the aggregate traffic counts we use to see which pages get visited.",
           "**Resend** — delivers the email this site sends, such as a confirmation or a reply to something you submitted.",
           org.surfaces.googleSignIn &&
-            "**Google** — only if someone chooses to sign in to the portal with a Google account.",
+            `**Google** — only if someone chooses to sign in${org.surfaces.constituentAccounts ? "" : " to the portal"} with a Google account.`,
         ]),
         "We'll also share information if we're legally required to, or if it's necessary to protect someone's safety.",
       ]),
@@ -179,16 +192,19 @@ const PRIVACY: DocumentProse = {
     "other-sites": () => [
       "We link out to partner organizations, sponsors, venues, and our own social accounts. Once you follow one of those links you're on someone else's site, and what they collect is covered by their privacy policy, not this one — worth a read before you hand them anything. The same goes for any ticketing or payment service we may use in the future; if we add one, we'll name it here first.",
     ],
-    "your-choices": (org) => [
-      `Email ${mailto(org.emailPrivacy)} and you can ask us to:`,
-      bullets([
-        "send you a copy of what we hold about you,",
-        "correct anything that's wrong,",
-        "delete your information, subject to the records we're required to keep, and",
-        "stop emailing you about our events, programs, or volunteering.",
+    "your-choices": (org) =>
+      paragraphs([
+        org.surfaces.constituentAccounts &&
+          "If you hold an account on this site, the quickest route is to sign in: your own details and which of our emails you get are yours to change there, and what you save takes effect immediately.",
+        `Email ${mailto(org.emailPrivacy)} and you can ask us to:`,
+        bullets([
+          "send you a copy of what we hold about you,",
+          "correct anything that's wrong,",
+          "delete your information, subject to the records we're required to keep, and",
+          "stop emailing you about our events, programs, or volunteering.",
+        ]),
+        "So that we don't hand your information to someone else, please write from the email address you gave us, or be ready to confirm the details of the submission you're asking about.",
       ]),
-      "So that we don't hand your information to someone else, please write from the email address you gave us, or be ready to confirm the details of the submission you're asking about.",
-    ],
     minors: () => [
       "This site isn't directed at children under 13, and we don't knowingly collect their personal information through it. Where a program is open to people under 18, we ask a parent or guardian to complete the forms. If you believe a child has given us information through this site, email us and we'll delete it.",
     ],

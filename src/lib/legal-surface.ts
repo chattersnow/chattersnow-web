@@ -34,6 +34,26 @@ export type CollectionSurface = {
   gearRequests: boolean;
   artworkSubmissions: boolean;
   /**
+   * Whether this tenant offers accounts on its *public* site (#1160, #1161).
+   *
+   * Everything under `/my`: signing up with an email address and a password,
+   * claiming a directory record, correcting your own contact details,
+   * choosing which emails you get. The policy's account bullet used to say
+   * "for the people who run the organization", which stopped being true the
+   * day a visitor could create one.
+   */
+  constituentAccounts: boolean;
+  /**
+   * Whether a constituent can log their own volunteer hours (#1165).
+   *
+   * Separate from `volunteerApplications` because the gates genuinely differ:
+   * the application form is the public volunteer *page*, so hiding that slot
+   * takes it away, while `log_my_volunteer_hours()` and its two pickers check
+   * only the Volunteers module. A tenant that hides the public page and keeps
+   * the module still collects self-logged hours, and the policy has to say so.
+   */
+  volunteerHours: boolean;
+  /**
    * Whether the portal offers "Continue with Google", which is the only reason
    * Google appears in the subprocessor list.
    *
@@ -49,8 +69,10 @@ export type CollectionSurface = {
 /**
  * The page-visibility slot and module behind each collected-from surface, as
  * `PUBLIC_PAGE_SLOTS` maps them. A null slot means the surface has no public
- * page to hide: `(public)/artwork/[code]` is reached by the code on an open
- * call, never from the nav, so its module answers alone.
+ * page to hide, and its module answers alone: `(public)/artwork/[code]` is
+ * reached by the code on an open call rather than from the nav, `/my` is gated
+ * by its module in `requireConstituentArea()` and again on every RPC, and
+ * self-logged hours are gated by the Volunteers module inside the RPC.
  */
 export const SURFACE_GATES: Readonly<
   Record<string, { slot: string | null; module: string }>
@@ -63,6 +85,8 @@ export const SURFACE_GATES: Readonly<
   eventRegistrations: { slot: "events", module: "events" },
   gearRequests: { slot: "gears", module: "inventory" },
   artworkSubmissions: { slot: null, module: "artwork" },
+  constituentAccounts: { slot: null, module: "constituent_accounts" },
+  volunteerHours: { slot: null, module: "volunteers" },
 };
 
 /**
@@ -76,6 +100,11 @@ export const SURFACE_GATES: Readonly<
  * folded the module into its answer. Its portal counterpart
  * `getTenantPageVisibility()` has not -- it reads `app_settings` directly --
  * and the starter document in the Site Content editor is built from that one.
+ *
+ * `constituent_accounts` is the one module in the catalog seeded
+ * `default_enabled = false`, so a tenant that has said nothing reads an
+ * explicit `false` here rather than falling through to open. Only a failed read
+ * reaches the open branch for it, which is the same trade as everywhere else.
  */
 function live(
   surface: keyof typeof SURFACE_GATES,
@@ -97,6 +126,8 @@ export function collectionSurface(
     eventRegistrations: live("eventRegistrations", visibility, modules),
     gearRequests: live("gearRequests", visibility, modules),
     artworkSubmissions: live("artworkSubmissions", visibility, modules),
+    constituentAccounts: live("constituentAccounts", visibility, modules),
+    volunteerHours: live("volunteerHours", visibility, modules),
     googleSignIn: true,
   };
 }

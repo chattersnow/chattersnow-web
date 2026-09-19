@@ -20,6 +20,7 @@ const NO_MODULES: Record<string, boolean> = {
   events: false,
   inventory: false,
   artwork: false,
+  constituent_accounts: false,
 };
 
 describe("collectionSurface", () => {
@@ -33,6 +34,8 @@ describe("collectionSurface", () => {
       eventRegistrations: true,
       gearRequests: true,
       artworkSubmissions: true,
+      constituentAccounts: true,
+      volunteerHours: true,
       googleSignIn: true,
     });
   });
@@ -43,8 +46,19 @@ describe("collectionSurface", () => {
     expect(surface.volunteerApplications).toBe(false);
     expect(surface.eventRegistrations).toBe(false);
     expect(surface.gearRequests).toBe(false);
-    // No slot behind it, so page visibility has nothing to say.
+    // No slot behind these, so page visibility has nothing to say.
     expect(surface.artworkSubmissions).toBe(true);
+    expect(surface.constituentAccounts).toBe(true);
+    expect(surface.volunteerHours).toBe(true);
+  });
+
+  // The public volunteer page and self-logged hours share a module but not a
+  // slot: `log_my_volunteer_hours()` checks only the module, so hiding the page
+  // takes the application form away and leaves the hours form standing.
+  test("hiding the volunteer page does not take self-logged hours with it", () => {
+    const surface = collectionSurface({ "get-involved-volunteer": false }, {});
+    expect(surface.volunteerApplications).toBe(false);
+    expect(surface.volunteerHours).toBe(true);
   });
 
   // `getTenantPageVisibility()`, which the Site Content editor's starter is
@@ -64,6 +78,8 @@ describe("collectionSurface", () => {
       eventRegistrations: false,
       gearRequests: false,
       artworkSubmissions: false,
+      constituentAccounts: false,
+      volunteerHours: false,
       googleSignIn: true,
     });
   });
@@ -107,6 +123,8 @@ describe("surfaceKeys", () => {
       eventRegistrations: true,
       gearRequests: false,
       artworkSubmissions: false,
+      constituentAccounts: false,
+      volunteerHours: false,
       googleSignIn: true,
     };
     expect(surfaceKeys(surface)).toEqual([
@@ -124,6 +142,8 @@ describe("surfaceKeys", () => {
         eventRegistrations: false,
         gearRequests: false,
         artworkSubmissions: false,
+        constituentAccounts: false,
+        volunteerHours: false,
         googleSignIn: false,
       }),
     ).toEqual([]);

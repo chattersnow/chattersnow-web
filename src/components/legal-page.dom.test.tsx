@@ -33,6 +33,8 @@ const NO_FORMS: CollectionSurface = {
   eventRegistrations: false,
   gearRequests: false,
   artworkSubmissions: false,
+  constituentAccounts: false,
+  volunteerHours: false,
   googleSignIn: false,
 };
 

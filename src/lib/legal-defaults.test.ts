@@ -28,6 +28,8 @@ const NOTHING: CollectionSurface = {
   eventRegistrations: false,
   gearRequests: false,
   artworkSubmissions: false,
+  constituentAccounts: false,
+  volunteerHours: false,
   googleSignIn: false,
 };
 
@@ -226,10 +228,69 @@ describe("the collection surface", () => {
     expect(text).toContain("Supabase");
   });
 
+  // #1160/#1161 put sign-up on the public site. "Portal accounts -- for the
+  // people who run the organization" stopped being true the day a visitor could
+  // create one, and nothing described the claim, the self-edits or the hours.
+  test("the account bullet says who can hold one", () => {
+    expect(readable("legal.privacy", withSurfaces(NOTHING))).toContain(
+      "for the people who run the organization",
+    );
+    const withAccounts = readable(
+      "legal.privacy",
+      withSurfaces({ ...NOTHING, constituentAccounts: true }),
+    );
+    expect(withAccounts).not.toContain(
+      "for the people who run the organization",
+    );
+    expect(withAccounts).toContain("Anyone can create an account on this site");
+  });
+
+  test("the constituent area's own collection is described only where it exists", () => {
+    const off = readable("legal.privacy", withSurfaces(NOTHING));
+    const on = readable(
+      "legal.privacy",
+      withSurfaces({ ...NOTHING, constituentAccounts: true }),
+    );
+    for (const claim of [
+      "Matching your account to our records",
+      "What you keep up to date yourself",
+      "An account on this site shows you your own record and nothing else",
+    ]) {
+      expect(on, claim).toContain(claim);
+      expect(off, claim).not.toContain(claim);
+    }
+  });
+
+  // Self-logged hours need the area *and* the Volunteers module, and the
+  // module is not the same gate as the public volunteer page.
+  test("self-logged hours are described only where both gates are open", () => {
+    const hours = "Hours you log yourself";
+    expect(readable("legal.privacy")).toContain(hours);
+    expect(
+      readable(
+        "legal.privacy",
+        withSurfaces({ ...EVERYTHING, constituentAccounts: false }),
+      ),
+    ).not.toContain(hours);
+    expect(
+      readable(
+        "legal.privacy",
+        withSurfaces({ ...EVERYTHING, volunteerHours: false }),
+      ),
+    ).not.toContain(hours);
+    // The public volunteer page being hidden is not the same thing.
+    expect(
+      readable(
+        "legal.privacy",
+        withSurfaces({ ...EVERYTHING, volunteerApplications: false }),
+      ),
+    ).toContain(hours);
+  });
+
   // Not a bare "Google": the analytics section says what this site does *not*
   // run, and that sentence is true for everyone.
   test("Google is a subprocessor only where Google sign-in is offered", () => {
-    const bullet = "sign in to the portal with a Google account";
+    const bullet = "with a Google account";
     expect(readable("legal.privacy")).toContain(bullet);
     expect(readable("legal.privacy", withSurfaces(NOTHING))).not.toContain(
       bullet,
