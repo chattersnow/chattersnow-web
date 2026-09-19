@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
+import {
+  RegistrationAccountOffer,
+  type AccountOffer,
+} from "@/components/registration-account-offer";
 import type { EventViewerAccount } from "./my-registration";
 
 /**
@@ -32,9 +36,16 @@ import type { EventViewerAccount } from "./my-registration";
 export function EventRegistrationForm({
   eventId,
   account = null,
+  accountOffer = null,
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
+  /**
+   * Whether to offer an account once this is saved, and which offer (#1258).
+   * Null on a tenant without the constituent area, which is the default so
+   * that nothing offers what it cannot deliver by accident.
+   */
+  accountOffer?: AccountOffer | null;
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -89,6 +100,22 @@ export function EventRegistrationForm({
             </span>
           </AlertDescription>
         </Alert>
+        {/* Two follow-ups want this slot, and the order is decided rather
+            than incidental (#1258): the account offer is the one with a
+            deadline, since the reader is about to close the sheet and the
+            registration it carries is only claimable for a week. The rider
+            profile keeps as long as the person does. Both are skippable in
+            one click, neither is a gate, and if this ever stops reading
+            calmly as two the rider profile moves into the confirmation
+            email rather than becoming a third step. */}
+        {accountOffer && (
+          <div className="mt-6">
+            <RegistrationAccountOffer
+              offer={accountOffer}
+              registrationId={registrationId}
+            />
+          </div>
+        )}
         <RiderProfileForm registrationId={registrationId} />
       </div>
     );

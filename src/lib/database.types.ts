@@ -9599,6 +9599,10 @@ export type Database = {
         };
         Returns: string;
       };
+      submit_claim_from_registration: {
+        Args: { p_ip_address?: unknown; p_registration_id: string };
+        Returns: undefined;
+      };
       submit_contact_message: {
         Args: {
           p_email: string;

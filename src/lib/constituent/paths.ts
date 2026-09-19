@@ -25,6 +25,23 @@ export function isMyPathname(pathname: string): boolean {
 export const MY_SIGN_IN_PATH = `${MY_PATH_PREFIX}/sign-in`;
 
 /**
+ * Where a registration is turned into a claim (#1258).
+ *
+ * A route rather than a query parameter on `/my`, because it is what the
+ * sign-in hand-off carries: `safeMyDestination` only lets a `next` through
+ * when it is a path inside `/my`, and a registration that survives sign-up,
+ * an email confirmation and a fresh browser has to survive as a path.
+ */
+export function myRegistrationClaimPath(registrationId: string): string {
+  return `${MY_PATH_PREFIX}/registration/${registrationId}`;
+}
+
+/** `/my/sign-in`, returning to the claim offer for one registration. */
+export function myRegistrationSignInPath(registrationId: string): string {
+  return `${MY_SIGN_IN_PATH}?next=${encodeURIComponent(myRegistrationClaimPath(registrationId))}`;
+}
+
+/**
  * Sanitizes a `next` destination for the constituent sign-in.
  *
  * The twin of `safePortalDestination`, and narrow for the same reason: the

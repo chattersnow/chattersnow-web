@@ -2,6 +2,7 @@
 
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
@@ -73,11 +74,20 @@ export async function submitClaimAction(
     return { error: "We could not send that just now. Please try again." };
   }
 
-  // The RPC returns void on purpose -- every branch has to look the same from
-  // out here -- so the id comes from reading the claim back through the
-  // claimant's own select policy, which is pinned to auth.uid(). No row means
-  // nothing was created (the module is off, they are already linked, or a
-  // claim was already open), and so nothing to tell anyone about.
+  await announceClaim(supabase);
+  return { submitted: true };
+}
+
+/**
+ * Tells the reviewers, where a claim was in fact opened.
+ *
+ * The RPCs return void on purpose -- every branch has to look the same from
+ * out here -- so the id comes from reading the claim back through the
+ * claimant's own select policy, which is pinned to auth.uid(). No row means
+ * nothing was created (the module is off, they are already linked, or a claim
+ * was already open), and so nothing to tell anyone about.
+ */
+async function announceClaim(supabase: SupabaseClient) {
   const { data: claim } = await supabase
     .from("person_claims")
     .select("id")
@@ -102,5 +112,49 @@ export async function submitClaimAction(
   }
 
   revalidatePath(MY_PATH_PREFIX);
+}
+
+/**
+ * The same claim, made from a registration instead of from a form (#1258).
+ *
+ * Somebody who has just registered for an event has already told the
+ * organization who they are, and the row that write created holds what they
+ * typed. So the offer that follows a registration asks for a click rather than
+ * for the form again: `submit_claim_from_registration()` copies the
+ * registration's own fields onto the claim and notes which event it came from.
+ *
+ * Nothing here can undo or delay the registration, which was saved before this
+ * was ever on screen. And the result says nothing about the directory: the RPC
+ * is silent in every branch -- no such registration, module off, already
+ * linked, a claim already open -- exactly as `submit_person_claim()` is, and
+ * for the same reason.
+ */
+export async function claimFromRegistrationAction(
+  registrationId: string,
+): Promise<ClaimActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Please sign in again." };
+  }
+
+  const { error } = await supabase.rpc("submit_claim_from_registration", {
+    p_registration_id: registrationId,
+    p_ip_address: await getClientIp(),
+  });
+
+  if (error) {
+    // The one thing the RPC says out loud, as above.
+    if (error.message.includes("RATE_LIMITED")) {
+      return {
+        error: "Too many requests just now. Try again in a little while.",
+      };
+    }
+    return { error: "We could not send that just now. Please try again." };
+  }
+
+  await announceClaim(supabase);
   return { submitted: true };
 }

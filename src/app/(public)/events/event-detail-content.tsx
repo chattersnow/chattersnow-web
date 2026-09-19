@@ -14,7 +14,12 @@ import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
 import { EventSponsors } from "./event-sponsors";
 import { MyEventRegistrationForm } from "./my-registration-form";
-import { loadEventViewer, type EventViewer } from "./my-registration";
+import {
+  loadEventViewer,
+  loadRegistrationAccountOffer,
+  type EventViewer,
+} from "./my-registration";
+import type { AccountOffer } from "@/components/registration-account-offer";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -83,10 +88,12 @@ function EventDetailBody({
   event,
   variant,
   viewer,
+  accountOffer,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
   viewer: EventViewer | null;
+  accountOffer: AccountOffer | null;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -172,6 +179,7 @@ function EventDetailBody({
                 <EventRegistrationForm
                   eventId={event.id}
                   account={viewer?.kind === "account" ? viewer.account : null}
+                  accountOffer={accountOffer}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -204,6 +212,10 @@ export async function EventDetailContent({
   // registration. Null for everyone with no session at all, which is most
   // visitors and costs them one `getUser()`.
   const viewer = await loadEventViewer(event.id);
+  // What the registration can offer afterwards (#1258), decided here for the
+  // same reason the viewer is: the page and the sheet must not drift into two
+  // different answers about the same registration.
+  const accountOffer = await loadRegistrationAccountOffer(viewer);
 
   if (variant === "sheet") {
     return (
@@ -216,7 +228,12 @@ export async function EventDetailContent({
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           <EventFlier event={event} variant="sheet" />
-          <EventDetailBody event={event} variant="sheet" viewer={viewer} />
+          <EventDetailBody
+            event={event}
+            variant="sheet"
+            viewer={viewer}
+            accountOffer={accountOffer}
+          />
         </div>
       </>
     );
@@ -234,7 +251,12 @@ export async function EventDetailContent({
           {formatWhen(event)}
         </p>
       </section>
-      <EventDetailBody event={event} variant="page" viewer={viewer} />
+      <EventDetailBody
+        event={event}
+        variant="page"
+        viewer={viewer}
+        accountOffer={accountOffer}
+      />
     </>
   );
 }
