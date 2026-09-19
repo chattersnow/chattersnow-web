@@ -2498,6 +2498,7 @@ export type Database = {
       };
       event_registrations: {
         Row: {
+          attended_before: boolean | null;
           checked_in_at: string | null;
           created_at: string;
           email: string;
@@ -2516,6 +2517,7 @@ export type Database = {
           tenant_id: string;
         };
         Insert: {
+          attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
           email: string;
@@ -2534,6 +2536,7 @@ export type Database = {
           tenant_id?: string;
         };
         Update: {
+          attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
           email?: string;
@@ -9149,6 +9152,7 @@ export type Database = {
       };
       register_for_event: {
         Args: {
+          p_attended_before?: boolean;
           p_email: string;
           p_event_id: string;
           p_honeypot?: string;
@@ -9164,6 +9168,7 @@ export type Database = {
       };
       register_myself_for_event: {
         Args: {
+          p_attended_before?: boolean;
           p_event_id: string;
           p_instagram_handle?: string;
           p_ip_address?: unknown;

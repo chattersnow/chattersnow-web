@@ -56,6 +56,12 @@ export async function registerForEventAction(
     p_ip_address: ipAddress,
     p_instagram_handle: parsed.data.instagram_handle,
     p_pronouns: parsed.data.pronouns,
+    // #1259. Sent for every registrant, whatever the email matches -- see the
+    // RPC's comment for why asking selectively would be an enumeration oracle.
+    // `undefined` for an unanswered question, so the RPC's own `default null`
+    // is what lands rather than an explicit null; the row is the same either
+    // way, and PostgREST prefers the argument omitted.
+    p_attended_before: parsed.data.attended_before ?? undefined,
   });
 
   if (error) {

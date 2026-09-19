@@ -215,6 +215,46 @@ describe("registering as yourself", () => {
     expect(theirs.data).toHaveLength(0);
   });
 
+  // #1259. Asked of this reader too, and stored exactly as they answered it.
+  // The check-in ledger only knows the events this tenant ran on this
+  // platform, so their own answer is still the only source for anything
+  // earlier -- and it is stored as a separate fact from the ledger, never
+  // derived from it.
+  test("carries the self-reported been-before answer, and null when skipped", async () => {
+    const answered = await createPublishedEvent();
+    cleanups.push(answered.cleanup);
+    const skipped = await createPublishedEvent();
+    cleanups.push(skipped.cleanup);
+
+    const first = await alice.client.rpc("register_myself_for_event", {
+      p_event_id: answered.id,
+      p_party_size: 1,
+      p_attended_before: true,
+      p_ip_address: uniqueIp(),
+    });
+    expect(first.error).toBeNull();
+
+    const second = await alice.client.rpc("register_myself_for_event", {
+      p_event_id: skipped.id,
+      p_party_size: 1,
+      p_ip_address: uniqueIp(),
+    });
+    expect(second.error).toBeNull();
+
+    const { data: rows } = await service
+      .from("event_registrations")
+      .select("id, attended_before")
+      .in("id", [first.data as string, second.data as string]);
+
+    const byId = new Map(
+      (rows ?? []).map((row) => [row.id as string, row.attended_before]),
+    );
+    expect(byId.get(first.data as string)).toBe(true);
+    // Unanswered, not "no" -- and not filled in from the history the caller is
+    // entitled to see on `/my`.
+    expect(byId.get(second.data as string)).toBe(null);
+  });
+
   test("will not register you twice", async () => {
     const event = await createPublishedEvent();
     cleanups.push(event.cleanup);

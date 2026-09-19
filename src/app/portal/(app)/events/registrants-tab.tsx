@@ -19,6 +19,11 @@ import {
   experienceLevelLabel,
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
+import {
+  attendedBeforeLabel,
+  countSelfReportedFirstTimers,
+  hasAnyAttendedBeforeAnswer,
+} from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -157,6 +162,13 @@ export function RegistrantsTab({
   // Derived from the whole list, not the preview slice, so the column doesn't
   // appear and disappear between the card and the sheet.
   const showRides = list.some((registrant) => registrant.rider !== null);
+  // #1259. The column and the count appear only once somebody has answered:
+  // before this shipped every row is null, and a column of dashes is a column
+  // that costs width and says nothing. Derived from the whole list for the
+  // same reason `showRides` is, so it does not appear and disappear between
+  // the card and the sheet.
+  const showAttendedBefore = hasAnyAttendedBeforeAnswer(list);
+  const selfReportedFirstTimers = countSelfReportedFirstTimers(list);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -218,6 +230,27 @@ export function RegistrantsTab({
         cellClassName: "app-muted whitespace-nowrap",
         render: (registrant) => formatDateTime(registrant.created_at),
       },
+      ...(showAttendedBefore
+        ? [
+            {
+              key: "attended_before",
+              label: "Been before",
+              // Unanswered sorts apart from both answers rather than with the
+              // "No"s: it is a third state, and a door reading this column
+              // has to be able to tell "said no" from "was never asked".
+              sortValue: (registrant: EventRegistrant) =>
+                registrant.attended_before === null
+                  ? ""
+                  : registrant.attended_before
+                    ? "1"
+                    : "0",
+              hideBelow: "md",
+              cellClassName: "app-muted whitespace-nowrap",
+              render: (registrant: EventRegistrant) =>
+                attendedBeforeLabel(registrant.attended_before) ?? "—",
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
       ...(showRides
         ? [
             {
@@ -281,7 +314,14 @@ export function RegistrantsTab({
           ]
         : []),
     ],
-    [showRides, mode, isPending, pendingId, handleToggleCheckIn],
+    [
+      showAttendedBefore,
+      showRides,
+      mode,
+      isPending,
+      pendingId,
+      handleToggleCheckIn,
+    ],
   );
 
   // Only the copy that holds every row may claim to order them; see
@@ -302,6 +342,13 @@ export function RegistrantsTab({
         {derived.data &&
           checkedInCount > 0 &&
           ` · ${derived.data.recurringParticipants} recurring, ${derived.data.firstTimeParticipants} first-time`}
+        {/* Beside the derived figure above, never folded into it (#1259). The
+            two count different things: that one is what the check-in ledger
+            saw, this one is what people said about themselves on the way in,
+            and only the first may reach an impact report. The wording carries
+            the difference -- "said" is doing the work. */}
+        {showAttendedBefore &&
+          ` · ${selfReportedFirstTimers} said it would be their first`}
       </>
     );
 

@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseAttendedBefore } from "@/lib/attended-before";
 import { parsePronouns } from "@/lib/pronouns";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
@@ -11,6 +12,12 @@ export type EventRegistrationFormData = {
   pronouns: string | null;
   party_size: number;
   notes: string | null;
+  /**
+   * Self-reported, and null when the question went unanswered (#1259). Never
+   * validated into a boolean: there is no wrong answer to give, and a value
+   * the form did not offer means the question was not answered.
+   */
+  attended_before: boolean | null;
 };
 
 export function parseEventRegistrationForm(
@@ -25,6 +32,7 @@ export function parseEventRegistrationForm(
   const pronouns = parsePronouns(formData.get("pronouns"));
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
+  const attended_before = parseAttendedBefore(formData.get("attendedBefore"));
 
   if (!name) return { error: "Name is required." };
   if (!email || !email.includes("@"))
@@ -51,6 +59,7 @@ export function parseEventRegistrationForm(
       pronouns: pronouns.pronouns,
       party_size,
       notes: notes || null,
+      attended_before,
     },
   };
 }
