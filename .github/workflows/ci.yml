@@ -47,6 +47,12 @@ jobs:
       - name: Format check
         run: bun run format:check
 
+      # A second of walking docs/**/*.md, and the only thing in CI that reads
+      # the `](file.md#anchor)` cross-links the split spec is held together
+      # with. Fourteen of them had rotted unnoticed before #1196.
+      - name: Doc links
+        run: bun run docs:links
+
       - name: Build
         run: bun run build
 
