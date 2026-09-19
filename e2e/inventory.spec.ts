@@ -180,4 +180,37 @@ test.describe("public inventory pages", () => {
       await admin.from("people").delete().eq("email", requesterEmail);
     }
   });
+
+  // The cart tray sits under the sheet's backdrop, so the item sheet has to
+  // carry the running count and the way through to checkout itself.
+  test("the item sheet shows the cart count and opens the cart", async ({
+    page,
+  }) => {
+    const admin = createAdminClient();
+    const gear = await seedAvailableGearItems(admin, 1);
+
+    try {
+      await page.goto("/inventory/library");
+      await page.getByLabel("Search").fill(gear.suffix);
+
+      await page
+        .getByRole("button", {
+          name: `View details for ${gear.descriptions[0]}`,
+        })
+        .click();
+
+      const detail = page.getByRole("dialog", { name: gear.descriptions[0] });
+      const viewCart = detail.getByRole("button", { name: "View cart" });
+      await expect(viewCart).toBeHidden();
+
+      await detail.getByRole("button", { name: "Add to cart" }).click();
+      await expect(viewCart).toContainText("1");
+      await viewCart.click();
+
+      const cart = page.getByRole("dialog", { name: "Your cart" });
+      await expect(cart.getByText(gear.descriptions[0])).toBeVisible();
+    } finally {
+      await gear.cleanup();
+    }
+  });
 });
