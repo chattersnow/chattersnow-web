@@ -77,6 +77,8 @@ export async function sendStaffMessage(
         recipientName: request.recipientName,
         subject: request.subject,
         body: request.body,
+        siteUrl: mail.origin,
+        branding: mail.branding,
       }),
     logPrefix: "[staff-message]",
   });

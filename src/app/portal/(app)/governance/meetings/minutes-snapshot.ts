@@ -59,6 +59,8 @@ export type MinutesItemReference = {
 export type MinutesItemPlanned = {
   updates?: string;
   decisions_needed?: string;
+  /** A sourced section's single box (#1240); the two above are a manual one's. */
+  discussion?: string;
   text?: string;
   topics?: string[];
   references?: MinutesItemReference[];
@@ -125,14 +127,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function plannedSection(value: unknown): {
   updates: string;
   decisions_needed: string;
+  discussion: string;
 } {
-  if (typeof value === "string")
-    return { updates: value, decisions_needed: "" };
-  if (!isRecord(value)) return { updates: "", decisions_needed: "" };
+  const empty = { updates: "", decisions_needed: "", discussion: "" };
+  if (typeof value === "string") return { ...empty, updates: value };
+  if (!isRecord(value)) return empty;
   return {
     updates: typeof value.updates === "string" ? value.updates : "",
     decisions_needed:
       typeof value.decisions_needed === "string" ? value.decisions_needed : "",
+    // A sourced section writes here instead of the pair (#1240). Reading all
+    // three is how a snapshot of an agenda whose template was revised
+    // mid-book still carries what the board actually wrote; taking only the
+    // pair would freeze a blank guide in front of the notetaker.
+    discussion: typeof value.discussion === "string" ? value.discussion : "",
   };
 }
 

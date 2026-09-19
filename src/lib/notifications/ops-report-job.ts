@@ -116,7 +116,11 @@ export async function runOpsReport(
         kind: OPS_REPORT_KIND,
         dedupeKey: opsReportDedupeKey(day, email),
         to: email,
-        render: () => renderOpsReport(report, mail.origin),
+        render: () =>
+          renderOpsReport(report, mail.origin, {
+            orgName: mail.displayName,
+            branding: mail.branding,
+          }),
         logPrefix: "[ops-report]",
       });
 

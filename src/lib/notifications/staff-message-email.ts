@@ -1,3 +1,8 @@
+import {
+  EMPTY_EMAIL_BRANDING,
+  renderEmailShell,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -30,6 +35,18 @@ export type StaffMessage = {
   subject: string;
   /** The staffer's message. Plain text; blank lines are theirs to place. */
   body: string;
+  /**
+   * The tenant's own origin, from tenantMailContext(). Nothing in this message
+   * links anywhere, but the shell needs it: a tenant's logo may be stored as a
+   * path this site serves (#1267), and a path is meaningless in an inbox.
+   */
+  siteUrl?: string;
+  /**
+   * The tenant's logo and colours (#1238), from the same context. Omitted
+   * renders the platform's unbranded shell, which is what a tenant that has
+   * set no branding gets anyway.
+   */
+  branding?: EmailBranding;
 };
 
 export function renderStaffMessageEmail(message: StaffMessage): RenderedEmail {
@@ -40,11 +57,14 @@ export function renderStaffMessageEmail(message: StaffMessage): RenderedEmail {
 
   const text = [greeting, "", body, "", `— ${message.orgName}`].join("\n");
 
-  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(greeting)}</p>
+  const html = renderEmailShell({
+    orgName: message.orgName,
+    siteUrl: message.siteUrl ?? "",
+    branding: message.branding ?? EMPTY_EMAIL_BRANDING,
+    bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(greeting)}</p>
   <div style="margin: 0 0 16px; white-space: pre-line;">${escapeHtml(body)}</div>
-  <p style="color: #57534e; margin: 12px 0 0;">— ${escapeHtml(message.orgName)}</p>
-</div>`;
+  <p style="color: #57534e; margin: 12px 0 0;">— ${escapeHtml(message.orgName)}</p>`,
+  });
 
   return { subject: message.subject, text, html };
 }

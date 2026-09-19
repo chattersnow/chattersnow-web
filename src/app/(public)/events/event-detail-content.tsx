@@ -217,7 +217,7 @@ export async function EventDetailContent({
       <EventFlier event={event} variant="page" />
       <section>
         <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
           {event.name}
         </h1>
         <p className="app-muted mt-4 text-sm sm:text-base">

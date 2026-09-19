@@ -64,6 +64,7 @@ import {
   resolveMeetingWindows,
   type MeetingWindows,
 } from "./meeting-context-window";
+import { findPreviousMeeting } from "./previous-meeting";
 import {
   MEETING_CALENDAR_ITEM_SELECT,
   nextInstanceInWindow,
@@ -537,18 +538,13 @@ export async function getMeetingTopicContextAction(
   // "Since the previous meeting", not a fixed 30 days back: a quarterly board
   // reviewing its own period would otherwise be shown the last month of it and
   // told nothing about the two before.
-  const { data: priorMeeting } = await supabase
-    .from("governance_meetings")
-    .select("meeting_date")
-    .lt("meeting_date", meetingDate)
-    .neq("id", meetingId)
-    .order("meeting_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const previous = await findPreviousMeeting(supabase, meetingId, meetingDate);
+  const previousMeetingDate =
+    "error" in previous ? null : (previous.meeting?.meeting_date ?? null);
 
   const windows = resolveMeetingWindows({
     meetingDate,
-    previousMeetingDate: (priorMeeting?.meeting_date as string) ?? null,
+    previousMeetingDate,
     timeZone,
   });
   const today = todayInZone(timeZone);

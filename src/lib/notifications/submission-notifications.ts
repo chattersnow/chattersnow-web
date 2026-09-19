@@ -4,10 +4,14 @@ import {
   deliverEmail,
   type DeliveryOutcome,
 } from "@/lib/notifications/deliver";
+import { resolveAutoReply } from "@/lib/notifications/auto-replies-resolver";
 import { tenantMailContext } from "@/lib/email/identity";
+import type { EmailOrgBrand } from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
@@ -22,6 +26,10 @@ import {
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
 import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
+import { renderContactMessageConfirmationEmail } from "@/lib/notifications/contact-message-confirmation-email";
+import { renderArtworkSubmissionConfirmationEmail } from "@/lib/notifications/artwork-submission-confirmation-email";
+import { contactTopicLabel } from "@/lib/contact-topics";
+import { getTenantTimeZone } from "@/lib/org-timezone";
 import {
   MEETUP_INSTRUCTIONS_SETTING_KEY,
   PAYMENT_METHODS_SETTING_KEY,
@@ -34,7 +42,9 @@ import { personDisplayName } from "@/lib/format";
 /**
  * The event-triggered sends: a new volunteer application, a new contact
  * message (#742) and a new artwork submission (#870) reach the people who own
- * that queue.
+ * that queue -- and, since #1237, the person who filled the form in gets an
+ * acknowledgement of their own. Every public form in this application now
+ * answers both sides.
  *
  * Called from `after()` in the public Server Actions, so nothing here may
  * throw and nothing here may matter to the visitor who submitted the form --
@@ -113,7 +123,7 @@ export async function notifyNewVolunteerApplication(
     minLevel: "manage",
     dedupeKey: `${VOLUNTEER_APPLICATION_KIND}:${data.id as string}`,
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderVolunteerApplicationEmail(
         {
           applicationId: data.id as string,
@@ -122,6 +132,7 @@ export async function notifyNewVolunteerApplication(
           roleInterest: (data.role_interest as string | null) ?? null,
         },
         origin,
+        brand,
       ),
   });
 }
@@ -153,7 +164,26 @@ export async function notifyNewContactMessage(
   // from -- it runs after the response, as the service role.
   const lexicon = await lexiconForTenant(admin, data.tenant_id as string);
 
-  return notifyRoleHolders(admin, {
+  // The sender's own acknowledgement (#1237), started here rather than by the
+  // three call sites: a contact message arrives through the public action, the
+  // tenant API route and whatever comes next, and a send wired up at each of
+  // them is a send one of them forgets. Started before the staff notice and
+  // awaited after it, so neither waits on the other's provider, and guarded so
+  // that an unexpected throw in the newer path cannot take down the notice
+  // this function existed for -- everything in here runs after the response,
+  // where a rejection has nobody left to tell.
+  const acknowledgement = sendContactMessageConfirmation(admin, {
+    messageId: data.id as string,
+    siteUrl: options.siteUrl,
+  }).catch((error: unknown) => {
+    console.error(
+      "[contact-message-confirm] the acknowledgement threw; the staff notice is unaffected",
+      error,
+    );
+    return "failed" as DeliveryOutcome;
+  });
+
+  const summary = await notifyRoleHolders(admin, {
     tenantId: data.tenant_id as string,
     kind: CONTACT_MESSAGE_KIND,
     resourceKeys: CONTACT_MESSAGE_RESOURCES,
@@ -166,7 +196,7 @@ export async function notifyNewContactMessage(
     // answered from the queue, where the reply is recorded.
     replyTo: submitterEmail || undefined,
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderContactMessageEmail(
         {
           messageId: data.id as string,
@@ -176,8 +206,15 @@ export async function notifyNewContactMessage(
         },
         origin,
         lexicon,
+        brand,
       ),
   });
+
+  await acknowledgement;
+  // The staff summary, unchanged: this function answers for the notice it has
+  // always answered for. The acknowledgement keeps its own ledger row, which
+  // is where its outcome is readable.
+  return summary;
 }
 
 export async function notifyNewArtworkSubmission(
@@ -209,7 +246,20 @@ export async function notifyNewArtworkSubmission(
     : (event?.name ?? "");
   const images = (data.artwork_submission_images ?? []) as unknown[];
 
-  return notifyRoleHolders(admin, {
+  // The artist's own acknowledgement (#1237), for the reason and with the
+  // guard the contact form's above sets out.
+  const acknowledgement = sendArtworkSubmissionConfirmation(admin, {
+    submissionId: data.id as string,
+    siteUrl: options.siteUrl,
+  }).catch((error: unknown) => {
+    console.error(
+      "[artwork-submission-confirm] the acknowledgement threw; the staff notice is unaffected",
+      error,
+    );
+    return "failed" as DeliveryOutcome;
+  });
+
+  const summary = await notifyRoleHolders(admin, {
     tenantId: data.tenant_id as string,
     kind: ARTWORK_SUBMISSION_KIND,
     resourceKeys: ARTWORK_SUBMISSION_RESOURCES,
@@ -219,7 +269,7 @@ export async function notifyNewArtworkSubmission(
     // been looked at, not by replying to the notice -- the same call the
     // volunteer notice makes.
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderArtworkSubmissionEmail(
         {
           submissionId: data.id as string,
@@ -229,8 +279,281 @@ export async function notifyNewArtworkSubmission(
           imageCount: images.length,
         },
         origin,
+        brand,
       ),
   });
+
+  await acknowledgement;
+  return summary;
+}
+
+type ContactMessageRow = {
+  id: string;
+  tenant_id: string;
+  name: string | null;
+  email: string | null;
+  topic: string | null;
+  created_at: string;
+};
+
+/**
+ * What makes one sender's acknowledgement unique, on the existing pattern:
+ * the kind and the row it is about.
+ *
+ * No resend suffix, unlike the gear and volunteer receipts (#1203): there is
+ * no portal screen that re-sends one of these, because there is nothing in it
+ * worth recovering -- no reference code, no instructions, just "we got it".
+ * Staff answering a message use the message itself, which is correspondence
+ * and goes out under `staff_message`.
+ */
+export function contactMessageConfirmationDedupeKey(messageId: string): string {
+  return `${CONTACT_MESSAGE_CONFIRMATION_KIND}:${messageId}`;
+}
+
+/**
+ * The acknowledgement whoever wrote in through the contact form gets (#1237).
+ *
+ * Sits beside notifyNewContactMessage() rather than inside its recipient loop,
+ * for the reason notifyVolunteerApplicationConfirmation() does: two sends with
+ * two dedupe keys and two failure modes, and the staff notice must not be lost
+ * because the sender's address bounced, nor the reverse.
+ *
+ * Three things here are load-bearing and easy to undo by accident:
+ *
+ * **The Reply-To is the tenant's own**, which is what leaving `replyTo` unset
+ * means -- deliverEmail() falls through to `identity.replyTo`. The staff
+ * notice points Reply-To at whoever wrote in (#742), which is right for staff
+ * and exactly wrong here: this message *is* to the person who wrote in, and
+ * pointing their reply back at themselves would lose it.
+ *
+ * **A lookup that finds nothing is a bot.** submit_contact_message() answers a
+ * filled honeypot with a gen_random_uuid() for a row it never inserted, so the
+ * `!data` branch is the honeypot rule, unchanged and still load-bearing -- and
+ * it matters more here than for the staff notice, because this send is aimed
+ * at an address an anonymous visitor typed.
+ *
+ * **The person is resolved, never created.** The directory row is looked up by
+ * address so that somebody who switched this receipt off on `/my` is honoured
+ * by hasOptedOut(); it is not minted, because writing a `people` row for
+ * everyone who uses a contact form would turn a message into a directory
+ * entry. No row means no preference to consult, which is the default, which is
+ * on.
+ */
+export async function sendContactMessageConfirmation(
+  admin: SupabaseClient,
+  options: { messageId: string; siteUrl: string },
+): Promise<DeliveryOutcome> {
+  const { data, error } = await admin
+    .from("contact_messages")
+    .select("id, tenant_id, name, email, topic, created_at")
+    .eq("id", options.messageId)
+    .maybeSingle<ContactMessageRow>();
+
+  if (error) {
+    console.error(
+      "[contact-message-confirm] could not read the contact message for its acknowledgement",
+      error,
+    );
+    return "failed";
+  }
+
+  // The honeypot, and an address to write to. The RPC refuses a message whose
+  // email fails its own format check, so the blank case is belt and braces --
+  // but this must never post to "".
+  const to = data?.email?.trim() ?? "";
+  if (!data || !to) return "skipped";
+
+  if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
+
+  const [mail, reply, lexicon, timeZone, person] = await Promise.all([
+    tenantMailContext(admin, data.tenant_id, {
+      fallbackOrigin: options.siteUrl,
+    }),
+    resolveAutoReply(admin, data.tenant_id, CONTACT_MESSAGE_CONFIRMATION_KIND),
+    lexiconForTenant(admin, data.tenant_id),
+    getTenantTimeZone(admin, data.tenant_id),
+    personIdForEmail(admin, data.tenant_id, to),
+  ]);
+
+  // The second gate, after the org-wide kill switch above and before the
+  // person's own inside deliverEmail(). The third is the reason `person` can
+  // be null at all -- see personIdForEmail().
+  if (!reply.enabled || !person) return "skipped";
+
+  return deliverEmail(admin, {
+    tenantId: data.tenant_id,
+    identity: mail.identity,
+    personId: person.personId,
+    kind: CONTACT_MESSAGE_CONFIRMATION_KIND,
+    dedupeKey: contactMessageConfirmationDedupeKey(data.id),
+    to,
+    render: () =>
+      renderContactMessageConfirmationEmail(
+        {
+          orgName: mail.displayName,
+          senderName: (data.name ?? "").trim(),
+          topicLabel: contactTopicLabel(data.topic ?? "", lexicon),
+          receivedAt: data.created_at,
+          timeZone,
+          siteUrl: mail.origin,
+          branding: mail.branding,
+        },
+        reply.slots,
+      ),
+    logPrefix: "[contact-message-confirm]",
+  });
+}
+
+type ArtworkSubmissionRow = {
+  id: string;
+  tenant_id: string;
+  submitter_name: string | null;
+  submitter_email: string | null;
+  title: string | null;
+  call: { title: string } | { title: string }[] | null;
+  artwork_submission_images: unknown[] | null;
+};
+
+/** The acknowledgement's key, on the pattern above. */
+export function artworkSubmissionConfirmationDedupeKey(
+  submissionId: string,
+): string {
+  return `${ARTWORK_SUBMISSION_CONFIRMATION_KIND}:${submissionId}`;
+}
+
+/**
+ * The acknowledgement an artist gets after submitting to an open call
+ * (#1237). The contact form's above documents the three rules both follow --
+ * the tenant's own Reply-To, the honeypot, and a person resolved but never
+ * created.
+ *
+ * The call is embedded rather than read separately, which the two tables'
+ * composite foreign key `(tenant_id, call_id)` makes safe: the join cannot
+ * cross a tenant even though the service-role client has no policy underneath
+ * it. The event registration confirmation has to read its event separately for
+ * exactly the reason this one does not -- `event_registrations.event_id`
+ * references `events(id)` alone.
+ */
+export async function sendArtworkSubmissionConfirmation(
+  admin: SupabaseClient,
+  options: { submissionId: string; siteUrl: string },
+): Promise<DeliveryOutcome> {
+  const { data, error } = await admin
+    .from("artwork_submissions")
+    .select(
+      "id, tenant_id, submitter_name, submitter_email, title, call:event_artwork_calls(title), artwork_submission_images(id)",
+    )
+    .eq("id", options.submissionId)
+    .maybeSingle<ArtworkSubmissionRow>();
+
+  if (error) {
+    console.error(
+      "[artwork-submission-confirm] could not read the artwork submission for its acknowledgement",
+      error,
+    );
+    return "failed";
+  }
+
+  const to = data?.submitter_email?.trim() ?? "";
+  if (!data || !to) return "skipped";
+
+  if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
+
+  const [mail, reply, person] = await Promise.all([
+    tenantMailContext(admin, data.tenant_id, {
+      fallbackOrigin: options.siteUrl,
+    }),
+    resolveAutoReply(
+      admin,
+      data.tenant_id,
+      ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+    ),
+    personIdForEmail(admin, data.tenant_id, to),
+  ]);
+
+  if (!reply.enabled || !person) return "skipped";
+
+  const call = Array.isArray(data.call) ? data.call[0] : data.call;
+  const images = data.artwork_submission_images ?? [];
+
+  return deliverEmail(admin, {
+    tenantId: data.tenant_id,
+    identity: mail.identity,
+    personId: person.personId,
+    kind: ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+    dedupeKey: artworkSubmissionConfirmationDedupeKey(data.id),
+    to,
+    render: () =>
+      renderArtworkSubmissionConfirmationEmail(
+        {
+          orgName: mail.displayName,
+          artistName: (data.submitter_name ?? "").trim(),
+          callTitle: call?.title ?? "",
+          title: data.title,
+          imageCount: images.length,
+          siteUrl: mail.origin,
+          branding: mail.branding,
+        },
+        reply.slots,
+      ),
+    logPrefix: "[artwork-submission-confirm]",
+  });
+}
+
+/**
+ * The directory row for an address in one tenant, or null where there is none.
+ *
+ * Only so that a person who switched a receipt off on `/my` is honoured:
+ * hasOptedOut() consults `person_notification_preferences` by person, so an
+ * acknowledgement sent with a null person can never be suppressed by one.
+ * Contact messages and artwork submissions are the two public forms that mint
+ * no `people` row of their own -- unlike gear requests, event registrations
+ * and volunteer applications, whose RPCs all do -- so this is a read, and only
+ * a read. Creating one here would quietly turn "wrote in once" into a
+ * directory entry, which is a decision for the people who run the
+ * organization, not for a send.
+ *
+ * `people.email` is stored lowercased and trimmed by a trigger
+ * (20260904170000) and unique per tenant (20260906020000), so an equality
+ * match on the normalized address is both exact and the index's own lookup --
+ * no `ilike`, whose `_` would make `a_b@example.com` match somebody else.
+ * Anonymous rows are excluded for the reason that migration gives: matching an
+ * anonymous donor by address is meaningless, and one created first would win.
+ *
+ * Null -- as distinct from `{ personId: null }` -- means the question could
+ * not be answered, and the caller stops there. That is the same fail-closed
+ * call fetchOptedIn() and hasOptedOut() make and for the same reason: a
+ * directory this send cannot read is a directory whose opt-out it cannot
+ * honour, and a receipt that does not arrive is a question somebody can ask,
+ * while one that arrives after they opted out is not something anybody can
+ * take back.
+ */
+async function personIdForEmail(
+  admin: SupabaseClient,
+  tenantId: string,
+  email: string,
+): Promise<{ personId: string | null } | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return { personId: null };
+
+  const { data, error } = await admin
+    .from("people")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("email", normalized)
+    .eq("is_anonymous", false)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "[submission-notify] could not resolve the sender's directory row; sending nothing, since their preference cannot be consulted",
+      error,
+    );
+    return null;
+  }
+  return { personId: (data?.id as string | undefined) ?? null };
 }
 
 type GearRequestRow = {
@@ -288,7 +611,7 @@ export async function notifyNewGearRequest(
     // No replyTo: a request is answered from its page, where the quote and
     // the handover are recorded -- the same call the volunteer notice makes.
     fallbackOrigin: options.siteUrl,
-    render: (origin) =>
+    render: (origin, brand) =>
       renderGearRequestEmail(
         {
           requestId: data.id,
@@ -299,6 +622,7 @@ export async function notifyNewGearRequest(
         },
         origin,
         lexicon,
+        brand,
       ),
   });
 }
@@ -368,7 +692,7 @@ export async function sendGearRequestConfirmation(
 
   if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
 
-  const [items, settings, tenant, mail] = await Promise.all([
+  const [items, settings, tenant, mail, reply] = await Promise.all([
     admin
       .from("inventory_movements")
       .select("inventory_item:inventory_items(description)")
@@ -387,7 +711,14 @@ export async function sendGearRequestConfirmation(
     tenantMailContext(admin, data.tenant_id, {
       fallbackOrigin: options.siteUrl,
     }),
+    resolveAutoReply(admin, data.tenant_id, GEAR_REQUEST_CONFIRMATION_KIND),
   ]);
+
+  // The second of the three gates, between the org-wide kill switch above and
+  // a recipient's own opt-out -- which this send has none of, the requester
+  // having no account. Off means this receipt is off: no send, and no ledger
+  // row to make a later "on" look like a duplicate.
+  if (!reply.enabled) return "skipped";
 
   const settingsByKey = new Map(
     ((settings.data ?? []) as { key: string; value: unknown }[]).map((row) => [
@@ -423,19 +754,24 @@ export async function sendGearRequestConfirmation(
     dedupeKey: gearRequestConfirmationDedupeKey(data.id, options.dedupeSuffix),
     to: requesterEmail,
     render: () => {
-      const email = renderGearRequestConfirmationEmail({
-        orgName: orgName || mail.identity.from,
-        requesterName: personDisplayName(requester, ""),
-        items: descriptions,
-        deliveryMethod,
-        instructions: typeof instructions === "string" ? instructions : "",
-        paymentMethod:
-          deliveryMethod === "shipping"
-            ? (paymentMethods.find(
-                (method) => method.key === data.payment_method,
-              ) ?? null)
-            : null,
-      });
+      const email = renderGearRequestConfirmationEmail(
+        {
+          orgName: orgName || mail.identity.from,
+          requesterName: personDisplayName(requester, ""),
+          items: descriptions,
+          deliveryMethod,
+          instructions: typeof instructions === "string" ? instructions : "",
+          paymentMethod:
+            deliveryMethod === "shipping"
+              ? (paymentMethods.find(
+                  (method) => method.key === data.payment_method,
+                ) ?? null)
+              : null,
+          siteUrl: mail.origin,
+          branding: mail.branding,
+        },
+        reply.slots,
+      );
       options.onRendered?.(email);
       return email;
     },
@@ -520,9 +856,22 @@ export async function notifyVolunteerApplicationConfirmation(
 
   if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
 
-  const mail = await tenantMailContext(admin, data.tenant_id, {
-    fallbackOrigin: options.siteUrl,
-  });
+  const [mail, reply] = await Promise.all([
+    tenantMailContext(admin, data.tenant_id, {
+      fallbackOrigin: options.siteUrl,
+    }),
+    resolveAutoReply(
+      admin,
+      data.tenant_id,
+      VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+    ),
+  ]);
+
+  // The second of the three gates, after the org-wide kill switch above. An
+  // applicant has no account and so no opt-out of their own, which makes this
+  // the last word -- and switching it off costs them the reference code, the
+  // only key to /get-involved/volunteer/status.
+  if (!reply.enabled) return "skipped";
 
   return deliverEmail(admin, {
     tenantId: data.tenant_id,
@@ -535,12 +884,16 @@ export async function notifyVolunteerApplicationConfirmation(
     ),
     to,
     render: () => {
-      const email = renderVolunteerApplicationConfirmationEmail({
-        orgName: mail.displayName,
-        applicantName: (data.name ?? "").trim(),
-        referenceCode: data.reference_code,
-        siteUrl: mail.origin,
-      });
+      const email = renderVolunteerApplicationConfirmationEmail(
+        {
+          orgName: mail.displayName,
+          applicantName: (data.name ?? "").trim(),
+          referenceCode: data.reference_code,
+          siteUrl: mail.origin,
+          branding: mail.branding,
+        },
+        reply.slots,
+      );
       options.onRendered?.(email);
       return email;
     },
@@ -628,7 +981,7 @@ export async function sendEventRegistrationConfirmation(
   // (tenant_id, id) foreign key, so an embed could not name its tenant -- and on
   // the service-role client there is no policy underneath to catch a mistake.
   // Inside the same Promise.all it costs no latency.
-  const [event, mail] = await Promise.all([
+  const [event, mail, reply] = await Promise.all([
     admin
       .from("events")
       .select("name, starts_at, ends_at, location, timezone")
@@ -638,7 +991,17 @@ export async function sendEventRegistrationConfirmation(
     tenantMailContext(admin, data.tenant_id, {
       fallbackOrigin: options.siteUrl,
     }),
+    resolveAutoReply(
+      admin,
+      data.tenant_id,
+      EVENT_REGISTRATION_CONFIRMATION_KIND,
+    ),
   ]);
+
+  // The second of the three gates, after the org-wide kill switch above. A
+  // registrant has no account and so no opt-out of their own; switching this
+  // off costs them the calendar attachment as well as the receipt.
+  if (!reply.enabled) return "skipped";
 
   if (event.error) {
     console.error(
@@ -658,18 +1021,22 @@ export async function sendEventRegistrationConfirmation(
     dedupeKey: `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${data.id}`,
     to,
     render: () =>
-      renderEventRegistrationConfirmationEmail({
-        orgName: mail.displayName,
-        registrantName: (data.name ?? "").trim(),
-        eventName: registered.name,
-        startsAt: registered.starts_at,
-        endsAt: registered.ends_at,
-        timeZone: registered.timezone,
-        location: registered.location,
-        partySize: data.party_size ?? 1,
-        eventId: data.event_id,
-        siteUrl: mail.origin,
-      }),
+      renderEventRegistrationConfirmationEmail(
+        {
+          orgName: mail.displayName,
+          registrantName: (data.name ?? "").trim(),
+          eventName: registered.name,
+          startsAt: registered.starts_at,
+          endsAt: registered.ends_at,
+          timeZone: registered.timezone,
+          location: registered.location,
+          partySize: data.party_size ?? 1,
+          eventId: data.event_id,
+          siteUrl: mail.origin,
+          branding: mail.branding,
+        },
+        reply.slots,
+      ),
     logPrefix: "[event-registration-confirm]",
   });
 }
@@ -692,7 +1059,12 @@ export async function notifyRoleHolders(
      * lets that be decided here, after the tenant is known.
      */
     fallbackOrigin: string;
-    render: (origin: string) => RenderedEmail;
+    /**
+     * The message, given this tenant's origin and its branding (#1238) -- both
+     * resolved below, after the tenant is known, for the reason the origin is
+     * a parameter at all.
+     */
+    render: (origin: string, brand: EmailOrgBrand) => RenderedEmail;
   },
 ): Promise<NotifySummary> {
   const summary: NotifySummary = { ...NOTHING };
@@ -729,7 +1101,11 @@ export async function notifyRoleHolders(
       kind: options.kind,
       dedupeKey: options.dedupeKey,
       to: recipient.email,
-      render: () => options.render(mail.origin),
+      render: () =>
+        options.render(mail.origin, {
+          orgName: mail.displayName,
+          branding: mail.branding,
+        }),
       replyTo: options.replyTo,
       logPrefix: "[submission-notify]",
     });

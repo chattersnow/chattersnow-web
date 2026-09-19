@@ -44,7 +44,7 @@ export default function GlobalError({
             whole document and is a client component, so it cannot read the
             tenant -- and it fires on exactly the failure where a tenant read
             is what went wrong. One client's name here reached every tenant. */}
-        <h1 className="text-3xl font-semibold tracking-[-0.04em]">
+        <h1 className="text-3xl font-semibold tracking-brand">
           This page is having a moment
         </h1>
         <p className="max-w-md text-sm leading-relaxed opacity-80">

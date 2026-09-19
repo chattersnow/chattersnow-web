@@ -3,6 +3,9 @@ import {
   renderEventRegistrationConfirmationEmail,
   type EventRegistrationConfirmation,
 } from "./event-registration-confirmation-email";
+import { autoReplyDefaults } from "@/lib/notifications/auto-replies";
+import { requireAutoReplyDefinition } from "@/lib/notifications/auto-reply-email";
+import { EVENT_REGISTRATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 
 const base: EventRegistrationConfirmation = {
   orgName: "Chatter Snow",
@@ -175,5 +178,129 @@ describe("renderEventRegistrationConfirmationEmail", () => {
       siteUrl: "not-a-url",
     });
     expect(attachments![0].content).toContain("UID:event-abc123@");
+  });
+});
+
+describe("the tenant's own copy (#1234)", () => {
+  const definition = requireAutoReplyDefinition(
+    EVENT_REGISTRATION_CONFIRMATION_KIND,
+  );
+  const defaults = autoReplyDefaults(definition);
+
+  test("a rewritten slot changes both parts, and only that slot", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail(base, {
+      ...defaults,
+      intro: "We saved you a spot at {{event_name}}. Here's what to expect:",
+    });
+
+    for (const part of [text, html]) {
+      expect(part).toContain("We saved you a spot at Pride Ride Day.");
+      expect(part).not.toContain("Here are the details:");
+      // Every other slot still ours.
+      expect(part).toContain("Hi Jo Rivera,");
+      expect(part).toContain("free up your spot");
+      expect(part).toContain("— Chatter Snow");
+    }
+  });
+
+  test("the facts, the link and the attachment survive any copy", () => {
+    const blanked = Object.fromEntries(
+      Object.keys(defaults).map((key) => [key, ""]),
+    ) as typeof defaults;
+    const { text, html, attachments } =
+      renderEventRegistrationConfirmationEmail(base, blanked);
+
+    for (const part of [text, html]) {
+      expect(part).toContain("Pride Ride Day");
+      expect(part).toContain("Hunter Mountain");
+      expect(part).toContain("https://chattersnow.example/events/e/abc123");
+    }
+    expect(attachments).toHaveLength(1);
+    // A blanked slot leaves nothing behind -- no empty paragraph where a
+    // sentence used to be.
+    expect(html).not.toContain('<p style="margin: 0 0 8px;"></p>');
+    expect(text).not.toContain("\n\n\n");
+  });
+
+  test("escapes markup and ampersands once, in the HTML part only", () => {
+    const { subject, text, html } = renderEventRegistrationConfirmationEmail(
+      {
+        ...base,
+        orgName: "Ben & Jerry's",
+        registrantName: "<script>alert(1)</script>",
+        eventName: "Rock & <b>Roll</b> Day",
+      },
+      {
+        ...defaults,
+        intro: "Tea & <script>alert(2)</script> at {{event_name}}.",
+      },
+    );
+
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("Tea &amp; &lt;script&gt;alert(2)&lt;/script&gt;");
+    expect(html).toContain("Rock &amp; &lt;b&gt;Roll&lt;/b&gt; Day");
+    expect(html).toContain("Ben &amp; Jerry&#39;s");
+    // Escaped once: a reader must never be shown "&amp;" where somebody typed
+    // "&", which is what escaping before substitution would produce.
+    expect(html).not.toContain("&amp;amp;");
+    expect(html).not.toContain("&amp;lt;");
+
+    // The text part and the subject are never escaped.
+    expect(text).toContain(
+      "Tea & <script>alert(2)</script> at Rock & <b>Roll</b> Day.",
+    );
+    expect(text).toContain("<script>alert(1)</script>");
+    expect(subject).toBe("You're registered for Rock & <b>Roll</b> Day");
+  });
+
+  test("keeps a tenant's line breaks in a paragraph slot", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail(base, {
+      ...defaults,
+      closing: "Bring water.\nBring layers.",
+    });
+    expect(text).toContain("Bring water.\nBring layers.");
+    expect(html).toContain("white-space: pre-line;");
+  });
+});
+
+/**
+ * One end of the threading, pinned where the whole chain is visible: a tenant's
+ * branding reaches the shell of a real receipt, and the text part is untouched
+ * by it. The shell's own rules are pinned in email-shell.test.ts.
+ */
+describe("the tenant's shell (#1238)", () => {
+  const branded: EventRegistrationConfirmation = {
+    ...base,
+    branding: {
+      logoUrl: "/chatter-logo-transparent.png",
+      primary: "#0f766e",
+      primaryDeep: "#134e4a",
+    },
+  };
+
+  test("puts the tenant's logo, resolved against its own origin, at the top", () => {
+    const { html } = renderEventRegistrationConfirmationEmail(branded);
+    expect(html).toContain(
+      'src="https://chattersnow.example/chatter-logo-transparent.png"',
+    );
+    expect(html).toContain('alt="Chatter Snow"');
+  });
+
+  test("links in the tenant's accent rather than the platform's purple", () => {
+    const { html } = renderEventRegistrationConfirmationEmail(branded);
+    expect(html).toContain("color: #0f766e");
+    expect(html).not.toContain("#4c1d95");
+  });
+
+  test("leaves the plain-text part byte-identical to the unbranded one", () => {
+    expect(renderEventRegistrationConfirmationEmail(branded).text).toBe(
+      renderEventRegistrationConfirmationEmail(base).text,
+    );
+  });
+
+  test("a tenant that has set nothing still gets its name, and no broken image", () => {
+    const { html } = renderEventRegistrationConfirmationEmail(base);
+    expect(html).not.toContain("<img");
+    expect(html).toContain("Chatter Snow");
   });
 });

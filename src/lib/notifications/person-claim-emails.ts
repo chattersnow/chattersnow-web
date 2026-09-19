@@ -1,3 +1,10 @@
+import {
+  emailPalette,
+  emailShellContext,
+  renderEmailShell,
+  type EmailOrgBrand,
+  type EmailShellContext,
+} from "@/lib/notifications/email-shell";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -35,34 +42,38 @@ function escapeHtml(value: string): string {
 }
 
 function layout(
+  shell: EmailShellContext,
   lead: string,
   lines: string[],
   link?: { label: string; url: string },
 ): string {
+  const palette = emailPalette(shell.branding);
   const body = lines
     .map(
       (line) =>
-        `    <p style="margin: 0 0 6px; color: #57534e;">${escapeHtml(line)}</p>`,
+        `    <p style="margin: 0 0 6px; color: ${palette.muted};">${escapeHtml(line)}</p>`,
     )
     .join("\n");
 
-  return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
+  return renderEmailShell({
+    ...shell,
+    bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
 ${body ? `  <div style="margin: 0 0 20px;">\n${body}\n  </div>` : ""}
 ${
   link
     ? `  <p style="margin: 0 0 24px;">
-    <a href="${escapeHtml(link.url)}" style="color: #4c1d95; font-weight: 600; text-decoration: underline;">${escapeHtml(link.label)}</a>
+    <a href="${escapeHtml(link.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(link.label)}</a>
   </p>`
     : ""
-}
-</div>`;
+}`,
+  });
 }
 
 /** To the people who can review it. */
 export function renderClaimReviewEmail(
   notice: ClaimNotice,
   siteUrl: string,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
   const url = `${origin}/portal/people/claims`;
@@ -90,7 +101,10 @@ export function renderClaimReviewEmail(
       "",
       `Change what you get here: ${origin}/portal/account`,
     ].join("\n"),
-    html: layout(lead, lines, { label: "Review it", url }),
+    html: layout(emailShellContext(brand, origin), lead, lines, {
+      label: "Review it",
+      url,
+    }),
   };
 }
 
@@ -106,16 +120,18 @@ export function renderClaimReviewEmail(
 export function renderClaimDecisionEmail(
   decision: { approved: boolean; organizationName: string },
   siteUrl: string,
+  brand?: EmailOrgBrand,
 ): RenderedEmail {
   const origin = normalizeOrigin(siteUrl);
   const url = `${origin}/my`;
+  const shell = emailShellContext(brand, origin);
 
   if (decision.approved) {
     const lead = `Your account with ${decision.organizationName} is now linked to your record.`;
     return {
       subject: `You are all set with ${decision.organizationName}`,
       text: [lead, "", `See your account: ${url}`].join("\n"),
-      html: layout(lead, [], { label: "See your account", url }),
+      html: layout(shell, lead, [], { label: "See your account", url }),
     };
   }
 
@@ -126,6 +142,6 @@ export function renderClaimDecisionEmail(
   return {
     subject: `About your request to ${decision.organizationName}`,
     text: [lead, "", ...lines].join("\n"),
-    html: layout(lead, lines),
+    html: layout(shell, lead, lines),
   };
 }

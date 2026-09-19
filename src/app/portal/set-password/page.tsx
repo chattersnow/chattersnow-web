@@ -53,7 +53,7 @@ export default async function SetPasswordPage({
               before the fields was the logo's alt text -- the same gap #817
               closed on the login page. The logo is decorative beside a real
               h1, hence alt="". */}
-          <h1 className="brand-display mt-2 text-center text-3xl font-semibold tracking-[-0.04em]">
+          <h1 className="brand-display mt-2 text-center text-3xl font-semibold tracking-brand">
             Set your password
           </h1>
         </CardHeader>

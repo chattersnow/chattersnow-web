@@ -19,7 +19,7 @@ export function StatTile({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+        <p className="brand-display text-4xl font-semibold tracking-brand">
           {value}
         </p>
         {caption && <p className="app-muted mt-2 text-sm">{caption}</p>}
@@ -45,7 +45,7 @@ export function AttentionTile({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+        <p className="brand-display text-4xl font-semibold tracking-brand">
           {count}
         </p>
         <p className="app-muted mt-2 text-sm">Awaiting your review</p>

@@ -81,6 +81,12 @@ export type Branding = {
    * icon (#1083). See `APP_ICON_URL_TOKEN`.
    */
   appIconUrl: string | null;
+  /**
+   * The tenant's typography set, or null for the stylesheet's default. Null
+   * is also what an unknown or malformed stored value resolves to, so nothing
+   * outside `TYPOGRAPHY_SETS` can reach a `<style>` block.
+   */
+  typography: TypographySet | null;
 };
 
 export const EMPTY_BRANDING: Branding = {
@@ -88,6 +94,7 @@ export const EMPTY_BRANDING: Branding = {
   accentStops: null,
   logoUrl: null,
   appIconUrl: null,
+  typography: null,
 };
 
 /** The reserved `app_settings` namespace these rows live in (#888). */
@@ -112,8 +119,235 @@ export const LOGO_URL_TOKEN = "logo_url";
  */
 export const APP_ICON_URL_TOKEN = "app_icon_url";
 
+/** The typography set, keyed into `TYPOGRAPHY_SETS` below (#1260). */
+export const TYPOGRAPHY_TOKEN = "typography";
+
 /**
- * Every token the registry knows, colours and the two above. `brand.` is a
+ * Typography, as a set rather than a family name (#1260).
+ *
+ * Every other brand token is a value an admin types. This one is a key from
+ * the registry below, for three reasons, and the first is not negotiable:
+ *
+ * 1. `next/font/google` resolves at build time. It is a compile-time
+ *    transform over literal arguments -- there is no call you can make with a
+ *    string read from a database -- so every family the platform offers has to
+ *    be declared in `src/app/layout.tsx` and shipped in the bundle. The list is
+ *    closed by construction; a sixth set is a deliberate change.
+ * 2. A `<style>` block is an injection surface. The colours are validated as
+ *    six-digit hex before they reach it, and this gets the equivalent:
+ *    membership in the registry, checked here, with an unknown key resolving to
+ *    null and reaching no stylesheet at all. Nothing a tenant stored is ever
+ *    interpolated -- what `brandingCss()` emits is the `cssVar` below, which
+ *    is a literal in this file.
+ * 3. Pairings are a design decision. Two families chosen by someone who has
+ *    seen them together is a different artifact from two names in a form.
+ */
+/**
+ * The two licences these families ship under, as `google/fonts` records them
+ * in each family's `METADATA.pb`. Both let anyone download the family and set
+ * a flyer in it, which is what /brand tells an organization (#1262) -- but
+ * they are not the same licence, so a family carries its own rather than the
+ * page asserting one sentence over all eight.
+ */
+const OFL = "SIL Open Font License 1.1";
+const APACHE = "Apache License 2.0";
+
+export type TypographyFamily = {
+  /** The family, as Google Fonts spells it. Shown in the picker (#1261). */
+  name: string;
+  /** The custom property `src/app/layout.tsx` binds the loaded family to. */
+  cssVar: string;
+  /** Printed on /brand beside the link to the family's Google Fonts page. */
+  license: string;
+};
+
+const QUICKSAND: TypographyFamily = {
+  name: "Quicksand",
+  cssVar: "--font-quicksand",
+  license: OFL,
+};
+const ROCK_SALT: TypographyFamily = {
+  name: "Rock Salt",
+  cssVar: "--font-rock-salt",
+  license: APACHE,
+};
+const INTER: TypographyFamily = {
+  name: "Inter",
+  cssVar: "--font-inter",
+  license: OFL,
+};
+const SOURCE_SERIF: TypographyFamily = {
+  name: "Source Serif 4",
+  cssVar: "--font-source-serif",
+  license: OFL,
+};
+const FRAUNCES: TypographyFamily = {
+  name: "Fraunces",
+  cssVar: "--font-fraunces",
+  license: OFL,
+};
+const NUNITO_SANS: TypographyFamily = {
+  name: "Nunito Sans",
+  cssVar: "--font-nunito-sans",
+  license: OFL,
+};
+const FIGTREE: TypographyFamily = {
+  name: "Figtree",
+  cssVar: "--font-figtree",
+  license: OFL,
+};
+const CAVEAT: TypographyFamily = {
+  name: "Caveat",
+  cssVar: "--font-caveat",
+  license: OFL,
+};
+
+/**
+ * Where to download a family. Derived rather than stored: `name` is the family
+ * as Google Fonts spells it, which is the only thing its specimen URL is built
+ * from, so a second field would only be a second chance to be wrong.
+ */
+export function googleFontsUrl(family: TypographyFamily): string {
+  return `https://fonts.google.com/specimen/${family.name.replaceAll(" ", "+")}`;
+}
+
+export type TypographySet = {
+  key: string;
+  /**
+   * What a tenant picks it by. These describe the typography and never an
+   * organization: "Chatter Snow" is not a choice on anybody else's settings
+   * screen, however exactly `rounded` reproduces its site.
+   */
+  label: string;
+  description: string;
+  /** Body text -- `--font-sans`, and the `body` rule. */
+  sans: TypographyFamily;
+  /** Display text -- `--font-heading`, `.brand-display` and `.app-eyebrow`. */
+  heading: TypographyFamily;
+  /** The script accent (`--font-accent-script`), or null to reuse `heading`. */
+  accent: TypographyFamily | null;
+  /**
+   * The one metric that cannot survive a family swap. `-0.04em` is tuned for
+   * Quicksand and is wrong on a serif, so it is carried by the set rather than
+   * baked into the twenty-odd components that set it; they read
+   * `tracking-brand`, which resolves to this.
+   */
+  headingTracking: string;
+};
+
+/**
+ * The five sets. All latin-subset variable fonts, except Rock Salt, which
+ * ships at a single weight; each family carries its own licence above.
+ *
+ * Note which role the eyebrow follows: `heading`, not `accent`. `.app-eyebrow`
+ * is uppercase, 12px, at `0.2em` letter-spacing -- a script face set that way
+ * is unreadable, and Chatter Snow's eyebrow is Quicksand today. The `accent`
+ * family is the script itself, which the design system exposes as
+ * `--font-accent-script` for display use.
+ */
+const NEUTRAL_SET: TypographySet = {
+  key: "neutral",
+  label: "Neutral",
+  description:
+    // An em dash rather than the `--` this file writes in its comments: since
+    // #1262 these descriptions are printed on the public /brand page, not only
+    // in the settings picker.
+    "Inter throughout. The platform's own default — a UI typeface that reads as nobody's brand.",
+  sans: INTER,
+  heading: INTER,
+  accent: null,
+  headingTracking: "-0.02em",
+};
+
+export const TYPOGRAPHY_SETS: readonly TypographySet[] = [
+  NEUTRAL_SET,
+  {
+    key: "rounded",
+    label: "Rounded",
+    description:
+      "Quicksand with a hand-drawn script accent. Soft, informal, community-facing.",
+    sans: QUICKSAND,
+    heading: QUICKSAND,
+    accent: ROCK_SALT,
+    headingTracking: "-0.04em",
+  },
+  {
+    key: "editorial",
+    label: "Editorial",
+    description:
+      "Source Serif 4 headings over Inter body text. Reads like a publication.",
+    sans: INTER,
+    heading: SOURCE_SERIF,
+    accent: null,
+    headingTracking: "-0.01em",
+  },
+  {
+    key: "statement",
+    label: "Statement",
+    description:
+      "Fraunces headings over Nunito Sans, with a handwritten accent. High contrast, deliberate.",
+    sans: NUNITO_SANS,
+    heading: FRAUNCES,
+    accent: CAVEAT,
+    headingTracking: "-0.02em",
+  },
+  {
+    key: "friendly",
+    label: "Friendly",
+    description:
+      "Figtree throughout, with a handwritten accent. Plain and approachable.",
+    sans: FIGTREE,
+    heading: FIGTREE,
+    accent: CAVEAT,
+    headingTracking: "-0.02em",
+  },
+] as const;
+
+/**
+ * What globals.css ships, and therefore what a tenant that has set nothing
+ * renders. `brandingCss()` emits nothing for this case, exactly as it emits no
+ * colour for an unset colour token: the stylesheet is the default.
+ */
+export const DEFAULT_TYPOGRAPHY: TypographySet = NEUTRAL_SET;
+
+export const DEFAULT_TYPOGRAPHY_KEY = DEFAULT_TYPOGRAPHY.key;
+
+/**
+ * The distinct families one set is built from, in role order: body, display,
+ * then the script accent where it has one. A set whose display face is also
+ * its body face lists it once, which is what /brand shows as the families an
+ * organization has to install to rebuild its own materials (#1262).
+ */
+export function typographyFamilies(
+  set: TypographySet,
+): readonly TypographyFamily[] {
+  return [
+    ...new Map(
+      [set.sans, set.heading, set.accent]
+        .filter((family): family is TypographyFamily => family !== null)
+        .map((family) => [family.cssVar, family]),
+    ).values(),
+  ];
+}
+
+/** Every family any set uses, for the loader in `src/app/layout.tsx`. */
+export const TYPOGRAPHY_FAMILIES: readonly TypographyFamily[] = [
+  ...new Map(
+    TYPOGRAPHY_SETS.flatMap(typographyFamilies).map((family) => [
+      family.cssVar,
+      family,
+    ]),
+  ).values(),
+];
+
+/** The set a stored value names, or null for anything the registry disowns. */
+export function typographySet(value: unknown): TypographySet | null {
+  if (typeof value !== "string") return null;
+  return TYPOGRAPHY_SETS.find((set) => set.key === value) ?? null;
+}
+
+/**
+ * Every token the registry knows, colours and the three above. `brand.` is a
  * public namespace (#888): `public_branding` serves the whole prefix to
  * `anon`, so this is the list of keys that may exist under it.
  */
@@ -122,6 +356,7 @@ export const BRAND_TOKENS: readonly string[] = [
   ACCENT_STOPS_TOKEN,
   LOGO_URL_TOKEN,
   APP_ICON_URL_TOKEN,
+  TYPOGRAPHY_TOKEN,
 ];
 
 export function brandSettingKey(token: string): string {
@@ -149,6 +384,7 @@ export function brandingFromRows(rows: readonly BrandingRow[]): Branding {
     accentStops: null,
     logoUrl: null,
     appIconUrl: null,
+    typography: null,
   };
   for (const row of rows) {
     if (row.token === ACCENT_STOPS_TOKEN) {
@@ -168,6 +404,10 @@ export function brandingFromRows(rows: readonly BrandingRow[]): Branding {
       if (typeof row.value === "string" && row.value.trim()) {
         branding.appIconUrl = resolveImageUrl(row.value.trim());
       }
+      continue;
+    }
+    if (row.token === TYPOGRAPHY_TOKEN) {
+      branding.typography = typographySet(row.value);
       continue;
     }
     const token = BRAND_COLOR_TOKENS.find((t) => t.key === row.token);
@@ -389,9 +629,40 @@ export function brandColorPairs(branding: Branding): BrandColorPair[] {
   });
 }
 
+/**
+ * The set this tenant's pages actually render in, for the brand guide and the
+ * picker -- the tenant's own, or the platform's.
+ *
+ * The same relationship `brandColorPairs()` has to `brandingCss()`: this falls
+ * back to the default because it documents what a visitor *sees*, while
+ * `brandingCss()` correctly emits nothing there and lets the stylesheet stand.
+ */
+export function resolvedTypography(branding: Branding): TypographySet {
+  return branding.typography ?? DEFAULT_TYPOGRAPHY;
+}
+
 export function brandingCss(branding: Branding): string {
+  const fonts: string[] = [];
   const light: string[] = [];
   const dark: string[] = [];
+
+  // Plain `:root`, unlike the palette below, because typography is not a light
+  // or a dark thing -- a dark page is set in the same families as a light one.
+  // The specificity trap that forced `:root:not(.dark)` on the palette (#819)
+  // does not apply: globals.css does not restate any of these four under
+  // `.dark`, so there is nothing for a bare `:root` to outrank.
+  const typography = branding.typography;
+  if (typography) {
+    // Every value interpolated here is a literal from TYPOGRAPHY_SETS. The
+    // tenant's stored string was spent matching a key in `typographySet()` and
+    // never appears in the output.
+    fonts.push(`--brand-font-sans: var(${typography.sans.cssVar});`);
+    fonts.push(`--brand-font-heading: var(${typography.heading.cssVar});`);
+    fonts.push(
+      `--brand-font-accent: var(${(typography.accent ?? typography.heading).cssVar});`,
+    );
+    fonts.push(`--brand-heading-tracking: ${typography.headingTracking};`);
+  }
 
   for (const token of BRAND_COLOR_TOKENS) {
     const value = branding.colors[token.key];
@@ -423,6 +694,7 @@ export function brandingCss(branding: Branding): string {
   }
 
   const blocks: string[] = [];
+  if (fonts.length > 0) blocks.push(`:root { ${fonts.join(" ")} }`);
   // `:root:not(.dark)`, never a bare `:root` (#819). Both are specificity
   // (0,1,0), and this block is injected into the document after the
   // stylesheet, so a bare `:root` outranks globals.css's `.dark` on the tie --

@@ -425,20 +425,20 @@ describe("navGroups", () => {
     ).toEqual([
       // Two, not three: Permissions became a tab on Roles in #946.
       ["Access & identity", ["users", "roles"]],
-      // Down to one item: Access Management left in #943, Site Content in
-      // #944 and Platform in #945. The heading stays because it names a real
-      // distinction from identity and oversight, and #947 put the page's
-      // panels behind a tab strip -- five of them since #990, under the name
-      // #992 gave the page.
-      ["Organization", ["organization-settings"]],
+      // Down to one item when Access Management left in #943, Site Content in
+      // #944 and Platform in #945; back to two with #1235. The heading names
+      // a real distinction from identity and oversight, and the second entry
+      // is not a sixth tab on the first because a tab is another view of one
+      // object and five reply templates are five objects.
+      ["Organization", ["organization-settings", "automatic-replies"]],
       ["Oversight", ["audit-log", "data-retention"]],
     ]);
   });
 
   test("a group whose every item is filtered out leaves no heading", () => {
-    // system_settings:manage alone reaches exactly one Administration page, so
-    // the other two headings must not survive -- a heading over nothing is the
-    // failure mode this design exists to make impossible.
+    // system_settings:manage alone reaches the Organization group and nothing
+    // else, so the other two headings must not survive -- a heading over
+    // nothing is the failure mode this design exists to make impossible.
     const board: PermissionMap = { system_settings: "manage" };
     const administration = visibleNavItems(board).find(
       (item) => item.value === "administration",
@@ -448,7 +448,22 @@ describe("navGroups", () => {
         group.label,
         group.items.map((sub) => sub.value),
       ]),
-    ).toEqual([["Organization", ["organization-settings"]]]);
+    ).toEqual([
+      ["Organization", ["organization-settings", "automatic-replies"]],
+    ]);
+  });
+
+  test("Automatic Replies is hidden from administration:manage alone (#1235)", () => {
+    // The nav entry matches `auto_reply_templates`'s RLS rather than
+    // Organization Settings' wider entry, so somebody the row-level policies
+    // would refuse is never shown a link to the page they gate.
+    const administrator: PermissionMap = { administration: "manage" };
+    const administration = visibleNavItems(administrator).find(
+      (item) => item.value === "administration",
+    )!;
+    expect(administration.subItems!.map((sub) => sub.value)).not.toContain(
+      "automatic-replies",
+    );
   });
 
   test("groups Website in nav order, the moved settings last", () => {

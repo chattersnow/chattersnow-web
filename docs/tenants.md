@@ -257,8 +257,35 @@ matters more than it looks — the tenant is resolved from the hostname and the
 session cookie is bound to it, so a link on the wrong tenant's host does not
 just 404, it strands the recipient's session.
 
-Two things can be varied per tenant, and they need very different amounts of
-work.
+**What the mail says is the tenant's too.** The receipts the public forms send
+straight back — an event registration, a volunteer application, a gear request
+— are written per tenant under Administration → Automatic Replies
+(`/portal/administration/automatic-replies`, #1235), and each one can be
+switched off there on its own. They are rows in `auto_reply_templates` rather
+than `app_settings` keys, gated on `system_settings:manage` like the settings
+below, and audited: Administration → Audit Log shows who changed the wording
+and what it was before.
+
+The rows are **sparse**, which is what makes this safe to leave alone: a slot a
+tenant has never rewritten is absent from `slots`, and absent means "still the
+platform's wording", so improving a default reaches every tenant who never
+touched it. A tenant with no row at all — which is every tenant on a fresh
+`provision_tenant()`, since nothing is seeded — gets byte-identically the email
+the platform sent before the table existed. Resetting a field deletes its key
+rather than writing today's default in, so a tenant who resets goes back to
+tracking the defaults rather than freezing a copy of them.
+
+Branding is deliberately not part of that editor. The logo, the colours and the
+footer around the words come from the tenant's `brand.*` tokens through the
+shared email shell (`src/lib/notifications/email-shell.ts`, #1238), set under
+Organization Settings → Branding: a slot is a sentence, the shell is the paper
+it is printed on. The shell is not only the automatic replies' — every
+renderer in `src/lib/notifications/` composes into it, so the digest, the ops
+report, the staff submission notices, a staff message and the address-change
+and claim notices all leave a tenant looking like one sender.
+
+Two more things can be varied per tenant, and they need very different amounts
+of work.
 
 **Reply-To is the tenant's own, and self-service.** Administration → System
 Settings → Notifications, "Reply-To address". This is the one that matters
@@ -469,9 +496,54 @@ re-planned locally while it is the only one.
 Both are the tenant admin's, not the operator's:
 
 - **Administration → Organization Settings → Branding**: the colour tokens, the
-  accent gradient and the logo, stored as `brand.*` rows in `app_settings`
-  and applied as a `<style>` over `globals.css` (`src/lib/branding.ts`). Blank
-  means the platform default, which is Chatter Snow's palette.
+  accent gradient, the logo and the typography set, stored as `brand.*` rows in
+  `app_settings` and applied as a `<style>` over `globals.css`
+  (`src/lib/branding.ts`). Blank means the platform default.
+
+  Typography (#1260) is the one brand token that is not a value an admin
+  types: `next/font/google` resolves at build time, so the families the
+  platform can offer are the ones declared in `src/app/layout.tsx`, and what a
+  tenant stores under `brand.typography` is a key into the five curated sets in
+  `src/lib/branding.ts` -- `neutral` (Inter, the platform's own), `rounded`
+  (Quicksand with a Rock Salt accent), `editorial` (Source Serif 4 over Inter),
+  `statement` (Fraunces over Nunito Sans) and `friendly` (Figtree). A set
+  carries three families and its display letter-spacing, because `-0.04em` is
+  tuned for Quicksand and is wrong on a serif. An unknown key resolves to the
+  default rather than reaching the `<style>` block. Chatter Snow's `rounded`
+  row is seeded by `20260918020000_brand_typography.sql`, which is why nothing
+  on its site changed when this shipped. It is picked (#1261) from a list of
+  specimens rather than a dropdown of names, each option drawn in the families
+  it would apply, because "Editorial" set in everybody else's typeface says
+  nothing about the only thing being chosen; "Platform default" is the first
+  option and stores a blank value, so it follows the platform's default rather
+  than pinning today's. That page is the one screen that renders all eight
+  families at once, and it is a signed-in portal page, so the `preload: false`
+  discipline stays as it is. The public `/brand` guide documents whatever the
+  tenant has picked (#1262): §02 reads the set through `resolvedTypography()`
+  and names each family, its licence and its Google Fonts page, so a volunteer
+  making a flyer can install the same faces. Email is deliberately out of scope:
+  web fonts do not load in most mail clients, so a branded email carries the
+  tenant's colours and its logo and not its typeface.
+
+  **Branding reaches email** (#1238). `tenantMailContext()` brings
+  `brand.primary`, `brand.primary_deep` and `brand.logo_url` back in the same
+  read as the sender identity, and `renderEmailShell()` puts the logo at the
+  top of every outbound message and the tenant's accent on its links. Three
+  consequences worth knowing before changing a token:
+
+  - **The logo URL has to be fetchable with no session.** A Drive link that
+    renders in a browser because you are signed in to Drive is a broken image
+    in an inbox. A `brand.logo_url` stored as a path this site serves is
+    resolved against the tenant's own origin, so those work.
+  - **A brand colour that fails a contrast floor is not used.** Link text needs
+    4.5:1 against the shell's white background and the wordmark 3:1; a colour
+    that fails falls to the tenant's deep colour and then to the platform's
+    purple, rather than rendering something nobody can read.
+  - **Nothing exists only inside the logo.** Most clients block remote images,
+    so a tenant with no logo gets its name as a text wordmark, a blocked logo
+    falls back to that name as alt text, and the footer names the organization
+    either way. The plain-text part carries no logo and never will.
+
 - **Administration → Organization Settings → General**: the words this
   organization uses for what it lends (#896). The platform says "Inventory"
   and "Items"; an organization that runs a gear library, a tool library or a

@@ -155,7 +155,7 @@ export default async function ProgramImpactReportPage({
   return (
     <>
       <div className="w-fit">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
           Program Impact Report
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
@@ -229,7 +229,7 @@ export default async function ProgramImpactReportPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                <p className="brand-display text-4xl font-semibold tracking-brand">
                   {formatNumber(rollup.eventCount)}
                 </p>
               </CardContent>
@@ -241,7 +241,7 @@ export default async function ProgramImpactReportPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                <p className="brand-display text-4xl font-semibold tracking-brand">
                   {formatNumber(rollup.participants)}
                 </p>
               </CardContent>
@@ -253,7 +253,7 @@ export default async function ProgramImpactReportPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                <p className="brand-display text-4xl font-semibold tracking-brand">
                   {formatNumber(rollup.volunteerHours)}
                 </p>
               </CardContent>
@@ -265,7 +265,7 @@ export default async function ProgramImpactReportPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="brand-display text-4xl font-semibold tracking-[-0.04em]">
+                <p className="brand-display text-4xl font-semibold tracking-brand">
                   {formatCurrency(rollup.participantAssistanceTotal)}
                 </p>
               </CardContent>

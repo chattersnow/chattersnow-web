@@ -24,7 +24,7 @@ export default async function DonateGearPage() {
       <section id="how-it-works">
         <div className="w-fit">
           <div className="rainbow-accent w-full" />
-          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+          <h1 className="brand-display mt-4 text-4xl font-semibold tracking-brand sm:text-5xl">
             {content.text("gears.donate_heading")}
           </h1>
         </div>

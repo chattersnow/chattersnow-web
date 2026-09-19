@@ -141,7 +141,7 @@ export default async function OrganizationSettingsPage() {
   return (
     <>
       <div className="w-fit">
-        <h1 className="brand-display text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
           Organization Settings
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
@@ -204,9 +204,9 @@ export default async function OrganizationSettingsPage() {
 
         <TabsContent value="branding" className="mt-6 space-y-4">
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            The colours, accent bar and logo the public site and this portal
-            use. Leave a field blank to keep the platform default. Every change
-            is recorded in the audit log.
+            The colours, accent bar, logo and typefaces the public site and this
+            portal use. Leave a field blank to keep the platform default. Every
+            change is recorded in the audit log.
           </p>
           <BrandingPanel branding={branding} />
         </TabsContent>

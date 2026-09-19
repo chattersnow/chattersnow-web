@@ -155,20 +155,38 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
     description:
       "Confirmation that your application to volunteer arrived, with the reference that tracks it.",
   },
+  {
+    key: "contact_message_confirmation",
+    audience: "constituent",
+    defaultEnabled: true,
+    label: "Contact message receipts",
+    description:
+      "Confirmation that the message you sent through the contact form arrived, and what it was about.",
+  },
+  {
+    key: "artwork_submission_confirmation",
+    audience: "constituent",
+    defaultEnabled: true,
+    label: "Artwork submission receipts",
+    description:
+      "Confirmation that the artwork you sent to an open call arrived, and what came with it.",
+  },
 ];
 
 /**
- * The three receipts a person gets for something they did themselves.
+ * The receipts a person gets for something they did themselves.
  *
- * They were written (#1032, #1068, #1069) as kinds nobody could switch,
+ * The first three were written (#1032, #1068, #1069) as kinds nobody could
+ * switch,
  * deliberately and correctly: each is addressed to whoever filled in a public
  * form, and until #1160 that person held no account, so no preference row and
  * no screen to set one on. A switch on /portal/account could not have changed
  * what any of them received.
  *
  * #1160 is what changed. A constituent now has an account, and `/my` is a
- * screen where a preference means something -- so these three join the
- * registry as the kinds that audience actually holds. What does not change is
+ * screen where a preference means something -- so they join the registry as
+ * the kinds that audience actually holds, and the two #1237 adds below were
+ * born switchable. What does not change is
  * anyone without an account: they have no row, no row means the default, and
  * the default for a receipt is on. The only person a `false` here can silence
  * is the one who set it.
@@ -186,6 +204,24 @@ export const EVENT_REGISTRATION_CONFIRMATION_KIND =
 
 export const VOLUNTEER_APPLICATION_CONFIRMATION_KIND =
   "volunteer_application_confirmation";
+
+/**
+ * The two receipts #1237 added, for the two public forms that answered their
+ * senders with silence: somebody wrote in or sent a piece to an open call, the
+ * queue heard about it, and the person who filled the form in got a page that
+ * said thanks and nothing in their inbox -- no record that they wrote, and no
+ * reference if nobody answered.
+ *
+ * These are *not* the `contact_message` / `artwork_submission` staff kinds
+ * above. Those are the notices to whoever owns the queue, are opt-in, and are
+ * gated on a permission; these are the sender's own receipt, are opt-out, and
+ * are gated on nothing. The two pairs differ by one word and mean opposite
+ * things, which is why kinds.test.ts pins them apart.
+ */
+export const CONTACT_MESSAGE_CONFIRMATION_KIND = "contact_message_confirmation";
+
+export const ARTWORK_SUBMISSION_CONFIRMATION_KIND =
+  "artwork_submission_confirmation";
 
 /**
  * The switches `/my` offers (#1165). A constituent must not be shown a staff

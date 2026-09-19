@@ -1,7 +1,27 @@
+/**
+ * Where a standing section's facts come from (#1240).
+ *
+ * Absent means manual -- the section is a pair of free-text boxes, which is
+ * what every section was before this. A source says the module already holds
+ * what the board is about to be told, so the section shows those records and
+ * asks only for the discussion around them.
+ *
+ * `categories` names `calendar_categories.key` values, never labels: the key
+ * is what the platform seeds and what survives a tenant renaming the category.
+ * A key the tenant has deactivated (or never had) is skipped by the feed, not
+ * an error -- deactivating a category is an ordinary thing to do and must not
+ * break somebody's agenda.
+ */
+export type AgendaSectionSource =
+  | { kind: "events" }
+  | { kind: "calendar"; categories?: string[]; item_types?: string[] };
+
 export type AgendaTemplateSection = {
   key: string;
   label: string;
   topics: string[];
+  /** Absent = manual: Updates / Decisions needed, today's behaviour. */
+  source?: AgendaSectionSource;
 };
 
 export type AgendaTemplateRow = {
@@ -37,4 +57,62 @@ const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 export function isValidSectionKey(key: string): boolean {
   return KEY_PATTERN.test(key);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringList(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter(
+    (item): item is string => typeof item === "string",
+  );
+  return items.length === value.length ? items : undefined;
+}
+
+/**
+ * The section's source if it is one this build knows how to render, and
+ * `undefined` otherwise.
+ *
+ * `sections` is jsonb written by a migration, so it is only as typed as
+ * whoever wrote the row -- and a template version is immutable, so a version
+ * naming a `kind` that this deployment has not shipped yet (or no longer
+ * ships) is a real state, not a corruption. Falling back to `undefined`
+ * renders that section the manual way, with its text boxes; returning the
+ * unknown source would render a section with no feed and no boxes, which is a
+ * blank space where the board expected an agenda item.
+ */
+export function agendaSectionSource(
+  section: AgendaTemplateSection,
+): AgendaSectionSource | undefined {
+  const source: unknown = section.source;
+  if (source === undefined || source === null) return undefined;
+  if (!isRecord(source)) return undefined;
+
+  if (source.kind === "events") return { kind: "events" };
+
+  if (source.kind === "calendar") {
+    const categories = stringList(source.categories);
+    const itemTypes = stringList(source.item_types);
+    if (source.categories !== undefined && categories === undefined) {
+      return undefined;
+    }
+    if (source.item_types !== undefined && itemTypes === undefined) {
+      return undefined;
+    }
+    return {
+      kind: "calendar",
+      ...(categories ? { categories } : {}),
+      ...(itemTypes ? { item_types: itemTypes } : {}),
+    };
+  }
+
+  return undefined;
+}
+
+/** Whether the section asks for one Discussion box instead of the manual pair. */
+export function isSourcedSection(section: AgendaTemplateSection): boolean {
+  return agendaSectionSource(section) !== undefined;
 }

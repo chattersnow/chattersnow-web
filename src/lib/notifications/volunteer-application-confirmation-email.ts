@@ -1,3 +1,19 @@
+import type { AutoReplyCopy } from "@/lib/notifications/auto-replies";
+import {
+  autoReplyWords,
+  copyParagraphHtml,
+  escapeHtml,
+  joinHtmlLines,
+  joinTextBlocks,
+  requireAutoReplyDefinition,
+} from "@/lib/notifications/auto-reply-email";
+import {
+  emailPalette,
+  EMPTY_EMAIL_BRANDING,
+  renderEmailShell,
+  type EmailBranding,
+} from "@/lib/notifications/email-shell";
+import { VOLUNTEER_APPLICATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
@@ -12,6 +28,13 @@ import type { RenderedEmail } from "@/lib/notifications/rendered-email";
  * this email" -- so the code in a mailbox is the difference between a status
  * page that works and one that cannot be reached at all.
  *
+ * Which is why the wrapping is the tenant's to write (#1234) and the code is
+ * not: the subject, the greeting, the intro, the closing and the sign-off come
+ * from their copy, while the code, the note to keep the email and the link to
+ * the status page are rendered here whatever that copy says. A tenant who has
+ * written nothing gets the platform's wording, byte for byte what this file
+ * sent before the slots existed.
+ *
  * Modelled on gear-request-confirmation-email.ts: addressed to the person the
  * row is about rather than to staff, and carrying no "change what you get"
  * link, because there is no account to change it in.
@@ -21,13 +44,18 @@ import type { RenderedEmail } from "@/lib/notifications/rendered-email";
  * hard-deletes volunteer_applications on a schedule, and an inbox is somewhere
  * that clock cannot reach. The code and the link are what the email is for.
  *
- * The wording stays on "your application" rather than naming a volunteer role,
- * and that is deliberate rather than an oversight: `lexicon.*` lends a tenant
- * the collection and item vocabulary only (src/lib/lexicon.ts), so there is no
- * volunteer term to resolve, and platform code must not assume a tenant calls
- * its people volunteers. "Your application" is true for every tenant without
- * needing a registry entry.
+ * The platform's own wording stays on "your application" rather than naming a
+ * volunteer role, and that is deliberate rather than an oversight: `lexicon.*`
+ * lends a tenant the collection and item vocabulary only (src/lib/lexicon.ts),
+ * so there is no volunteer term to resolve, and platform code must not assume
+ * a tenant calls its people volunteers. "Your application" is true for every
+ * tenant without needing a registry entry -- and a tenant that does call them
+ * volunteers can now say so in its own copy.
  */
+
+const DEFINITION = requireAutoReplyDefinition(
+  VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+);
 
 export type VolunteerApplicationConfirmation = {
   orgName: string;
@@ -42,6 +70,12 @@ export type VolunteerApplicationConfirmation = {
   referenceCode: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
+  /**
+   * The tenant's logo and colours (#1238), from the same context. Omitted
+   * renders the platform's unbranded shell, which is what a tenant that has
+   * set no branding gets anyway.
+   */
+  branding?: EmailBranding;
 };
 
 /** Where an applicant looks their own application up. */
@@ -49,15 +83,22 @@ export function volunteerStatusHref(): string {
   return "/get-involved/volunteer/status";
 }
 
+/**
+ * @param copy The tenant's resolved slots (resolveAutoReply). Omitted renders
+ *   the platform's defaults, which is what a tenant with no row gets.
+ */
 export function renderVolunteerApplicationConfirmationEmail(
   confirmation: VolunteerApplicationConfirmation,
+  copy?: AutoReplyCopy,
 ): RenderedEmail {
-  const { orgName, referenceCode } = confirmation;
-  const greeting = confirmation.applicantName
-    ? `Hi ${confirmation.applicantName},`
-    : "Hi,";
-  const lead =
-    "Thanks for applying. We have your application and we'll be in touch about next steps.";
+  const { referenceCode } = confirmation;
+  const branding = confirmation.branding ?? EMPTY_EMAIL_BRANDING;
+  const palette = emailPalette(branding);
+  const words = autoReplyWords(DEFINITION, copy, {
+    org_name: confirmation.orgName,
+    first_name: confirmation.applicantName,
+    reference_code: referenceCode,
+  });
   const url = `${normalizeOrigin(confirmation.siteUrl)}${volunteerStatusHref()}`;
   const codeLead = "Your reference code is:";
   // Says what to do with it, because the status page asks for the code *and*
@@ -65,51 +106,41 @@ export function renderVolunteerApplicationConfirmationEmail(
   const codeNote =
     "Keep this email. You'll need that code, and the email address you applied with, to check your application's status.";
 
-  const textLines = [
-    greeting,
-    "",
-    lead,
-    "",
+  const text = joinTextBlocks([
+    words.greeting,
+    words.intro,
     `${codeLead} ${referenceCode}`,
-    "",
     codeNote,
-    "",
     `Check your status: ${url}`,
-    "",
-    `— ${orgName}`,
-  ];
+    words.closing,
+    words.signoff,
+  ]);
 
-  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(greeting)}</p>
-  <p style="margin: 0 0 16px;">${escapeHtml(lead)}</p>
-  <p style="margin: 0 0 4px;">${escapeHtml(codeLead)}</p>
-  <p style="margin: 0 0 16px; font-size: 20px; font-weight: 700; letter-spacing: 0.05em;">${escapeHtml(referenceCode)}</p>
-  <p style="margin: 0 0 12px;">${escapeHtml(codeNote)}</p>
-  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: #4c1d95; font-weight: 600; text-decoration: underline;">Check your status</a></p>
-  <p style="color: #57534e; margin: 12px 0 0;">— ${escapeHtml(orgName)}</p>
-</div>`;
+  const body = joinHtmlLines([
+    copyParagraphHtml(words.greeting, "margin: 0 0 16px;"),
+    copyParagraphHtml(words.intro, "margin: 0 0 16px;"),
+    `  <p style="margin: 0 0 4px;">${escapeHtml(codeLead)}</p>`,
+    `  <p style="margin: 0 0 16px; font-size: 20px; font-weight: 700; letter-spacing: 0.05em;">${escapeHtml(referenceCode)}</p>`,
+    `  <p style="margin: 0 0 12px;">${escapeHtml(codeNote)}</p>`,
+    `  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">Check your status</a></p>`,
+    copyParagraphHtml(words.closing, "margin: 0 0 12px;"),
+    copyParagraphHtml(
+      words.signoff,
+      `color: ${palette.muted}; margin: 12px 0 0;`,
+    ),
+  ]);
 
-  return {
-    subject: `Your application — ${orgName}`,
-    text: textLines.join("\n"),
-    html,
-  };
+  const html = renderEmailShell({
+    orgName: confirmation.orgName,
+    siteUrl: confirmation.siteUrl,
+    branding,
+    bodyHtml: body,
+  });
+
+  return { subject: words.subject, text, html };
 }
 
 /** A trailing slash on a hand-typed origin would otherwise double up. */
 function normalizeOrigin(siteUrl: string): string {
   return siteUrl.replace(/\/+$/, "");
-}
-
-/**
- * The applicant's name came off a public form and the organization's name out
- * of the tenants table: both are text, neither is markup.
- */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

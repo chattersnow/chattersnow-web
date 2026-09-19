@@ -1,6 +1,21 @@
 import type { ParseResult } from "@/lib/forms";
 
-export type AgendaOngoingItem = { updates: string; decisions_needed: string };
+/**
+ * One standing section's per-meeting text (#1240).
+ *
+ * All three are optional because a section's shape follows its template
+ * version, and both shapes have to be readable at once: a **manual** section
+ * writes `updates`/`decisions_needed`, a **sourced** one writes `discussion`,
+ * and a template revised from one to the other (or back) must not drop what
+ * somebody already typed. So reading tolerates any of the three on any
+ * section, and the form renders whatever is present rather than migrating old
+ * values into `discussion`.
+ */
+export type AgendaOngoingItem = {
+  updates?: string;
+  decisions_needed?: string;
+  discussion?: string;
+};
 
 /** Which record a pinned upcoming date was copied from. */
 export type AgendaUpcomingDateSourceKind = "event" | "calendar_item";
