@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { modal } from "./helpers/dialog";
 import { clickNavLink } from "./helpers/nav";
@@ -10,6 +10,28 @@ const EVENT_URL = /\/events\/e\/[0-9a-f-]{36}$/;
 /** The listing's card for an event: an anchor to the event's own URL (#847). */
 function eventLink(page: Page) {
   return page.getByRole("link", { name: EVENT_NAME });
+}
+
+/**
+ * Presses the sheet's Register trigger and fills the form it reveals (#1256).
+ *
+ * The form is behind a disclosure now, so every registration is two steps, and
+ * the trigger and the submit are deliberately different words.
+ */
+async function registerFromSheet(dialog: Locator, name: string, email: string) {
+  const trigger = dialog.getByRole("button", { name: "Register", exact: true });
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(dialog.getByLabel("Name")).toBeHidden();
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  // The revealed form takes focus, so a keyboard user carries on where the
+  // fields are rather than at the bottom of a page that silently grew.
+  await expect(dialog.getByLabel("Name")).toBeFocused();
+
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.getByLabel("Email").fill(email);
+  await dialog.getByRole("button", { name: "Complete registration" }).click();
 }
 
 test.describe("public events", () => {
@@ -130,10 +152,11 @@ test.describe("public events", () => {
       dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();
 
-    const uniqueEmail = `e2e-${Date.now()}@example.test`;
-    await dialog.getByLabel("Name").fill("E2E Test Registrant");
-    await dialog.getByLabel("Email").fill(uniqueEmail);
-    await dialog.getByRole("button", { name: "Register" }).click();
+    await registerFromSheet(
+      dialog,
+      "E2E Test Registrant",
+      `e2e-${Date.now()}@example.test`,
+    );
 
     await expect(
       dialog.getByText(
@@ -177,10 +200,11 @@ test.describe("public events", () => {
       dialog.getByRole("heading", { name: EVENT_NAME }),
     ).toBeVisible();
 
-    const uniqueEmail = `e2e-skip-${Date.now()}@example.test`;
-    await dialog.getByLabel("Name").fill("E2E Skipping Registrant");
-    await dialog.getByLabel("Email").fill(uniqueEmail);
-    await dialog.getByRole("button", { name: "Register" }).click();
+    await registerFromSheet(
+      dialog,
+      "E2E Skipping Registrant",
+      `e2e-skip-${Date.now()}@example.test`,
+    );
 
     const confirmation = dialog.getByText(
       "You're registered! We look forward to seeing you there.",

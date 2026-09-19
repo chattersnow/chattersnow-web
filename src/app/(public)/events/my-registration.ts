@@ -11,20 +11,59 @@ export type MyEventRegistration = {
 };
 
 /**
- * Who is looking at this event, where that changes what it offers (#1165).
+ * What a session knows about itself, and nothing more (#1257).
  *
- * Null means "an ordinary visitor": signed out, signed in but not yet linked
- * to a record, or a tenant without the constituent area. All three get the
- * anonymous registration form exactly as they did before, which is why this
- * returns one nullable value rather than three states the caller has to tell
- * apart.
+ * Every field here comes off `auth.users`: the address the account verified,
+ * and whatever display name the identity provider handed over. That is what
+ * makes it safe to put on a public page -- it answers "who are you signed in
+ * as?", never "do we have a record of you?", which is the question §5.23's
+ * silence rule refuses for anybody who can make an account.
  */
-export type EventViewer = {
-  /** What the organization already has for them, to prefill with. */
-  person: MyContactDetails;
-  /** Their registration, if they already have one. */
-  registration: MyEventRegistration | null;
+export type EventViewerAccount = {
+  /** The verified address on the account. */
+  email: string | null;
+  /** A display name from the provider's metadata, where there is one. */
+  name: string | null;
 };
+
+/**
+ * Who is looking at this event, where that changes what it offers (#1165,
+ * #1257).
+ *
+ * Two states rather than one nullable value, because a signed-in account with
+ * no approved claim (#1162) is not the same reader as a visitor with no
+ * cookie: the application is already holding its name and address, so asking
+ * it to type them again invites the typo that mints a second `people` row.
+ * Both still register down the anonymous path -- only one of them starts from
+ * a blank form.
+ *
+ * Null stays "a visitor we know nothing about": no session, and nothing on
+ * screen differs from what they see today.
+ */
+export type EventViewer =
+  | {
+      kind: "linked";
+      /** What the organization already has for them, to prefill with. */
+      person: MyContactDetails;
+      /** Their registration, if they already have one. */
+      registration: MyEventRegistration | null;
+    }
+  | {
+      kind: "account";
+      /** The session's own fields, with no reference to the directory. */
+      account: EventViewerAccount;
+    };
+
+/** The metadata keys OAuth providers use for a human-readable name. */
+const ACCOUNT_NAME_KEYS = ["full_name", "name", "preferred_name"] as const;
+
+function accountName(metadata: Record<string, unknown> | undefined) {
+  for (const key of ACCOUNT_NAME_KEYS) {
+    const value = metadata?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
 
 /**
  * Loads the signed-in view of one event.
@@ -49,13 +88,22 @@ export async function loadEventViewer(
   ]);
 
   const person = ((details.data ?? []) as MyContactDetails[])[0];
-  // No record is an account that has signed up but whose claim (#1162) has not
-  // been approved, or a tenant with the area off. Either way there is no
-  // `people` row to attach a registration to, so the anonymous form -- which
-  // will match or mint one -- is the right offer.
-  if (!person) return null;
+  // No record is an account whose claim (#1162) has not been approved, or a
+  // tenant with the constituent area off. There is no `people` row to attach a
+  // registration to, so the anonymous form -- which will match or mint one --
+  // is still the right offer; it just arrives filled in from the account.
+  if (!person) {
+    return {
+      kind: "account",
+      account: {
+        email: user.email ?? null,
+        name: accountName(user.user_metadata),
+      },
+    };
+  }
 
   return {
+    kind: "linked",
     person,
     registration:
       ((registration.data ?? []) as MyEventRegistration[])[0] ?? null,
