@@ -341,14 +341,24 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
                 <Input
                   id="brand-logo-url"
                   name="logo_url"
-                  type="url"
+                  // Deliberately not `type="url"`, for the reason the website
+                  // list editor writes out at length (#1267): the browser's own
+                  // URL validation demands a scheme, and a file this site
+                  // serves itself -- `/chatter-logo-transparent.png`, which is
+                  // the first tenant's logo -- is exactly what it rejects.
+                  // `resolveImageUrl()` supports those paths on purpose, so the
+                  // box has to accept what the stack already stores. Worse, a
+                  // rejected field blocks the whole form: a tenant whose logo
+                  // is a path could not save a colour or a typeface either.
+                  inputMode="url"
                   placeholder="https://drive.google.com/file/d/..."
                   value={logoUrl}
                   onChange={(event) => setLogoUrl(event.target.value)}
                 />
                 <FieldDescription>
-                  A Google Drive link or any image URL. Shown in the site header
-                  and footer and in the portal sidebar.
+                  A Google Drive link, any image URL, or a path to a file this
+                  site serves, starting with <code>/</code>. Shown in the site
+                  header and footer and in the portal sidebar.
                 </FieldDescription>
               </Field>
             </FieldGroup>
@@ -379,7 +389,9 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
                 <Input
                   id="brand-app-icon-url"
                   name={APP_ICON_URL_TOKEN}
-                  type="url"
+                  // Same as the logo above (#1267), and for the same reason:
+                  // an icon in `public/` is a path, not a URL with a scheme.
+                  inputMode="url"
                   placeholder="https://drive.google.com/file/d/..."
                   value={appIconUrl}
                   onChange={(event) => setAppIconUrl(event.target.value)}
