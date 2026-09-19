@@ -124,6 +124,7 @@ describe("buildMinutesSnapshot", () => {
     ).toEqual({
       updates: "",
       decisions_needed: "",
+      discussion: "",
       topics: ["Upcoming events"],
     });
   });
@@ -151,6 +152,26 @@ describe("buildMinutesSnapshot", () => {
       label: "Storage unit lease",
     });
     expect(withMoreBusiness.items[7]).toMatchObject({ key: "new_business:2" });
+  });
+
+  test("freezes a sourced section's discussion text, not a blank pair", () => {
+    // #1240: a section whose template version names a data source writes
+    // `discussion` and nothing else. The snapshot has to carry it, or the
+    // notetaker starts the meeting with an empty guide under a heading the
+    // board just wrote three sentences about.
+    const snapshot = build({
+      ...FULL_AGENDA,
+      ongoing_items: {
+        events: { discussion: "Swap needs two more volunteers." },
+      },
+    });
+    expect(
+      snapshot.items.find((item) => item.key === "section:events")?.planned,
+    ).toMatchObject({
+      updates: "",
+      decisions_needed: "",
+      discussion: "Swap needs two more volunteers.",
+    });
   });
 
   test("coerces the legacy seed shapes instead of crashing on them", () => {

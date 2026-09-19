@@ -131,6 +131,9 @@ function PlannedContent({ item }: { item: MinutesItem }) {
     planned.decisions_needed
       ? { label: "Decisions needed", text: planned.decisions_needed }
       : null,
+    planned.discussion
+      ? { label: "Discussion", text: planned.discussion }
+      : null,
   ].filter((line): line is { label: string | null; text: string } => !!line);
 
   const topics = planned.topics ?? [];
