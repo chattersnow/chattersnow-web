@@ -62,6 +62,7 @@ import { AgendaPartnershipsFeed } from "./agenda-partnerships-feed";
 import {
   listActionItemsAction,
   listCarriedOverActionItemsAction,
+  updateActionItemStatusAction,
   type ActionItem,
 } from "./action-items-actions";
 import { listDecisionsAction, type Decision } from "./decisions-actions";
@@ -72,8 +73,10 @@ import {
 import { MinutesApprovalDialog } from "./minutes-approval-dialog";
 import { RecordPreviewProvider } from "@/components/portal/record-preview-sheet";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { runAction } from "@/components/portal/action-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -106,6 +109,7 @@ import {
   formatAgendaPlainText,
   type AgendaExportInput,
 } from "./agenda-export";
+import type { AgendaSectionFeeds } from "./agenda-feed-text";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
@@ -213,6 +217,36 @@ function SectionModuleFeed({
 }
 
 /**
+ * The same question `SectionModuleFeed` above answers -- which module rows
+ * belong to this section -- asked for the export (#1244) rather than for the
+ * screen. Keyed by section key, the way `AgendaExportInput` keys it.
+ *
+ * It hands over the feeds the tab has already loaded: a section still waiting
+ * on its read contributes `undefined`, which the export prints as nothing
+ * rather than as an empty group, and the export itself reads nothing.
+ */
+function sourcedSectionFeeds(
+  sections: AgendaTemplateSection[],
+  feeds: SectionModuleFeeds,
+): Record<string, AgendaSectionFeeds> {
+  const bySection: Record<string, AgendaSectionFeeds> = {};
+  for (const section of sections) {
+    const source = agendaSectionSource(section);
+    if (source?.kind === "events") {
+      bySection[section.key] = { events: feeds.eventsFeed };
+    } else if (source?.kind === "calendar") {
+      bySection[section.key] = {
+        calendar: feeds.calendarFeeds?.[section.key],
+        partnerships: sectionShowsPartnerships(section)
+          ? feeds.partnershipsFeed
+          : undefined,
+      };
+    }
+  }
+  return bySection;
+}
+
+/**
  * The template's reference topics for a section, behind a dotted-underline
  * count so a long list does not push the agenda's own content down the page.
  *
@@ -273,6 +307,87 @@ function sourceTitles(
     titles[meetingContextSourceKey(entry)] = entry.title;
   }
   return titles;
+}
+
+/**
+ * What the previous meeting left open -- and, for a governance manager, where
+ * it gets closed (#1245).
+ *
+ * Going through these is the first real thing a board does, and closing one
+ * used to mean leaving the agenda for the Action Items tab, finding the row,
+ * and coming back. Mid-meeting that does not happen, so items stayed open.
+ *
+ * A ticked row stays in the list, struck through, until the tab is left and
+ * re-entered: `listCarriedOverActionItemsAction` filters on `status = 'open'`,
+ * so re-reading here would make the row vanish under the reader in the one
+ * moment when the whole board is looking at it. The Action Items tab reads
+ * afresh when it mounts, which is where the two lists meet again.
+ *
+ * Optimistic, and reverted on failure -- a tick that quietly did nothing is
+ * worse than an error, because the meeting moves on believing it closed.
+ */
+function CarriedOverActionItems({
+  items,
+  canManage,
+  onChanged,
+}: {
+  items: ActionItem[];
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  // Only what has been ticked in this sitting. Everything the read returned
+  // was open, so an absent key means open.
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  // No pending flag on the boxes: the tick is already on screen, and
+  // disabling the list would stop a board closing three items in a row.
+  const [, startToggle] = useTransition();
+
+  function toggle(item: ActionItem) {
+    const next = !done[item.id];
+    setDone((prev) => ({ ...prev, [item.id]: next }));
+    startToggle(async () => {
+      const outcome = await runAction(
+        () => updateActionItemStatusAction(item.id, next ? "done" : "open"),
+        {
+          success: next ? "Action item marked done." : "Action item reopened.",
+          error: "Could not update the action item. Please try again.",
+          onSuccess: onChanged,
+        },
+      );
+      if (!outcome.ok) setDone((prev) => ({ ...prev, [item.id]: !next }));
+    });
+  }
+
+  if (items.length === 0) {
+    return <p className="app-muted text-sm">None carried over.</p>;
+  }
+
+  return (
+    <ul className="flex flex-col gap-1 text-sm">
+      {items.map((item) => (
+        <li key={item.id} className="flex items-start gap-2">
+          {/* Read-only governance access sees the list exactly as before. */}
+          {canManage && (
+            <Checkbox
+              className="mt-1"
+              checked={done[item.id] ?? false}
+              aria-label={item.description}
+              onCheckedChange={() => toggle(item)}
+            />
+          )}
+          <span
+            className={done[item.id] ? "app-muted line-through" : undefined}
+          >
+            {item.description}
+            <span className="app-muted">
+              {" "}
+              — {personDisplayName(item.owner)}
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function ReadOnlySection({
@@ -896,6 +1011,7 @@ export function AgendaTab({
                 decisions: decisions ?? [],
                 datedContext,
                 topicContext,
+                sourcedSections: sourcedSectionFeeds(sections, feeds),
               }}
             />
           </div>
@@ -942,21 +1058,11 @@ export function AgendaTab({
             title="Action items from previous meeting"
             onViewAll={onViewActionItems}
           >
-            {(carriedOverItems ?? []).length === 0 ? (
-              <p className="app-muted text-sm">None carried over.</p>
-            ) : (
-              <ul className="flex flex-col gap-1 text-sm">
-                {(carriedOverItems ?? []).map((item) => (
-                  <li key={item.id}>
-                    {item.description}
-                    <span className="app-muted">
-                      {" "}
-                      — {personDisplayName(item.owner)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <CarriedOverActionItems
+              items={carriedOverItems ?? []}
+              canManage={canManage}
+              onChanged={() => router.refresh()}
+            />
           </ReadOnlySection>
 
           <div>

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { formatCalendarDate } from "@/lib/format";
 import { StatusBadge, ReportStatusBadge } from "../../events/event-badges";
+import { eventReportOutstanding } from "./agenda-feed-text";
 import type {
   AgendaEvent,
   AgendaEventsFeed as AgendaEventsFeedData,
@@ -87,20 +88,13 @@ function EventsGroup({
   );
 }
 
-/**
- * An event that went ahead. A cancelled or still-draft event owes no report, so
- * flagging one as outstanding sends a board after paperwork that was never due.
- */
-const HELD_STATUSES = new Set(["published", "completed"]);
-
 function EventRow({ event, past }: { event: AgendaEvent; past?: boolean }) {
   // The one row a board is there to act on: the event is behind it, it happened,
   // and the report still isn't in. Marked in place rather than gathered into a
-  // list of its own, so it stays beside the date it is late against.
-  const reportOutstanding =
-    past &&
-    HELD_STATUSES.has(event.status) &&
-    event.report_status !== "submitted";
+  // list of its own, so it stays beside the date it is late against. The rule
+  // lives with the export's copy of these rows (#1244), so the printed agenda
+  // flags exactly what this table flags.
+  const reportOutstanding = eventReportOutstanding(event, past);
 
   return (
     <TableRow>

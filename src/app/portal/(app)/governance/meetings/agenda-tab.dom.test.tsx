@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+  expectToast,
+  renderWithToaster,
+} from "../../../../../../test/toast-testing";
 import * as ActionItemsActions from "./action-items-actions";
+import type { ActionItem } from "./action-items-actions";
 import * as AgendaActions from "./agenda-actions";
 import * as DecisionsActions from "./decisions-actions";
 import * as MinutesApprovalActions from "./minutes-approval-actions";
@@ -80,10 +80,18 @@ mock.module("./agenda-actions", () => ({
   listActiveAgendaTemplatesAction: mock(async () => ({ data: [] })),
   upsertAgendaAction,
 }));
+// What the previous meeting left open, and closing one from here (#1245).
+let carriedOver: ActionItem[] = [];
+const updateActionItemStatusAction = mock(
+  async (_id: string, _status: "open" | "done") => ({
+    success: true as const,
+  }),
+);
 mock.module("./action-items-actions", () => ({
   ...ActionItemsActions,
   listActionItemsAction: mock(async () => ({ data: [] })),
-  listCarriedOverActionItemsAction: mock(async () => ({ data: [] })),
+  listCarriedOverActionItemsAction: mock(async () => ({ data: carriedOver })),
+  updateActionItemStatusAction,
 }));
 mock.module("./decisions-actions", () => ({
   ...DecisionsActions,
@@ -299,13 +307,15 @@ function agenda(
   };
 }
 
-function renderTab(mode: "view" | "edit") {
-  return render(
+// With a toaster throughout: the tab announces a failed action through one,
+// and a tab rendered without it would swallow the only evidence a tick failed.
+function renderTab(mode: "view" | "edit", canManage = true) {
+  return renderWithToaster(
     <AgendaTab
       meetingId="meeting-1"
       meetingDate="2026-09-01"
       mode={mode}
-      canManage
+      canManage={canManage}
       minutesApprovedAt={null}
       onViewActionItems={() => {}}
       onViewDecisions={() => {}}
@@ -314,9 +324,24 @@ function renderTab(mode: "view" | "edit") {
   );
 }
 
+function carriedOverItem(description: string): ActionItem {
+  return {
+    id: "action-1",
+    meeting_id: "meeting-0",
+    description,
+    due_date: null,
+    status: "open",
+    minutes_item_key: null,
+    owner: { id: "person-1", name: "Dana Lead", email: null, phone: null },
+  };
+}
+
 beforeEach(() => {
   upsertAgendaAction.mockClear();
+  updateActionItemStatusAction.mockClear();
+  updateActionItemStatusAction.mockResolvedValue({ success: true as const });
   agendaRow = null;
+  carriedOver = [];
 });
 
 describe("AgendaTab ongoing board items", () => {
@@ -644,5 +669,73 @@ describe("AgendaTab calendar and partnerships feeds", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByText("Said so.")).toBeDefined();
     listAgendaCalendarItemsAction.mockClear();
+  });
+});
+
+// Closing a carried-over item without leaving the agenda (#1245). Going
+// through these is the first real thing a board does, and the round trip to
+// the Action Items tab is what stopped anyone doing it mid-meeting.
+describe("AgendaTab carried-over action items", () => {
+  test("ticking one closes it and keeps the row on screen", async () => {
+    const user = userEvent.setup();
+    carriedOver = [carriedOverItem("Book the venue")];
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    const box = await waitFor(
+      () => screen.getByRole("checkbox", { name: "Book the venue" }),
+      SETTLE,
+    );
+    await user.click(box);
+
+    await waitFor(
+      () =>
+        expect(updateActionItemStatusAction).toHaveBeenCalledWith(
+          "action-1",
+          "done",
+        ),
+      SETTLE,
+    );
+    // The row stays, visibly done: the read filters on `status = 'open'`, so
+    // dropping it here would make it vanish mid-meeting.
+    expect(screen.getByText(/Book the venue/)).toBeDefined();
+    expect(box.getAttribute("aria-checked")).toBe("true");
+  });
+
+  test("a failed update reverts the tick and says so", async () => {
+    const user = userEvent.setup();
+    updateActionItemStatusAction.mockResolvedValue({
+      error: "Could not update this action item. Please try again.",
+    } as never);
+    carriedOver = [carriedOverItem("Send the thank-you notes")];
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view");
+
+    const box = await waitFor(
+      () => screen.getByRole("checkbox", { name: "Send the thank-you notes" }),
+      SETTLE,
+    );
+    await user.click(box);
+
+    await expectToast("Could not update this action item. Please try again.");
+    // Reverted: a tick that quietly did nothing would leave the meeting
+    // believing the item closed.
+    await waitFor(
+      () => expect(box.getAttribute("aria-checked")).toBe("false"),
+      SETTLE,
+    );
+  });
+
+  test("a read-only viewer sees the list with no checkbox", async () => {
+    carriedOver = [carriedOverItem("Book the venue")];
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("view", false);
+
+    await waitFor(
+      () => expect(screen.getByText(/Book the venue/)).toBeDefined(),
+      SETTLE,
+    );
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(updateActionItemStatusAction).not.toHaveBeenCalled();
   });
 });
