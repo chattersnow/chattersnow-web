@@ -16,7 +16,7 @@ export default function MySignInLoading() {
           </div>
         </section>
 
-        <div className="space-y-6 rounded-xl border border-[var(--line)] p-6">
+        <div className="max-w-md space-y-6 rounded-xl border border-[var(--line)] p-6">
           <Skeleton className="h-8 w-full rounded-lg" />
           <Skeleton className="h-9 w-full rounded-lg" />
           <Skeleton className="h-9 w-full rounded-lg" />

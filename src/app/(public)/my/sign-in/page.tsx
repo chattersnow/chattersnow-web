@@ -54,7 +54,11 @@ export default async function MySignInPage() {
           </p>
         </section>
 
-        <Card className="rainbow-surface">
+        {/* The card is capped, not the shell: #1218 keeps every public page
+          on PageShell's one column, and a shorter measure belongs on the
+          element that needs it. A sign-in form stretched to 1152px puts the
+          submit button a screen-width away from the fields above it. */}
+        <Card className="rainbow-surface max-w-md">
           <CardContent>
             {/* useSearchParams inside, so the boundary is required. The
               fallback is form-shaped rather than null: an empty card that
