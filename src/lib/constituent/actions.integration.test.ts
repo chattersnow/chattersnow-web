@@ -28,6 +28,8 @@ import {
   SEEDED_USERS,
   adminClient,
   createPublishedEvent,
+  enableModule,
+  seededTenantId,
   serviceRoleClient,
   signIn,
   signInAs,
@@ -47,6 +49,7 @@ type Constituent = {
 };
 
 let tenantId: string;
+let restoreModule: () => Promise<void>;
 let alice: Constituent;
 let bob: Constituent;
 
@@ -132,14 +135,8 @@ async function countPeople(): Promise<number> {
 }
 
 beforeAll(async () => {
-  const { data } = await service
-    .from("tenants")
-    .select("id")
-    .eq("slug", "example-nonprofit")
-    .single();
-  tenantId = data!.id;
-
-  await setModule("constituent_accounts", true);
+  tenantId = await seededTenantId();
+  restoreModule = await enableModule(tenantId, "constituent_accounts");
 
   alice = await makeConstituent("alice");
   bob = await makeConstituent("bob");
@@ -147,11 +144,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup();
-  await service
-    .from("tenant_modules")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("module_key", "constituent_accounts");
+  await restoreModule();
 });
 
 describe("registering as yourself", () => {

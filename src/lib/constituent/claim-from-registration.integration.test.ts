@@ -15,10 +15,13 @@ import {
   adminClient,
   anonClient,
   createPublishedEvent,
+  enableModule,
+  seededTenantId,
   serviceRoleClient,
   signIn,
   uniqueEmail,
   uniqueIp,
+  withModule,
 } from "../../../test/integration-setup";
 
 const service = serviceRoleClient();
@@ -29,7 +32,7 @@ let eventId: string;
 let eventName: string;
 let eventCleanup: () => Promise<void>;
 /** The tenant's own module row as this file found it, or null if it had none. */
-let moduleWasEnabled: boolean | null = null;
+let restoreModule: () => Promise<void>;
 
 const createdUsers: string[] = [];
 const createdPeople: string[] = [];
@@ -118,39 +121,16 @@ async function claimsFor(userId: string) {
 }
 
 beforeAll(async () => {
-  const { data } = await service
-    .from("tenants")
-    .select("id")
-    .eq("slug", "example-nonprofit")
-    .single();
-  tenantId = data!.id;
+  tenantId = await seededTenantId();
 
   // `constituent_accounts` is the one module in the catalog that defaults to
   // off, and a tenant actually using this has it on. The off case is a test of
   // its own below rather than the ambient state.
   //
-  // The seed already turns it on for this tenant (#1175), which is what lets
-  // `/my` and the e2e specs exist locally -- so this restores whatever it found
-  // rather than deleting the row afterwards. Deleting it leaves the local stack
-  // with the area off, and the next `bun run test:e2e` fails on a 404 nobody
-  // changed the code to cause.
-  const { data: before } = await service
-    .from("tenant_modules")
-    .select("enabled")
-    .eq("tenant_id", tenantId)
-    .eq("module_key", "constituent_accounts")
-    .maybeSingle();
-  moduleWasEnabled = before?.enabled ?? null;
-
-  const { error: moduleError } = await service.from("tenant_modules").upsert(
-    {
-      tenant_id: tenantId,
-      module_key: "constituent_accounts",
-      enabled: true,
-    },
-    { onConflict: "tenant_id,module_key" },
-  );
-  if (moduleError) throw new Error(`enable module: ${moduleError.message}`);
+  // `enableModule` restores whatever it found rather than deleting the row,
+  // because the seed already turns this one on (#1175) and that is what lets
+  // `/my` and the e2e specs exist locally (#1282).
+  restoreModule = await enableModule(tenantId, "constituent_accounts");
 
   const event = await createPublishedEvent({
     name: `Claim source event ${run}`,
@@ -165,19 +145,7 @@ afterAll(async () => {
   await eventCleanup();
   await service.from("people").delete().in("id", createdPeople);
 
-  if (moduleWasEnabled === null) {
-    await service
-      .from("tenant_modules")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("module_key", "constituent_accounts");
-  } else {
-    await service
-      .from("tenant_modules")
-      .update({ enabled: moduleWasEnabled })
-      .eq("tenant_id", tenantId)
-      .eq("module_key", "constituent_accounts");
-  }
+  await restoreModule();
 });
 
 describe("claiming from a registration", () => {
@@ -320,21 +288,12 @@ describe("claiming from a registration", () => {
     const { client, userId } = await makeConstituent(email);
     const registrationId = await registration({ name: "Module Off", email });
 
-    await service
-      .from("tenant_modules")
-      .update({ enabled: false })
-      .eq("tenant_id", tenantId)
-      .eq("module_key", "constituent_accounts");
-
-    const { error } = await client.rpc("submit_claim_from_registration", {
-      p_registration_id: registrationId,
+    let error: unknown = null;
+    await withModule(tenantId, "constituent_accounts", false, async () => {
+      ({ error } = await client.rpc("submit_claim_from_registration", {
+        p_registration_id: registrationId,
+      }));
     });
-
-    await service
-      .from("tenant_modules")
-      .update({ enabled: true })
-      .eq("tenant_id", tenantId)
-      .eq("module_key", "constituent_accounts");
 
     // Silent, like every other branch: a tenant's entitlements are not a
     // claimant's business either. This is also the demo tenant's answer,
