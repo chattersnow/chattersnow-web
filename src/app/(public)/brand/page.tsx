@@ -5,7 +5,13 @@ import { InstagramLink } from "@/components/instagram-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/page-shell";
 import { SiteImage } from "@/components/site-image";
-import { accentStops, brandColorPairs } from "@/lib/branding";
+import {
+  accentStops,
+  brandColorPairs,
+  googleFontsUrl,
+  resolvedTypography,
+  typographyFamilies,
+} from "@/lib/branding";
 import { requireVisiblePage } from "@/lib/page-visibility";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { getSiteImageUrls } from "@/lib/site-images";
@@ -116,6 +122,8 @@ export default async function BrandPage() {
 
   const colors = brandColorPairs(branding);
   const stops = accentStops(branding);
+  const typography = resolvedTypography(branding);
+  const typeFamilies = typographyFamilies(typography);
   const voice = content.list<VoicePair>("brand.voice");
   const logoRules = content.list<Rule>("brand.logo_rules");
   const tagline = content.text("org.tagline");
@@ -168,8 +176,8 @@ export default async function BrandPage() {
               below is read at request time from the same rows that paint the
               site, so there is no version of this page that disagrees with it. */}
           <p className="app-muted mt-4 max-w-2xl text-xs leading-relaxed">
-            Read from the live site when this page loaded. If a colour changes,
-            this page changes with it.
+            Read from the live site when this page loaded. If a colour or a
+            typeface changes, this page changes with it.
           </p>
         </header>
 
@@ -286,39 +294,118 @@ export default async function BrandPage() {
         <Section
           id="type"
           eyebrow="02 — Typography"
-          title="The platform's type system"
-          intro="Unlike the colours, the typeface is not yours to set: it is part of the software rather than of your brand, and it is the same on every organization's site. The words in the specimens are yours."
+          title="Our typefaces"
+          intro={`Chosen the same way the colours are, and printed here for the same reason: somebody rebuilding this brand in Canva or a print shop needs the family name, not a picture of it. This organization is set in ${typography.label}.`}
         >
-          <div className="space-y-4">
+          {/* The set, read through `resolvedTypography` -- the same registry
+              `brandingCss()` reads. A second mapping from the stored key to a
+              family name is exactly the drift `accentStops()` was extracted to
+              prevent, and it would be worse here: a wrong hex is visibly wrong
+              beside its swatch, a wrong family name is not. */}
+          <div className="rounded-xl border border-[var(--line)] bg-card p-6">
+            <div className="app-muted flex items-baseline justify-between text-xs">
+              <span>The set</span>
+              <span className="font-mono">{typography.label}</span>
+            </div>
+            <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed">
+              {typography.description}
+            </p>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {typeFamilies.map((family) => (
+                <li
+                  key={family.cssVar}
+                  className="rounded-lg border border-[var(--line)] p-4"
+                >
+                  {/* Each name set in its own face. The page cannot name a
+                      family it is not rendering if the name is the specimen. */}
+                  <p
+                    className="text-lg leading-tight"
+                    style={{ fontFamily: `var(${family.cssVar})` }}
+                  >
+                    {family.name}
+                  </p>
+                  <p className="app-muted mt-2 text-xs">{family.license}</p>
+                  <a
+                    className="mt-1 inline-block text-sm underline underline-offset-4"
+                    href={googleFontsUrl(family)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Get it from Google Fonts
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed">
+              Free to download and install under the licences above, so a flyer
+              or a poster made outside this site can be set in the same faces.
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-4">
             <div className="rounded-xl border border-[var(--line)] bg-card p-6">
-              <div className="app-muted flex items-baseline justify-between text-xs">
+              <div className="app-muted flex items-baseline justify-between gap-4 text-xs">
                 <span>Headline</span>
-                <span className="font-mono">600 · -0.04em</span>
+                <span className="text-right font-mono">
+                  {typography.heading.name} · 600 · {typography.headingTracking}
+                </span>
               </div>
               <p className="brand-display mt-3 text-4xl font-semibold tracking-brand sm:text-5xl">
                 {tagline}
               </p>
             </div>
             <div className="rounded-xl border border-[var(--line)] bg-card p-6">
-              <div className="app-muted flex items-baseline justify-between text-xs">
+              <div className="app-muted flex items-baseline justify-between gap-4 text-xs">
                 <span>Eyebrow</span>
-                <span className="font-mono">700 · 0.2em · uppercase</span>
+                {/* The display family, not the accent: `.app-eyebrow` is
+                    uppercase at 0.2em, which no script face survives. */}
+                <span className="text-right font-mono">
+                  {typography.heading.name} · 700 · 0.2em · uppercase
+                </span>
               </div>
               <p className="app-eyebrow mt-3">{shortName}</p>
             </div>
             <div className="rounded-xl border border-[var(--line)] bg-card p-6">
-              <div className="app-muted flex items-baseline justify-between text-xs">
+              <div className="app-muted flex items-baseline justify-between gap-4 text-xs">
                 <span>Body</span>
-                <span className="font-mono">400–500 · 1.6</span>
+                <span className="text-right font-mono">
+                  {typography.sans.name} · 400–500 · 1.6
+                </span>
               </div>
               <p className="mt-3 max-w-[58ch] text-sm leading-relaxed sm:text-base">
                 {content.text("brand.intro")}
               </p>
             </div>
+            {/* Only the sets that pair one. Unlike the three above it has no
+                component class to borrow -- `--font-accent-script` is there for
+                display use rather than spent by anything today -- so the
+                specimen names the family's own variable. */}
+            {typography.accent && (
+              <div className="rounded-xl border border-[var(--line)] bg-card p-6">
+                <div className="app-muted flex items-baseline justify-between gap-4 text-xs">
+                  <span>Script accent</span>
+                  <span className="text-right font-mono">
+                    {typography.accent.name} · 400
+                  </span>
+                </div>
+                <p
+                  className="mt-3 text-2xl leading-snug"
+                  style={{ fontFamily: `var(${typography.accent.cssVar})` }}
+                >
+                  {shortName}
+                </p>
+                <p className="app-muted mt-3 text-sm leading-relaxed">
+                  A word or a short phrase, never a sentence and never body
+                  text.
+                </p>
+              </div>
+            )}
           </div>
-          <p className="app-muted mt-4 text-sm leading-relaxed">
-            If your organization needs its own typeface, that is a change to the
-            software rather than a setting — ask, and it can be looked at.
+
+          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed">
+            The type scale is not yours to set: sizes, weights and line heights
+            belong to the design system, the same as the measurements in the
+            next section. The typeface is the part you choose.
           </p>
         </Section>
 
