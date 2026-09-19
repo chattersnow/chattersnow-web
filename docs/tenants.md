@@ -484,7 +484,14 @@ Both are the tenant admin's, not the operator's:
   tuned for Quicksand and is wrong on a serif. An unknown key resolves to the
   default rather than reaching the `<style>` block. Chatter Snow's `rounded`
   row is seeded by `20260918020000_brand_typography.sql`, which is why nothing
-  on its site changed when this shipped. Email is deliberately out of scope:
+  on its site changed when this shipped. It is picked (#1261) from a list of
+  specimens rather than a dropdown of names, each option drawn in the families
+  it would apply, because "Editorial" set in everybody else's typeface says
+  nothing about the only thing being chosen; "Platform default" is the first
+  option and stores a blank value, so it follows the platform's default rather
+  than pinning today's. That page is the one screen that renders all eight
+  families at once, and it is a signed-in portal page, so the `preload: false`
+  discipline stays as it is. Email is deliberately out of scope:
   web fonts do not load in most mail clients, so a branded email carries the
   tenant's colours and its logo and not its typeface.
 

@@ -39,10 +39,12 @@ const {
   updateSalesTaxRateAction,
   updateEmailNotificationsEnabledAction,
   updateSenderIdentityAction,
+  updateBrandingAction,
 } = await import("./actions");
 const { SALES_TAX_RATE_SETTING_KEY } = await import("@/lib/sales-tax");
 const { FROM_ADDRESS_SETTING_KEY, REPLY_TO_SETTING_KEY } =
   await import("@/lib/email/identity");
+const { TYPOGRAPHY_TOKEN, brandSettingKey } = await import("@/lib/branding");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -388,6 +390,103 @@ describe("updateSenderIdentityAction", () => {
       expect(await settingValue(FROM_ADDRESS_SETTING_KEY)).not.toBe(
         "billing@someone-elses-domain.example",
       );
+    });
+  });
+});
+
+/**
+ * The typeface set (#1260, picker #1261) -- the one brand token whose value is
+ * a key into a registry rather than a string an administrator types.
+ *
+ * `updateBrandingAction` writes every `brand.*` row in one upsert, so these
+ * snapshot and restore the whole namespace rather than the single key.
+ * Otherwise the first save here would leave the seeded palette blank for
+ * whichever integration file runs next.
+ */
+describe("updateBrandingAction typography", () => {
+  const KEY = brandSettingKey(TYPOGRAPHY_TOKEN);
+
+  function brandingForm(typography: string) {
+    const fd = new FormData();
+    fd.set(TYPOGRAPHY_TOKEN, typography);
+    return fd;
+  }
+
+  async function withRestoredBranding(run: () => Promise<void>) {
+    const { data } = await serviceRoleClient
+      .from("app_settings")
+      .select("key, value")
+      .like("key", "brand.%");
+    const original = data ?? [];
+    try {
+      await run();
+    } finally {
+      // Restoring the rows that existed is not enough: one save writes every
+      // `brand.*` key, so a token this tenant had never set is left behind
+      // rather than put back. Delete what was not in the snapshot.
+      const keys = new Set(original.map((row) => row.key as string));
+      const { data: after } = await serviceRoleClient
+        .from("app_settings")
+        .select("key")
+        .like("key", "brand.%");
+      for (const row of after ?? []) {
+        if (!keys.has(row.key as string)) {
+          await serviceRoleClient
+            .from("app_settings")
+            .delete()
+            .eq("key", row.key);
+        }
+      }
+      for (const row of original) {
+        await serviceRoleClient
+          .from("app_settings")
+          .update({ value: row.value })
+          .eq("key", row.key);
+      }
+    }
+  }
+
+  test("an anonymous visitor cannot touch it", async () => {
+    currentSupabase = anonClient();
+
+    expect(await updateBrandingAction(brandingForm("rounded"))).toEqual(DENIED);
+  });
+
+  test("an admin picks a set and it round-trips by key", async () => {
+    await withRestoredBranding(async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      expect(await updateBrandingAction(brandingForm("editorial"))).toEqual({
+        success: true,
+      });
+      expect(await settingValue(KEY)).toBe("editorial");
+    });
+  });
+
+  test("a key the registry does not know is refused, not stored", async () => {
+    await withRestoredBranding(async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      await updateBrandingAction(brandingForm("editorial"));
+
+      expect(await updateBrandingAction(brandingForm("comic-sans"))).toEqual({
+        error: "Pick one of the listed typefaces.",
+      });
+      expect(await settingValue(KEY)).toBe("editorial");
+    });
+  });
+
+  test("clearing it writes an empty value rather than deleting", async () => {
+    // app_settings has no delete grant for `authenticated`, so "" is how "no
+    // choice of my own" is written -- and `typographySet("")` is null, which
+    // is the platform's own set everywhere that reads it.
+    await withRestoredBranding(async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      await updateBrandingAction(brandingForm("editorial"));
+
+      expect(await updateBrandingAction(brandingForm(""))).toEqual({
+        success: true,
+      });
+      expect(await settingValue(KEY)).toBe("");
     });
   });
 });
