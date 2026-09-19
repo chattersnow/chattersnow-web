@@ -153,6 +153,9 @@ type EventOverrides = {
   startsAt?: string;
   endsAt?: string | null;
   timezone?: string;
+  /** Defaults to the column's own 'not_started'. */
+  reportStatus?: "not_started" | "in_progress" | "submitted";
+  eventLeadId?: string | null;
 };
 
 export async function createPublishedEvent(overrides: EventOverrides = {}) {
@@ -173,6 +176,12 @@ export async function createPublishedEvent(overrides: EventOverrides = {}) {
       registration_deadline: overrides.registration_deadline ?? null,
       capacity: overrides.capacity ?? null,
       auto_assign_discount_codes: overrides.auto_assign_discount_codes ?? false,
+      ...(overrides.reportStatus
+        ? { report_status: overrides.reportStatus }
+        : {}),
+      ...(overrides.eventLeadId
+        ? { event_lead_id: overrides.eventLeadId }
+        : {}),
     })
     .select("id")
     .single();

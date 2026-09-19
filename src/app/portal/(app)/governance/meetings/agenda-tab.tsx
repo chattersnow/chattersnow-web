@@ -35,10 +35,16 @@ import {
   MEETING_RECORD_PREVIEW_LOADERS,
 } from "./meeting-record-preview";
 import {
+  agendaSectionSource,
   isSourcedSection,
   type ActiveAgendaTemplate,
   type AgendaTemplateSection,
 } from "./agenda-template-shared";
+import {
+  listAgendaEventsAction,
+  type AgendaEventsFeed as AgendaEventsFeedData,
+} from "./agenda-events-actions";
+import { AgendaEventsFeed } from "./agenda-events-feed";
 import {
   listActionItemsAction,
   listCarriedOverActionItemsAction,
@@ -100,6 +106,31 @@ function OngoingItemBlock({ label, text }: { label: string; text: string }) {
       <p className="whitespace-pre-wrap text-sm">{text}</p>
     </div>
   );
+}
+
+/**
+ * What a sourced section's module contributes, above its Discussion box.
+ *
+ * One place where a section key meets a feed, so the section's own markup does
+ * not grow a branch per module. #1241 fills the `events` arm; #1242 and #1243
+ * add the two calendar-sourced ones beside it, and a source this build does not
+ * render yet falls through to nothing rather than to an error -- the same
+ * stance `agendaSectionSource` takes about a `kind` it has never heard of.
+ */
+function SectionModuleFeed({
+  section,
+  eventsFeed,
+  eventsFeedError,
+}: {
+  section: AgendaTemplateSection;
+  eventsFeed: AgendaEventsFeedData | undefined;
+  eventsFeedError: string | null;
+}) {
+  const source = agendaSectionSource(section);
+  if (source?.kind === "events") {
+    return <AgendaEventsFeed feed={eventsFeed} loadError={eventsFeedError} />;
+  }
+  return null;
 }
 
 /**
@@ -226,6 +257,8 @@ function AgendaForm({
   meetingId,
   datedContext,
   datedContextError,
+  eventsFeed,
+  eventsFeedError,
   onSaved,
   onCancel,
   onDirtyChange,
@@ -237,6 +270,8 @@ function AgendaForm({
   meetingId: string;
   datedContext: MeetingDatedContextData | undefined;
   datedContextError: string | null;
+  eventsFeed: AgendaEventsFeedData | undefined;
+  eventsFeedError: string | null;
   onSaved: () => void;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -406,11 +441,14 @@ function AgendaForm({
                     {isSourcedSection(section) ? (
                       <>
                         {/* MODULE FEED SLOT (#1240): the rows this section's
-                            source names go here, above the box. #1241/#1242/
-                            #1243 fill it -- Events, Community & Partnerships
-                            and Marketing & Social in turn -- so each of those
-                            adds a component here rather than restructuring
-                            the section. */}
+                            source names go here, above the box. #1242/#1243
+                            add their arms inside SectionModuleFeed rather
+                            than restructuring the section. */}
+                        <SectionModuleFeed
+                          section={section}
+                          eventsFeed={eventsFeed}
+                          eventsFeedError={eventsFeedError}
+                        />
                         <Field>
                           <FieldLabel
                             htmlFor={`agenda-discussion-${section.key}`}
@@ -595,6 +633,17 @@ export function AgendaTab({
     () => listActiveAgendaTemplatesAction(),
     [meetingId],
   );
+  // Resolved here rather than after the reads below, because one of them is
+  // gated on it: a template with no events-sourced section must not pay for the
+  // events feed. Plain derivation from data two hooks already hold, so it costs
+  // nothing and keeps the hook order fixed.
+  const activeTemplate = templates?.[0] ?? null;
+  const sections = agenda?.template_sections.length
+    ? agenda.template_sections
+    : (activeTemplate?.sections ?? []);
+  const hasEventsSection = sections.some(
+    (section) => agendaSectionSource(section)?.kind === "events",
+  );
   const { data: carriedOverItems } = useTabData<ActionItem[]>(
     () => listCarriedOverActionItemsAction(meetingId, meetingDate),
     [meetingId, meetingDate],
@@ -625,15 +674,20 @@ export function AgendaTab({
     const result = await getMeetingTopicContextAction(meetingId);
     return "error" in result ? { error: result.error.message } : result;
   }, [meetingId]);
+  // The Events section's own rows (#1241). Read once for the tab and handed to
+  // both the form and the read view, which show the same feed: the section is
+  // the same section whether or not somebody is typing in its Discussion box.
+  const { data: eventsFeed, loadError: eventsFeedError } =
+    useTabData<AgendaEventsFeedData>(
+      () => listAgendaEventsAction(meetingId, meetingDate),
+      [meetingId, meetingDate],
+      hasEventsSection,
+    );
 
   if (agenda === undefined) {
     return <TabLoadingSkeleton />;
   }
 
-  const activeTemplate = templates?.[0] ?? null;
-  const sections = agenda?.template_sections.length
-    ? agenda.template_sections
-    : (activeTemplate?.sections ?? []);
   const templateId = agenda?.template_id ?? activeTemplate?.id ?? null;
   const templateVersionId =
     agenda?.template_version_id ?? activeTemplate?.version_id ?? null;
@@ -662,6 +716,8 @@ export function AgendaTab({
         meetingId={meetingId}
         datedContext={datedContext}
         datedContextError={datedContextError}
+        eventsFeed={eventsFeed}
+        eventsFeedError={eventsFeedError}
         onSaved={() => {
           onExitEdit();
           refreshAgenda();
@@ -788,9 +844,14 @@ export function AgendaTab({
                       {isSourcedSection(section) ? (
                         <div className="mt-2 flex flex-col gap-2">
                           {/* MODULE FEED SLOT (#1240): see the matching slot
-                              in AgendaForm above. #1241/#1242/#1243 render
-                              this section's records here, above the one
-                              block, on both sides of the tab. */}
+                              in AgendaForm above -- the same feed, since the
+                              section is the same section on both sides of the
+                              tab. */}
+                          <SectionModuleFeed
+                            section={section}
+                            eventsFeed={eventsFeed}
+                            eventsFeedError={eventsFeedError}
+                          />
                           <OngoingItemBlock
                             label="Discussion"
                             text={value?.discussion || "—"}
