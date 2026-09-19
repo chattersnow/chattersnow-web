@@ -4,6 +4,11 @@
 // them (#1242). Shared with Marketing & Social (#1243): which items are in it
 // is the section's source, which this component never reads.
 //
+// It does read one thing off the section: whether to show the content work
+// state (#1243). Marketing & Social is reporting on posts being written, so
+// its rows say how far each one is and when it is due out, in place of the
+// categories every row in that section shares anyway.
+//
 // Read live on render, the same stance the "Next 30 days" block takes: a
 // rescheduled item is right the next time anybody opens the agenda, and
 // nothing here is copied into the agenda row. What the board *says* about
@@ -15,6 +20,7 @@
 // reader's place for no gain.
 import Link from "next/link";
 import { EmptyState } from "@/components/portal/empty-state";
+import { StatusBadge } from "@/components/portal/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -24,10 +30,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCalendarDate } from "@/lib/format";
+import { formatCalendarDate, formatInstantDate } from "@/lib/format";
 import { formatDateInZone } from "@/lib/time";
 import { calendarItemHref } from "../../calendar/calendar-entries";
-import { ITEM_TYPES, labelFor } from "../../calendar/calendar-shared";
+import {
+  ITEM_TYPES,
+  PRIORITY_TIERS,
+  labelFor,
+} from "../../calendar/calendar-shared";
+import { ContentPiecesBadge } from "../../calendar/content-opportunity-badges";
 import type {
   AgendaCalendarFeed as AgendaCalendarFeedData,
   AgendaCalendarItem,
@@ -49,12 +60,34 @@ function itemDay(item: AgendaCalendarItem): string {
   return formatDateInZone(new Date(item.starts_at), item.time_zone || "UTC");
 }
 
+/**
+ * The line under the title: who owns the item, and -- where content state is
+ * shown -- how the calendar ranks it.
+ *
+ * The tier goes here rather than in a column of its own. `PRIORITY_TIERS`
+ * already ranks these items and a marketing section is where the ranking
+ * matters, but this is a table a board reads together on one screen, and a
+ * sixth column of "Tier 2" costs more width than it returns.
+ */
+function secondaryLine(
+  item: AgendaCalendarItem,
+  showContentState: boolean,
+): string | null {
+  const parts = [item.owner_name];
+  if (showContentState) {
+    parts.push(labelFor(PRIORITY_TIERS, String(item.priority_tier)));
+  }
+  const line = parts.filter(Boolean).join(" · ");
+  return line || null;
+}
+
 export function AgendaCalendarFeed({
   feed,
   loadError,
   title,
   label,
   emptyTitle,
+  showContentState = false,
 }: {
   /** `undefined` while the read is in flight. */
   feed: AgendaCalendarFeedData | undefined;
@@ -63,6 +96,14 @@ export function AgendaCalendarFeed({
   /** Names the table for a screen reader, which cannot see the heading above it. */
   label: string;
   emptyTitle: string;
+  /**
+   * Show what is written for these items instead of what they are categorised
+   * as (#1243). A section that plans content -- Marketing & Social -- is
+   * reporting on work in progress, and the categories it filtered on are the
+   * one thing every row in it already shares. A section that only needs the
+   * dates keeps the narrower table.
+   */
+  showContentState?: boolean;
 }) {
   if (loadError) return <p className="app-muted text-sm">{loadError}</p>;
   if (feed === undefined) return <Skeleton className="h-16 w-full" />;
@@ -98,44 +139,82 @@ export function AgendaCalendarFeed({
                 <TableHead>Date</TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Categories</TableHead>
+                {showContentState ? (
+                  <>
+                    <TableHead>Content</TableHead>
+                    <TableHead>Publish due</TableHead>
+                  </>
+                ) : (
+                  <TableHead>Categories</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {feed.items.map((item) => (
-                // Keyed on the id and the occurrence: a series projected into
-                // the window and the same row read on its own date are two
-                // rows whenever a window spans two of its anniversaries.
-                <TableRow key={`${item.id}:${item.starts_at}`}>
-                  <TableCell className="whitespace-nowrap">
-                    {formatCalendarDate(itemDay(item))}
-                  </TableCell>
-                  <TableCell className="max-w-xs font-medium">
-                    <Link
-                      href={calendarItemHref(item.id)}
-                      className="text-[var(--purple-deep)] underline"
-                    >
-                      {item.title}
-                    </Link>
-                    {item.owner_name && (
-                      <span className="app-muted block text-xs font-normal">
-                        {item.owner_name}
-                      </span>
+              {feed.items.map((item) => {
+                const secondary = secondaryLine(item, showContentState);
+                return (
+                  // Keyed on the id and the occurrence: a series projected into
+                  // the window and the same row read on its own date are two
+                  // rows whenever a window spans two of its anniversaries.
+                  <TableRow key={`${item.id}:${item.starts_at}`}>
+                    <TableCell className="whitespace-nowrap">
+                      {formatCalendarDate(itemDay(item))}
+                    </TableCell>
+                    <TableCell className="max-w-xs font-medium">
+                      <Link
+                        href={calendarItemHref(item.id)}
+                        className="text-[var(--purple-deep)] underline"
+                      >
+                        {item.title}
+                      </Link>
+                      {secondary && (
+                        <span className="app-muted block text-xs font-normal">
+                          {secondary}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {labelFor(ITEM_TYPES, item.item_type)}
+                    </TableCell>
+                    {showContentState ? (
+                      <>
+                        <TableCell>
+                          {/* Nothing planned yet is a real answer, and the row
+                            stays: an undrafted date is the one the board most
+                            needs to see. */}
+                          {item.content_pieces.length === 0 ? (
+                            <span className="app-muted text-xs">—</span>
+                          ) : (
+                            <ContentPiecesBadge pieces={item.content_pieces} />
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {item.publish_due_at === null ? (
+                            <span className="app-muted text-xs">—</span>
+                          ) : item.content_overdue ? (
+                            <StatusBadge tone="warning">
+                              Overdue {formatInstantDate(item.publish_due_at)}
+                            </StatusBadge>
+                          ) : (
+                            formatInstantDate(item.publish_due_at)
+                          )}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <TableCell className="app-muted text-xs">
+                        {/* The tenant's own words, not the seeded keys -- and a
+                          key it has since deactivated still labels the items
+                          already tagged with it, through `labelFor`'s fallback. */}
+                        {item.categories.length === 0
+                          ? "—"
+                          : item.categories
+                              .map((key) => labelFor(feed.categoryOptions, key))
+                              .join(", ")}
+                      </TableCell>
                     )}
-                  </TableCell>
-                  <TableCell>{labelFor(ITEM_TYPES, item.item_type)}</TableCell>
-                  <TableCell className="app-muted text-xs">
-                    {/* The tenant's own words, not the seeded keys -- and a
-                        key it has since deactivated still labels the items
-                        already tagged with it, through `labelFor`'s fallback. */}
-                    {item.categories.length === 0
-                      ? "—"
-                      : item.categories
-                          .map((key) => labelFor(feed.categoryOptions, key))
-                          .join(", ")}
-                  </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

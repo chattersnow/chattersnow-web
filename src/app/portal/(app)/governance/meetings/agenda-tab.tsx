@@ -41,6 +41,7 @@ import {
 import {
   agendaSectionSource,
   isSourcedSection,
+  sectionShowsContentState,
   type ActiveAgendaTemplate,
   type AgendaTemplateSection,
   type CalendarSectionSource,
@@ -195,6 +196,9 @@ function SectionModuleFeed({
           title="On the calendar"
           label={`${section.label} items on the calendar`}
           emptyTitle="Nothing on the calendar before the next meeting"
+          // Off the section's own source, the same question the reader asked
+          // before deciding whether to join the pieces at all.
+          showContentState={sectionShowsContentState(section)}
         />
         {sectionShowsPartnerships(section) && (
           <AgendaPartnershipsFeed
@@ -514,8 +518,8 @@ function AgendaForm({
                     {isSourcedSection(section) ? (
                       <>
                         {/* MODULE FEED SLOT (#1240): the rows this section's
-                            source names go here, above the box. #1243 adds
-                            its arm inside SectionModuleFeed rather than
+                            source names go here, above the box. Every module
+                            arm lives inside SectionModuleFeed rather than
                             restructuring the section. */}
                         <SectionModuleFeed section={section} feeds={feeds} />
                         <Field>
