@@ -3,6 +3,9 @@ import {
   renderVolunteerApplicationConfirmationEmail,
   type VolunteerApplicationConfirmation,
 } from "./volunteer-application-confirmation-email";
+import { autoReplyDefaults } from "@/lib/notifications/auto-replies";
+import { requireAutoReplyDefinition } from "@/lib/notifications/auto-reply-email";
+import { VOLUNTEER_APPLICATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 
 const base: VolunteerApplicationConfirmation = {
   orgName: "Chatter Snow",
@@ -86,5 +89,84 @@ describe("renderVolunteerApplicationConfirmationEmail", () => {
     });
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("the tenant's own copy (#1234)", () => {
+  const definition = requireAutoReplyDefinition(
+    VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+  );
+  const defaults = autoReplyDefaults(definition);
+
+  test("a rewritten slot changes both parts, and only that slot", () => {
+    const { subject, text, html } = renderVolunteerApplicationConfirmationEmail(
+      base,
+      {
+        ...defaults,
+        subject: "Thanks for offering to help, {{first_name}}",
+        intro: "Someone on the crew will read this within the week.",
+      },
+    );
+
+    expect(subject).toBe("Thanks for offering to help, Jo Rivera");
+    for (const part of [text, html]) {
+      expect(part).toContain("within the week");
+      expect(part).not.toContain("Thanks for applying.");
+      expect(part).toContain("Hi Jo Rivera,");
+      expect(part).toContain("— Chatter Snow");
+    }
+  });
+
+  test("a closing the tenant wrote lands under the code and the link", () => {
+    // Empty by default, so this slot renders nothing at all until they fill it.
+    expect(defaults.closing).toBe("");
+    const { text, html } = renderVolunteerApplicationConfirmationEmail(base, {
+      ...defaults,
+      closing: "We run orientation on the first Saturday of the month.",
+    });
+    for (const part of [text, html]) {
+      expect(part.indexOf("orientation")).toBeGreaterThan(
+        part.indexOf("/get-involved/volunteer/status"),
+      );
+    }
+  });
+
+  test("the code, the note and the status link survive any copy", () => {
+    const blanked = Object.fromEntries(
+      Object.keys(defaults).map((key) => [key, ""]),
+    ) as typeof defaults;
+    const { text, html } = renderVolunteerApplicationConfirmationEmail(
+      base,
+      blanked,
+    );
+
+    for (const part of [text, html]) {
+      // The code is the only key to the status page; no copy may lose it.
+      expect(part).toContain("DUBFF2FN");
+      expect(part).toContain("email address you applied with");
+      expect(part).toContain(
+        "https://chattersnow.example/get-involved/volunteer/status",
+      );
+    }
+    expect(text).not.toContain("\n\n\n");
+  });
+
+  test("escapes markup and ampersands once, in the HTML part only", () => {
+    const { text, html } = renderVolunteerApplicationConfirmationEmail(
+      {
+        ...base,
+        orgName: "Ben & Jerry's",
+        applicantName: "<script>alert(1)</script>",
+      },
+      { ...defaults, intro: "Tea & <b>cake</b> on arrival." },
+    );
+
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("Tea &amp; &lt;b&gt;cake&lt;/b&gt; on arrival.");
+    expect(html).toContain("Ben &amp; Jerry&#39;s");
+    expect(html).not.toContain("&amp;amp;");
+    expect(html).not.toContain("&amp;lt;");
+    expect(text).toContain("Tea & <b>cake</b> on arrival.");
+    expect(text).toContain("<script>alert(1)</script>");
   });
 });

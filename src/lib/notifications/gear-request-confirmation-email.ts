@@ -1,3 +1,13 @@
+import type { AutoReplyCopy } from "@/lib/notifications/auto-replies";
+import {
+  autoReplyWords,
+  copyParagraphHtml,
+  escapeHtml,
+  joinHtmlLines,
+  joinTextBlocks,
+  requireAutoReplyDefinition,
+} from "@/lib/notifications/auto-reply-email";
+import { GEAR_REQUEST_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import type { DeliveryMethod, PaymentMethod } from "@/lib/gear-requests";
 
@@ -12,11 +22,20 @@ import type { DeliveryMethod, PaymentMethod } from "@/lib/gear-requests";
  * they typed it a minute ago, and a postal address in an email is one more
  * copy outside the retention clock.
  *
- * The instructions are tenant settings, rendered verbatim. A tenant that has
- * written none gets a generic sentence, so the email never says less than
- * "we got it and we'll be in touch". No "change what you get" link either:
- * there is nothing for a requester to change, and no account to change it in.
+ * "These items are now on hold for you and no longer available to others" is a
+ * sentence a tenant may need to be different, so the wrapping -- subject,
+ * greeting, intro, closing, sign-off -- is theirs to write (#1234), while the
+ * item list and the meetup or shipping instructions are rendered here
+ * whatever that copy says. The instructions were already the tenant's, out of
+ * `app_settings`, and are unchanged by this: a tenant that has written none
+ * still gets a generic sentence, so the email never says less than "we got it
+ * and we'll be in touch". A tenant that has written no copy either gets the
+ * platform's wording, byte for byte what this file sent before the slots
+ * existed. No "change what you get" link: there is nothing for a requester to
+ * change, and no account to change it in.
  */
+
+const DEFINITION = requireAutoReplyDefinition(GEAR_REQUEST_CONFIRMATION_KIND);
 
 export type GearRequestConfirmation = {
   orgName: string;
@@ -29,53 +48,62 @@ export type GearRequestConfirmation = {
   paymentMethod: PaymentMethod | null;
 };
 
+/**
+ * @param copy The tenant's resolved slots (resolveAutoReply). Omitted renders
+ *   the platform's defaults, which is what a tenant with no row gets.
+ */
 export function renderGearRequestConfirmationEmail(
   confirmation: GearRequestConfirmation,
+  copy?: AutoReplyCopy,
 ): RenderedEmail {
-  const { orgName } = confirmation;
-  const greeting = confirmation.requesterName
-    ? `Hi ${confirmation.requesterName},`
-    : "Hi,";
-  const lead = `Thanks for your request. These items are now on hold for you and no longer available to others:`;
+  const words = autoReplyWords(DEFINITION, copy, {
+    org_name: confirmation.orgName,
+    first_name: confirmation.requesterName,
+  });
   const nextSteps = nextStepsFor(confirmation);
 
-  const textLines = [
-    greeting,
-    "",
-    lead,
+  // The item list sits against the intro with no blank line between them, so
+  // the two are one block.
+  const asked = [
+    words.intro,
     ...confirmation.items.map((item) => `  - ${item}`),
-    "",
-    ...nextSteps.map((paragraph) => `${paragraph}\n`),
-    `— ${orgName}`,
-  ];
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const text = joinTextBlocks([
+    words.greeting,
+    asked,
+    ...nextSteps,
+    words.closing,
+    words.signoff,
+  ]);
 
   const itemsHtml = confirmation.items
     .map(
       (item) => `      <li style="margin: 0 0 4px;">${escapeHtml(item)}</li>`,
     )
     .join("\n");
-  const stepsHtml = nextSteps
-    .map(
+
+  const body = joinHtmlLines([
+    copyParagraphHtml(words.greeting, "margin: 0 0 16px;"),
+    copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
+    `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${itemsHtml}\n  </ul>`,
+    // Always pre-line: the instructions are a settings textarea an
+    // administrator may well have put line breaks in.
+    ...nextSteps.map(
       (paragraph) =>
         `  <p style="margin: 0 0 12px; white-space: pre-line;">${escapeHtml(paragraph)}</p>`,
-    )
-    .join("\n");
+    ),
+    copyParagraphHtml(words.closing, "margin: 0 0 12px;"),
+    copyParagraphHtml(words.signoff, "color: #57534e; margin: 12px 0 0;"),
+  ]);
 
   const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1c1917; line-height: 1.5; max-width: 560px;">
-  <p style="margin: 0 0 16px;">${escapeHtml(greeting)}</p>
-  <p style="margin: 0 0 8px;">${escapeHtml(lead)}</p>
-  <ul style="margin: 0 0 20px; padding-left: 20px;">
-${itemsHtml}
-  </ul>
-${stepsHtml}
-  <p style="color: #57534e; margin: 12px 0 0;">— ${escapeHtml(orgName)}</p>
+${body}
 </div>`;
 
-  return {
-    subject: `We received your request — ${orgName}`,
-    text: textLines.join("\n"),
-    html,
-  };
+  return { subject: words.subject, text, html };
 }
 
 /** The paragraphs after the item list, in order. */
@@ -102,18 +130,4 @@ function nextStepsFor(confirmation: GearRequestConfirmation): string[] {
 
   if (instructions) steps.push(instructions);
   return steps;
-}
-
-/**
- * The item descriptions were typed by staff and the instructions by an
- * administrator, but the requester's name came off a public form: all of it
- * is text, none of it markup.
- */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
