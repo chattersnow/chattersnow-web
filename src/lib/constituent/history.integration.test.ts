@@ -37,10 +37,13 @@ import {
   createDonation,
   createMonetaryDonation,
   createPublishedEvent,
+  enableModule,
+  seededTenantId,
   serviceRoleClient,
   signIn,
   tenantToday,
   uniqueEmail,
+  withModule,
 } from "../../../test/integration-setup";
 
 const service = serviceRoleClient();
@@ -55,6 +58,7 @@ type Constituent = {
 
 let tenantId: string;
 let otherTenantId: string;
+let restoreModule: () => Promise<void>;
 let alice: Constituent;
 let bob: Constituent;
 let eventId: string;
@@ -204,36 +208,23 @@ async function giveHistoryTo(personId: string, label: string) {
   });
 }
 
-async function setModule(key: string, enabled: boolean) {
-  const { error } = await service
-    .from("tenant_modules")
-    .upsert(
-      { tenant_id: tenantId, module_key: key, enabled },
-      { onConflict: "tenant_id,module_key" },
-    );
-  if (error) throw new Error(`module ${key}: ${error.message}`);
-}
-
-async function clearModule(key: string) {
-  await service
-    .from("tenant_modules")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("module_key", key);
+/**
+ * One module off for the duration of a test, then back to exactly what was
+ * there. Every module has a row on the seeded tenant, so "off, then deleted"
+ * is not a round trip -- it drops the tenant to the catalog default and leaves
+ * the run's own state behind it (#1282).
+ */
+function withModuleOff(key: string, body: () => Promise<void>) {
+  return withModule(tenantId, key, false, body);
 }
 
 beforeAll(async () => {
-  const { data } = await service
-    .from("tenants")
-    .select("id")
-    .eq("slug", "example-nonprofit")
-    .single();
-  tenantId = data!.id;
+  tenantId = await seededTenantId();
 
   // The area is a module a tenant opts into, and it ships off everywhere
   // (#1161). A tenant actually using this has it on, so the fixtures do; the
   // off case is its own test below rather than the ambient state.
-  await setModule("constituent_accounts", true);
+  restoreModule = await enableModule(tenantId, "constituent_accounts");
 
   const event = await createPublishedEvent({ name: `History event ${run}` });
   eventId = event.id;
@@ -261,7 +252,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup();
-  await clearModule("constituent_accounts");
+  await restoreModule();
   if (otherTenantId) {
     await service.rpc("delete_tenant", { p_tenant_id: otherTenantId });
   }
@@ -475,40 +466,31 @@ describe("the permissions the reader holds", () => {
 
 describe("module entitlements", () => {
   test("a section whose module is off returns nothing", async () => {
-    await setModule("events", false);
-    try {
+    await withModuleOff("events", async () => {
       expect(await sectionOf(alice.client, "my_event_history")).toEqual([]);
       // And only that section: volunteering is its own module.
       expect(
         (await sectionOf(alice.client, "my_volunteer_history")).length,
       ).toBeGreaterThan(0);
-    } finally {
-      await clearModule("events");
-    }
+    });
   });
 
   test("giving splits by module, because it is two of them", async () => {
-    await setModule("finance", false);
-    try {
+    await withModuleOff("finance", async () => {
       const giving = await sectionOf<MyGivingEntry>(
         alice.client,
         "my_giving_history",
       );
       expect(giving.map((row) => row.kind)).toEqual(["in_kind"]);
-    } finally {
-      await clearModule("finance");
-    }
+    });
   });
 
   test("with the constituent area off, every section is empty", async () => {
-    await setModule("constituent_accounts", false);
-    try {
+    await withModuleOff("constituent_accounts", async () => {
       for (const rpc of SECTIONS) {
         expect(await sectionOf(alice.client, rpc)).toEqual([]);
       }
-    } finally {
-      await setModule("constituent_accounts", true);
-    }
+    });
   });
 });
 
