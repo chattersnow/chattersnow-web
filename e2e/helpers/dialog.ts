@@ -29,8 +29,20 @@ export function modal(page: Page): Locator {
  * Waiting them out rather than clicking each Dismiss: the stack collapses
  * behind the frontmost toast, so the ones underneath are not reliably
  * clickable, and the auto-dismiss is what a reader experiences anyway.
+ *
+ * The mouse has to be moved out of the way first, and that is not a nicety
+ * (#1283). Base UI pauses every toast's dismissal timer while the pointer is
+ * over the viewport -- `onMouseEnter`/`onMouseMove` call `pauseTimers()`, and
+ * only `mouseleave` resumes them -- which is the right behaviour for a reader
+ * reaching for Dismiss and fatal here. Playwright leaves the cursor wherever
+ * it last clicked, and on a phone-width viewport the toast stack is nearly the
+ * full width at the bottom of the page, so a click low in the table parks the
+ * cursor inside it. The toasts then never dismiss at all, and this waits out
+ * its whole timeout on a stack that is deliberately frozen: the failure reads
+ * as "two toasts outlived the wait" when nothing was counting down.
  */
 export async function toastsCleared(page: Page): Promise<void> {
+  await page.mouse.move(0, 0);
   await expect(page.locator('[data-slot="toast"]')).toHaveCount(0, {
     timeout: 15_000,
   });

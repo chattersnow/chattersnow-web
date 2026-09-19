@@ -150,25 +150,67 @@ describe("useAutosave", () => {
     expect(save).toHaveBeenLastCalledWith("abc");
   });
 
-  test("holds the value and retries when a save fails", async () => {
-    let attempts = 0;
-    const save = mock(async (value: string) => {
-      attempts += 1;
-      return attempts === 1 ? { error: "Server said no." } : { success: true };
-    });
-    render(<Harness save={save} />);
+  /**
+   * These two were one test, and it was the flake that kept `development` red
+   * (#1283). It read the failure state off the DOM *after* a `waitFor` had
+   * seen it -- but that state is only on screen for `retryBaseMs`, 20ms here,
+   * and the assertion that followed ran after React Testing Library's own
+   * act-unwind. On a contended CI runner that unwind outlasted the backoff, so
+   * the retry had already landed and `dirty` read `false` where the test
+   * expected `true`.
+   *
+   * Widening the window would only have moved the race. Neither test below has
+   * one: the first gives the retry no schedule to arrive on, and the second
+   * asserts nothing that a retry can undo -- a mock's call count only goes up,
+   * and the attempt it counts is held open until the test resolves it.
+   */
+  test("holds the value when a save fails", async () => {
+    const failing = deferred();
+    const save = mock(() => failing.promise);
+    // No backoff can fire while the assertions run, so the failure state is
+    // observed rather than raced.
+    render(<Harness save={save} retryBaseMs={60_000} />);
 
     await type("abc");
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1), SETTLE);
 
-    await waitFor(() => expect(status()).toBe("status: error"), SETTLE);
+    await act(async () => {
+      failing.resolve({ error: "Server said no." });
+    });
+
+    expect(status()).toBe("status: error");
     // The text on screen is the only copy of it, so the value stays queued and
     // the surface stays dirty -- which is what keeps `beforeunload` armed.
     expect(dirty()).toBe("dirty: true");
     expect(errorText()).toBe("error: Server said no.");
+  });
 
-    await untilSaved();
-    expect(save).toHaveBeenCalledTimes(2);
+  test("retries the held value after the backoff", async () => {
+    const first = deferred();
+    const second = deferred();
+    let attempts = 0;
+    const save = mock((_value: string) => {
+      attempts += 1;
+      return attempts === 1 ? first.promise : second.promise;
+    });
+    render(<Harness save={save} />);
+
+    await type("abc");
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1), SETTLE);
+    await act(async () => {
+      first.resolve({ error: "Server said no." });
+    });
+
+    // The retry is the assertion, and a call count cannot be taken back --
+    // unlike the `status: error` this used to watch for, which the retry
+    // itself ends.
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2), SETTLE);
     expect(save).toHaveBeenLastCalledWith("abc");
+
+    await act(async () => {
+      second.resolve({ success: true });
+    });
+    await untilSaved();
     expect(dirty()).toBe("dirty: false");
     expect(errorText()).toBe("error: none");
   });
@@ -248,20 +290,28 @@ describe("useAutosave", () => {
     expect(dirty()).toBe("dirty: false");
   });
 
+  // Same treatment as the two above, and for the same reason: this read the
+  // error message out of a window the backoff was already closing. The retry
+  // itself is covered there; what is left here is the surface a rejection
+  // produces, asserted where nothing is due to fire.
   test("treats a thrown action as a failure rather than a lost edit", async () => {
-    let attempts = 0;
+    const attempt = deferred();
     const save = mock(async () => {
-      attempts += 1;
-      if (attempts === 1) throw new Error("network");
-      return { success: true };
+      await attempt.promise;
+      throw new Error("network");
     });
-    render(<Harness save={save} />);
+    render(<Harness save={save} retryBaseMs={60_000} />);
 
     await type("abc");
-    await waitFor(() => expect(status()).toBe("status: error"), SETTLE);
-    expect(errorText()).toBe("error: Couldn't save. Check your connection.");
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1), SETTLE);
 
-    await untilSaved();
-    expect(save).toHaveBeenLastCalledWith("abc");
+    await act(async () => {
+      attempt.resolve({});
+    });
+
+    expect(status()).toBe("status: error");
+    expect(errorText()).toBe("error: Couldn't save. Check your connection.");
+    // Nothing readable came back, but the edit is still here to be retried.
+    expect(dirty()).toBe("dirty: true");
   });
 });
