@@ -1,37 +1,26 @@
-import { PageShell } from "@/components/page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MyPageSkeleton } from "../my-page-layout";
 
 export default function MyDetailsLoading() {
   return (
-    <PageShell>
-      <div className="space-y-8">
-        <section>
-          <div className="w-fit">
-            <div className="rainbow-accent w-full" />
-            <Skeleton className="mt-4 h-10 w-48 sm:h-12" />
-          </div>
-          <Skeleton className="mt-4 h-4 w-full max-w-md" />
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Skeleton className="h-11 w-32 rounded-lg" />
-            <Skeleton className="h-11 w-32 rounded-lg" />
-            <Skeleton className="h-11 w-28 rounded-lg" />
-            <Skeleton className="h-11 w-28 rounded-lg" />
-          </div>
-        </section>
-
-        {/* Email, then everything else -- fourteen fields in the second card,
-            so it is much the taller of the two. */}
-        <div className="space-y-4 rounded-xl border border-[var(--line)] p-6">
-          <Skeleton className="h-5 w-20" />
-          <Skeleton className="h-9 w-full rounded-lg" />
-        </div>
-        <div className="space-y-4 rounded-xl border border-[var(--line)] p-6">
+    <MyPageSkeleton
+      titleWidth="w-48"
+      intro={<Skeleton className="h-4 w-full max-w-md" />}
+    >
+      {/* Three groups of fields divided by rules, then the email card. The
+          first group is much the tallest, so it carries most of the rows. */}
+      {[5, 4, 2].map((fields, group) => (
+        <div key={group} className="space-y-4">
           <Skeleton className="h-5 w-36" />
-          {[0, 1, 2, 3, 4].map((field) => (
+          {Array.from({ length: fields }, (_, field) => (
             <Skeleton key={field} className="h-9 w-full rounded-lg" />
           ))}
         </div>
+      ))}
+      <div className="space-y-4 rounded-xl border border-[var(--line)] p-6">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-9 w-full rounded-lg" />
       </div>
-    </PageShell>
+    </MyPageSkeleton>
   );
 }

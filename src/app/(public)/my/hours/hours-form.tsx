@@ -9,6 +9,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { FieldRow } from "@/components/field-row";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -135,7 +136,12 @@ export function LogHoursForm({
           </Field>
         ) : null}
 
-        <Field orientation="responsive">
+        {/* The area's one other two-column row, converted with the rest of
+            the constituent pages: `responsive` centred the pair against each
+            other, so the description under "How many hours?" lifted the date
+            picker beside it off the label line. See
+            `src/components/field-row.tsx`. */}
+        <FieldRow>
           <Field>
             <FieldLabel htmlFor="my-hours-date">Which day?</FieldLabel>
             <Input
@@ -168,7 +174,7 @@ export function LogHoursForm({
               To the nearest quarter hour. One day at a time.
             </FieldDescription>
           </Field>
-        </Field>
+        </FieldRow>
 
         {roles.length > 0 ? (
           <Field>

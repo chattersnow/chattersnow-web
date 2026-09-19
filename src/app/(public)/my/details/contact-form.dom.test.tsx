@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe("ContactForm", () => {
-  test("gives each group its own card and its legend as the heading", () => {
+  test("gives each group its own section and its legend as the heading", () => {
     render(<ContactForm details={DETAILS} />);
 
     for (const legend of [
@@ -108,6 +108,24 @@ describe("ContactForm", () => {
       await user.click(save());
 
       await waitFor(() => expect(save()).toBeDisabled());
+    });
+
+    // The same state the sticky treatment keys off. Asserting the sentence
+    // rather than the classes: what matters is that an edited form says so
+    // while the button is following you down the page, and stops saying it the
+    // moment the edit is committed.
+    test("says so while there is something to save, and not before", async () => {
+      const user = userEvent.setup();
+      render(<ContactForm details={DETAILS} />);
+      const unsaved = /changes are not saved yet/i;
+
+      expect(screen.queryByText(unsaved)).toBeNull();
+
+      await user.type(screen.getByLabelText("Phone"), "5");
+      expect(screen.getByText(unsaved)).toBeInTheDocument();
+
+      await user.click(save());
+      await waitFor(() => expect(screen.queryByText(unsaved)).toBeNull());
     });
 
     test("typing back to the original value is not a change", async () => {
