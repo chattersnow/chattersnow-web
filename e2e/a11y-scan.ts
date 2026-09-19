@@ -166,6 +166,12 @@ function shardSlice<T>(items: T[]): T[] {
 
 /** Longest a theme crossfade is waited on before scanning anyway. */
 const THEME_TRANSITION_CAP_MS = 1_000;
+/**
+ * Longest one axe pass may take before it is recorded as an error and the scan
+ * moves on. A pass is ~4s; this is an order of magnitude of headroom for a
+ * loaded runner, and exists to bound a hang rather than to police slowness.
+ */
+const ANALYZE_CAP_MS = 120_000;
 /** Same idea for a surface's open animation; Base UI's longest is 0.35s. */
 const SURFACE_MOTION_CAP_MS = 1_000;
 
@@ -408,10 +414,40 @@ async function settleSurfaceMotion(page: Page): Promise<void> {
  */
 async function safeAnalyze(page: Page): Promise<Violation[] | string> {
   try {
-    return await analyze(page);
+    return await withTimeout(
+      analyze(page),
+      ANALYZE_CAP_MS,
+      `axe did not finish within ${ANALYZE_CAP_MS / 1_000}s`,
+    );
   } catch (err) {
     return (err as Error).message;
   }
+}
+
+/**
+ * Rejects if `work` has not settled within `ms`.
+ *
+ * `analyze()` runs axe through `page.evaluate`, which -- unlike `goto` and the
+ * locator actions -- has no default timeout in Playwright. It was the only
+ * unbounded wait left in the scan, and on one CI run a shard stopped producing
+ * output mid-route and sat there; with no `timeout-minutes` on the job either,
+ * it would have held the PR's gate for GitHub's six-hour default (#1288).
+ *
+ * A cap turns that into what every other failure here already is: one pass
+ * recorded with its reason, and a scan that finishes and reports. The job
+ * timeout added alongside this is the outer belt -- this is the one that keeps
+ * the other 30 routes.
+ */
+function withTimeout<T>(
+  work: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const expiry = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([work, expiry]).finally(() => clearTimeout(timer));
 }
 
 async function analyze(page: Page): Promise<Violation[]> {

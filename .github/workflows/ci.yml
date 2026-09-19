@@ -15,9 +15,21 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # No job here had a timeout-minutes, so a hung one ran to GitHub's six-hour
+  # default. #1288 hit that: an a11y shard stopped producing output mid-scan and
+  # sat there, holding the PR's gate open, until it was cancelled by hand 33
+  # minutes in -- and it would have held it for six hours unattended. The point
+  # of a gate is to answer; a job that cannot answer should say so quickly.
+  #
+  # Each value is roughly triple the job's observed runtime, so ordinary
+  # variance never trips it and a hang is caught in minutes rather than hours.
+  # Raise the relevant one if a job legitimately grows into it.
+
   quality:
     name: Lint, Type-check, Format, Build
     runs-on: ubuntu-latest
+    # Observed ~3 min.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -59,6 +71,8 @@ jobs:
   unit:
     name: Unit tests ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    # Observed ~1.5 min per shard.
+    timeout-minutes: 15
     # Its own job since #1170. The suite was 5m40s of the quality job's 7m38s,
     # so a lint error and a failing assertion both cost seven minutes to learn
     # about and neither result arrived until the other had finished. It had
@@ -112,6 +126,8 @@ jobs:
   integration:
     name: Integration tests (Supabase)
     runs-on: ubuntu-latest
+    # Observed ~5.5 min, most of it `supabase start`.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -189,6 +205,8 @@ jobs:
   a11y:
     name: Accessibility scan ${{ matrix.shard }}/4 (axe-core)
     runs-on: ubuntu-latest
+    # Observed ~8-9 min per shard, ~4 of which is fixed setup.
+    timeout-minutes: 30
     # Gated on a checked-in baseline (e2e/a11y-baseline.json): known violations
     # are tolerated, new ones fail the job. Previously continue-on-error, which
     # is how #436's regression re-landed and sat unnoticed for months -- the
@@ -305,6 +323,8 @@ jobs:
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-latest
+    # Observed seconds.
+    timeout-minutes: 10
     # Diffs the PR's dependency changes against the base branch and blocks
     # newly *introduced* vulnerabilities. This is the per-PR complement to the
     # whole-tree `bun audit` in security-audit.yml: a PR that adds a vulnerable

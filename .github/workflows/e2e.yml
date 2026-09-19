@@ -40,6 +40,8 @@ jobs:
   shards:
     name: Shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    # Observed ~7-9 min per shard. See the note on timeouts in ci.yml.
+    timeout-minutes: 30
     strategy:
       # One shard failing must not cancel the other three: the merged report
       # would then be missing tests that never ran, with nothing to say so.
@@ -106,6 +108,8 @@ jobs:
   mutating:
     name: Page visibility (isolated)
     runs-on: ubuntu-latest
+    # Observed ~5 min.
+    timeout-minutes: 25
     # Deliberately parallel with the shards rather than after them. The only
     # reason the mutating specs ran last was that they share a Supabase stack and a
     # server with everything else (#594); on its own runner it shares neither,
@@ -166,6 +170,8 @@ jobs:
   report:
     name: Merged report
     runs-on: ubuntu-latest
+    # Observed seconds.
+    timeout-minutes: 10
     needs: [shards, mutating]
     # Runs whether the tests passed or failed -- a failed run is the one whose
     # report anyone actually opens.
@@ -205,6 +211,8 @@ jobs:
   gate:
     name: Result
     runs-on: ubuntu-latest
+    # Observed seconds.
+    timeout-minutes: 10
     needs: [shards, mutating]
     if: ${{ always() }}
     # One check that is red if any shard or the mutating job is. It exists so
