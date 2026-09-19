@@ -257,8 +257,31 @@ matters more than it looks — the tenant is resolved from the hostname and the
 session cookie is bound to it, so a link on the wrong tenant's host does not
 just 404, it strands the recipient's session.
 
-Two things can be varied per tenant, and they need very different amounts of
-work.
+**What the mail says is the tenant's too.** The receipts the public forms send
+straight back — an event registration, a volunteer application, a gear request
+— are written per tenant under Administration → Automatic Replies
+(`/portal/administration/automatic-replies`, #1235), and each one can be
+switched off there on its own. They are rows in `auto_reply_templates` rather
+than `app_settings` keys, gated on `system_settings:manage` like the settings
+below, and audited: Administration → Audit Log shows who changed the wording
+and what it was before.
+
+The rows are **sparse**, which is what makes this safe to leave alone: a slot a
+tenant has never rewritten is absent from `slots`, and absent means "still the
+platform's wording", so improving a default reaches every tenant who never
+touched it. A tenant with no row at all — which is every tenant on a fresh
+`provision_tenant()`, since nothing is seeded — gets byte-identically the email
+the platform sent before the table existed. Resetting a field deletes its key
+rather than writing today's default in, so a tenant who resets goes back to
+tracking the defaults rather than freezing a copy of them.
+
+Branding is deliberately not part of that editor. The logo, the colours and the
+footer around the words come from the tenant's `brand.*` tokens through the
+shared email shell, set under Organization Settings → Branding: a slot is a
+sentence, the shell is the paper it is printed on.
+
+Two more things can be varied per tenant, and they need very different amounts
+of work.
 
 **Reply-To is the tenant's own, and self-service.** Administration → System
 Settings → Notifications, "Reply-To address". This is the one that matters

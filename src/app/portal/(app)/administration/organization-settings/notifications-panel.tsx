@@ -121,6 +121,8 @@ export function NotificationsPanel({
         </CardContent>
       </Card>
 
+      <AutomaticRepliesCard />
+
       <SenderIdentityCard
         orgName={orgName}
         platformFrom={platformFrom}
@@ -133,6 +135,36 @@ export function NotificationsPanel({
 
       <WhoReceivesWhatCard kinds={kinds} recipientsByKind={recipientsByKind} />
     </div>
+  );
+}
+
+/**
+ * Where the other half of this organization's email is written (#1235).
+ *
+ * This page owns whether mail goes out and who it comes from; the wording of
+ * the receipts the public forms send back is five templates rather than one
+ * object, so it is a page of its own rather than a sixth tab here. The two
+ * link both ways so neither reads as the whole of the subject.
+ */
+function AutomaticRepliesCard() {
+  return (
+    <Card>
+      <CardContent>
+        <p className="app-eyebrow">Automatic replies</p>
+        <p className="app-muted mt-1 text-sm leading-relaxed">
+          What the portal writes back to somebody who registers for an event,
+          applies to volunteer or requests an item is yours to word, under{" "}
+          <Link
+            href="/portal/administration/automatic-replies"
+            className="underline underline-offset-4"
+          >
+            Administration &rarr; Automatic Replies
+          </Link>
+          . Each of those replies can be switched off on its own there; the
+          switch above outranks all of them.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
