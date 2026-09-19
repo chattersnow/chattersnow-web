@@ -4,6 +4,7 @@ import {
   deliverEmail,
   type DeliveryOutcome,
 } from "@/lib/notifications/deliver";
+import { resolveAutoReply } from "@/lib/notifications/auto-replies-resolver";
 import { tenantMailContext } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { isOrgEmailEnabled } from "@/lib/notifications/settings";
@@ -368,7 +369,7 @@ export async function sendGearRequestConfirmation(
 
   if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
 
-  const [items, settings, tenant, mail] = await Promise.all([
+  const [items, settings, tenant, mail, reply] = await Promise.all([
     admin
       .from("inventory_movements")
       .select("inventory_item:inventory_items(description)")
@@ -387,7 +388,14 @@ export async function sendGearRequestConfirmation(
     tenantMailContext(admin, data.tenant_id, {
       fallbackOrigin: options.siteUrl,
     }),
+    resolveAutoReply(admin, data.tenant_id, GEAR_REQUEST_CONFIRMATION_KIND),
   ]);
+
+  // The second of the three gates, between the org-wide kill switch above and
+  // a recipient's own opt-out -- which this send has none of, the requester
+  // having no account. Off means this receipt is off: no send, and no ledger
+  // row to make a later "on" look like a duplicate.
+  if (!reply.enabled) return "skipped";
 
   const settingsByKey = new Map(
     ((settings.data ?? []) as { key: string; value: unknown }[]).map((row) => [
@@ -423,19 +431,22 @@ export async function sendGearRequestConfirmation(
     dedupeKey: gearRequestConfirmationDedupeKey(data.id, options.dedupeSuffix),
     to: requesterEmail,
     render: () => {
-      const email = renderGearRequestConfirmationEmail({
-        orgName: orgName || mail.identity.from,
-        requesterName: personDisplayName(requester, ""),
-        items: descriptions,
-        deliveryMethod,
-        instructions: typeof instructions === "string" ? instructions : "",
-        paymentMethod:
-          deliveryMethod === "shipping"
-            ? (paymentMethods.find(
-                (method) => method.key === data.payment_method,
-              ) ?? null)
-            : null,
-      });
+      const email = renderGearRequestConfirmationEmail(
+        {
+          orgName: orgName || mail.identity.from,
+          requesterName: personDisplayName(requester, ""),
+          items: descriptions,
+          deliveryMethod,
+          instructions: typeof instructions === "string" ? instructions : "",
+          paymentMethod:
+            deliveryMethod === "shipping"
+              ? (paymentMethods.find(
+                  (method) => method.key === data.payment_method,
+                ) ?? null)
+              : null,
+        },
+        reply.slots,
+      );
       options.onRendered?.(email);
       return email;
     },
@@ -520,9 +531,22 @@ export async function notifyVolunteerApplicationConfirmation(
 
   if (!(await isOrgEmailEnabled(admin, data.tenant_id))) return "skipped";
 
-  const mail = await tenantMailContext(admin, data.tenant_id, {
-    fallbackOrigin: options.siteUrl,
-  });
+  const [mail, reply] = await Promise.all([
+    tenantMailContext(admin, data.tenant_id, {
+      fallbackOrigin: options.siteUrl,
+    }),
+    resolveAutoReply(
+      admin,
+      data.tenant_id,
+      VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+    ),
+  ]);
+
+  // The second of the three gates, after the org-wide kill switch above. An
+  // applicant has no account and so no opt-out of their own, which makes this
+  // the last word -- and switching it off costs them the reference code, the
+  // only key to /get-involved/volunteer/status.
+  if (!reply.enabled) return "skipped";
 
   return deliverEmail(admin, {
     tenantId: data.tenant_id,
@@ -535,12 +559,15 @@ export async function notifyVolunteerApplicationConfirmation(
     ),
     to,
     render: () => {
-      const email = renderVolunteerApplicationConfirmationEmail({
-        orgName: mail.displayName,
-        applicantName: (data.name ?? "").trim(),
-        referenceCode: data.reference_code,
-        siteUrl: mail.origin,
-      });
+      const email = renderVolunteerApplicationConfirmationEmail(
+        {
+          orgName: mail.displayName,
+          applicantName: (data.name ?? "").trim(),
+          referenceCode: data.reference_code,
+          siteUrl: mail.origin,
+        },
+        reply.slots,
+      );
       options.onRendered?.(email);
       return email;
     },
@@ -628,7 +655,7 @@ export async function sendEventRegistrationConfirmation(
   // (tenant_id, id) foreign key, so an embed could not name its tenant -- and on
   // the service-role client there is no policy underneath to catch a mistake.
   // Inside the same Promise.all it costs no latency.
-  const [event, mail] = await Promise.all([
+  const [event, mail, reply] = await Promise.all([
     admin
       .from("events")
       .select("name, starts_at, ends_at, location, timezone")
@@ -638,7 +665,17 @@ export async function sendEventRegistrationConfirmation(
     tenantMailContext(admin, data.tenant_id, {
       fallbackOrigin: options.siteUrl,
     }),
+    resolveAutoReply(
+      admin,
+      data.tenant_id,
+      EVENT_REGISTRATION_CONFIRMATION_KIND,
+    ),
   ]);
+
+  // The second of the three gates, after the org-wide kill switch above. A
+  // registrant has no account and so no opt-out of their own; switching this
+  // off costs them the calendar attachment as well as the receipt.
+  if (!reply.enabled) return "skipped";
 
   if (event.error) {
     console.error(
@@ -658,18 +695,21 @@ export async function sendEventRegistrationConfirmation(
     dedupeKey: `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${data.id}`,
     to,
     render: () =>
-      renderEventRegistrationConfirmationEmail({
-        orgName: mail.displayName,
-        registrantName: (data.name ?? "").trim(),
-        eventName: registered.name,
-        startsAt: registered.starts_at,
-        endsAt: registered.ends_at,
-        timeZone: registered.timezone,
-        location: registered.location,
-        partySize: data.party_size ?? 1,
-        eventId: data.event_id,
-        siteUrl: mail.origin,
-      }),
+      renderEventRegistrationConfirmationEmail(
+        {
+          orgName: mail.displayName,
+          registrantName: (data.name ?? "").trim(),
+          eventName: registered.name,
+          startsAt: registered.starts_at,
+          endsAt: registered.ends_at,
+          timeZone: registered.timezone,
+          location: registered.location,
+          partySize: data.party_size ?? 1,
+          eventId: data.event_id,
+          siteUrl: mail.origin,
+        },
+        reply.slots,
+      ),
     logPrefix: "[event-registration-confirm]",
   });
 }

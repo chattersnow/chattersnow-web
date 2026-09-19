@@ -106,6 +106,9 @@ afterEach(async () => {
     .from("person_notification_preferences")
     .delete()
     .in("kind", KINDS);
+  // Nothing seeded writes these, so the tenant is back to the platform's own
+  // wording for the next test.
+  await service.from("auto_reply_templates").delete().eq("tenant_id", tenantId);
   await setOrgEmailEnabled(null);
 });
 
@@ -160,6 +163,27 @@ async function setOrgEmailEnabled(enabled: boolean | null) {
       { tenant_id: tenantId, key: EMAIL_ENABLED_SETTING_KEY, value: enabled },
       { onConflict: "tenant_id,key" },
     );
+  if (error) throw error;
+}
+
+/**
+ * The tenant's own auto-reply row (#1233): the per-kind switch, and whatever
+ * slots they rewrote. Absent is what a tenant who never opened the editor
+ * looks like, which is every other test in this file.
+ */
+async function setAutoReply(
+  kind: string,
+  row: { enabled?: boolean; slots?: Record<string, string> },
+) {
+  const { error } = await service.from("auto_reply_templates").upsert(
+    {
+      tenant_id: tenantId,
+      kind,
+      enabled: row.enabled ?? true,
+      slots: row.slots ?? {},
+    },
+    { onConflict: "tenant_id,kind" },
+  );
   if (error) throw error;
 }
 
@@ -832,5 +856,100 @@ describe("a volunteer application confirmation", () => {
     expect(await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND)).toEqual(
       [],
     );
+  });
+});
+
+// #1234. The third gate on a receipt, between the org-wide kill switch and a
+// recipient's own opt-out -- which none of these three recipients has, holding
+// no account. Off means this one receipt is off, and leaves no ledger row
+// behind to make a later "on" look like a duplicate.
+describe("an auto-reply the tenant switched off", () => {
+  test("stops the gear request confirmation without ledgering it", async () => {
+    await setAutoReply(GEAR_REQUEST_CONFIRMATION_KIND, { enabled: false });
+    const request = await newGearRequest();
+
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(GEAR_REQUEST_CONFIRMATION_KIND)).toEqual([]);
+  });
+
+  test("stops the volunteer application confirmation without ledgering it", async () => {
+    await setAutoReply(VOLUNTEER_APPLICATION_CONFIRMATION_KIND, {
+      enabled: false,
+    });
+    const application = await newApplication();
+
+    expect(
+      await notifyVolunteerApplicationConfirmation(service, {
+        tenantId,
+        referenceCode: application.referenceCode,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(VOLUNTEER_APPLICATION_CONFIRMATION_KIND)).toEqual(
+      [],
+    );
+  });
+
+  test("stops the event registration confirmation without ledgering it", async () => {
+    await setAutoReply(EVENT_REGISTRATION_CONFIRMATION_KIND, {
+      enabled: false,
+    });
+    const registration = await newEventRegistration();
+
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: registration.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND)).toEqual([]);
+
+    // Switching it back on still sends: nothing claimed the key while it was
+    // off.
+    await setAutoReply(EVENT_REGISTRATION_CONFIRMATION_KIND, {
+      enabled: true,
+    });
+    expect(
+      await sendEventRegistrationConfirmation(service, {
+        registrationId: registration.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("sent");
+    expect(await deliveries(EVENT_REGISTRATION_CONFIRMATION_KIND)).toHaveLength(
+      1,
+    );
+  });
+
+  test("a rewritten slot reaches the message that goes out", async () => {
+    await setAutoReply(GEAR_REQUEST_CONFIRMATION_KIND, {
+      slots: {
+        subject: "Held for you at {{org_name}}",
+        intro: "These are yours until the end of the month:",
+      },
+    });
+    const request = await newGearRequest();
+    const sent: { subject: string; text: string }[] = [];
+
+    expect(
+      await sendGearRequestConfirmation(service, {
+        requestId: request.id,
+        siteUrl: SITE_URL,
+        onRendered: (email) =>
+          sent.push({ subject: email.subject, text: email.text }),
+      }),
+    ).toBe("sent");
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].subject).toStartWith("Held for you at ");
+    expect(sent[0].text).toContain("yours until the end of the month");
+    // The slots they did not touch are still ours, and the item list is still
+    // the platform's to render.
+    expect(sent[0].text).toStartWith("Hi ");
+    expect(sent[0].text).toContain("pick these up in person");
   });
 });

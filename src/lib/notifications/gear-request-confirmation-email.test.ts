@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderGearRequestConfirmationEmail } from "./gear-request-confirmation-email";
+import { autoReplyDefaults } from "@/lib/notifications/auto-replies";
+import { requireAutoReplyDefinition } from "@/lib/notifications/auto-reply-email";
+import { GEAR_REQUEST_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 
 const base = {
   orgName: "Chatter Snow",
@@ -63,5 +66,80 @@ describe("renderGearRequestConfirmationEmail", () => {
     });
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("the tenant's own copy (#1234)", () => {
+  const definition = requireAutoReplyDefinition(GEAR_REQUEST_CONFIRMATION_KIND);
+  const defaults = autoReplyDefaults(definition);
+  const meetup = { ...base, deliveryMethod: "meetup" as const };
+
+  test("a rewritten slot changes both parts, and only that slot", () => {
+    const { subject, text, html } = renderGearRequestConfirmationEmail(meetup, {
+      ...defaults,
+      subject: "Your kit is reserved",
+      intro: "These are set aside for you:",
+    });
+
+    expect(subject).toBe("Your kit is reserved");
+    for (const part of [text, html]) {
+      expect(part).toContain("These are set aside for you:");
+      // The sentence a tenant may need to be different is gone when they
+      // rewrite it, and nothing else moved.
+      expect(part).not.toContain("no longer available to others");
+      expect(part).toContain("Hi Jo Rivera,");
+      expect(part).toContain("— Chatter Snow");
+    }
+  });
+
+  test("a closing the tenant wrote lands under their instructions", () => {
+    expect(defaults.closing).toBe("");
+    const { text, html } = renderGearRequestConfirmationEmail(
+      { ...meetup, instructions: "We hand gear over at the trailhead." },
+      { ...defaults, closing: "Questions? Just reply to this email." },
+    );
+    for (const part of [text, html]) {
+      expect(part.indexOf("Questions?")).toBeGreaterThan(
+        part.indexOf("trailhead"),
+      );
+    }
+  });
+
+  test("the item list and the instructions survive any copy", () => {
+    const blanked = Object.fromEntries(
+      Object.keys(defaults).map((key) => [key, ""]),
+    ) as typeof defaults;
+    const { text, html } = renderGearRequestConfirmationEmail(
+      { ...meetup, instructions: "Saturdays at the trailhead." },
+      blanked,
+    );
+
+    for (const part of [text, html]) {
+      expect(part).toContain("Burton Custom 158");
+      expect(part).toContain("pick these up in person");
+      expect(part).toContain("Saturdays at the trailhead.");
+    }
+    expect(text).not.toContain("\n\n\n");
+  });
+
+  test("escapes markup and ampersands once, in the HTML part only", () => {
+    const { text, html } = renderGearRequestConfirmationEmail(
+      {
+        ...meetup,
+        orgName: "Ben & Jerry's",
+        requesterName: "<script>alert(1)</script>",
+        items: ["Rock & <b>Roll</b> board"],
+      },
+      { ...defaults, closing: "Tea & <i>biscuits</i> provided." },
+    );
+
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("Tea &amp; &lt;i&gt;biscuits&lt;/i&gt; provided.");
+    expect(html).toContain("Rock &amp; &lt;b&gt;Roll&lt;/b&gt; board");
+    expect(html).toContain("Ben &amp; Jerry&#39;s");
+    expect(html).not.toContain("&amp;amp;");
+    expect(html).not.toContain("&amp;lt;");
+    expect(text).toContain("Tea & <i>biscuits</i> provided.");
+    expect(text).toContain("<script>alert(1)</script>");
   });
 });
