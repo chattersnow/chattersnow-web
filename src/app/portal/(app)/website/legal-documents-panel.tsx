@@ -23,6 +23,12 @@ export type LegalDocumentStatus = {
   inForce: boolean;
   /** Whether the tenant has published a document of its own for this slot. */
   ownDocument: boolean;
+  /**
+   * Why this document cannot be taken out of force, when a module that depends
+   * on it is on (#1295). Undefined is the ordinary case: nothing is holding it,
+   * and the switch works both ways.
+   */
+  heldInForceBy?: string;
 };
 
 function ServingLine({
@@ -80,6 +86,10 @@ function LegalDocumentRow({
   // transition ends and can never keep showing a change the server refused.
   const [checked, setChecked] = useOptimistic(status.inForce);
   const [isPending, startTransition] = useTransition();
+  // Held in force only matters while it *is* in force: a document nothing has
+  // adopted yet has nothing depending on it, and the module that would depend
+  // on it cannot be turned on until it is.
+  const held = status.inForce ? status.heldInForceBy : undefined;
 
   function handleChange(next: boolean) {
     onError(null);
@@ -115,6 +125,9 @@ function LegalDocumentRow({
             ownDocument={status.ownDocument}
           />
         </p>
+        {held ? (
+          <p className="app-muted mt-1 text-sm leading-relaxed">{held}</p>
+        ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-0.5">
         {isPending ? <Spinner className="size-4" /> : null}
@@ -132,7 +145,11 @@ function LegalDocumentRow({
           <Switch
             checked={checked}
             onCheckedChange={handleChange}
-            disabled={isPending}
+            // A held document keeps its switch, unlike the privacy policy's
+            // missing one: this is a state the organization can get out of by
+            // asking, so the control stays where it was and says why it is
+            // stuck (#1295).
+            disabled={isPending || Boolean(held)}
             aria-labelledby={labelId}
           />
         )}

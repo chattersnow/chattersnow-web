@@ -1,10 +1,15 @@
 "use server";
 
-import { pageVisibilitySettingKey } from "@/lib/page-visibility";
 import {
+  getTenantModules,
+  pageVisibilitySettingKey,
+} from "@/lib/page-visibility";
+import {
+  gatesHolding,
   legalDocument,
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   LAYOUT_SLOTS,
   isLayoutValue,
@@ -73,6 +78,20 @@ export async function updateLegalPublicationAction(
   if (!document) return { error: "That is not a legal document." };
   if (document.alwaysInForce) {
     return { error: `The ${document.label.toLowerCase()} is always served.` };
+  }
+
+  // A document a module depends on cannot be withdrawn while that module is on
+  // (#1295), or the gate on the other side is one click from being empty: the
+  // organization would be offering public accounts again with nothing
+  // governing them. Refused here rather than in the database because this is
+  // where the decision is made -- the same placement as the `alwaysInForce`
+  // refusal above, and it leaves seeding, the demo reset and the e2e fixtures,
+  // all of which write this row as `service_role`, free to set any state they
+  // need to test.
+  if (!inForce && document.gates.length > 0) {
+    const supabase = await createSupabaseServerClient();
+    const held = gatesHolding(document, await getTenantModules(supabase));
+    if (held.length > 0) return { error: held[0].refuseWithdrawing };
   }
 
   return writeAppSetting(

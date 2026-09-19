@@ -390,3 +390,70 @@ describe("the collection surface", () => {
     }
   });
 });
+
+// #1295. #859 decided adoption for a public site that was a set of one-shot
+// forms. Where a tenant offers accounts, the terms have to govern the standing
+// relationship those create -- and where it does not, the platform's terms must
+// not carry a heading about accounts nobody can hold.
+describe("the terms and the constituent area", () => {
+  const ACCOUNTS: CollectionSurface = { ...NOTHING, constituentAccounts: true };
+
+  const terms = (surfaces: CollectionSurface) =>
+    platformLegalDocument("legal.terms", withSurfaces(surfaces));
+
+  test("the account section appears only where accounts are offered", () => {
+    expect(terms(ACCOUNTS).sections.map((s) => s.id)).toContain("your-account");
+    expect(terms(NOTHING).sections.map((s) => s.id)).not.toContain(
+      "your-account",
+    );
+  });
+
+  // The whole reason #1295 is a new section rather than `alwaysInForce`: the
+  // platform's terms had nothing about accounts in them, so serving them
+  // unconditionally would publish a document that reads as though it governs
+  // accounts and does not.
+  test("it answers what a terms of use has to answer about an account", () => {
+    const text = readable("legal.terms", withSurfaces(ACCOUNTS));
+    // Who may hold one and what it is not.
+    expect(text).toContain("carries no role here");
+    // Responsibility for your own credentials.
+    expect(text).toContain("keep your password to yourself");
+    // A claim is reviewed, and a false one may be refused.
+    expect(text).toContain("somebody here reads it before anything is linked");
+    // Suspension and closure, and what happens to the records afterwards.
+    expect(text).toContain("suspend or close an account");
+    expect(text).toContain("Closing an account doesn't erase our records");
+    // No fee, no promise of continuity.
+    expect(text).toContain("There is no charge for an account");
+  });
+
+  // Self-logged hours need the Volunteers module as well as the area, the same
+  // pair of gates the privacy policy's hours bullet answers to.
+  test("provisional hours are promised only where they can be logged", () => {
+    const pending = "They stay pending until somebody here confirms them";
+    expect(
+      readable(
+        "legal.terms",
+        withSurfaces({ ...ACCOUNTS, volunteerHours: true }),
+      ),
+    ).toContain(pending);
+    expect(readable("legal.terms", withSurfaces(ACCOUNTS))).not.toContain(
+      pending,
+    );
+  });
+
+  test("the summary and the description name accounts only where they exist", () => {
+    expect(readable("legal.terms", withSurfaces(ACCOUNTS))).toContain(
+      "holding an account with us",
+    );
+    expect(readable("legal.terms", withSurfaces(NOTHING))).not.toContain(
+      "holding an account with us",
+    );
+    expect(
+      platformLegalDescription("legal.terms", withSurfaces(ACCOUNTS)),
+    ).toContain("hold an account with us");
+    expect(
+      platformLegalDescription("legal.terms", withSurfaces(NOTHING)),
+    ).not.toContain("hold an account with us");
+  });
+});
