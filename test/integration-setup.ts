@@ -766,3 +766,133 @@ export async function deleteVolunteerApplications(email: string) {
       .eq("id", row.person_id as string);
   }
 }
+
+/**
+ * A fixture's undo for one `tenant_modules` row: the value that was there
+ * before, or `null` for "there was no row".
+ */
+async function captureModule(
+  tenantId: string,
+  moduleKey: string,
+): Promise<() => Promise<void>> {
+  const service = serviceRoleClient();
+  const { data, error } = await service
+    .from("tenant_modules")
+    .select("enabled")
+    .eq("tenant_id", tenantId)
+    .eq("module_key", moduleKey)
+    .maybeSingle();
+  if (error) throw new Error(`read ${moduleKey}: ${error.message}`);
+  const found: boolean | null = data?.enabled ?? null;
+
+  return async () => {
+    const { error: restoreError } =
+      found === null
+        ? await service
+            .from("tenant_modules")
+            .delete()
+            .eq("tenant_id", tenantId)
+            .eq("module_key", moduleKey)
+        : await service
+            .from("tenant_modules")
+            .upsert(
+              { tenant_id: tenantId, module_key: moduleKey, enabled: found },
+              { onConflict: "tenant_id,module_key" },
+            );
+    if (restoreError) {
+      throw new Error(`restore ${moduleKey}: ${restoreError.message}`);
+    }
+  };
+}
+
+/**
+ * Sets one module for a tenant the fixture did not create, and hands back the
+ * undo.
+ *
+ * Restoring is not the same as deleting the row, and it is not the same as
+ * writing the value you assume was there. The seeded tenant has an opinion on
+ * every module: 20260910010000 backfills one row per `plan_modules` entry, and
+ * `supabase/seed.sql` adds `constituent_accounts = true` on top (#1175) --
+ * that last row is what makes `/my`, `/my/sign-in` and `/portal/people/claims`
+ * exist locally, and what the a11y constituent sweep and the e2e specs run
+ * against. A file that deleted it in `afterAll` dropped the tenant back to the
+ * plan/catalog default of `false` and left the constituent area switched off
+ * until the next `bun run db:reset`, with nothing in the run failing to say
+ * so: the next thing to touch `/my` got a `notFound()` from
+ * `requireConstituentArea()`, and the check that hit it blamed whatever code
+ * was being worked on (#1282).
+ *
+ * So: leave the tenant as you found it, not as the catalog would have it.
+ */
+export async function setModule(
+  tenantId: string,
+  moduleKey: string,
+  enabled: boolean,
+): Promise<() => Promise<void>> {
+  const restore = await captureModule(tenantId, moduleKey);
+  const { error } = await serviceRoleClient()
+    .from("tenant_modules")
+    .upsert(
+      { tenant_id: tenantId, module_key: moduleKey, enabled },
+      { onConflict: "tenant_id,module_key" },
+    );
+  if (error) throw new Error(`set ${moduleKey}: ${error.message}`);
+  return restore;
+}
+
+/** `setModule(..., true)`, which is what a file-level fixture nearly always wants. */
+export function enableModule(
+  tenantId: string,
+  moduleKey: string,
+): Promise<() => Promise<void>> {
+  return setModule(tenantId, moduleKey, true);
+}
+
+/**
+ * Puts a tenant back to having said nothing about a module, and hands back the
+ * undo.
+ *
+ * For a test whose subject is the catalog default rather than a tenant's
+ * answer. It has to be a fixture and not an ambient condition for the reason
+ * above: the seeded tenant has a row for every module, so a file that needs
+ * the absence has to make it and give it back (#1282).
+ */
+export async function removeModuleRow(
+  tenantId: string,
+  moduleKey: string,
+): Promise<() => Promise<void>> {
+  const restore = await captureModule(tenantId, moduleKey);
+  const { error } = await serviceRoleClient()
+    .from("tenant_modules")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("module_key", moduleKey);
+  if (error) throw new Error(`remove ${moduleKey}: ${error.message}`);
+  return restore;
+}
+
+/** `setModule` around one test, for the off-case tests that switch and switch back. */
+export async function withModule(
+  tenantId: string,
+  moduleKey: string,
+  enabled: boolean,
+  body: () => Promise<void>,
+): Promise<void> {
+  const restore = await setModule(tenantId, moduleKey, enabled);
+  try {
+    await body();
+  } finally {
+    await restore();
+  }
+}
+
+/** The one tenant `bun run db:reset` leaves behind (docs/tenants.md). */
+export async function seededTenantId(): Promise<string> {
+  const { data, error } = await serviceRoleClient()
+    .from("tenants")
+    .select("id")
+    .eq("slug", "example-nonprofit")
+    .single();
+  if (error) throw new Error(`seeded tenant: ${error.message}`);
+  return data.id as string;
+}

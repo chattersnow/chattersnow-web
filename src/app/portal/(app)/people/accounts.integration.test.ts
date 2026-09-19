@@ -10,6 +10,8 @@ import {
   SEEDED_USERS,
   adminClient,
   createPerson,
+  enableModule,
+  seededTenantId,
   serviceRoleClient,
   signIn,
   signInAs,
@@ -24,46 +26,29 @@ import {
  * RPC whose whole job is to refuse three different callers.
  *
  * The module fixture is `claims.integration.test.ts`'s, and so is the tidying
- * up: turn `constituent_accounts` on for the duration, take the row away again
- * afterwards, and delete the accounts this file made. Both halves matter to
- * files that run later in the same process -- `guard.integration.test.ts` reads
- * "a tenant that has said nothing" off the absence of that row, and the seeded
- * users have to stay inside the first page `auth.admin.listUsers()` returns,
- * which is how several finance tests find `finance@example.test`.
+ * up: turn `constituent_accounts` on for the duration, put the row back the
+ * way the seed left it afterwards, and delete the accounts this file made.
+ * The second half matters to files that run later in the same process -- the
+ * seeded users have to stay inside the first page `auth.admin.listUsers()`
+ * returns, which is how several finance tests find `finance@example.test`.
  */
 const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
 
 let tenantId: string;
+let restoreModule: () => Promise<void>;
 
 // Stated rather than assumed: `constituent_accounts` is the one module that
 // defaults to off (20260916050000), and `has_permission()` folds the module
 // check in -- so with it off, every assertion below would fail for a reason
 // that has nothing to do with what it is testing.
 beforeAll(async () => {
-  const { data: tenant } = await service
-    .from("tenants")
-    .select("id")
-    .eq("slug", "example-nonprofit")
-    .single();
-  tenantId = tenant!.id as string;
-  const { error } = await service.from("tenant_modules").upsert(
-    {
-      tenant_id: tenantId,
-      module_key: "constituent_accounts",
-      enabled: true,
-    },
-    { onConflict: "tenant_id,module_key" },
-  );
-  if (error) throw new Error(`enable module: ${error.message}`);
+  tenantId = await seededTenantId();
+  restoreModule = await enableModule(tenantId, "constituent_accounts");
 });
 
 afterAll(async () => {
-  await service
-    .from("tenant_modules")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("module_key", "constituent_accounts");
+  await restoreModule();
 });
 
 const cleanups: Array<() => Promise<void>> = [];
