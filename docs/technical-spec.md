@@ -42,11 +42,17 @@ Throughout the spec, a plain `§N` is in the file you are reading and a `§N` th
 in another file is a link. A bare `§N` in a migration comment or an issue predates the
 split and resolves through the index above.
 
+Those links are load-bearing, so `bun run docs:links` resolves every one of them and CI
+fails on a miss (#1196). Watch the anchors: GitHub deletes a character it cannot slug
+and does **not** close the gap it leaves, so `## 6. Data model — Multi-tenancy` is
+`#6-data-model--multi-tenancy`, with two hyphens. Fourteen links wrote one and landed
+the reader at the top of the target file instead.
+
 ## 1. Purpose
 
 A small organization needs a public website for sharing what it does, plus a secure admin portal for managing events, money, inventory, people, and operational summaries. That is true of a nonprofit sharing its mission and programs, and equally of a small business — the records are the same shape, and the words differ.
 
-This began as Chatter Snow's own site and is now a **multi-tenant platform**, named **Coven**, serving that need for any number of organizations from one application and one database ([§6, "Multi-tenancy"](spec/multi-tenancy.md#6-data-model-multi-tenancy)). Its market is small nonprofits and small businesses. **Chatter Snow is the first tenant, not the product.** Read every requirement below as a requirement of the platform, satisfied per tenant: "the organization's mission", not "Chatter Snow's mission". Where Chatter Snow appears by name it is an example of a tenant's data, and belongs in that tenant's rows rather than in platform code — `docs/licensing.md` draws the line, and `docs/tenants.md` is the operator's runbook.
+This began as Chatter Snow's own site and is now a **multi-tenant platform**, named **Coven**, serving that need for any number of organizations from one application and one database ([§6, "Multi-tenancy"](spec/multi-tenancy.md#6-data-model--multi-tenancy)). Its market is small nonprofits and small businesses. **Chatter Snow is the first tenant, not the product.** Read every requirement below as a requirement of the platform, satisfied per tenant: "the organization's mission", not "Chatter Snow's mission". Where Chatter Snow appears by name it is an example of a tenant's data, and belongs in that tenant's rows rather than in platform code — `docs/licensing.md` draws the line, and `docs/tenants.md` is the operator's runbook.
 
 Nonprofit vocabulary — donors, programs, volunteers, a board — is the default wording of a platform whose first tenant is a nonprofit, not a statement about who may be a tenant. A business tenant reads the same tables as customers, services, staff and owners. Where a word reaches navigation, it is data (`lexicon.*`, §6 multi-tenancy); everywhere else it is Site Content. Requirements below that name a nonprofit-only concept — §5.12 governance and nonprofit-status tracking above all — are module entitlements a tenant may not hold, not assumptions the platform makes.
 
@@ -94,7 +100,7 @@ The public site must remain useful without an account. Operational data must req
 
 ### 3.1 Hosts and tenants
 
-One deployment serves every tenant. Which one a request belongs to is resolved from its `Host` against `tenants.custom_domain` ([§6, "Multi-tenancy"](spec/multi-tenancy.md#6-data-model-multi-tenancy)), so adding an organization is a DNS entry plus a row — never a branch, a build, or a deploy.
+One deployment serves every tenant. Which one a request belongs to is resolved from its `Host` against `tenants.custom_domain` ([§6, "Multi-tenancy"](spec/multi-tenancy.md#6-data-model--multi-tenancy)), so adding an organization is a DNS entry plus a row — never a branch, a build, or a deploy.
 
 | Host                         | Tenant                     | What it serves                                                                                                                                                                                                                                                                            |
 | ---------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -248,13 +254,13 @@ Public read access should be limited to records explicitly marked published/publ
 
 Authenticated users should receive only the permissions associated with their roles.
 
-- **Tenant isolation** (#707): every tenant table carries `tenant_id`, permissions are evaluated per tenant, and platform access is a time-boxed `support` membership rather than a bypass. Phase 3 enforces it: every policy filters on the tenant, every foreign key between tenant tables is composite, the `security definer` RPCs answer for the caller's tenant, the public surface resolves from the request host, and the generated isolation suite (plus `tenant_isolation_gaps()`) asserts all of it on every run. Since #887 that report also covers the construct which bypasses the policies it checks -- a `security definer` view over a tenant table with no tenant predicate, and any write grant on one (see "Multi-tenancy" in [§6](spec/multi-tenancy.md#6-data-model-multi-tenancy)). A gap there is a release blocker for serving a second organization.
+- **Tenant isolation** (#707): every tenant table carries `tenant_id`, permissions are evaluated per tenant, and platform access is a time-boxed `support` membership rather than a bypass. Phase 3 enforces it: every policy filters on the tenant, every foreign key between tenant tables is composite, the `security definer` RPCs answer for the caller's tenant, the public surface resolves from the request host, and the generated isolation suite (plus `tenant_isolation_gaps()`) asserts all of it on every run. Since #887 that report also covers the construct which bypasses the policies it checks -- a `security definer` view over a tenant table with no tenant predicate, and any write grant on one (see "Multi-tenancy" in [§6](spec/multi-tenancy.md#6-data-model--multi-tenancy)). A gap there is a release blocker for serving a second organization.
 
 ### 7.4 No sensitive data for the anonymous role
 
 Financial, donor, recipient, internal note, and audit data must not be available to the anonymous role.
 
-- The corollary for settings and copy (#888): `brand.`, `page_visibility.`, `layout.`, `legal_publication.`, `lexicon.` and `site_images.` are reserved public key namespaces and the whole of `site_content` is public, because the views serving them match a prefix (or nothing at all) rather than an enumerated list. Nothing that is not meant for `anon` may be stored under them; see "Multi-tenancy" in [§6](spec/multi-tenancy.md#6-data-model-multi-tenancy) for the registries and the test that enforces it.
+- The corollary for settings and copy (#888): `brand.`, `page_visibility.`, `layout.`, `legal_publication.`, `lexicon.` and `site_images.` are reserved public key namespaces and the whole of `site_content` is public, because the views serving them match a prefix (or nothing at all) rather than an enumerated list. Nothing that is not meant for `anon` may be stored under them; see "Multi-tenancy" in [§6](spec/multi-tenancy.md#6-data-model--multi-tenancy) for the registries and the test that enforces it.
 
 ### 7.5 Storage buckets are private by default
 
