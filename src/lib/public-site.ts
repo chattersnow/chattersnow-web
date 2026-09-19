@@ -8,6 +8,11 @@ import {
   type PublicTenantResult,
 } from "@/lib/branding";
 import type { LegalOrgContext } from "@/lib/legal-defaults";
+import { collectionSurface } from "@/lib/legal-surface";
+import {
+  getPageVisibility,
+  getPublicTenantModules,
+} from "@/lib/page-visibility";
 import {
   resolveSiteContent,
   type SiteContent,
@@ -120,13 +125,26 @@ export const getPublicSite = cache(
  * could not name one -- a legal page has to say whose it is, and the short name
  * is at worst the registry's "Your organization" prompt, which reads as
  * unwritten rather than as somebody else.
+ *
+ * Async since #1291, for the collection surface: the documents describe the
+ * forms this tenant actually has, which is what page visibility and the module
+ * entitlements already answer. Both reads are `cache()`d and the public layout
+ * makes them on every request to filter the nav, so this costs nothing.
  */
-export function legalOrg(site: PublicSite): LegalOrgContext {
+export async function legalOrg(
+  supabase: SupabaseClient,
+  site: PublicSite,
+): Promise<LegalOrgContext> {
+  const [visibility, modules] = await Promise.all([
+    getPageVisibility(supabase),
+    getPublicTenantModules(supabase),
+  ]);
   return {
     name: site.name ?? site.content.text("org.short_name"),
     emailGeneral: site.content.text("org.email_general"),
     emailPrivacy: site.content.text("org.email_privacy"),
     emailConduct: site.content.text("org.email_conduct"),
+    surfaces: collectionSurface(visibility, modules),
   };
 }
 

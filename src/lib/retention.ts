@@ -17,6 +17,8 @@
  * `period` is a Postgres interval literal so the comparison is string equality
  * against the seeded column, with no parsing on either side.
  */
+import type { CollectionSurface } from "@/lib/legal-surface";
+
 export type RetentionPolicy = {
   /** Primary key in `public.retention_policies`. */
   key: string;
@@ -28,6 +30,17 @@ export type RetentionPolicy = {
   period: string;
   /** Matching `retention_policies.secondary_period`; only one policy has one. */
   secondaryPeriod?: string;
+  /**
+   * The collection surface whose data this clock governs (#1291), or undefined
+   * for one that runs on every tenant.
+   *
+   * The privacy policy prints only the rows whose surface is live, so a tenant
+   * with no volunteer form does not publish how long it keeps volunteer
+   * applications it cannot receive. The purge is unaffected: every clock below
+   * is still enforced, and the integration test pinning these periods against
+   * the `retention_policies` table still compares the whole list.
+   */
+  surface?: keyof CollectionSurface;
 };
 
 export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
@@ -36,6 +49,7 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     what: "Contact form messages",
     howLong: "2 years from the date you sent them.",
     period: "2 years",
+    surface: "contact",
   },
   {
     key: "volunteer_applications",
@@ -50,6 +64,7 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
       "2 years after your last activity with us, or 1 year if the application is withdrawn or declined.",
     period: "2 years",
     secondaryPeriod: "1 year",
+    surface: "volunteerApplications",
   },
   {
     key: "event_registrations",
@@ -60,6 +75,7 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // would restate figures already filed with funders.
     howLong: "3 years after the event.",
     period: "3 years",
+    surface: "eventRegistrations",
   },
   {
     key: "rider_profiles",
@@ -70,6 +86,9 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     howLong:
       "Until you ask us to delete your profile, or after 2 years of inactivity.",
     period: "2 years",
+    // A profile is filled in from the registration form, so it exists only
+    // where events do.
+    surface: "eventRegistrations",
   },
   {
     key: "gear_requests",
@@ -80,6 +99,7 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // the clock never started. Same 3 years, from an event that happens.
     howLong: "3 years after we hand the gear over.",
     period: "3 years",
+    surface: "gearRequests",
   },
   {
     key: "portal_accounts",

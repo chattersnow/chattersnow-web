@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: publicTitle(site, doc?.title ?? "Terms of Use"),
     description: doc
       ? undefined
-      : platformLegalDescription(SLOT, legalOrg(site)),
+      : platformLegalDescription(SLOT, await legalOrg(supabase, site)),
   };
 }
 
@@ -28,6 +28,7 @@ export default async function Page() {
   const supabase = await createSupabaseServerClient();
   const site = await getPublicSite(supabase);
   const doc =
-    site.content.document(SLOT) ?? platformLegalDocument(SLOT, legalOrg(site));
+    site.content.document(SLOT) ??
+    platformLegalDocument(SLOT, await legalOrg(supabase, site));
   return <LegalDocument doc={doc} />;
 }
