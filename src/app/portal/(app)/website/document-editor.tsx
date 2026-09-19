@@ -57,7 +57,10 @@ function outlineDocument(slotKey: string): LegalDocumentContent {
     last_updated: today(),
     summary: [],
     sections: outline.sections.map((section) => ({
-      ...section,
+      // Named rather than spread: the outline carries a `requires` key that is
+      // metadata for the platform's own document (#1291), not document content.
+      id: section.id,
+      title: section.title,
       paragraphs: [],
     })),
   };

@@ -20,6 +20,7 @@ import {
   SEEDED_USERS,
   adminClient,
   anonClient,
+  enableModule,
   serviceRoleClient,
   signIn,
   uniqueEmail,
@@ -31,6 +32,8 @@ const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
 
 let tenantId: string;
+/** Puts `constituent_accounts` back the way the seed left it (#1282). */
+let restoreModule: () => Promise<void>;
 /** A record nobody is linked to, at an address a claimant will also hold. */
 let targetPersonId: string;
 let targetEmail: string;
@@ -81,15 +84,7 @@ beforeAll(async () => {
   // refuse a full administrator and `submit_person_claim` writes nothing. A
   // tenant actually using this has it on, so the fixtures turn it on. The
   // off case gets its own test below rather than being the ambient state.
-  const { error: moduleError } = await service.from("tenant_modules").upsert(
-    {
-      tenant_id: tenantId,
-      module_key: "constituent_accounts",
-      enabled: true,
-    },
-    { onConflict: "tenant_id,module_key" },
-  );
-  if (moduleError) throw new Error(`enable module: ${moduleError.message}`);
+  restoreModule = await enableModule(tenantId, "constituent_accounts");
 
   targetEmail = uniqueEmail(`claim-target-${run}`);
   targetPersonId = await person({ name: "Robin Ashford", email: targetEmail });
@@ -101,11 +96,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await service
-    .from("tenant_modules")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("module_key", "constituent_accounts");
+  await restoreModule();
   await service.from("person_claims").delete().in("auth_user_id", createdUsers);
   await service.from("people").delete().in("id", createdPeople);
   // auth.users rows are left: audit_log references them, and the seed is reset

@@ -62,6 +62,7 @@
 import type { Json } from "@/lib/supabase/types";
 import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import { isPublishableHref } from "@/lib/legal-markup";
+import type { CollectionSurface } from "@/lib/legal-surface";
 import {
   DEFAULT_LEXICON,
   applyLexicon,
@@ -417,9 +418,27 @@ export type LegalDocumentContent = {
  * while these were Chatter Snow's documents; they are now sections of Chatter
  * Snow's own published document rather than of the platform's default.
  */
+export type LegalDocumentOutlineSection = {
+  id: string;
+  title: string;
+  /**
+   * The collection surface this section is about (#1291). A section with no
+   * `requires` is unconditional; one that names a surface is filtered out of
+   * the platform's document -- outline and all -- when that surface is off, so
+   * a tenant that runs no events does not publish a heading about them and the
+   * section rail does not point at an anchor that is not there.
+   *
+   * Filtered out of the *outline* rather than answered with an empty array on
+   * purpose: `platformLegalDocument()` throws on a section with no prose, which
+   * is what makes a heading with no body a build-visible mistake, and that
+   * throw stays exactly as it is for everything surviving the filter.
+   */
+  requires?: keyof CollectionSurface;
+};
+
 export type LegalDocumentOutline = {
   title: string;
-  sections: readonly { id: string; title: string }[];
+  sections: readonly LegalDocumentOutlineSection[];
 };
 
 export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
@@ -444,8 +463,21 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
     sections: [
       { id: "who-we-are", title: "Who we are" },
       { id: "using-this-site", title: "Using this site" },
-      { id: "events-and-programs", title: "Events and programs" },
-      { id: "volunteering", title: "Volunteering" },
+      {
+        id: "your-account",
+        title: "Your account",
+        requires: "constituentAccounts",
+      },
+      {
+        id: "events-and-programs",
+        title: "Events and programs",
+        requires: "eventRegistrations",
+      },
+      {
+        id: "volunteering",
+        title: "Volunteering",
+        requires: "volunteerApplications",
+      },
       {
         id: "accessibility-and-inclusion",
         title: "Accessibility and inclusion",

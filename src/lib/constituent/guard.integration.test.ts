@@ -1,8 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   SEEDED_USERS,
   adminClient,
   anonClient,
+  removeModuleRow,
+  seededTenantId,
   signIn,
 } from "../../../test/integration-setup";
 import { CONSTITUENT_MODULE } from "./guard";
@@ -18,6 +20,27 @@ import { CONSTITUENT_MODULE } from "./guard";
  * permissions are nil.
  */
 describe("the constituent module is off until a tenant asks for it", () => {
+  /**
+   * "Said nothing" is a state the seeded tenant is not in: `supabase/seed.sql`
+   * turns `constituent_accounts` on (#1175). These tests used to pass on the
+   * back of an earlier file in the run deleting that row on its way out, which
+   * made them a reading of the previous file's tidying up rather than of the
+   * catalog -- and left the constituent area switched off locally afterwards
+   * (#1282). So the absence they need is made here and given back here.
+   */
+  let restoreModule: () => Promise<void>;
+
+  beforeAll(async () => {
+    restoreModule = await removeModuleRow(
+      await seededTenantId(),
+      CONSTITUENT_MODULE,
+    );
+  });
+
+  afterAll(async () => {
+    await restoreModule();
+  });
+
   // `module_enabled_for_tenant()` and `public_tenant_modules` both end their
   // coalesce chain with a fail-open `true`, which exists for a module key that
   // is not in the catalog at all. A catalog row saying `default_enabled =

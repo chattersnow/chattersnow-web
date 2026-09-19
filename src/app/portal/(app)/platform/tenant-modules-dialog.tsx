@@ -196,6 +196,14 @@ export function TenantModulesDialog({
                         Core — the portal does not work without it, so it cannot
                         be turned off for anyone.
                       </p>
+                    ) : entry.blocked_reason ? (
+                      /* A legal document this organization has not adopted is
+                         in the way (#1295). Shown instead of the source note,
+                         which answers a question nobody is asking while the
+                         switch will not move. */
+                      <p className="app-muted mt-1 text-xs">
+                        {entry.blocked_reason}
+                      </p>
                     ) : note ? (
                       <p className="app-muted mt-1 text-xs">{note}</p>
                     ) : entry.updated_by_email ? (
@@ -210,7 +218,11 @@ export function TenantModulesDialog({
                   </div>
                   <Switch
                     checked={entry.enabled}
-                    disabled={entry.is_core || isPending}
+                    disabled={
+                      entry.is_core ||
+                      isPending ||
+                      Boolean(entry.blocked_reason)
+                    }
                     aria-label={`${entry.label} for ${tenant.name}`}
                     onCheckedChange={(checked) =>
                       checked ? apply(entry, true) : setConfirming(entry)

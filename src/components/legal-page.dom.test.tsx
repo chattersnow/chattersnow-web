@@ -6,6 +6,7 @@ import {
   PLATFORM_LEGAL_SLOT_KEYS,
   type LegalOrgContext,
 } from "@/lib/legal-defaults";
+import { collectionSurface, type CollectionSurface } from "@/lib/legal-surface";
 import { LEGAL_DOCUMENT_OUTLINES } from "@/lib/site-content";
 
 // The section nav beside each legal document is driven by that document's
@@ -22,12 +23,36 @@ const ORG: LegalOrgContext = {
   emailGeneral: "hello@example.org",
   emailPrivacy: "privacy@example.org",
   emailConduct: "conduct@example.org",
+  surfaces: collectionSurface({}, {}),
+};
+
+/** A tenant with no public forms: the surface #1291 drops whole sections on. */
+const NO_FORMS: CollectionSurface = {
+  contact: false,
+  volunteerApplications: false,
+  eventRegistrations: false,
+  gearRequests: false,
+  artworkSubmissions: false,
+  constituentAccounts: false,
+  volunteerHours: false,
+  googleSignIn: false,
 };
 
 const PAGES = [
   ...PLATFORM_LEGAL_SLOT_KEYS.map((key) => ({
     name: LEGAL_DOCUMENT_OUTLINES[key].title.toLowerCase(),
     Page: () => <LegalDocument doc={platformLegalDocument(key, ORG)} />,
+  })),
+  // Since #1291 a document can be served with sections filtered out of it, and
+  // the rail is built from the same list -- so it is worth proving the filtered
+  // document has no dead anchor either, not just the full one.
+  ...PLATFORM_LEGAL_SLOT_KEYS.map((key) => ({
+    name: `${LEGAL_DOCUMENT_OUTLINES[key].title.toLowerCase()} with no forms`,
+    Page: () => (
+      <LegalDocument
+        doc={platformLegalDocument(key, { ...ORG, surfaces: NO_FORMS })}
+      />
+    ),
   })),
   // A tenant-published document goes through the same component, so the same
   // invariants hold for it.

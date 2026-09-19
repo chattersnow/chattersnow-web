@@ -577,7 +577,17 @@ Both are the tenant admin's, not the operator's:
   collecting. It is one `app_settings` row per document
   (`legal_publication.<key>`, read through `public_legal_publication`), and no
   row is seeded — a newly provisioned tenant serves its privacy policy and
-  nothing else. The site's photos are
+  nothing else. **The terms of use are a prerequisite for the
+  `constituent_accounts` module** (#1295): the Platform page refuses to turn
+  the signed-in area on for an organization that has not put them in force,
+  and once it is on that organization cannot take them back out until the
+  module goes off. #859 decided adoption for a public site that was a set of
+  one-shot forms; accounts are a standing relationship the organization can
+  suspend, and the terms are the only thing that governs one. The dependency
+  is declared in `src/lib/legal-documents.ts` (`LegalDocument.gates`) and
+  enforced in the two Server Actions the two switches call, so seeding, the
+  demo reset and the e2e fixtures — all of which write these rows as
+  `service_role` — are free to set whatever state they need. The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.

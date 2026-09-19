@@ -26,6 +26,8 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   SEEDED_USERS,
   anonClient,
+  enableModule,
+  seededTenantId,
   serviceRoleClient,
   signIn,
   uniqueEmail,
@@ -42,6 +44,7 @@ type Constituent = {
 };
 
 let tenantId: string;
+let restoreModule: () => Promise<void>;
 let alice: Constituent;
 let bob: Constituent;
 
@@ -124,15 +127,10 @@ async function setModule(key: string, enabled: boolean) {
 }
 
 beforeAll(async () => {
-  const { data } = await service
-    .from("tenants")
-    .select("id")
-    .eq("slug", "example-nonprofit")
-    .single();
-  tenantId = data!.id;
+  tenantId = await seededTenantId();
 
   // The area ships off everywhere (#1161), and a tenant using this has it on.
-  await setModule("constituent_accounts", true);
+  restoreModule = await enableModule(tenantId, "constituent_accounts");
 
   alice = await makeConstituent("alice");
   bob = await makeConstituent("bob");
@@ -140,11 +138,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup();
-  await service
-    .from("tenant_modules")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("module_key", "constituent_accounts");
+  await restoreModule();
 });
 
 describe("the allowlist", () => {
