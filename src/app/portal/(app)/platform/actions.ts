@@ -6,6 +6,12 @@ import { checkPermission } from "@/lib/auth/permissions";
 import { mintInviteLink } from "@/lib/auth/invite-link";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { friendlyError } from "@/lib/db-errors";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  LEGAL_PUBLICATION_PREFIX,
+  moduleGate,
+  resolveInForce,
+} from "@/lib/legal-documents";
 import type { PlatformTenant, TenantModule } from "./platform-shared";
 
 export type { PlatformTenant, TenantModule } from "./platform-shared";
@@ -142,7 +148,66 @@ export async function listTenantModulesAction(
     p_tenant_id: tenantId,
   });
   if (error) return { error: "Could not load this organization's modules." };
-  return { data: (data ?? []) as TenantModule[] };
+
+  const modules = (data ?? []) as TenantModule[];
+  return { data: await withLegalGates(tenantId, modules) };
+}
+
+/**
+ * Whether a legal document this tenant has not adopted is standing in the way
+ * of a module (#1295).
+ *
+ * Read with a service-role client, not the operator's own: `app_settings` is
+ * scoped by RLS to the tenant the *caller* belongs to, and the operator is
+ * looking at somebody else's organization. It reaches for the admin client
+ * only after `guard()` has checked `platform_tenants:manage`, and it reads one
+ * boolean per legal document -- no customer data crosses the boundary.
+ *
+ * Fails **closed**: an unreadable settings table leaves every gated module
+ * blocked with its reason showing, because turning on public accounts for an
+ * organization whose terms we could not confirm is the outcome the gate exists
+ * to prevent. The operator sees the refusal and can try again.
+ */
+async function withLegalGates(
+  tenantId: string,
+  modules: TenantModule[],
+): Promise<TenantModule[]> {
+  if (!modules.some((entry) => moduleGate(entry.module_key))) return modules;
+
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("app_settings")
+    .select("key, value")
+    .eq("tenant_id", tenantId)
+    .like("key", `${LEGAL_PUBLICATION_PREFIX}%`);
+  if (error) {
+    console.error(
+      `[platform] could not read the legal publication of tenant ${tenantId}; every gated module is showing as blocked`,
+      error,
+    );
+  }
+
+  const stored = new Map(
+    (data ?? []).map((row) => [
+      String(row.key).slice(LEGAL_PUBLICATION_PREFIX.length),
+      row.value,
+    ]),
+  );
+
+  return modules.map((entry) => {
+    const found = moduleGate(entry.module_key);
+    if (!found) return entry;
+    const inForce = resolveInForce(
+      found.document,
+      stored.get(found.document.key),
+    );
+    // Only an *enable* is gated. A module already on -- a tenant that adopted
+    // its terms and then, somehow, has no row -- is left alone rather than
+    // having its switch frozen in the on position.
+    return inForce || entry.enabled
+      ? entry
+      : { ...entry, blocked_reason: found.gate.refuseEnabling };
+  });
 }
 
 export async function setTenantModuleAction(
@@ -152,6 +217,16 @@ export async function setTenantModuleAction(
 ): Promise<{ error: string } | { success: true }> {
   const { supabase, denied } = await guard();
   if (denied) return denied;
+
+  // The dialog already disables a blocked switch; this is the same refusal for
+  // a call that did not come from it (#1295). The disabled control is what
+  // explains the rule, and this is what makes it true.
+  if (enabled && moduleGate(moduleKey)) {
+    const [entry] = await withLegalGates(tenantId, [
+      { module_key: moduleKey, enabled: false } as TenantModule,
+    ]);
+    if (entry.blocked_reason) return { error: entry.blocked_reason };
+  }
 
   const { error } = await supabase.rpc("platform_set_tenant_module", {
     p_tenant_id: tenantId,

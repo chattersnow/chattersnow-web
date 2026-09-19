@@ -46,6 +46,13 @@ export type TenantModule = {
   source: "tenant" | "plan" | "default";
   updated_at: string | null;
   updated_by_email: string | null;
+  /**
+   * Why this module cannot be turned on at all, when a legal document the
+   * organization has not put in force governs it (#1295). Added by
+   * `listTenantModulesAction`, not by the RPC: the dependency is a product
+   * rule in `@/lib/legal-documents`, and the catalog knows nothing of it.
+   */
+  blocked_reason?: string;
 };
 
 /** Where a module's current value comes from, in words, for the dialog. */

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
+import { gatesHolding, LEGAL_DOCUMENTS } from "@/lib/legal-documents";
 import { getTenantLegalPublication } from "@/lib/legal-publication";
+import { getTenantModules } from "@/lib/page-visibility";
 import {
   LegalDocumentsPanel,
   type LegalDocumentStatus,
@@ -24,18 +25,24 @@ export const metadata: Metadata = {
  */
 export default async function WebsiteLegalDocumentsPage() {
   const supabase = await createSupabaseServerClient();
-  const [legalPublication, { data: ownLegalDocuments }] = await Promise.all([
-    getTenantLegalPublication(supabase),
-    // Which of the three this tenant has published text of its own for, so the
-    // panel can say what each route is actually serving rather than only
-    // whether it is served (#859). A published row is `value not null`; a
-    // draft is not being served and does not count.
-    supabase
-      .from("site_content")
-      .select("key, value")
-      .like("key", "legal.%")
-      .not("value", "is", null),
-  ]);
+  const [legalPublication, modules, { data: ownLegalDocuments }] =
+    await Promise.all([
+      getTenantLegalPublication(supabase),
+      // Which modules are on, so a document something depends on shows why it
+      // cannot be withdrawn rather than offering a switch that will refuse
+      // (#1295) -- the same stance `notifications.from_address` takes on an
+      // unverified domain.
+      getTenantModules(supabase),
+      // Which of the three this tenant has published text of its own for, so the
+      // panel can say what each route is actually serving rather than only
+      // whether it is served (#859). A published row is `value not null`; a
+      // draft is not being served and does not count.
+      supabase
+        .from("site_content")
+        .select("key, value")
+        .like("key", "legal.%")
+        .not("value", "is", null),
+    ]);
 
   const ownLegalSlots = new Set(
     (ownLegalDocuments ?? []).map((row) => row.key as string),
@@ -45,6 +52,7 @@ export default async function WebsiteLegalDocumentsPage() {
       key: document.key,
       inForce: Boolean(legalPublication[document.key]),
       ownDocument: ownLegalSlots.has(document.slotKey),
+      heldInForceBy: gatesHolding(document, modules)[0]?.refuseWithdrawing,
     }),
   );
 

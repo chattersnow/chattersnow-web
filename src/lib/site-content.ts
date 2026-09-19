@@ -464,6 +464,11 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
       { id: "who-we-are", title: "Who we are" },
       { id: "using-this-site", title: "Using this site" },
       {
+        id: "your-account",
+        title: "Your account",
+        requires: "constituentAccounts",
+      },
+      {
         id: "events-and-programs",
         title: "Events and programs",
         requires: "eventRegistrations",

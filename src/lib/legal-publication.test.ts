@@ -3,9 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  gatesHolding,
   LEGAL_DOCUMENTS,
   legalDocument,
   legalPublicationSettingKey,
+  moduleGate,
   resolveInForce,
 } from "./legal-documents";
 import {
@@ -219,5 +221,83 @@ describe("getTenantLegalPublication", () => {
 
     expect(publication.terms).toBe(false);
     expect(publication.code_of_conduct).toBe(false);
+  });
+});
+
+// #1295. A tenant with `constituent_accounts` on offers its public a standing
+// credentialed relationship -- sign-up with a password, a claim somebody
+// reviews, hours staff act on -- and #859's adoption switch let that ship with
+// no terms in force at all. The module is gated on the document, in both
+// directions.
+describe("the module gates a document carries", () => {
+  test("the constituent area needs the terms of use", () => {
+    const found = moduleGate("constituent_accounts");
+    expect(found?.document.key).toBe("terms");
+    expect(found?.gate.refuseEnabling).toContain("Terms of Use");
+    expect(found?.gate.refuseWithdrawing).toContain("Terms of Use");
+  });
+
+  test("an ungated module has no gate", () => {
+    expect(moduleGate("events")).toBeUndefined();
+    expect(moduleGate("")).toBeUndefined();
+  });
+
+  // Two documents claiming one module would mean two refusals for one switch,
+  // and the caller can only show one of them.
+  test("no module is claimed by two documents", () => {
+    const claimed = LEGAL_DOCUMENTS.flatMap((document) =>
+      document.gates.map((gate) => gate.module),
+    );
+    expect(claimed.length).toBe(new Set(claimed).size);
+  });
+
+  // The document served whatever happens cannot be gating anything: there is
+  // no state it can be in that would block a module.
+  test("a document that is always in force gates nothing", () => {
+    for (const document of LEGAL_DOCUMENTS) {
+      if (document.alwaysInForce) expect(document.gates).toEqual([]);
+    }
+  });
+
+  test("both refusals are written for the person reading them", () => {
+    for (const document of LEGAL_DOCUMENTS) {
+      for (const gate of document.gates) {
+        // The operator is looking at somebody else's organization; the
+        // organization's own administrator is looking at their own.
+        expect(gate.refuseEnabling).toContain("This organization");
+        expect(gate.refuseWithdrawing).toContain("Your");
+      }
+    }
+  });
+});
+
+describe("gatesHolding", () => {
+  const terms = legalDocument("terms")!;
+
+  test("names the module keeping the document in force", () => {
+    expect(
+      gatesHolding(terms, { constituent_accounts: true }).map(
+        (gate) => gate.module,
+      ),
+    ).toEqual(["constituent_accounts"]);
+  });
+
+  test("an off module holds nothing", () => {
+    expect(gatesHolding(terms, { constituent_accounts: false })).toEqual([]);
+  });
+
+  // The opposite direction to `moduleEnabled()`, and deliberately: an
+  // unreadable entitlement map must not pin a document in force that nothing
+  // is actually relying on.
+  test("a module map that could not be read holds nothing", () => {
+    expect(gatesHolding(terms, {})).toEqual([]);
+  });
+
+  test("a document with no gates is never held", () => {
+    expect(
+      gatesHolding(legalDocument("code_of_conduct")!, {
+        constituent_accounts: true,
+      }),
+    ).toEqual([]);
   });
 });
