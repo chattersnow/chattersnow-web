@@ -131,6 +131,47 @@ export function calendarSectionSource(
   };
 }
 
+/**
+ * The item types that say a calendar-sourced section is about *making
+ * content*, rather than about dates it merely needs to know are coming.
+ *
+ * Marketing & Social names both of them; Community & Partnerships names
+ * neither, which is exactly the difference between the two sections' rows
+ * (#1243). Reading it off the source rather than off a section key means a
+ * tenant that adds its own content-sourced section gets the content columns
+ * without anybody editing this file -- and a section that only wants the dates
+ * keeps the narrower table.
+ */
+const CONTENT_WORK_ITEM_TYPES = new Set([
+  "content_campaign",
+  "content_opportunity",
+]);
+
+/**
+ * Whether a calendar source's rows should carry their content work state: the
+ * status of what is written, who owns it, and when it is due out.
+ *
+ * Both the reader and the table ask this -- the reader to decide whether to
+ * join `content_opportunities` at all, the table to decide whether to show the
+ * columns -- so it has to be one function rather than two rules that can
+ * drift into a section with columns and no data.
+ */
+export function sourceShowsContentState(
+  source: AgendaSectionSource | undefined,
+): boolean {
+  if (source?.kind !== "calendar") return false;
+  return (source.item_types ?? []).some((itemType) =>
+    CONTENT_WORK_ITEM_TYPES.has(itemType),
+  );
+}
+
+/** `sourceShowsContentState` for the section the agenda tab is rendering. */
+export function sectionShowsContentState(
+  section: AgendaTemplateSection,
+): boolean {
+  return sourceShowsContentState(agendaSectionSource(section));
+}
+
 /** Whether the section asks for one Discussion box instead of the manual pair. */
 export function isSourcedSection(section: AgendaTemplateSection): boolean {
   return agendaSectionSource(section) !== undefined;

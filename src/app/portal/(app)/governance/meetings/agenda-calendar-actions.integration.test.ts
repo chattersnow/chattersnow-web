@@ -13,6 +13,7 @@ import {
   SEEDED_USERS,
   adminClient,
   createCalendarItem,
+  createContentPiece,
   createGovernanceMeeting,
   createPerson,
   signInAs,
@@ -39,6 +40,18 @@ const COMMUNITY_SOURCE = {
   item_types: ["partner_event"],
 };
 
+// Version 2's Marketing & Social source: the same reader, a different section
+// (#1243). Naming content item types is also what turns the content pieces on.
+const MARKETING_SOURCE = {
+  kind: "calendar",
+  categories: ["campaigns_fundraising"],
+  item_types: [
+    "content_campaign",
+    "content_opportunity",
+    "winter_outdoor_sports_moment",
+  ],
+};
+
 const cleanups: (() => Promise<unknown>)[] = [];
 function track<T extends { cleanup: () => Promise<unknown> }>(fixture: T): T {
   cleanups.push(fixture.cleanup);
@@ -60,21 +73,71 @@ track(
   }),
 );
 // Matches on its item type alone, with no category at all -- a partner event
-// nobody tagged still belongs to the section.
-track(
+// nobody tagged still belongs to the section. It has a content piece against
+// it, which Community & Partnerships' read must not go and fetch.
+const chamberMixer = track(
   await createCalendarItem({
     title: "Chamber mixer",
     itemType: "partner_event",
     startsAt: "2028-04-02T06:00:00.000Z",
   }),
 );
-// Matches neither half of the filter.
 track(
+  await createContentPiece(chamberMixer.id, {
+    title: "Mixer recap",
+    contentStatus: "idea",
+    publishDueAt: "2020-04-01T16:00:00.000Z",
+  }),
+);
+// Matches neither half of Community & Partnerships' filter, and both halves
+// of Marketing & Social's. Two pieces planned against it: one still in draft
+// and long past its publish date, one already out.
+const newsletterPush = track(
   await createCalendarItem({
     title: "Newsletter push",
     itemType: "content_campaign",
     startsAt: "2028-03-25T06:00:00.000Z",
     categories: ["campaigns_fundraising"],
+  }),
+);
+track(
+  await createContentPiece(newsletterPush.id, {
+    title: "Launch post",
+    contentStatus: "draft",
+    publishDueAt: "2020-06-01T16:00:00.000Z",
+  }),
+);
+track(
+  await createContentPiece(newsletterPush.id, {
+    title: "Follow-up post",
+    contentStatus: "published",
+    publishDueAt: "2020-05-01T16:00:00.000Z",
+  }),
+);
+// Everything planned against it is out: nothing is owed, however old the
+// dates on it are.
+const skiTeaser = track(
+  await createCalendarItem({
+    title: "Ski season teaser",
+    itemType: "content_campaign",
+    startsAt: "2028-03-27T06:00:00.000Z",
+    categories: ["campaigns_fundraising"],
+  }),
+);
+track(
+  await createContentPiece(skiTeaser.id, {
+    title: "Teaser reel",
+    contentStatus: "published",
+    publishDueAt: "2020-05-01T16:00:00.000Z",
+  }),
+);
+// A date Marketing & Social reads with nothing planned against it at all --
+// the row the section most needs to keep.
+track(
+  await createCalendarItem({
+    title: "First snow day",
+    itemType: "winter_outdoor_sports_moment",
+    startsAt: "2028-03-29T06:00:00.000Z",
   }),
 );
 // Inside the window but put away; must never appear.
@@ -362,6 +425,71 @@ describe("listAgendaCalendarItemsAction (integration)", () => {
     );
 
     expect("error" in result).toBe(true);
+  });
+});
+
+// The content work state Marketing & Social adds on top of the same reader
+// (#1243): what is written for each date, and what is already late.
+describe("listAgendaCalendarItemsAction content work state (integration)", () => {
+  const itemNamed = <T extends { title: string }>(
+    feed: { items: T[] },
+    title: string,
+  ) => feed.items.find((item) => item.title === title);
+
+  test("answers the marketing section with its own rows", async () => {
+    const shown = titles(await feedFor(SEEDED_USERS.admin, MARKETING_SOURCE));
+
+    expect(shown).toContain("Newsletter push");
+    expect(shown).toContain("First snow day");
+    // The section beside it reads different rows out of the same action.
+    expect(shown).not.toContain("Chamber mixer");
+  });
+
+  test("carries the pieces and flags what is past its publish date", async () => {
+    const feed = await feedFor(SEEDED_USERS.admin, MARKETING_SOURCE);
+    const push = itemNamed(feed, "Newsletter push");
+
+    // The embed has no order of its own, so compare it as a set would be.
+    const statuses = (push?.content_pieces ?? [])
+      .map((piece) => piece.content_status)
+      .sort();
+    expect(statuses).toEqual(["draft", "published"]);
+    // The earliest deadline still owed -- the published piece owes nothing,
+    // however much older its own date is.
+    expect(Date.parse(push?.publish_due_at ?? "")).toBe(
+      Date.parse("2020-06-01T16:00:00Z"),
+    );
+    expect(push?.content_overdue).toBe(true);
+  });
+
+  test("owes nothing once every piece is out", async () => {
+    const feed = await feedFor(SEEDED_USERS.admin, MARKETING_SOURCE);
+    const teaser = itemNamed(feed, "Ski season teaser");
+
+    expect(teaser?.content_pieces).toEqual([{ content_status: "published" }]);
+    expect(teaser?.publish_due_at).toBeNull();
+    expect(teaser?.content_overdue).toBe(false);
+  });
+
+  test("keeps a date with nothing planned against it", async () => {
+    const feed = await feedFor(SEEDED_USERS.admin, MARKETING_SOURCE);
+    const snowDay = itemNamed(feed, "First snow day");
+
+    expect(snowDay).toBeDefined();
+    expect(snowDay?.content_pieces).toEqual([]);
+    expect(snowDay?.publish_due_at).toBeNull();
+    expect(snowDay?.content_overdue).toBe(false);
+  });
+
+  test("a section that shows no content columns does not read the pieces", async () => {
+    const feed = await feedFor(SEEDED_USERS.admin);
+    const mixer = itemNamed(feed, "Chamber mixer");
+
+    // The row has a piece against it; Community & Partnerships' read never
+    // joined it, which is the join its section should not pay for.
+    expect(mixer).toBeDefined();
+    expect(mixer?.content_pieces).toEqual([]);
+    expect(mixer?.publish_due_at).toBeNull();
   });
 });
 

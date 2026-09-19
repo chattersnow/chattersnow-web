@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import * as ActionItemsActions from "./action-items-actions";
 import * as AgendaActions from "./agenda-actions";
 import * as DecisionsActions from "./decisions-actions";
@@ -148,37 +154,95 @@ mock.module("./agenda-events-actions", () => ({
   ...AgendaEventsActions,
   listAgendaEventsAction,
 }));
-// The calendar feed (#1242), stubbed to one row -- enough to show that a
-// calendar-sourced section renders it, links it, and labels its categories in
-// the tenant's own words rather than in the seeded keys.
+// The calendar feed (#1242/#1243). One reader answers both sourced sections,
+// so the stub answers off the source it was handed -- which is the whole point
+// of the parameterized action, and what lets these tests show that the two
+// sections render different rows.
+const CALENDAR_WINDOW = { fromDate: "2026-09-01", toDate: "2026-11-30" };
+
+const COMMUNITY_FEED: AgendaCalendarFeed = {
+  timeZone: "America/Denver",
+  window: CALENDAR_WINDOW,
+  items: [
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      title: "Pride planning coffee",
+      item_type: "partner_event",
+      starts_at: "2026-09-12T06:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "active",
+      priority_tier: 2,
+      owner_id: null,
+      owner_name: null,
+      categories: ["partner_opportunities"],
+      // Its section never asks for content work state, so its read never
+      // joined the pieces.
+      content_pieces: [],
+      publish_due_at: null,
+      content_overdue: false,
+    },
+  ],
+  categoryOptions: [
+    { value: "partner_opportunities", label: "Partners & coalitions" },
+  ],
+  unavailable: null,
+};
+
+// Marketing & Social's rows carry what is written for them (#1243): one
+// campaign with two pieces and a publish date already behind us, and one date
+// with nothing planned against it at all.
+const MARKETING_FEED: AgendaCalendarFeed = {
+  timeZone: "America/Denver",
+  window: CALENDAR_WINDOW,
+  items: [
+    {
+      id: "66666666-6666-4666-8666-666666666666",
+      title: "Pride month campaign",
+      item_type: "content_campaign",
+      starts_at: "2026-09-15T06:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "active",
+      priority_tier: 1,
+      owner_id: null,
+      owner_name: "Sam Comms",
+      categories: ["campaigns_fundraising"],
+      content_pieces: [{ content_status: "draft" }, { content_status: "idea" }],
+      publish_due_at: "2026-09-10T16:00:00.000Z",
+      content_overdue: true,
+    },
+    {
+      id: "77777777-7777-4777-8777-777777777777",
+      title: "First snow day",
+      item_type: "winter_outdoor_sports_moment",
+      starts_at: "2026-10-02T06:00:00.000Z",
+      time_zone: "America/Denver",
+      calendar_status: "idea",
+      priority_tier: 3,
+      owner_id: null,
+      owner_name: null,
+      categories: [],
+      content_pieces: [],
+      publish_due_at: null,
+      content_overdue: false,
+    },
+  ],
+  categoryOptions: [
+    { value: "campaigns_fundraising", label: "Campaigns & fundraising" },
+  ],
+  unavailable: null,
+};
+
 const listAgendaCalendarItemsAction = mock(
   async (
     _meetingId: string,
     _meetingDate: string,
-    _source: unknown,
+    source: unknown,
   ): Promise<{ data: AgendaCalendarFeed }> => ({
-    data: {
-      timeZone: "America/Denver",
-      window: { fromDate: "2026-09-01", toDate: "2026-11-30" },
-      items: [
-        {
-          id: "33333333-3333-4333-8333-333333333333",
-          title: "Pride planning coffee",
-          item_type: "partner_event",
-          starts_at: "2026-09-12T06:00:00.000Z",
-          time_zone: "America/Denver",
-          calendar_status: "active",
-          priority_tier: 2,
-          owner_id: null,
-          owner_name: null,
-          categories: ["partner_opportunities"],
-        },
-      ],
-      categoryOptions: [
-        { value: "partner_opportunities", label: "Partners & coalitions" },
-      ],
-      unavailable: null,
-    },
+    data: (source as { item_types?: string[] })?.item_types?.includes(
+      "content_campaign",
+    )
+      ? MARKETING_FEED
+      : COMMUNITY_FEED,
   }),
 );
 const listOpenPartnershipsAction = mock(
@@ -440,26 +504,77 @@ describe("AgendaTab calendar and partnerships feeds", () => {
     agendaRow = agenda(COMMUNITY_SECTIONS);
     renderTab("view");
 
-    // Both sections are calendar-sourced and the stub answers both, so every
-    // calendar assertion here is doubled.
     await waitFor(
-      () =>
-        expect(screen.getAllByText("Pride planning coffee")).toHaveLength(2),
+      () => expect(screen.getByText("Pride planning coffee")).toBeDefined(),
       SETTLE,
     );
     expect(
       screen
-        .getAllByRole("link", { name: "Pride planning coffee" })[0]!
+        .getByRole("link", { name: "Pride planning coffee" })
         .getAttribute("href"),
     ).toBe("/portal/calendar/33333333-3333-4333-8333-333333333333");
     // The item type through ITEM_TYPES, the category through the tenant's own
     // label rather than the seeded `partner_opportunities` key.
-    expect(screen.getAllByText("Partner / co-hosted event")).toHaveLength(2);
-    expect(screen.getAllByText("Partners & coalitions")).toHaveLength(2);
+    expect(screen.getByText("Partner / co-hosted event")).toBeDefined();
+    expect(screen.getByText("Partners & coalitions")).toBeDefined();
     // The relationships, with the one whose next step has passed flagged.
     expect(screen.getByText("Mountain Pride Collective")).toBeDefined();
-    expect(screen.getByText(/^Overdue/)).toBeDefined();
+    expect(
+      screen.getAllByText(/^Overdue/).some((node) => node.textContent?.trim()),
+    ).toBe(true);
     expect(screen.getByText("Nordic Center")).toBeDefined();
+  });
+
+  // The two sourced sections read one action with two sources, and what comes
+  // back is not the same table (#1243). Marketing & Social is reporting on
+  // posts being written; Community & Partnerships is reporting on dates.
+  test("shows content work state in Marketing & Social and not beside it", async () => {
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    await waitFor(
+      () => expect(screen.getByText("Pride month campaign")).toBeDefined(),
+      SETTLE,
+    );
+    const marketingTable = screen.getByRole("table", {
+      name: "Marketing & Social items on the calendar",
+    });
+    const communityTable = screen.getByRole("table", {
+      name: "Community & Partnerships items on the calendar",
+    });
+
+    // The columns each section carries.
+    expect(within(marketingTable).getByText("Content")).toBeDefined();
+    expect(within(marketingTable).getByText("Publish due")).toBeDefined();
+    expect(within(marketingTable).queryByText("Categories")).toBeNull();
+    expect(within(communityTable).getByText("Categories")).toBeDefined();
+    expect(within(communityTable).queryByText("Content")).toBeNull();
+
+    // Two pieces, summarised by the least-advanced one still needing work.
+    expect(within(marketingTable).getByText("Idea")).toBeDefined();
+    expect(within(marketingTable).getByText("2 pieces")).toBeDefined();
+    // Past its publish date with nothing published: the row the board acts on.
+    expect(within(marketingTable).getByText(/^Overdue/)).toBeDefined();
+    // Owner and tier share the line under the title rather than taking two
+    // more columns.
+    expect(
+      within(marketingTable).getByText("Sam Comms · Tier 1"),
+    ).toBeDefined();
+  });
+
+  test("keeps a date with nothing planned against it", async () => {
+    agendaRow = agenda(COMMUNITY_SECTIONS);
+    renderTab("view");
+
+    // Not filtered out for having no content piece -- an undrafted date is the
+    // one the board most needs to see.
+    await waitFor(
+      () => expect(screen.getByText("First snow day")).toBeDefined(),
+      SETTLE,
+    );
+    const row = screen.getByText("First snow day").closest("tr")!;
+    expect(within(row).getAllByText("—")).toHaveLength(2);
+    expect(within(row).queryByText(/^Overdue/)).toBeNull();
   });
 
   test("reads the calendar once per calendar-sourced section", async () => {

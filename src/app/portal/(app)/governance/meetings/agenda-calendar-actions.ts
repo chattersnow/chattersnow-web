@@ -36,7 +36,10 @@ import {
   CLOSED_PARTNERSHIP_STAGES,
   type PartnershipStage,
 } from "../partnerships/partnership-opportunity-form";
-import { calendarSectionSource } from "./agenda-template-shared";
+import {
+  calendarSectionSource,
+  sourceShowsContentState,
+} from "./agenda-template-shared";
 import { nextInstanceInWindow } from "./meeting-context-shared";
 import {
   resolveAgendaCalendarWindow,
@@ -62,6 +65,31 @@ export type AgendaCalendarItem = {
   owner_name: string | null;
   /** `calendar_categories.key` values, labelled by the tenant's own words. */
   categories: string[];
+  /**
+   * The item's content pieces (#1231), for a section whose source says it is
+   * about making content -- only as much of each as the row says out loud.
+   * Always empty for a section that does not show content work state, because
+   * its read does not join them at all.
+   */
+  content_pieces: AgendaContentPiece[];
+  /**
+   * The soonest publish deadline still owed: the earliest `publish_due_at`
+   * among the pieces nobody has published or skipped yet. Null when the item
+   * has no pieces, none of them carry a publish date, or the work is done --
+   * "nothing outstanding" is what the column should say once it is.
+   */
+  publish_due_at: string | null;
+  /**
+   * `publish_due_at` is already behind the moment this was read. This is the
+   * row the section exists for: a list of marketing dates that does not say
+   * which of them have nothing published is one the board cannot act on.
+   */
+  content_overdue: boolean;
+};
+
+/** As much of a content piece as an agenda row says out loud. */
+export type AgendaContentPiece = {
+  content_status: string;
 };
 
 export type AgendaCalendarFeed = {
@@ -87,6 +115,13 @@ export type AgendaCalendarFeed = {
 const AGENDA_CALENDAR_ITEM_SELECT =
   "id, title, item_type, starts_at, time_zone, calendar_status, priority_tier, owner_id, series_key, recurrence_start_month, recurrence_start_day, recurrence_end_month, recurrence_end_day, recurrence_end_is_month_end, owner:people!calendar_items_owner_id_fkey(name, preferred_name, email), calendar_item_categories(category)";
 
+// The same read with the content pieces attached, for a source that shows
+// content work state. A second constant rather than one join everybody pays
+// for: Community & Partnerships never shows a content column, and rows it
+// would only throw away are rows its section should not wait for. The table
+// kept its `content_opportunities` name through #1231's reshape.
+const AGENDA_CALENDAR_ITEM_WITH_CONTENT_SELECT = `${AGENDA_CALENDAR_ITEM_SELECT}, content_opportunities(content_status, publish_due_at)`;
+
 type RawAgendaCalendarRow = {
   id: string;
   title: string;
@@ -108,11 +143,58 @@ type RawAgendaCalendarRow = {
     email: string | null;
   } | null;
   calendar_item_categories: { category: string }[] | null;
+  /** Absent unless the section's source asked for content work state. */
+  content_opportunities?:
+    { content_status: string; publish_due_at: string | null }[] | null;
 };
+
+/** Statuses a piece needs no more work in, so nothing is owed for it. */
+const TERMINAL_CONTENT_STATUSES = new Set(["published", "skipped"]);
+
+/**
+ * What an item still owes, out of the pieces planned against it.
+ *
+ * Measured against `now` rather than against the organization's today, because
+ * `publish_due_at` is a `timestamptz` -- a deadline at an instant. The
+ * partnerships feed below reads its `next_step_date` in the org's zone for the
+ * opposite reason: that column is a `date`, and a UTC comparison lands it on
+ * the wrong day near the boundary.
+ *
+ * A skipped piece owes nothing: dropping a post deliberately is a decision,
+ * not a miss, and flagging it would put noise in the column the board is
+ * meant to read down.
+ */
+function contentWorkState(
+  row: RawAgendaCalendarRow,
+  now: number,
+): Pick<
+  AgendaCalendarItem,
+  "content_pieces" | "publish_due_at" | "content_overdue"
+> {
+  const pieces = row.content_opportunities ?? [];
+  const outstanding = pieces
+    .filter(
+      (piece) =>
+        !TERMINAL_CONTENT_STATUSES.has(piece.content_status) &&
+        piece.publish_due_at !== null,
+    )
+    .map((piece) => piece.publish_due_at as string)
+    .sort();
+  const publishDueAt = outstanding[0] ?? null;
+
+  return {
+    content_pieces: pieces.map((piece) => ({
+      content_status: piece.content_status,
+    })),
+    publish_due_at: publishDueAt,
+    content_overdue: publishDueAt !== null && Date.parse(publishDueAt) < now,
+  };
+}
 
 function toAgendaCalendarItem(
   row: RawAgendaCalendarRow,
   startsAt: string,
+  now: number,
 ): AgendaCalendarItem {
   return {
     id: row.id,
@@ -129,6 +211,9 @@ function toAgendaCalendarItem(
     categories: (row.calendar_item_categories ?? []).map(
       (link) => link.category,
     ),
+    // A projected occurrence carries the row's own pieces: the content work
+    // belongs to the item, not to the year the window happens to show it in.
+    ...contentWorkState(row, now),
   };
 }
 
@@ -185,10 +270,17 @@ export async function listAgendaCalendarItemsAction(
     return { data: { ...base, unavailable: "forbidden" } };
   }
 
+  // One decision, taken off the source, for both reads and for the table that
+  // renders them: a section showing content columns is a section whose rows
+  // carry the pieces behind them.
+  const itemSelect = sourceShowsContentState(parsedSource)
+    ? AGENDA_CALENDAR_ITEM_WITH_CONTENT_SELECT
+    : AGENDA_CALENDAR_ITEM_SELECT;
+
   const [dated, series, categoryOptions] = await Promise.all([
     supabase
       .from("calendar_items")
-      .select(AGENDA_CALENDAR_ITEM_SELECT)
+      .select(itemSelect)
       // `calendar_items` has no cancelled state -- its vocabulary is
       // idea/active/complete/archived -- so `archived` is the one that means
       // "put away", and it is the exclusion every other calendar read makes.
@@ -201,7 +293,7 @@ export async function listAgendaCalendarItemsAction(
     // read the "Next 30 days" block makes (#1223).
     supabase
       .from("calendar_items")
-      .select(AGENDA_CALENDAR_ITEM_SELECT)
+      .select(itemSelect)
       .neq("calendar_status", "archived")
       .not("series_key", "is", null),
     listCalendarCategories(supabase),
@@ -234,10 +326,15 @@ export async function listAgendaCalendarItemsAction(
 
   const items: AgendaCalendarItem[] = [];
   const datedIds = new Set<string>();
+  // One reading of the clock for the whole feed: two rows with the same
+  // deadline must not disagree about whether it has passed.
+  const now = Date.now();
 
   for (const row of (dated.data ?? []) as unknown as RawAgendaCalendarRow[]) {
     datedIds.add(row.id);
-    if (matches(row)) items.push(toAgendaCalendarItem(row, row.starts_at));
+    if (matches(row)) {
+      items.push(toAgendaCalendarItem(row, row.starts_at, now));
+    }
   }
 
   for (const row of (series.data ?? []) as unknown as RawAgendaCalendarRow[]) {
@@ -248,7 +345,7 @@ export async function listAgendaCalendarItemsAction(
     if (!matches(row)) continue;
     const instance = nextInstanceInWindow(row, window);
     if (!instance) continue;
-    items.push(toAgendaCalendarItem(row, instance.startsAt));
+    items.push(toAgendaCalendarItem(row, instance.startsAt, now));
   }
 
   return {
