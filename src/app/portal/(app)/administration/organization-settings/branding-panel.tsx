@@ -19,16 +19,143 @@ import {
   APP_ICON_URL_TOKEN,
   BRAND_COLOR_TOKENS,
   DEFAULT_ACCENT_STOPS,
+  DEFAULT_TYPOGRAPHY,
   MAX_ACCENT_STOPS,
+  TYPOGRAPHY_SETS,
+  TYPOGRAPHY_TOKEN,
   type Branding,
+  type TypographySet,
 } from "@/lib/branding";
 import { resolveImageUrl } from "@/lib/inventory";
+import { cn } from "@/lib/utils";
 import { updateBrandingAction, type SettingActionResult } from "./actions";
 
 /**
+ * One row of the typeface picker (#1261): a value to store, and the type it
+ * stands for.
+ *
+ * "Platform default" is not a sixth set -- it is the absence of a choice, so
+ * it stores an empty value and borrows `DEFAULT_TYPOGRAPHY`'s families to draw
+ * its specimen with. That keeps it honest the day the platform's default
+ * changes: this option follows it, while picking `Neutral` outright does not.
+ */
+type TypographyOption = {
+  value: string;
+  label: string;
+  description: string;
+  set: TypographySet;
+};
+
+const TYPOGRAPHY_OPTIONS: readonly TypographyOption[] = [
+  {
+    value: "",
+    label: "Platform default",
+    description: `No choice of your own. Today that is ${DEFAULT_TYPOGRAPHY.label}, and if the platform's default ever changes, yours changes with it.`,
+    set: DEFAULT_TYPOGRAPHY,
+  },
+  ...TYPOGRAPHY_SETS.map((set) => ({
+    value: set.key,
+    label: set.label,
+    description: set.description,
+    set,
+  })),
+];
+
+/**
+ * An option drawn in its own type rather than named in everyone else's.
+ *
+ * A list reading "Editorial" and "Statement" in one face says nothing about
+ * the only thing being chosen here, so each row is set in the families it
+ * would apply: the label in the display face at that set's own letter-spacing,
+ * the description in the body face, and the script accent -- the part a line
+ * of body text cannot show -- written in itself.
+ *
+ * Every `cssVar` interpolated below is a literal from `TYPOGRAPHY_SETS`, and
+ * the root layout declares all eight families on every route. Drawing five
+ * sets at once is the case `preload: false` exists for: this page fetches the
+ * eight faces, and no public page fetches more than its own tenant's.
+ */
+function TypographySpecimen({ option }: { option: TypographyOption }) {
+  const { set } = option;
+  return (
+    <span className="min-w-0 flex-1">
+      <span
+        className="block text-lg leading-tight font-semibold"
+        style={{
+          fontFamily: `var(${set.heading.cssVar})`,
+          letterSpacing: set.headingTracking,
+        }}
+      >
+        {option.label}
+      </span>
+      <span
+        className="app-muted mt-1 block text-xs leading-relaxed"
+        style={{ fontFamily: `var(${set.sans.cssVar})` }}
+      >
+        {option.description}
+      </span>
+      {set.accent && (
+        <span
+          className="mt-1 block text-base leading-tight"
+          style={{ fontFamily: `var(${set.accent.cssVar})` }}
+        >
+          {set.accent.name}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Radios rather than a `<select>`: an option here is a specimen, and a
+ * `<select>` gives an option no reliable typography of its own.
+ */
+function TypographyField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="sr-only">Typeface set</legend>
+      {TYPOGRAPHY_OPTIONS.map((option) => {
+        const inputId = `brand-typography-${option.value || "default"}`;
+        const checked = value === option.value;
+        return (
+          <label
+            key={option.value}
+            htmlFor={inputId}
+            className={cn(
+              "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+              checked
+                ? "border-primary bg-primary/5"
+                : "border-[var(--line)] hover:bg-muted/40",
+            )}
+          >
+            <input
+              id={inputId}
+              type="radio"
+              name={TYPOGRAPHY_TOKEN}
+              value={option.value}
+              className="mt-1.5"
+              checked={checked}
+              onChange={() => onChange(option.value)}
+            />
+            <TypographySpecimen option={option} />
+          </label>
+        );
+      })}
+    </fieldset>
+  );
+}
+
+/**
  * Per-tenant branding (#707 Phase 4): the colour tokens, the accent
- * gradient and the logo. Everything is optional; a blank field means "the
- * platform default", and Reset puts every field back to it.
+ * gradient, the logo and the typeface set (#1261). Everything is optional; a
+ * blank field means "the platform default", and Reset puts every field back
+ * to it.
  */
 export function BrandingPanel({ branding }: { branding: Branding }) {
   const router = useRouter();
@@ -45,6 +172,11 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
   );
   const [logoUrl, setLogoUrl] = useState(branding.logoUrl ?? "");
   const [appIconUrl, setAppIconUrl] = useState(branding.appIconUrl ?? "");
+  // `branding.typography` is the registry's answer, not the stored string, so
+  // a row naming a set the platform no longer offers arrives here as null and
+  // shows as "Platform default" -- which is what the tenant's pages actually
+  // render -- rather than as a picker with nothing chosen.
+  const [typography, setTypography] = useState(branding.typography?.key ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -82,49 +214,77 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
     setAccentStops("");
     setLogoUrl("");
     setAppIconUrl("");
+    setTypography("");
   }
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Colours</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            {BRAND_COLOR_TOKENS.map((token) => (
-              <Field key={token.key}>
-                <FieldLabel htmlFor={`brand-${token.key}`}>
-                  {token.label}
-                </FieldLabel>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    aria-label={`${token.label} picker`}
-                    value={colors[token.key] || token.defaultValue}
-                    onChange={(event) =>
-                      setColors({ ...colors, [token.key]: event.target.value })
-                    }
-                    className="size-9 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5"
-                  />
-                  <Input
-                    id={`brand-${token.key}`}
-                    name={token.key}
-                    placeholder={token.defaultValue}
-                    value={colors[token.key]}
-                    onChange={(event) =>
-                      setColors({ ...colors, [token.key]: event.target.value })
-                    }
-                    pattern="#[0-9a-fA-F]{6}"
-                    className="font-mono"
-                  />
-                </div>
-                <FieldDescription>{token.description}</FieldDescription>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Colours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              {BRAND_COLOR_TOKENS.map((token) => (
+                <Field key={token.key}>
+                  <FieldLabel htmlFor={`brand-${token.key}`}>
+                    {token.label}
+                  </FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      aria-label={`${token.label} picker`}
+                      value={colors[token.key] || token.defaultValue}
+                      onChange={(event) =>
+                        setColors({
+                          ...colors,
+                          [token.key]: event.target.value,
+                        })
+                      }
+                      className="size-9 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5"
+                    />
+                    <Input
+                      id={`brand-${token.key}`}
+                      name={token.key}
+                      placeholder={token.defaultValue}
+                      value={colors[token.key]}
+                      onChange={(event) =>
+                        setColors({
+                          ...colors,
+                          [token.key]: event.target.value,
+                        })
+                      }
+                      pattern="#[0-9a-fA-F]{6}"
+                      className="font-mono"
+                    />
+                  </div>
+                  <FieldDescription>{token.description}</FieldDescription>
+                </Field>
+              ))}
+            </FieldGroup>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Typography</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <Field>
+                <TypographyField value={typography} onChange={setTypography} />
+                <FieldDescription>
+                  Each option is shown in its own typefaces. Saving applies the
+                  set everywhere at once &mdash; the public site, your links
+                  page, and this portal, so the page you are reading will change
+                  as soon as the save lands.
+                </FieldDescription>
               </Field>
-            ))}
-          </FieldGroup>
-        </CardContent>
-      </Card>
+            </FieldGroup>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="space-y-6">
         <Card>

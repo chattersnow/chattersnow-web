@@ -12,8 +12,10 @@ import {
   APP_ICON_URL_TOKEN,
   BRAND_COLOR_TOKENS,
   MAX_ACCENT_STOPS,
+  TYPOGRAPHY_TOKEN,
   brandSettingKey,
   normalizeHexColor,
+  typographySet,
 } from "@/lib/branding";
 import {
   FISCAL_YEAR_SETTING_KEY,
@@ -302,9 +304,9 @@ export async function updateSenderIdentityAction(
 
 /**
  * Saves the tenant's branding (#707 Phase 4): one app_settings row per
- * colour token, the accent stops, and the logo. A blank field clears its row
- * to an empty value, which the readers treat as unset -- app_settings has no
- * delete grant.
+ * colour token, the accent stops, the logo and the typography set (#1261). A
+ * blank field clears its row to an empty value, which the readers treat as
+ * unset -- app_settings has no delete grant.
  */
 export async function updateBrandingAction(
   formData: FormData,
@@ -364,6 +366,17 @@ export async function updateBrandingAction(
     key: brandSettingKey(APP_ICON_URL_TOKEN),
     value: String(formData.get(APP_ICON_URL_TOKEN) ?? "").trim(),
   });
+
+  // The typography set (#1261). Checked against the registry here so an
+  // administrator is told a value did not take, rather than saving a row that
+  // `typographySet()` silently disowns on the way out; the registry check in
+  // `brandingFromRows()` is still what keeps anything unknown out of the
+  // `<style>` block, since this action is not the only way a row is written.
+  const typography = String(formData.get(TYPOGRAPHY_TOKEN) ?? "").trim();
+  if (typography && !typographySet(typography)) {
+    return { error: "Pick one of the listed typefaces." };
+  }
+  rows.push({ key: brandSettingKey(TYPOGRAPHY_TOKEN), value: typography });
 
   const { error } = await supabase
     .from("app_settings")
