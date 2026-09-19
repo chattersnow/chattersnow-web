@@ -184,3 +184,43 @@ export function resolveAgendaEventWindows(
     upcoming: windowBetween(dayAfter, upcomingEnd, timeZone),
   };
 }
+
+// ---------------------------------------------------------------------------
+// The Calendar-sourced sections' one window (#1242).
+//
+// One window, not the Events section's two: a board reviewing partner events
+// or campaigns is looking forward from the meeting it is sitting in, and the
+// calendar's own record of what already happened is the module, not the
+// agenda. It starts on the meeting's own day because that day's items are on
+// the table in front of it -- the Events section can afford to hand its
+// meeting day to `since` because it has a `since` to hand it to.
+
+/**
+ * How far ahead a calendar-sourced section looks when the agenda names no next
+ * meeting. The same ninety days the Events section falls back to, kept as its
+ * own constant so either can move without moving the other.
+ */
+export const AGENDA_CALENDAR_LOOKAHEAD_DAYS = 90;
+
+export type ResolveAgendaCalendarWindowInput = {
+  /** `governance_meetings.meeting_date`, a `timestamptz`. */
+  meetingDate: string;
+  /** `agendas.next_meeting_date`, a `date` -- already "YYYY-MM-DD". */
+  nextMeetingDate?: string | null;
+  /** The organization's zone, from `getOrgTimeZone`. */
+  timeZone: string;
+};
+
+export function resolveAgendaCalendarWindow(
+  input: ResolveAgendaCalendarWindowInput,
+): MeetingWindow {
+  const meetingDay = utcIsoToDateInZone(input.meetingDate, input.timeZone);
+  // A `next_meeting_date` behind the meeting is a typo on the agenda, and
+  // leaves `toDate` before `fromDate`: the window matches nothing and the
+  // section reads empty, which is what that agenda literally says.
+  const toDate =
+    input.nextMeetingDate ||
+    shiftIsoDay(meetingDay, AGENDA_CALENDAR_LOOKAHEAD_DAYS);
+
+  return windowBetween(meetingDay, toDate, input.timeZone);
+}
