@@ -239,6 +239,36 @@ describe("parseAgendaForm", () => {
     }
   });
 
+  test("round-trips a sourced section's discussion text", () => {
+    const result = parseAgendaForm(
+      formData({
+        ...validFields,
+        ongoingItems: JSON.stringify({
+          events: { discussion: "Swap needs two more volunteers." },
+        }),
+      }),
+    );
+    expect("data" in result && result.data.ongoing_items).toEqual({
+      events: { discussion: "Swap needs two more volunteers." },
+    });
+  });
+
+  test("keeps the manual pair and the discussion together on one section", () => {
+    // A template revised from manual to sourced leaves both shapes in the
+    // column. Saving must not drop the half the current shape has no box for.
+    const both = {
+      events: {
+        updates: "Written under version 1.",
+        decisions_needed: "Approve the venue.",
+        discussion: "Written under version 2.",
+      },
+    };
+    const result = parseAgendaForm(
+      formData({ ...validFields, ongoingItems: JSON.stringify(both) }),
+    );
+    expect("data" in result && result.data.ongoing_items).toEqual(both);
+  });
+
   test("rejects an ongoing item that is not an object", () => {
     expect(
       parseAgendaForm(

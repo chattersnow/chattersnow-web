@@ -34,9 +34,10 @@ import {
   forbiddenPreviewKinds,
   MEETING_RECORD_PREVIEW_LOADERS,
 } from "./meeting-record-preview";
-import type {
-  ActiveAgendaTemplate,
-  AgendaTemplateSection,
+import {
+  isSourcedSection,
+  type ActiveAgendaTemplate,
+  type AgendaTemplateSection,
 } from "./agenda-template-shared";
 import {
   listActionItemsAction,
@@ -88,6 +89,18 @@ import {
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
+
+/** One labelled paragraph of a standing section's per-meeting text. */
+function OngoingItemBlock({ label, text }: { label: string; text: string }) {
+  return (
+    <div>
+      <p className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+        {label}
+      </p>
+      <p className="whitespace-pre-wrap text-sm">{text}</p>
+    </div>
+  );
+}
 
 /**
  * The template's reference topics for a section, behind a dotted-underline
@@ -295,14 +308,14 @@ function AgendaForm({
   // so a stale "dirty" flag can't outlive the component that set it.
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
+  // Spreads whatever the section already holds rather than rebuilding it from
+  // the manual pair: a section whose template version turned it into a sourced
+  // one still carries the Updates/Decisions needed text somebody typed under
+  // the old version, and editing the Discussion box must not wipe it (#1240).
   function updateOngoingItem(key: string, patch: Partial<AgendaOngoingItem>) {
     setOngoingItems((prev) => ({
       ...prev,
-      [key]: {
-        updates: prev[key]?.updates ?? "",
-        decisions_needed: prev[key]?.decisions_needed ?? "",
-        ...patch,
-      },
+      [key]: { ...prev[key], ...patch },
     }));
   }
 
@@ -390,38 +403,70 @@ function AgendaForm({
                   <p className="text-sm font-semibold">{section.label}</p>
                   <OngoingTopicsTooltip topics={section.topics} />
                   <div className="mt-3 flex flex-col gap-3">
-                    <Field>
-                      <FieldLabel htmlFor={`agenda-updates-${section.key}`}>
-                        Updates
-                      </FieldLabel>
-                      <Textarea
-                        id={`agenda-updates-${section.key}`}
-                        rows={3}
-                        value={ongoingItems[section.key]?.updates ?? ""}
-                        onChange={(event) =>
-                          updateOngoingItem(section.key, {
-                            updates: event.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`agenda-decisions-${section.key}`}>
-                        Decisions needed
-                      </FieldLabel>
-                      <Textarea
-                        id={`agenda-decisions-${section.key}`}
-                        rows={2}
-                        value={
-                          ongoingItems[section.key]?.decisions_needed ?? ""
-                        }
-                        onChange={(event) =>
-                          updateOngoingItem(section.key, {
-                            decisions_needed: event.target.value,
-                          })
-                        }
-                      />
-                    </Field>
+                    {isSourcedSection(section) ? (
+                      <>
+                        {/* MODULE FEED SLOT (#1240): the rows this section's
+                            source names go here, above the box. #1241/#1242/
+                            #1243 fill it -- Events, Community & Partnerships
+                            and Marketing & Social in turn -- so each of those
+                            adds a component here rather than restructuring
+                            the section. */}
+                        <Field>
+                          <FieldLabel
+                            htmlFor={`agenda-discussion-${section.key}`}
+                          >
+                            Discussion
+                          </FieldLabel>
+                          <Textarea
+                            id={`agenda-discussion-${section.key}`}
+                            rows={3}
+                            value={ongoingItems[section.key]?.discussion ?? ""}
+                            onChange={(event) =>
+                              updateOngoingItem(section.key, {
+                                discussion: event.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                      </>
+                    ) : (
+                      <>
+                        <Field>
+                          <FieldLabel htmlFor={`agenda-updates-${section.key}`}>
+                            Updates
+                          </FieldLabel>
+                          <Textarea
+                            id={`agenda-updates-${section.key}`}
+                            rows={3}
+                            value={ongoingItems[section.key]?.updates ?? ""}
+                            onChange={(event) =>
+                              updateOngoingItem(section.key, {
+                                updates: event.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel
+                            htmlFor={`agenda-decisions-${section.key}`}
+                          >
+                            Decisions needed
+                          </FieldLabel>
+                          <Textarea
+                            id={`agenda-decisions-${section.key}`}
+                            rows={2}
+                            value={
+                              ongoingItems[section.key]?.decisions_needed ?? ""
+                            }
+                            onChange={(event) =>
+                              updateOngoingItem(section.key, {
+                                decisions_needed: event.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                      </>
+                    )}
                   </div>
                 </div>
               ))
@@ -740,24 +785,61 @@ export function AgendaTab({
                     >
                       <p className="text-sm font-semibold">{section.label}</p>
                       <OngoingTopicsTooltip topics={section.topics} />
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        <div>
-                          <p className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-                            Updates
-                          </p>
-                          <p className="whitespace-pre-wrap text-sm">
-                            {value?.updates || "—"}
-                          </p>
+                      {isSourcedSection(section) ? (
+                        <div className="mt-2 flex flex-col gap-2">
+                          {/* MODULE FEED SLOT (#1240): see the matching slot
+                              in AgendaForm above. #1241/#1242/#1243 render
+                              this section's records here, above the one
+                              block, on both sides of the tab. */}
+                          <OngoingItemBlock
+                            label="Discussion"
+                            text={value?.discussion || "—"}
+                          />
+                          {/* Leftovers, shown only when they hold something.
+                              A template revised from manual to sourced leaves
+                              the old pair in the row, and the form no longer
+                              offers boxes for it -- so this is the only place
+                              text written for this meeting is still readable.
+                              Hiding it would be dropping it. */}
+                          {(value?.updates || value?.decisions_needed) && (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {value?.updates && (
+                                <OngoingItemBlock
+                                  label="Updates"
+                                  text={value.updates}
+                                />
+                              )}
+                              {value?.decisions_needed && (
+                                <OngoingItemBlock
+                                  label="Decisions needed"
+                                  text={value.decisions_needed}
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <p className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
-                            Decisions needed
-                          </p>
-                          <p className="whitespace-pre-wrap text-sm">
-                            {value?.decisions_needed || "—"}
-                          </p>
+                      ) : (
+                        <div className="mt-2 flex flex-col gap-2">
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <OngoingItemBlock
+                              label="Updates"
+                              text={value?.updates || "—"}
+                            />
+                            <OngoingItemBlock
+                              label="Decisions needed"
+                              text={value?.decisions_needed || "—"}
+                            />
+                          </div>
+                          {/* The mirror case: a section revised back from
+                              sourced to manual. */}
+                          {value?.discussion && (
+                            <OngoingItemBlock
+                              label="Discussion"
+                              text={value.discussion}
+                            />
+                          )}
                         </div>
-                      </div>
+                      )}
                       {/* Beside the sentence being written about it, rather
                           than in a panel two columns away. The Events section
                           gets no calendar block here: the agenda already has
