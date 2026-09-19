@@ -80,10 +80,11 @@ const PRIVACY: DocumentProse = {
     "what-we-collect": () => [
       "Everything below is information you type into a form yourself. We don't buy personal information about you from anyone else.",
       bullets([
-        "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you.",
+        "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you, and we email you back to confirm it arrived — that confirmation names the topic and the date, never what you wrote.",
         "**Volunteer application** — your name, email address, and, if you choose to give them, your phone number, the roles you're interested in, and your availability. We use it to review your application, follow up with you, and let you check its status with the reference code we give you.",
         "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details.",
         "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
+        "**Artwork submissions** — your name, email address, the images you upload, and, if you give them, the title, the medium, an artist statement, a credit name and a link to your work. We use it to review your submission for the open call you sent it to, and we email you back to confirm it arrived — that confirmation names the piece, the call and how many images we received, and never sends the images themselves.",
         "**Portal accounts** — for the people who run the organization: the email address you sign in with, and a session cookie that keeps you signed in. Signing in with Google shares that account's email address and name with us.",
       ]),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",

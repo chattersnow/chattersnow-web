@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
   CONSTITUENT_NOTIFICATION_KINDS,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   NOTIFICATION_KINDS,
@@ -39,16 +41,44 @@ describe("the registry", () => {
       GEAR_REQUEST_CONFIRMATION_KIND,
       EVENT_REGISTRATION_CONFIRMATION_KIND,
       VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+      CONTACT_MESSAGE_CONFIRMATION_KIND,
+      ARTWORK_SUBMISSION_CONFIRMATION_KIND,
     ]);
   });
 
-  test("the three receipts are switchable now that their audience has accounts", () => {
+  test("every receipt is switchable now that their audience has accounts", () => {
     for (const key of [
       GEAR_REQUEST_CONFIRMATION_KIND,
       EVENT_REGISTRATION_CONFIRMATION_KIND,
       VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+      CONTACT_MESSAGE_CONFIRMATION_KIND,
+      ARTWORK_SUBMISSION_CONFIRMATION_KIND,
     ]) {
       expect(isNotificationKind(key)).toBe(true);
+    }
+  });
+
+  test("a receipt and its staff notice are two different kinds (#1237)", () => {
+    // They differ by one word and mean opposite things: the staff notice is
+    // opt-in and gated on a permission, the receipt is opt-out and gated on
+    // nothing. Spelling one where the other belongs would either mail the
+    // queue's notice to a member of the public, or silence a receipt for
+    // everybody who never opted in to a queue they hold no role on.
+    const pairs: [string, string][] = [
+      ["contact_message", CONTACT_MESSAGE_CONFIRMATION_KIND],
+      ["artwork_submission", ARTWORK_SUBMISSION_CONFIRMATION_KIND],
+      ["volunteer_application", VOLUNTEER_APPLICATION_CONFIRMATION_KIND],
+    ];
+    for (const [staff, receipt] of pairs) {
+      expect(staff).not.toBe(receipt);
+      expect(notificationKindDefault(staff)).toBe(false);
+      expect(notificationKindDefault(receipt)).toBe(true);
+      expect(
+        NOTIFICATION_KINDS.find((kind) => kind.key === staff)?.requires,
+      ).toBeDefined();
+      expect(
+        NOTIFICATION_KINDS.find((kind) => kind.key === receipt)?.requires,
+      ).toBeUndefined();
     }
   });
 

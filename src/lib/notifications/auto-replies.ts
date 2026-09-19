@@ -1,4 +1,6 @@
 import {
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
@@ -140,14 +142,18 @@ function signoffSlot(tokens: AutoReplyToken[]): AutoReplySlot {
 }
 
 /**
- * The three replies this application already sends. #1237 adds the two it
- * does not -- the contact form and artwork submissions, which answer their
- * senders with silence today.
+ * The five replies this application sends: the three that existed before the
+ * slots did, and the two #1237 wrote from nothing -- the contact form and
+ * artwork submissions, which answered their senders with silence.
  *
- * Every default is lifted verbatim from the renderer it replaces, so a tenant
- * that writes nothing gets byte-identically the email it got before (#1234
- * asserts exactly that). A default of "" is a slot the platform has never
- * rendered and the tenant may fill in -- not an oversight.
+ * Every default of the first three is lifted verbatim from the renderer it
+ * replaces, so a tenant that writes nothing gets byte-identically the email it
+ * got before (#1234 asserts exactly that). The last two have no such history
+ * to preserve, so their defaults are simply the platform's first draft of an
+ * acknowledgement -- which is the one a tenant is most likely to want to
+ * rewrite, since a contact form is where an organization's own voice is
+ * usually most particular. A default of "" is a slot the platform does not
+ * render and the tenant may fill in -- not an oversight.
  */
 export const AUTO_REPLIES: AutoReplyDefinition[] = [
   {
@@ -278,6 +284,97 @@ export const AUTO_REPLIES: AutoReplyDefinition[] = [
         shape: "paragraph",
         maxLength: AUTO_REPLY_PARAGRAPH_MAX_LENGTH,
         default: "",
+        tokens: ["org_name", "first_name"],
+      },
+      signoffSlot(["org_name", "first_name"]),
+    ],
+    sample: {
+      org_name: "Riverside Community Center",
+      first_name: "Alexandra Whitfield",
+    },
+  },
+  {
+    kind: CONTACT_MESSAGE_CONFIRMATION_KIND,
+    label: "Contact message confirmation",
+    description:
+      "Sent to somebody as soon as they write in through the contact form. The topic they picked and the date it arrived are added by the platform — their message itself is deliberately not echoed back.",
+    notificationKind: CONTACT_MESSAGE_CONFIRMATION_KIND,
+    module: "communications",
+    slots: [
+      {
+        key: "subject",
+        label: "Subject",
+        description: "The subject line of the email.",
+        shape: "line",
+        maxLength: AUTO_REPLY_LINE_MAX_LENGTH,
+        default: "We got your message — {{org_name}}",
+        tokens: ["org_name", "first_name"],
+      },
+      greetingSlot(["org_name", "first_name"]),
+      {
+        key: "intro",
+        label: "Intro",
+        description: "The paragraph above what they sent.",
+        shape: "paragraph",
+        maxLength: AUTO_REPLY_PARAGRAPH_MAX_LENGTH,
+        default:
+          "Thanks for getting in touch. Your message reached us and somebody will read it.",
+        tokens: ["org_name", "first_name"],
+      },
+      {
+        key: "closing",
+        label: "Closing",
+        description:
+          "The paragraph under the details — the place to say how long a reply usually takes.",
+        shape: "paragraph",
+        maxLength: AUTO_REPLY_PARAGRAPH_MAX_LENGTH,
+        default:
+          "You don't need to do anything else. If it's urgent, replying to this email is the quickest way to reach us.",
+        tokens: ["org_name", "first_name"],
+      },
+      signoffSlot(["org_name", "first_name"]),
+    ],
+    sample: {
+      org_name: "Riverside Community Center",
+      first_name: "Alexandra Whitfield",
+    },
+  },
+  {
+    kind: ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+    label: "Artwork submission confirmation",
+    description:
+      "Sent to an artist as soon as they submit to one of your open calls. The piece, the call and how many images arrived are added by the platform — the images themselves are not sent back.",
+    notificationKind: ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+    module: "artwork",
+    slots: [
+      {
+        key: "subject",
+        label: "Subject",
+        description: "The subject line of the email.",
+        shape: "line",
+        maxLength: AUTO_REPLY_LINE_MAX_LENGTH,
+        default: "We got your submission — {{org_name}}",
+        tokens: ["org_name", "first_name"],
+      },
+      greetingSlot(["org_name", "first_name"]),
+      {
+        key: "intro",
+        label: "Intro",
+        description: "The paragraph above the submission's details.",
+        shape: "paragraph",
+        maxLength: AUTO_REPLY_PARAGRAPH_MAX_LENGTH,
+        default: "Thanks for submitting. Here's what reached us:",
+        tokens: ["org_name", "first_name"],
+      },
+      {
+        key: "closing",
+        label: "Closing",
+        description:
+          "The paragraph under the details — the place to say when and how you decide.",
+        shape: "paragraph",
+        maxLength: AUTO_REPLY_PARAGRAPH_MAX_LENGTH,
+        default:
+          "We'll look at everything that comes in once the call closes, and we'll be in touch either way.",
         tokens: ["org_name", "first_name"],
       },
       signoffSlot(["org_name", "first_name"]),

@@ -32,8 +32,8 @@ function savedSlots(kind: string, value: unknown): Record<string, string> {
  * own rather than a sixth tab on Organization Settings: a tab is another view
  * of one object, and five templates are five objects
  * (`docs/portal-navigation.md`). It is filed under Administration because
- * these span four modules -- events, volunteers, inventory, communications --
- * and what governs the organization as a whole is filed here.
+ * these span five modules -- events, volunteers, inventory, communications,
+ * artwork -- and what governs the organization as a whole is filed here.
  *
  * A tenant with no rows is not a tenant with no replies: every kind falls back
  * to the registry's defaults, which are today's wording verbatim, so the

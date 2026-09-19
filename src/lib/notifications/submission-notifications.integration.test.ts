@@ -1,12 +1,13 @@
-// Integration coverage for the two event-triggered sends (#742) against a real
-// local Supabase stack: who is resolved, the two gates that decide whether
+// Integration coverage for the event-triggered sends (#742, #1237) against a
+// real local Supabase stack: who is resolved, the gates that decide whether
 // anything goes out, and the ledger that stops one submission being announced
 // twice.
 //
-// RESEND_API_KEY is unset here (as it is in CI), so sendEmail() logs and
-// returns success without contacting a provider -- which is the point: the
-// lookup, both gates and every ledger write are exercised end to end with no
-// mail leaving the building.
+// sendEmail() is mocked so a test can read the headers a message went out
+// with -- the Reply-To on an acknowledgement is the difference between a
+// reader answering the organization and answering themselves, and no ledger
+// row records it. Behaviourally the same as the unset-RESEND_API_KEY path this
+// file otherwise ran on: both return success without contacting a provider.
 //
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
@@ -32,20 +33,43 @@ import {
   uniqueIp,
 } from "../../../test/integration-setup";
 import {
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
   EMAIL_ENABLED_SETTING_KEY,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
 } from "./kinds";
+import { REPLY_TO_SETTING_KEY } from "@/lib/email/identity";
 import { resendDedupeSuffix } from "@/lib/outbound-messages";
 
 // submission-notifications.ts, deliver.ts and the send helper all import
 // "server-only", which throws outside Next's bundler.
 mock.module("server-only", () => ({}));
+
+/** Every message that would have gone to the provider, newest last. */
+type SentMessage = {
+  to: string;
+  from: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+};
+const sent: SentMessage[] = [];
+mock.module("@/lib/email/send", () => ({
+  sendEmail: async (message: SentMessage) => {
+    sent.push(message);
+    return { ok: true, id: null };
+  },
+}));
+
 const {
+  ARTWORK_SUBMISSION_KIND,
   CONTACT_MESSAGE_KIND,
   GEAR_REQUEST_KIND,
   VOLUNTEER_APPLICATION_KIND,
+  notifyNewArtworkSubmission,
   notifyNewContactMessage,
   notifyNewGearRequest,
   notifyNewVolunteerApplication,
@@ -61,10 +85,13 @@ const SITE_URL = "https://chattersnow.example";
 const KINDS = [
   VOLUNTEER_APPLICATION_KIND,
   CONTACT_MESSAGE_KIND,
+  ARTWORK_SUBMISSION_KIND,
   GEAR_REQUEST_KIND,
   GEAR_REQUEST_CONFIRMATION_KIND,
   EVENT_REGISTRATION_CONFIRMATION_KIND,
   VOLUNTEER_APPLICATION_CONFIRMATION_KIND,
+  CONTACT_MESSAGE_CONFIRMATION_KIND,
+  ARTWORK_SUBMISSION_CONFIRMATION_KIND,
 ];
 
 let tenantId: string;
@@ -73,6 +100,7 @@ const contactEmails: string[] = [];
 const applicationCleanups: (() => Promise<void>)[] = [];
 const gearCleanups: (() => Promise<void>)[] = [];
 const eventCleanups: (() => Promise<void>)[] = [];
+const artworkCleanups: (() => Promise<void>)[] = [];
 const personCleanups: (() => Promise<void>)[] = [];
 const requesterEmails: string[] = [];
 
@@ -110,6 +138,8 @@ afterEach(async () => {
   // wording for the next test.
   await service.from("auto_reply_templates").delete().eq("tenant_id", tenantId);
   await setOrgEmailEnabled(null);
+  await setReplyTo(null);
+  sent.length = 0;
 });
 
 afterAll(async () => {
@@ -118,6 +148,9 @@ afterAll(async () => {
   // The gear fixtures first (their cleanup finds the request through the
   // movements), then the requester people rows nothing references any more.
   for (const cleanup of gearCleanups) await cleanup();
+  // The calls before their events: a call cascades to its submissions, and
+  // deleteEvent() would otherwise be blocked by the call that references it.
+  for (const cleanup of artworkCleanups) await cleanup();
   // Events before those people rows too: deleteEvent() clears the event's
   // registrations, which are what reference them.
   for (const cleanup of eventCleanups) await cleanup();
@@ -145,6 +178,36 @@ async function newGearRequest(): Promise<{ id: string; email: string }> {
   });
   if (error) throw error;
   return { id: data as string, email };
+}
+
+/**
+ * The tenant's Reply-To (#857). Set explicitly where a test asserts on it,
+ * because the fallback depends on what the local stack happens to be
+ * configured with, and this file is about which of two addresses is chosen.
+ */
+async function setReplyTo(address: string | null) {
+  if (address === null) {
+    await service
+      .from("app_settings")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("key", REPLY_TO_SETTING_KEY);
+    return;
+  }
+  const { error } = await service
+    .from("app_settings")
+    .upsert(
+      { tenant_id: tenantId, key: REPLY_TO_SETTING_KEY, value: address },
+      { onConflict: "tenant_id,key" },
+    );
+  if (error) throw error;
+}
+
+/** The one captured message addressed to `to`, and nothing else. */
+function sentTo(to: string): SentMessage {
+  const matches = sent.filter((message) => message.to === to);
+  expect(matches).toHaveLength(1);
+  return matches[0];
 }
 
 /** null removes the row, which is what an unset switch looks like. */
@@ -212,8 +275,8 @@ async function newApplication() {
   return application;
 }
 
-async function newContactMessage() {
-  const email = uniqueEmail("contact-notify");
+async function newContactMessage(overrides: { email?: string } = {}) {
+  const email = overrides.email ?? uniqueEmail("contact-notify");
   contactEmails.push(email);
   const { data, error } = await anonClient().rpc("submit_contact_message", {
     p_name: "Integration Test Sender",
@@ -226,6 +289,79 @@ async function newContactMessage() {
   });
   if (error) throw error;
   return data as string;
+}
+
+/**
+ * A directory row for an address, so a receipt preference has somebody to
+ * belong to. Neither public form mints one -- which is the whole reason the
+ * senders resolve rather than create -- so a test about an opt-out has to.
+ */
+async function newPersonWithEmail(email: string): Promise<string> {
+  const person = await createPerson({ email });
+  personCleanups.push(person.cleanup);
+  return person.id;
+}
+
+async function setPreference(personId: string, kind: string, enabled: boolean) {
+  const { error } = await service
+    .from("person_notification_preferences")
+    .upsert(
+      { tenant_id: tenantId, person_id: personId, kind, enabled },
+      { onConflict: "tenant_id,person_id,kind" },
+    );
+  if (error) throw error;
+}
+
+/**
+ * An open call and one public submission to it, through the real RPC (#870).
+ *
+ * The call is created with the service role because `event_artwork_calls` is
+ * portal data; the submission goes through `submit_artwork` as anon, which is
+ * the path that mints the row this file's senders read -- and the only path
+ * that exercises the honeypot and the image-path check.
+ */
+async function newArtworkSubmission(overrides: { images?: number } = {}) {
+  const event = await createPublishedEvent({ visibility: "public" });
+  eventCleanups.push(event.cleanup);
+
+  const { data: call, error: callError } = await service
+    .from("event_artwork_calls")
+    .insert({ event_id: event.id, title: "Zine Vol. 2", is_open: true })
+    .select("id, submission_code, tenant_id")
+    .single();
+  if (callError) throw callError;
+  artworkCleanups.push(async () => {
+    await service.from("event_artwork_calls").delete().eq("id", call.id);
+  });
+
+  const images = Array.from({ length: overrides.images ?? 2 }, () => {
+    const draft = crypto.randomUUID();
+    const image = crypto.randomUUID();
+    return {
+      path: `${call.tenant_id}/${call.id}/${draft}/${image}.jpg`,
+      thumbPath: `${call.tenant_id}/${call.id}/${draft}/${image}-thumb.jpg`,
+      contentType: "image/jpeg",
+      byteSize: 4096,
+    };
+  });
+
+  const email = uniqueEmail("artwork-notify");
+  requesterEmails.push(email);
+  const { data, error } = await anonClient().rpc("submit_artwork", {
+    p_code: call.submission_code as string,
+    p_name: "Ari Nakamura",
+    p_email: email,
+    p_title: "Snowline",
+    p_medium: "Ink on paper",
+    p_statement: "Made on the lift.",
+    p_images: images,
+    p_consent: true,
+    p_honeypot: null,
+    // A fresh IP per fixture: the RPC's own per-IP limit is 5 per 15 minutes.
+    p_ip_address: uniqueIp(),
+  });
+  if (error) throw error;
+  return { id: data as string, email, callTitle: "Zine Vol. 2" };
 }
 
 /** A public event registration from a fresh registrant, through the real RPC. */
@@ -382,6 +518,227 @@ describe("a new contact message", () => {
 
     expect(summary).toEqual({ considered: 0, sent: 0, skipped: 0, failed: 0 });
     expect(await deliveries(CONTACT_MESSAGE_KIND)).toEqual([]);
+  });
+});
+
+describe("the sender's own acknowledgement (#1237)", () => {
+  const TENANT_REPLY_TO = "hello@chattersnow.example";
+
+  test("the contact form answers the organization and the sender both", async () => {
+    await optIn(CONTACT_MESSAGE_KIND, true);
+    await setReplyTo(TENANT_REPLY_TO);
+    const senderEmail = uniqueEmail("contact-ack");
+    const messageId = await newContactMessage({ email: senderEmail });
+
+    const summary = await notifyNewContactMessage(service, {
+      messageId,
+      siteUrl: SITE_URL,
+    });
+
+    // The staff side is unchanged by the acknowledgement beside it.
+    expect(summary.sent).toBe(1);
+    expect(await deliveries(CONTACT_MESSAGE_KIND)).toHaveLength(1);
+
+    const ack = await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND);
+    expect(ack).toHaveLength(1);
+    expect(ack[0].status).toBe("sent");
+    expect(ack[0].dedupe_key).toBe(
+      `${CONTACT_MESSAGE_CONFIRMATION_KIND}:${messageId}`,
+    );
+
+    // The one thing no ledger row records, and the one most easily got
+    // backwards: staff hitting reply reach whoever wrote in, and the sender
+    // hitting reply reaches the organization -- not themselves.
+    expect(sentTo(SEEDED_USERS.admin).replyTo).toBe(senderEmail);
+    expect(sentTo(senderEmail).replyTo).toBe(TENANT_REPLY_TO);
+  });
+
+  test("the contact acknowledgement carries the topic, not the message", async () => {
+    const senderEmail = uniqueEmail("contact-ack-body");
+    await newContactMessage({ email: senderEmail }).then((messageId) =>
+      notifyNewContactMessage(service, { messageId, siteUrl: SITE_URL }),
+    );
+
+    const ack = sentTo(senderEmail);
+    for (const part of [ack.text, ack.html]) {
+      expect(part).toContain("General inquiry");
+      // What run_retention_purge deletes and an inbox would keep forever.
+      expect(part).not.toContain("Hello from the integration suite.");
+    }
+  });
+
+  test("an artwork submission answers the curators and the artist both", async () => {
+    await optIn(ARTWORK_SUBMISSION_KIND, true);
+    await setReplyTo(TENANT_REPLY_TO);
+    const submission = await newArtworkSubmission({ images: 2 });
+
+    const summary = await notifyNewArtworkSubmission(service, {
+      submissionId: submission.id,
+      siteUrl: SITE_URL,
+    });
+
+    expect(summary.sent).toBe(1);
+    expect(await deliveries(ARTWORK_SUBMISSION_KIND)).toHaveLength(1);
+
+    const ack = await deliveries(ARTWORK_SUBMISSION_CONFIRMATION_KIND);
+    expect(ack).toHaveLength(1);
+    expect(ack[0].status).toBe("sent");
+    expect(ack[0].dedupe_key).toBe(
+      `${ARTWORK_SUBMISSION_CONFIRMATION_KIND}:${submission.id}`,
+    );
+
+    // The staff notice deliberately has no Reply-To of its own (a submission
+    // is answered from the queue), so it falls through to the tenant's -- the
+    // same address the artist's acknowledgement carries, by a different route.
+    expect(sentTo(SEEDED_USERS.admin).replyTo).toBe(TENANT_REPLY_TO);
+    expect(sentTo(submission.email).replyTo).toBe(TENANT_REPLY_TO);
+  });
+
+  test("the artwork acknowledgement counts the images and sends none", async () => {
+    const submission = await newArtworkSubmission({ images: 2 });
+
+    await notifyNewArtworkSubmission(service, {
+      submissionId: submission.id,
+      siteUrl: SITE_URL,
+    });
+
+    const ack = sentTo(submission.email);
+    for (const part of [ack.text, ack.html]) {
+      expect(part).toContain("Snowline");
+      expect(part).toContain(submission.callTitle);
+      expect(part).toContain("2 images");
+      // Not the storage paths, and not an <img> pointing at one.
+      expect(part).not.toContain(".jpg");
+    }
+    expect(ack.html).not.toContain("<img");
+  });
+
+  test("a filled honeypot sends neither side anything", async () => {
+    await optIn(CONTACT_MESSAGE_KIND, true);
+    await optIn(ARTWORK_SUBMISSION_KIND, true);
+
+    // What the two RPCs hand back for a row they never inserted.
+    await notifyNewContactMessage(service, {
+      messageId: crypto.randomUUID(),
+      siteUrl: SITE_URL,
+    });
+    await notifyNewArtworkSubmission(service, {
+      submissionId: crypto.randomUUID(),
+      siteUrl: SITE_URL,
+    });
+
+    expect(await deliveries(CONTACT_MESSAGE_KIND)).toEqual([]);
+    expect(await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND)).toEqual([]);
+    expect(await deliveries(ARTWORK_SUBMISSION_KIND)).toEqual([]);
+    expect(await deliveries(ARTWORK_SUBMISSION_CONFIRMATION_KIND)).toEqual([]);
+    expect(sent).toEqual([]);
+  });
+
+  test("somebody who switched the receipt off on /my gets nothing, and staff are unaffected", async () => {
+    await optIn(CONTACT_MESSAGE_KIND, true);
+    const senderEmail = uniqueEmail("contact-optout");
+    const personId = await newPersonWithEmail(senderEmail);
+    await setPreference(personId, CONTACT_MESSAGE_CONFIRMATION_KIND, false);
+
+    const summary = await notifyNewContactMessage(service, {
+      messageId: await newContactMessage({ email: senderEmail }),
+      siteUrl: SITE_URL,
+    });
+
+    expect(summary.sent).toBe(1);
+    expect(await deliveries(CONTACT_MESSAGE_KIND)).toHaveLength(1);
+    // The receipt is opt-*out*, so this row is the only thing that stops it.
+    expect(await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND)).toEqual([]);
+    expect(sent.map((message) => message.to)).toEqual([SEEDED_USERS.admin]);
+  });
+
+  test("a directory row that left the preference alone still gets its receipt", async () => {
+    const senderEmail = uniqueEmail("contact-default");
+    const personId = await newPersonWithEmail(senderEmail);
+
+    await notifyNewContactMessage(service, {
+      messageId: await newContactMessage({ email: senderEmail }),
+      siteUrl: SITE_URL,
+    });
+
+    const ack = await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND);
+    expect(ack).toHaveLength(1);
+    // Resolved, not created: the ledger row names the person the address
+    // already belonged to, and the send is what a missing row defaults to.
+    expect(ack[0].person_id).toBe(personId);
+  });
+
+  test("an anonymous sender has no directory row, and is sent one anyway", async () => {
+    const senderEmail = uniqueEmail("contact-anon");
+
+    await notifyNewContactMessage(service, {
+      messageId: await newContactMessage({ email: senderEmail }),
+      siteUrl: SITE_URL,
+    });
+
+    const ack = await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND);
+    expect(ack).toHaveLength(1);
+    expect(ack[0].person_id).toBeNull();
+    // And the form did not quietly file them in the directory.
+    const { data } = await service
+      .from("people")
+      .select("id")
+      .eq("email", senderEmail);
+    expect(data).toEqual([]);
+  });
+
+  test("the tenant's switch on one reply stops it and nothing else", async () => {
+    await optIn(CONTACT_MESSAGE_KIND, true);
+    await setAutoReply(CONTACT_MESSAGE_CONFIRMATION_KIND, { enabled: false });
+
+    await notifyNewContactMessage(service, {
+      messageId: await newContactMessage(),
+      siteUrl: SITE_URL,
+    });
+
+    expect(await deliveries(CONTACT_MESSAGE_KIND)).toHaveLength(1);
+    expect(await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND)).toEqual([]);
+  });
+
+  test("the tenant's own wording is what goes out", async () => {
+    const senderEmail = uniqueEmail("contact-copy");
+    await setAutoReply(CONTACT_MESSAGE_CONFIRMATION_KIND, {
+      slots: { subject: "Got it, {{first_name}}" },
+    });
+
+    await notifyNewContactMessage(service, {
+      messageId: await newContactMessage({ email: senderEmail }),
+      siteUrl: SITE_URL,
+    });
+
+    expect(sentTo(senderEmail).subject).toBe("Got it, Integration Test Sender");
+  });
+
+  test("the org-wide kill switch silences both sides", async () => {
+    await optIn(CONTACT_MESSAGE_KIND, true);
+    await setOrgEmailEnabled(false);
+
+    await notifyNewContactMessage(service, {
+      messageId: await newContactMessage(),
+      siteUrl: SITE_URL,
+    });
+
+    expect(await deliveries(CONTACT_MESSAGE_KIND)).toEqual([]);
+    expect(await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND)).toEqual([]);
+  });
+
+  test("a repeated call acknowledges once", async () => {
+    const messageId = await newContactMessage();
+    const call = () =>
+      notifyNewContactMessage(service, { messageId, siteUrl: SITE_URL });
+
+    await call();
+    await call();
+
+    // The second claim loses the unique constraint, the same as the staff
+    // notice's: one submission, one acknowledgement.
+    expect(await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND)).toHaveLength(1);
+    expect(sent).toHaveLength(1);
   });
 });
 
