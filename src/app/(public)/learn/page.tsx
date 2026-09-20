@@ -33,21 +33,26 @@ export default async function LearnPage() {
         </h1>
       </div>
       <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-        {content.text("learn.intro")}{" "}
+        {content.text("learn.intro")}
         {/* The copy runs into the link mid-sentence ("... Check the" + "sizing
-            guide."), so a tenant with the guide hidden gets the same sentence
-            with the words unlinked rather than a dangling clause. */}
-        {sizingVisible ? (
-          <Link
-            href="/inventory/sizing"
-            className="underline underline-offset-4 hover:text-foreground"
-          >
-            sizing guide
-          </Link>
-        ) : (
-          "sizing guide"
+            guide."), which only an organization that publishes a sizing guide
+            writes. A tenant with the guide hidden used to get the words
+            unlinked instead, so the platform's own marketing site -- whose
+            Learn section is a security page and an FAQ -- ended its
+            introduction with a dangling "sizing guide." (#1331). Hidden now
+            means the sentence ends where the tenant ended it. */}
+        {sizingVisible && (
+          <>
+            {" "}
+            <Link
+              href="/inventory/sizing"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              sizing guide
+            </Link>
+            .
+          </>
         )}
-        .
       </p>
 
       {categories.length > 0 ? (
