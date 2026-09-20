@@ -7,8 +7,8 @@ import {
   IMAGE_SLOT_KEY_PREFIX,
   LEGAL_DOCUMENT_OUTLINES,
   SITE_CONTENT_SLOTS,
+  PLAN_FIELDS,
   TEAM_PHOTO_FIELD,
-  audiencePhotoField,
   contentSlot,
   imageSlotName,
   isValidSlotValue,
@@ -17,6 +17,8 @@ import {
   resolveSiteContent,
   sectionsForPage,
   slotsForSection,
+  tourClosingSlot,
+  tourPhotoField,
 } from "./site-content";
 
 describe("the site content registry", () => {
@@ -83,7 +85,9 @@ describe("the site content registry", () => {
   // image slot must carry it, and nothing else may (#812).
   test("image slots are the site_images.* keys, and only they are", () => {
     const images = SITE_CONTENT_SLOTS.filter((slot) => slot.type === "image");
-    expect(images).toHaveLength(36);
+    // 45 since #1329: the module tour names one screenshot slot per module it
+    // covers, plus the shared fallback the other tour pages have.
+    expect(images).toHaveLength(45);
     for (const slot of SITE_CONTENT_SLOTS) {
       expect(slot.key.startsWith(IMAGE_SLOT_KEY_PREFIX), slot.key).toBe(
         slot.type === "image",
@@ -623,7 +627,7 @@ describe("the audience pages", () => {
   // (#998), so neither page may reach into the other's image slots.
   test("each page's screenshots come from its own slots", () => {
     for (const page of PAGES) {
-      const names = photoSlotChoices(audiencePhotoField(page)).map(
+      const names = photoSlotChoices(tourPhotoField(page)).map(
         (choice) => choice.name,
       );
       expect(names.length, page).toBeGreaterThan(0);
@@ -648,5 +652,172 @@ describe("the audience pages", () => {
         page,
       ).toBe("audiences");
     }
+  });
+});
+
+/**
+ * The module tour (#1329). The same shape as the two audience pages and the
+ * same component, so what is worth testing here is what makes it a third page
+ * rather than a copy of one of them: it covers what ships, it is written in
+ * neither audience's vocabulary, and it closes on the argument #998 says the
+ * page is for.
+ */
+describe("the module tour", () => {
+  type Section = { label: string; body: string };
+
+  const sections = () =>
+    DEFAULT_SITE_CONTENT.list<Section>("module_tour.modules");
+
+  test("has a section per module that ships, each of them written", () => {
+    const labels = sections().map((section) => section.label);
+
+    // #998's list: finance, events, inventory, people, volunteers, programs,
+    // governance, content calendar. Order is the page's to choose; presence is
+    // not, because a tour that omits one is selling a smaller product than the
+    // one that exists.
+    for (const part of [
+      "Finance",
+      "People",
+      "Events",
+      "Volunteers",
+      "Programs",
+      "Inventory",
+      "Governance",
+      "Content calendar",
+    ]) {
+      expect(labels, part).toContain(part);
+    }
+
+    for (const section of sections()) {
+      expect(section.body.trim().length, section.label).toBeGreaterThan(40);
+    }
+  });
+
+  // The audience pages carry the vocabularies; this one deliberately carries
+  // neither, so a row copied from one of them would be selling to half the
+  // readers of this page.
+  test("is written in neither audience's words", () => {
+    const audience = new Set(
+      ["audience_nonprofits", "audience_business"].flatMap((page) =>
+        DEFAULT_SITE_CONTENT.list<Section>(`${page}.modules`).map(
+          (section) => section.body,
+        ),
+      ),
+    );
+
+    for (const section of sections()) {
+      expect(audience.has(section.body), section.label).toBe(false);
+    }
+  });
+
+  // The page's whole argument, per #998: no donor CRM does board governance
+  // *and* gear inventory. A tour that lists eight parts and never says why they
+  // are in one place is a feature list.
+  test("closes on the combination rather than on the parts", () => {
+    const closing = DEFAULT_SITE_CONTENT.text(
+      `module_tour.${tourClosingSlot("module_tour")}`,
+    );
+
+    expect(closing.length).toBeGreaterThan(80);
+    expect(closing).toMatch(/together|combination/i);
+  });
+
+  test("every tour page's closing slot is a registered slot", () => {
+    for (const page of [
+      "audience_nonprofits",
+      "audience_business",
+      "module_tour",
+    ] as const) {
+      expect(
+        contentSlot(`${page}.${tourClosingSlot(page)}`),
+        page,
+      ).toBeDefined();
+    }
+  });
+
+  test("is gated by its own slot rather than the audiences one", () => {
+    expect(
+      CONTENT_PAGES.find((entry) => entry.key === "module_tour")?.visibilityKey,
+    ).toBe("modules");
+  });
+});
+
+/**
+ * The price list (#1330). Two claims are worth holding onto, and neither is
+ * prose an editor will rewrite.
+ *
+ * The first is that no figure is in Core. A price is this deployment's
+ * commercial term, not the platform's -- the same line `*.ctas` draws around a
+ * host -- so the registry ships the *shape* of the list and the platform
+ * tenant's own rows carry the numbers (20260920030000).
+ *
+ * The second is that the page answers the three questions #998 asks it to.
+ */
+describe("the price list", () => {
+  type Plan = {
+    name: string;
+    price: string;
+    includes?: string[];
+    shown?: boolean;
+  };
+
+  const plans = () => DEFAULT_SITE_CONTENT.list<Plan>("pricing.plans");
+
+  test("ships the shape of the list with no figure in it", () => {
+    expect(plans().length).toBeGreaterThan(1);
+
+    for (const plan of plans()) {
+      expect(plan.name.trim(), "a plan with no name is not a card").not.toBe(
+        "",
+      );
+      // An em dash, not "$0" and not "Free": both of those are claims, and the
+      // one thing Core must not do on this page is make one.
+      expect(plan.price, plan.name).not.toMatch(/\d/);
+      expect((plan.includes ?? []).length, plan.name).toBeGreaterThan(0);
+    }
+  });
+
+  test("a plan can be switched off, and a destination can leave the site", () => {
+    const field = (key: string) =>
+      PLAN_FIELDS.find((entry) => entry.key === key);
+
+    expect(field("shown")?.kind).toBe("boolean");
+    expect(field("cta_href")?.kind).toBe("url");
+  });
+
+  // #998: "State what is included (modules, custom domain, public website)".
+  test("says what every plan includes", () => {
+    const included = DEFAULT_SITE_CONTENT.paragraphs("pricing.included")
+      .join(" ")
+      .toLowerCase();
+
+    expect(included).toContain("module");
+    expect(included).toContain("domain");
+    expect(included).toContain("website");
+  });
+
+  // Visible numbers rather than a contact-sales gate, and a setup fee stated up
+  // front rather than found out about later.
+  test("asks for the onboarding fee before the page can be published", () => {
+    const onboarding = DEFAULT_SITE_CONTENT.paragraphs("pricing.onboarding");
+
+    expect(onboarding.length).toBeGreaterThan(0);
+    expect(onboarding.join(" ")).toMatch(/one-time|once/i);
+  });
+
+  // The plans are the same for both audiences (#998), which is the same claim
+  // the audience pages make about the vocabulary, and it has to be on this page
+  // too: a reader who arrived through /business is the one who wonders.
+  test("says the plans do not differ by audience", () => {
+    const closing = DEFAULT_SITE_CONTENT.text("pricing.closing");
+
+    expect(closing).toMatch(/nonprofit/i);
+    expect(closing).toMatch(/business/i);
+  });
+
+  test("is gated by its own slot", () => {
+    expect(
+      CONTENT_PAGES.find((entry) => entry.key === "pricing")?.visibilityKey,
+    ).toBe("pricing");
   });
 });

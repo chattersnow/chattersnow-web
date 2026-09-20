@@ -56,3 +56,20 @@ export function liveCtas(
       isHrefVisible(hidden, cta.href),
   );
 }
+
+/**
+ * The same question asked of a single button that is not part of a list: the row
+ * if it may be published, `null` if it may not.
+ *
+ * The price list's plan cards need this (#1330). A plan's button is two fields
+ * on the plan's own row rather than an entry in a `ctas` list, and the rules it
+ * has to pass are the same ones -- so it asks them here rather than repeating
+ * a shortened version of them in a page, which is how the `javascript:` check
+ * ends up missing from one of the three places that needed it.
+ */
+export function liveCta(
+  cta: ContentCta | null | undefined,
+  hidden: readonly string[],
+): ContentCta | null {
+  return cta ? (liveCtas([cta], hidden)[0] ?? null) : null;
+}

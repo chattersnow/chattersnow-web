@@ -66,10 +66,13 @@ test.describe("the audience paths", () => {
 
   test("both are reachable from the main navigation", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "For business", { group: "Who it's for" });
+    // The group is "Product" since #1329, which folded the module tour and the
+    // price list in beside these two rather than spending two more of the
+    // header's eight section widths on them.
+    await clickNavLink(page, "For business", { group: "Product" });
     await expect(page).toHaveURL(/\/business$/);
 
-    await clickNavLink(page, "For nonprofits", { group: "Who it's for" });
+    await clickNavLink(page, "For nonprofits", { group: "Product" });
     await expect(page).toHaveURL(/\/nonprofits$/);
   });
 });

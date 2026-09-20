@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SITE_CONTENT } from "./site-content";
-import { liveCtas, type ContentCta } from "./site-ctas";
+import { liveCta, liveCtas, type ContentCta } from "./site-ctas";
 
 const CTA: ContentCta = { label: "Join an event", href: "/events" };
 
@@ -111,14 +111,51 @@ describe("the home hero's default buttons", () => {
 });
 
 /**
- * The audience pages ship with no buttons at all (#1328), which is deliberate:
- * a destination is the one thing a registry default cannot honestly guess --
- * it is a host, and hosts belong to whoever runs the deployment.
+ * The marketing pages ship with no buttons at all (#1328, #1329), which is
+ * deliberate: a destination is the one thing a registry default cannot honestly
+ * guess -- it is a host, and hosts belong to whoever runs the deployment.
  */
-describe("the audience pages' buttons", () => {
+describe("the marketing pages' buttons", () => {
   test("are empty until a tenant writes one", () => {
-    for (const page of ["audience_nonprofits", "audience_business"]) {
+    for (const page of [
+      "audience_nonprofits",
+      "audience_business",
+      "module_tour",
+    ]) {
       expect(DEFAULT_SITE_CONTENT.list(`${page}.ctas`), page).toEqual([]);
     }
+  });
+});
+
+/**
+ * `liveCta` is the same three questions asked of a button that is not in a
+ * list: a plan card's, on `/pricing` (#1330). Worth its own tests because the
+ * price list is the one page where a dropped button and a rendered one look
+ * equally plausible -- a plan whose sign-up is a conversation has no button at
+ * all -- so a `javascript:` row slipping through would not look wrong.
+ */
+describe("liveCta", () => {
+  test("passes a publishable destination through", () => {
+    expect(liveCta({ label: "Get started", href: "/contact" }, [])).toEqual({
+      label: "Get started",
+      href: "/contact",
+    });
+  });
+
+  test("drops a row with no button on it", () => {
+    expect(liveCta(null, [])).toBeNull();
+    expect(liveCta({ label: "", href: "/contact" }, [])).toBeNull();
+  });
+
+  test("drops a destination in a section the board has hidden", () => {
+    expect(
+      liveCta({ label: "Donate", href: "/support" }, ["support"]),
+    ).toBeNull();
+  });
+
+  test("drops a scheme the site will not publish", () => {
+    expect(
+      liveCta({ label: "Sign up", href: "javascript:alert(1)" }, []),
+    ).toBeNull();
   });
 });
