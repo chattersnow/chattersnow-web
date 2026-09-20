@@ -86,6 +86,27 @@ Ask "is this a different job, or a different view of the same thing?" before ask
 
 Two hard rules: no tab without a URL, and no real destination that appears in no navigation surface (sidebar, command palette, or breadcrumb). On configuration, Administration holds what governs the organization as a whole — identity, org-wide settings, oversight — while configuration that only shapes one feature's vocabulary lives with that feature. The nav is never the gate: module entitlements decide visibility through `has_permission()` and `visibleNavItems()`, and `src/lib/portal/nav-guards.test.ts` must stay green.
 
+## Permissions
+
+Before adding a permission check — a `requirePermission()`/`hasPermission()`
+call site, a `has_permission()` in an RLS policy or RPC, or a row in
+`public.resources` — read `docs/permissions.md`. The rule in one line:
+
+> **A permission check is not finished until `src/lib/auth/permission-docs.ts`
+> says what it does.**
+
+That module is the product's own explanation of the catalog: per-level prose,
+the "does not include" cross-references to the adjacent resource that is close
+enough in name to be mistaken for it, and notes on inert grants and narrow
+Workflow carve-outs. It is what Administration → Permission Reference and the
+help button on each permissions-matrix row render. Adding, moving or tightening
+a check means updating it in the same PR — `src/lib/auth/permission-docs.test.ts`
+reads the checks off disk and fails a level documented as inert that something
+asks for, a level documented that nothing asks for, and an undocumented
+resource. Prefer an existing resource, and add a narrow Workflow resource
+_alongside_ the wide one (`checkAnyPermission`) rather than widening the wide
+one to cover a new page.
+
 ## Public page widths
 
 Before adding a public route or wrapping a page in a `max-w-*`, read

@@ -45,6 +45,18 @@ export const helpContent: Record<string, HelpEntry> = {
             role access under Administration, and it appears immediately without
             a re-login.
           </p>
+          <p>
+            Administrators: the{" "}
+            <Link
+              href="/portal/administration/permission-reference"
+              className="font-medium underline underline-offset-2"
+            >
+              permission reference
+            </Link>{" "}
+            says what each permission grants at View and at Manage, and which
+            neighbouring permission covers what it doesn&apos;t — the answer to
+            &ldquo;which grant fixes this?&rdquo;.
+          </p>
         </HowToSection>
         <HowToSection heading="About this panel">
           <p>
@@ -1505,7 +1517,9 @@ export const helpContent: Record<string, HelpEntry> = {
               <strong className="text-foreground">View</strong>, or{" "}
               <strong className="text-foreground">Manage</strong>. Manage
               includes everything View does, plus the ability to create, edit,
-              or delete.
+              or delete. The help icon beside a resource&apos;s name says what
+              that particular grant covers, what it does not, and which roles
+              hold it today.
             </li>
             <li>
               &ldquo;Save changes&rdquo; lists every cell you changed and asks
@@ -1563,6 +1577,57 @@ export const helpContent: Record<string, HelpEntry> = {
               not a permission that went missing.
             </li>
           </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/permission-reference": {
+    title: "What each permission grants",
+    description:
+      "The whole catalog, level by level, with the neighbours it excludes.",
+    body: (
+      <>
+        <HowToSection heading="What this page answers">
+          <p>
+            For every permission in the matrix: what <strong>View</strong> lets
+            someone do, what <strong>Manage</strong> adds, which sidebar entries
+            the grant reveals, which roles in this organization hold it, and —
+            the question most grants get wrong — which neighbouring permission
+            covers what it doesn&apos;t. Granting Finance does not grant expense
+            approvals, event expenses, or the finance reports a board member
+            reads; each has its own row.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Reading it">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              The filter matches a name, a section, or the underlying key, so
+              &ldquo;expense&rdquo; finds every permission that touches one.
+            </li>
+            <li>
+              A permission marked <strong>Module off</strong> is one your
+              organization does not have. The grant can be set and does nothing
+              until the module is switched back on — which is also why it is
+              missing from the matrix.
+            </li>
+            <li>
+              A permission with no sidebar entry is not unused: it widens what
+              pages and actions elsewhere allow, without adding a destination of
+              its own.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="Changing anything">
+          <p>
+            Nothing here is editable. Grants are set on{" "}
+            <Link
+              href="/portal/administration/roles?tab=permissions"
+              className="underline underline-offset-2"
+            >
+              Roles → Permissions
+            </Link>
+            , and take effect on the next request — no re-login, no deploy.
+          </p>
         </HowToSection>
       </>
     ),
