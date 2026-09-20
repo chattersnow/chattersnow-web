@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
+import { navigateAfterSessionChange } from "@/lib/constituent/session-navigation";
 
 /**
  * Sign out of the constituent area, from anywhere on the public site.
@@ -20,10 +21,11 @@ import { MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
  * account serves both surfaces (#1160), a global sign-out here would also
  * throw an administrator out of the portal they had open in the next tab.
  *
- * `router.refresh()` for the usual App Router reason: without it the cached
- * RSC payload keeps rendering the signed-in page -- and, since #1175, the
- * signed-in header on every other public page -- which reads as the sign-out
- * having failed.
+ * `navigateAfterSessionChange` for the usual App Router reason: without the
+ * refresh it carries, the cached RSC payload keeps rendering the signed-in
+ * page -- and, since #1175, the signed-in header on every other public page --
+ * which reads as the sign-out having failed. Sign-in needs the same thing
+ * (#1304), which is why the pair is one function.
  */
 export function useConstituentSignOut(): {
   signOut: () => Promise<void>;
@@ -42,8 +44,7 @@ export function useConstituentSignOut(): {
       // portal's does: stranding someone on a signed-in-looking page with no
       // error is worse than sending them to a sign-in they may still hold a
       // session for.
-      router.replace(MY_SIGN_IN_PATH);
-      router.refresh();
+      navigateAfterSessionChange(router, MY_SIGN_IN_PATH);
     }
   }
 
