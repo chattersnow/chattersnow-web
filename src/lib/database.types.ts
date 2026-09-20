@@ -5041,6 +5041,7 @@ export type Database = {
           person_id: string | null;
           provider_message_id: string | null;
           sent_at: string | null;
+          skip_reason: string | null;
           status: string;
           tenant_id: string;
         };
@@ -5053,6 +5054,7 @@ export type Database = {
           person_id?: string | null;
           provider_message_id?: string | null;
           sent_at?: string | null;
+          skip_reason?: string | null;
           status?: string;
           tenant_id?: string;
         };
@@ -5065,6 +5067,7 @@ export type Database = {
           person_id?: string | null;
           provider_message_id?: string | null;
           sent_at?: string | null;
+          skip_reason?: string | null;
           status?: string;
           tenant_id?: string;
         };

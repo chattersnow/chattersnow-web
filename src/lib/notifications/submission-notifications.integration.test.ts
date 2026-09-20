@@ -264,7 +264,7 @@ async function optIn(kind: string, enabled: boolean) {
 async function deliveries(kind: string) {
   const { data, error } = await service
     .from("notification_deliveries")
-    .select("person_id, dedupe_key, status, error")
+    .select("person_id, dedupe_key, status, skip_reason, error")
     .eq("kind", kind);
   if (error) throw error;
   return data ?? [];
@@ -755,8 +755,21 @@ describe("the sender's own acknowledgement (#1237)", () => {
 
     expect(summary.sent).toBe(1);
     expect(await deliveries(CONTACT_MESSAGE_KIND)).toHaveLength(1);
-    // The receipt is opt-*out*, so this row is the only thing that stops it.
-    expect(await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND)).toEqual([]);
+
+    // The receipt is opt-*out*, so the preference row is the only thing that
+    // stops it -- and since #1310 stopping it leaves a record. This used to
+    // assert no ledger row at all, which meant a suppressed receipt and a
+    // receipt that was never triggered were indistinguishable from the portal.
+    // The row is the evidence the opt-out was honoured, which 20260906140000
+    // said this table was for; what proves nothing was sent is `sent` below.
+    const receipts = await deliveries(CONTACT_MESSAGE_CONFIRMATION_KIND);
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0]).toMatchObject({
+      person_id: personId,
+      status: "skipped",
+      skip_reason: "opted_out",
+      error: null,
+    });
     expect(sent.map((message) => message.to)).toEqual([SEEDED_USERS.admin]);
   });
 
