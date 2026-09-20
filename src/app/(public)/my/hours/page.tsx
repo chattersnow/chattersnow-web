@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageShell } from "@/components/page-shell";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,7 +11,7 @@ import type {
   VolunteerRoleOption,
 } from "@/lib/constituent/hours";
 import { LogHoursForm } from "./hours-form";
-import { MyNav } from "../my-nav";
+import { MyPageLayout } from "../my-page-layout";
 
 const MY_HOURS_PATH = `${MY_PATH_PREFIX}/hours`;
 
@@ -48,33 +47,26 @@ export default async function MyHoursPage() {
   ]);
 
   return (
-    <PageShell>
-      <div className="space-y-8">
-        <section>
-          <div className="w-fit">
-            <div className="rainbow-accent w-full" />
-            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-brand sm:text-5xl">
-              Log your hours
-            </h1>
-          </div>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Tell us what you gave us and we will check it against our own notes.
-            Once someone has confirmed it, it counts towards your{" "}
-            {personRoleLabel("is_volunteer", vocabulary).toLowerCase()} total
-            and towards what we report.
-          </p>
-          <MyNav current="hours" />
-        </section>
-
-        <Card>
-          <CardContent>
-            <LogHoursForm
-              events={(events ?? []) as LoggableEvent[]}
-              roles={(roles ?? []) as VolunteerRoleOption[]}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </PageShell>
+    <MyPageLayout
+      current="hours"
+      title="Log your hours"
+      intro={
+        <>
+          Tell us what you gave us and we will check it against our own notes.
+          Once someone has confirmed it, it counts towards your{" "}
+          {personRoleLabel("is_volunteer", vocabulary).toLowerCase()} total and
+          towards what we report.
+        </>
+      }
+    >
+      <Card>
+        <CardContent>
+          <LogHoursForm
+            events={(events ?? []) as LoggableEvent[]}
+            roles={(roles ?? []) as VolunteerRoleOption[]}
+          />
+        </CardContent>
+      </Card>
+    </MyPageLayout>
   );
 }
