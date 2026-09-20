@@ -61,6 +61,16 @@ describe("collectionSurface", () => {
     expect(surface.volunteerHours).toBe(true);
   });
 
+  // #1296. The form that logs hours is in `/my`, so the Volunteers module
+  // alone does not mean a tenant collects self-logged hours -- and since the
+  // retention table filters its clock on this key, a surface that said
+  // otherwise would publish a period for data the tenant cannot receive.
+  test("self-logged hours need the constituent area, not just the module", () => {
+    const surface = collectionSurface({}, { constituent_accounts: false });
+    expect(surface.constituentAccounts).toBe(false);
+    expect(surface.volunteerHours).toBe(false);
+  });
+
   // `getTenantPageVisibility()`, which the Site Content editor's starter is
   // built from, reads app_settings directly and does not fold the entitlement
   // in the way its public counterpart does. So the module has to be checked

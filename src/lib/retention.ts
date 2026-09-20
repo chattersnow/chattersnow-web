@@ -2,9 +2,12 @@
  * The published retention periods, in one place.
  *
  * These are a board decision, recorded in the planning repo at
- * `decisions/2026-09-02-personal-data-retention-and-privacy-policy.md`. Change
- * them there first, then here, then in the `retention_policies` seed
- * (`supabase/migrations/20260905090000_create_retention_policies.sql`).
+ * `decisions/2026-09-02-personal-data-retention-and-privacy-policy.md`, amended
+ * for the constituent area by
+ * `decisions/2026-09-19-constituent-accounts-claims-and-self-logged-hours-retention.md`
+ * (#1296). Change them there first, then here, then in the `retention_policies`
+ * seed (`supabase/migrations/20260905090000_create_retention_policies.sql`, and
+ * one migration per amendment since).
  *
  * This module is the single in-repo transcription of that decision. The public
  * privacy page renders `RETENTION` from it, and the purge reads its periods
@@ -102,6 +105,44 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     surface: "gearRequests",
   },
   {
+    key: "person_claims",
+    // Named as the "what we collect" bullet names it, so a reader meets the
+    // same phrase twice rather than having to work out that a "record claim"
+    // is the thing they filled in.
+    what: "Matching your account to our records",
+    howLong:
+      "2 years after we decide your claim, or 2 years after you sent it if we never got to it.",
+    period: "2 years",
+    surface: "constituentAccounts",
+  },
+  {
+    key: "volunteer_hour_submissions",
+    what: "Hours you log yourself",
+    // The confirmed ones deliberately have no clock here: confirming an entry
+    // writes a volunteer_hours row, and the submission is the record that the
+    // volunteer entered those hours themselves rather than a staffer entering
+    // them on their behalf. Deleting it on its own clock would leave the
+    // ledger asserting something with nothing behind it.
+    howLong:
+      "2 years, if we declined the entry or never reviewed it. Hours we confirmed are kept with the volunteering record they became.",
+    period: "2 years",
+    surface: "volunteerHours",
+  },
+  {
+    key: "constituent_accounts",
+    // #1296. Until epic #1160 every account belonged to somebody who ran the
+    // organization, so `portal_accounts` below was the only account clock and
+    // it starts when a role ends. A member of the public holds no role by
+    // design, so read literally that entry promised to keep their account
+    // indefinitely -- the reason this one exists rather than the wording of
+    // that one simply being widened.
+    what: "Website accounts",
+    howLong:
+      "For as long as you use one. An account that has never been matched to a record and has not been used for 2 years is deleted. If you ask us to close an account that is matched to a record, we permanently disable your sign-in and clear the personal details on that record, and keep the record of what was done with the account.",
+    period: "2 years",
+    surface: "constituentAccounts",
+  },
+  {
     key: "portal_accounts",
     // Reworded for #602. This used to say the account "is removed", which the
     // system cannot do and was never going to: audit_log.actor_id and ~120
@@ -112,8 +153,12 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // sign-in identity itself is retained as part of the audit trail, and the
     // sentence below no longer implies otherwise.
     what: "Portal accounts",
+    // Reworded again for #1296, and the change is one clause: "if you hold a
+    // role with us" says which population this is about. It described every
+    // account until the day a visitor could make one, and a visitor's account
+    // is now the entry above.
     howLong:
-      "For as long as you hold the role. When your role ends we permanently disable your access and clear the personal details we hold about you in the portal. We keep the record of what was done through the portal — including which account did it — for governance, security, audit, insurance, and legal reasons.",
+      "If you hold a role with us, for as long as you hold it. When your role ends we permanently disable your access and clear the personal details we hold about you in the portal. We keep the record of what was done through the portal — including which account did it — for governance, security, audit, insurance, and legal reasons.",
     period: "3 months",
   },
 ];

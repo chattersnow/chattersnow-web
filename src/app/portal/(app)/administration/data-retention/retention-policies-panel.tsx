@@ -108,6 +108,23 @@ export function RetentionPoliciesPanel({
                     shortest period anyone sets is the one that applies.
                   </p>
                 ) : null}
+                {policy.policy_key === "constituent_accounts" ? (
+                  // The second rule with nothing to scope (#1296), and the one
+                  // where the mode below does not mean what it means on every
+                  // other row: an account has no organization until a claim is
+                  // approved, so enforcing takes every organization agreeing.
+                  // Saying so at the control is the difference between "we
+                  // turned it on and nothing happened" and a rule an
+                  // administrator understands.
+                  <p className="app-muted mt-1 text-sm leading-relaxed">
+                    Shared across every organization on the platform: an account
+                    belongs to a person, not to an organization, so the shortest
+                    period anyone sets is the one that applies and accounts are
+                    deleted only once every organization is enforcing. Its
+                    counts in the run log are the platform&rsquo;s, not just
+                    yours.
+                  </p>
+                ) : null}
               </div>
               <Select
                 value={policy.mode}
