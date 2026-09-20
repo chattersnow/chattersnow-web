@@ -38,8 +38,14 @@ export type PublicPageSlot = {
    * page deliberately does without (#937). page-visibility.test.ts checks
    * whichever file this resolves to: registering a slot without gating it
    * hides the nav link and leaves the URL live.
+   *
+   * Several files, when one switch governs routes that are siblings rather
+   * than a section with a shared layout -- `audiences` is `/nonprofits` and
+   * `/business`, two front doors to the same argument with no parent segment
+   * to put a gate in (#1328). Every named file is checked, because a list that
+   * only had to name one of them would let the second route stay live.
    */
-  gate?: string;
+  gate?: string | readonly string[];
   /**
    * The module (#900) this section belongs to. When that module is off for the
    * tenant, the slot is forced hidden whatever the board has stored -- an
@@ -170,6 +176,26 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     description: "The contact page and its message form.",
     defaultVisible: true,
     module: "communications",
+  },
+  // The two audience paths (#1328), and the first slot to gate a *pair* of
+  // routes. They are siblings rather than a section -- neither is under the
+  // other, and a `/audiences` parent nobody would ever link to exists only to
+  // hold a layout -- so the gate is named twice below and `requireVisiblePage`
+  // is called in both.
+  //
+  // No module: the pages describe what the platform does, and a tenant that
+  // has bought three modules rather than eight still has something true to say
+  // on them. Off by default like every new section, and this one would be
+  // conspicuous turned on by accident -- it is the product's own pitch, and a
+  // customer publishing it under their brand would be introducing their
+  // visitors to their software vendor.
+  {
+    key: "audiences",
+    label: "Audience paths",
+    description:
+      "The two pages at /nonprofits and /business, which describe what this platform does in each audience's own vocabulary. Most organizations leave these off: they are about the software, not about you.",
+    defaultVisible: false,
+    gate: ["(public)/nonprofits/layout.tsx", "(public)/business/layout.tsx"],
   },
   // The second single-route slot, and hidden by default for the opposite
   // reason from `gears-sizing`. That one is off because its content is one

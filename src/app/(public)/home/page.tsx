@@ -1,10 +1,11 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { CtaButton } from "@/components/cta-button";
 import { PageShell } from "@/components/page-shell";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite } from "@/lib/public-site";
-import { isPageVisible } from "@/lib/page-visibility";
+import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
+import { isSlotVisible } from "@/lib/public-nav";
+import { liveCtas, type ContentCta } from "@/lib/site-ctas";
 import { EVENT_ITEM_TYPE } from "@/lib/calendar-vocabulary";
 import { nowMs } from "@/lib/time";
 import { MAX_HOME_UPCOMING_COUNT, getSiteLayout } from "@/lib/site-layout";
@@ -85,10 +86,14 @@ export default async function Home() {
   ]);
   const { content } = site;
 
-  const [supportVisible, eventsVisible] = await Promise.all([
-    isPageVisible("support"),
-    isPageVisible("events"),
-  ]);
+  // One read rather than a question per section (#1327). The hero's buttons
+  // are a tenant's own list now, so the page cannot know in advance which
+  // sections they point into -- `liveCtas()` asks `isHrefVisible()` per row.
+  // The read is `cache()`d and the public layout has already made it to filter
+  // the nav, so this costs nothing.
+  const hidden = hiddenSlots(await getPageVisibility(supabase));
+  const eventsVisible = isSlotVisible(hidden, "events");
+  const ctas = liveCtas(content.list<ContentCta>("home.ctas"), hidden);
 
   // Every destination in this section lives under the Events slot -- the
   // listing, the event pages, and the community calendar -- so when the board
@@ -180,31 +185,23 @@ export default async function Home() {
           {content.text("home.intro")}
         </p>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Button
-            variant="rainbow"
-            nativeButton={false}
-            render={<Link href="/events" />}
-          >
-            {content.text("home.cta_events")}
-          </Button>
-          <Button
-            variant="secondary"
-            nativeButton={false}
-            render={<Link href="/get-involved" />}
-          >
-            {content.text("home.cta_get_involved")}
-          </Button>
-          {supportVisible ? (
-            <Button
-              variant="secondary"
-              nativeButton={false}
-              render={<Link href="/support" />}
-            >
-              {content.text("home.cta_donate")}
-            </Button>
-          ) : null}
-        </div>
+        {/* The first button that survives the filter is the rainbow one,
+            rather than the first one written: a tenant whose lead ask is
+            hidden this month should not be left with a hero of three
+            identical grey buttons. */}
+        {ctas.length > 0 && (
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {ctas.map((cta, index) => (
+              <CtaButton
+                key={`${cta.href}-${index}`}
+                href={cta.href}
+                variant={index === 0 ? "rainbow" : "secondary"}
+              >
+                {cta.label}
+              </CtaButton>
+            ))}
+          </div>
+        )}
       </section>
 
       {upcoming.length > 0 && (

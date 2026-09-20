@@ -92,20 +92,28 @@ describe("PUBLIC_PAGE_SLOTS", () => {
     const appDir = join(import.meta.dirname, "..", "app");
 
     for (const slot of PUBLIC_PAGE_SLOTS) {
-      const gate = slot.gate ?? join("(public)", slot.key, "layout.tsx");
-      let source: string;
-      try {
-        source = readFileSync(join(appDir, gate), "utf8");
-      } catch {
-        throw new Error(
-          `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${gate} to gate it.`,
-        );
-      }
+      // A slot may name more than one gate: `audiences` covers /nonprofits and
+      // /business, sibling routes with no shared layout, and each has to call
+      // it or the ungated one stays live (#1328).
+      const gates = slot.gate
+        ? [slot.gate].flat()
+        : [join("(public)", slot.key, "layout.tsx")];
 
-      expect(
-        source.includes(`requireVisiblePage("${slot.key}")`),
-        `${gate} must call requireVisiblePage("${slot.key}")`,
-      ).toBe(true);
+      for (const gate of gates) {
+        let source: string;
+        try {
+          source = readFileSync(join(appDir, gate), "utf8");
+        } catch {
+          throw new Error(
+            `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${gate} to gate it.`,
+          );
+        }
+
+        expect(
+          source.includes(`requireVisiblePage("${slot.key}")`),
+          `${gate} must call requireVisiblePage("${slot.key}")`,
+        ).toBe(true);
+      }
     }
   });
 
@@ -345,6 +353,7 @@ describe("hiddenSlots", () => {
     );
 
     expect(hiddenSlots(visibility).sort()).toEqual([
+      "audiences",
       "brand",
       "gears-sizing",
       "links",

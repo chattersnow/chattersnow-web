@@ -52,6 +52,29 @@ export type NavGroup = {
  * overview item would be a second route to the same page.
  */
 export const NAV_GROUPS: readonly NavGroup[] = [
+  // The two front doors (#1328), first because on a site that publishes them
+  // they are the point: a reader arriving cold picks the vocabulary that is
+  // theirs before they read anything else. Hidden for every tenant that has
+  // not turned the `audiences` slot on, which is every tenant by default.
+  //
+  // `/nonprofits` is the group's own href as well as its first child, the
+  // same shape `/events` and `/get-involved` use. There is no parent route
+  // and inventing one -- a `/audiences` nobody would ever link to -- would be
+  // a page that exists only to hold a layout.
+  //
+  // The second child carries the slot again so `slotsForHref("/business")`
+  // resolves. The mapping is derived from this tree, and a child with no slot
+  // of its own inherits nothing: an in-page link to `/business` would have
+  // gone on reading as live after the board hid the section.
+  {
+    label: "Who it's for",
+    href: "/nonprofits",
+    slot: "audiences",
+    links: [
+      { label: "For nonprofits", href: "/nonprofits" },
+      { label: "For business", href: "/business", slot: "audiences" },
+    ],
+  },
   {
     label: "About",
     href: "/about",

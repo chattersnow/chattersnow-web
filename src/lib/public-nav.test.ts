@@ -9,8 +9,12 @@ import {
 } from "./public-nav";
 import { PUBLIC_PAGE_SLOTS } from "./page-visibility";
 
-/** The four sections the board had hidden when this nav was reworked. */
-const HIDDEN = ["about", "programs", "learn", "support"];
+/**
+ * The four sections the board had hidden when this nav was reworked, plus the
+ * audience paths (#1328) -- those are off for every tenant that has not
+ * deliberately turned them on, so a realistic "reduced nav" has them out too.
+ */
+const HIDDEN = ["about", "programs", "learn", "support", "audiences"];
 
 describe("NAV_GROUPS", () => {
   test("every group's slot is a registered page-visibility slot", () => {
