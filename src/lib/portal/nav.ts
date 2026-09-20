@@ -753,6 +753,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
         group: "Oversight",
         access: [{ resource: "administration", level: "manage" }],
       },
+      {
+        // #1310. Beside the audit log rather than under Organization, because
+        // it answers the same shape of question -- what did the platform do,
+        // and when -- and shares its audience. administration:manage is
+        // notification_deliveries' own select policy (20260906140000), not a
+        // wider gate chosen for the sidebar.
+        value: "delivery-log",
+        label: "Email Delivery",
+        href: "/portal/administration/delivery-log",
+        group: "Oversight",
+        access: [{ resource: "administration", level: "manage" }],
+      },
       // administration:manage rather than a resource of its own: the audience is
       // exactly the one that already reads the audit log and system settings,
       // and a new resources row would add a column to every role's permission

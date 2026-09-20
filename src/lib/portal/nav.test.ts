@@ -431,7 +431,10 @@ describe("navGroups", () => {
       // is not a sixth tab on the first because a tab is another view of one
       // object and five reply templates are five objects.
       ["Organization", ["organization-settings", "automatic-replies"]],
-      ["Oversight", ["audit-log", "data-retention"]],
+      // The delivery log joined Oversight in #1310: same audience and same
+      // administration:manage gate as the audit log, and the same shape of
+      // question -- what did the platform do, and when.
+      ["Oversight", ["audit-log", "delivery-log", "data-retention"]],
     ]);
   });
 
