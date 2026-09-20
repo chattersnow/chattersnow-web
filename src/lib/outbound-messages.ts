@@ -21,6 +21,21 @@
  */
 export const STAFF_MESSAGE_KIND = "staff_message";
 
+/**
+ * A notice sent to everybody registered for an event (#1317), and deliberately
+ * a different kind from `staff_message` rather than a batch of them.
+ *
+ * Absent from NOTIFICATION_KINDS for exactly the reason `staff_message` is --
+ * `kinds.test.ts` asserts both -- but kept apart from it because the two are
+ * not the same class of mail. Correspondence with somebody who asked the
+ * organization for something is one thing; a notice posted to a list of people
+ * who registered is another, and keeping them distinct is what lets a consent
+ * or unsubscribe story attach to the second later without touching the first.
+ *
+ * The org-wide kill switch governs it, as it governs everything.
+ */
+export const EVENT_ANNOUNCEMENT_KIND = "event_announcement";
+
 /** Matching the check constraints on `outbound_messages`. */
 export const MAX_MESSAGE_SUBJECT_LENGTH = 200;
 export const MAX_MESSAGE_BODY_LENGTH = 5000;
@@ -36,6 +51,7 @@ export const GEAR_REQUEST_RECORD_TYPE = "gear_request";
 export const VOLUNTEER_APPLICATION_RECORD_TYPE = "volunteer_application";
 export const CONTACT_MESSAGE_RECORD_TYPE = "contact_message";
 export const ARTWORK_SUBMISSION_RECORD_TYPE = "artwork_submission";
+export const EVENT_REGISTRATION_RECORD_TYPE = "event_registration";
 
 /**
  * One row of a record's message history, and the names behind `sent_by`.
@@ -51,6 +67,13 @@ export type RecordMessageRow = {
   status: string;
   created_at: string;
   sent_by: string | null;
+  /**
+   * The announcement this row was one copy of (#1317), or null for a message
+   * written to one person. Every copy of one announcement carries the same
+   * value, which is the only thing that distinguishes fifty sends of the same
+   * notice from fifty unrelated messages that happen to share a subject.
+   */
+  batch_id: string | null;
 };
 
 export type MessageActor = {
@@ -87,6 +110,27 @@ export type OutboundMessageStatus = "sent" | "failed";
 
 export function outboundMessageStatusLabel(status: string): string {
   return status === "sent" ? "Sent" : "Not sent";
+}
+
+/**
+ * Who sent this, and what sort of thing it was, in one line under the subject.
+ *
+ * Three kinds reach a history card and they are not interchangeable. A
+ * `staff_message` is somebody's own words. An announcement is somebody's own
+ * words posted to everyone registered, and a registrant reading their history
+ * with a manager should be able to tell the two apart -- "why did I get this?"
+ * is exactly the question the card exists to answer. Anything else is a
+ * receipt the organization wrote, which a staffer only re-sent.
+ */
+export function outboundMessageSenderLabel(
+  kind: string,
+  senderName: string,
+): string {
+  if (kind === STAFF_MESSAGE_KIND) return `Sent by ${senderName}`;
+  if (kind === EVENT_ANNOUNCEMENT_KIND) {
+    return `Announcement, sent by ${senderName}`;
+  }
+  return `Receipt, resent by ${senderName}`;
 }
 
 /** Matches the `StatusBadge` tones the portal already uses. */

@@ -4,7 +4,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   listEventRegistrantsAction,
-  type EventRegistrant,
+  type EventRegistrantsData,
 } from "./registrants-actions";
 import { getEventImpactDerivedAction } from "./impact-derived-actions";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
@@ -24,7 +24,7 @@ import type { TabValue } from "./event-tabs-config";
 export type SharedEventResource = "registrants" | "impactDerived" | "people";
 
 export type EventSharedData = {
-  registrants: TabData<EventRegistrant[]>;
+  registrants: TabData<EventRegistrantsData>;
   impactDerived: TabData<EventImpactDerived>;
   people: TabData<PersonListItem[]>;
   /**
@@ -95,7 +95,7 @@ export function EventSharedDataProvider({
   const wants = (resource: SharedEventResource) =>
     requested.has(resource) || resources.includes(resource);
 
-  const registrants = useTabData<EventRegistrant[]>(
+  const registrants = useTabData<EventRegistrantsData>(
     () => listEventRegistrantsAction(eventId),
     [eventId],
     wants("registrants"),

@@ -32,7 +32,9 @@ export async function loadRecordMessages(
 
   const { data, error } = await supabase
     .from("outbound_messages")
-    .select("id, record_id, subject, kind, status, created_at, sent_by")
+    .select(
+      "id, record_id, subject, kind, status, created_at, sent_by, batch_id",
+    )
     .eq("record_type", recordType)
     .in("record_id", recordIds)
     .order("created_at", { ascending: false });

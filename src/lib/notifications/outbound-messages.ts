@@ -44,6 +44,12 @@ export type RecordedOutboundMessage = {
   kind: string;
   /** What the sender claimed in notification_deliveries, to find it again. */
   dedupeKey: string;
+  /**
+   * The announcement this copy belongs to (#1317), or absent for a message
+   * written to one person. Every copy of one announcement shares it, which is
+   * what lets the event-level view group them without a second table.
+   */
+  batchId?: string | null;
   status: OutboundMessageStatus;
   /** The staffer's auth.users id, passed in because auth.uid() is null here. */
   sentBy: string;
@@ -66,6 +72,7 @@ export async function recordOutboundMessage(
     kind: message.kind,
     status: message.status,
     sent_by: message.sentBy,
+    batch_id: message.batchId ?? null,
     delivery_id: await findDeliveryId(admin, message),
   });
 
