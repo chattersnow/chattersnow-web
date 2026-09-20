@@ -20,12 +20,12 @@ above it and ends to the left of the footer below it.
 Most sections took the default and lined up. Four did not, each for a reason
 that was sound on its own page and invisible from any other:
 
-| Route                                           | Was         | Why it was chosen                                                    |
-| ----------------------------------------------- | ----------- | -------------------------------------------------------------------- |
-| `/brand`                                        | `max-w-4xl` | Nothing recorded. It arrived with the page's first commit (#845).    |
-| `/my`                                           | `max-w-3xl` | "One column of cards; `max-w-6xl` sets 120-character lines" (#1179). |
-| `/my/details`, `/my/hours`, `/my/notifications` | `max-w-2xl` | Single forms (#1179).                                                |
-| `/my/sign-in`                                   | `max-w-md`  | A lone card (#1179).                                                 |
+| Route                              | Was         | Why it was chosen                                                    |
+| ---------------------------------- | ----------- | -------------------------------------------------------------------- |
+| `/brand`                           | `max-w-4xl` | Nothing recorded. It arrived with the page's first commit (#845).    |
+| `/my`                              | `max-w-3xl` | "One column of cards; `max-w-6xl` sets 120-character lines" (#1179). |
+| `/my/details`, `/my/notifications` | `max-w-2xl` | Single forms (#1179).                                                |
+| `/my/sign-in`                      | `max-w-md`  | A lone card (#1179).                                                 |
 
 Meanwhile three other sections had written the opposite decision into their own
 comments — `privacy/layout.tsx`, `terms/layout.tsx`,

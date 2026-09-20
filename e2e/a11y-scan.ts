@@ -214,12 +214,12 @@ const ROLE_SWEEPS: { email: string; label: string; routes: string[] }[] = [
   // staff account is linked on its first sign-in, so these pages render a real
   // record rather than the claim form -- and because the sign-in this sweep
   // performs is the portal's, which is the point of one account across both
-  // surfaces (#1160). These four are skipped in the anon pass, where they would
-  // all four measure the sign-in page; this is their only coverage.
+  // surfaces (#1160). These three are skipped in the anon pass, where they
+  // would all three measure the sign-in page; this is their only coverage.
   {
     email: "admin@example.test",
     label: "constituent",
-    routes: ["/my", "/my/details", "/my/hours", "/my/notifications"],
+    routes: ["/my", "/my/details", "/my/notifications"],
   },
 ];
 

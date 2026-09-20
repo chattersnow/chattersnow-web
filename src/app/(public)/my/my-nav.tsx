@@ -6,23 +6,25 @@ import { SignOutButton } from "./sign-out-button";
 /**
  * The constituent area's navigation (#1180).
  *
- * `/my` had one child when #1161 landed and has four now -- three of them
- * signed-in jobs, plus the sign-in page. The answer until this component was a
+ * `/my` had one child when #1161 landed. The answer until this component was a
  * row of outline links inside a `<p>` on the hub page alone. Three things were
  * wrong with that. A paragraph used as a flex container is not announced as
  * navigation and cannot be jumped to. The row existed only on `/my`, so moving
  * between two children cost two navigations, out through an outline button and
- * back through an underlined text link. And its membership changed per person
- * -- "Log your hours" rendered only for somebody with volunteering behind
- * them, which hid it from exactly the person about to volunteer for the first
- * time.
+ * back through an underlined text link. And its membership changed per person,
+ * which hid an entry from exactly the person who most needed to find it.
  *
- * docs/portal-navigation.md:25-26 governs: four sibling jobs, each a different
- * job from reading your history rather than a different view of it, so each
- * gets an entry and every entry is always present. The one rule that could be
- * read as arguing the other way -- "a real destination that appears in no
+ * docs/portal-navigation.md:25-26 governs: sibling jobs, each a different job
+ * from reading your history rather than a different view of it, so each gets
+ * an entry and every entry is always present. The one rule that could be read
+ * as arguing the other way -- "a real destination that appears in no
  * navigation surface" -- was the argument the old comment made, and a
  * paragraph is not a navigation surface.
+ *
+ * "Log your hours" was a fourth entry until #1303. Self-logging duplicated
+ * `/portal/volunteers/participation`, which does the same job for the same
+ * person with a view of what was confirmed behind it, so the public copy went
+ * rather than being kept in step with it.
  *
  * ## Why these are not buttons
  *
@@ -39,12 +41,11 @@ import { SignOutButton } from "./sign-out-button";
  * which is two tab stops and two landmarks for one navigation.
  */
 
-export type MyNavKey = "home" | "details" | "hours" | "notifications";
+export type MyNavKey = "home" | "details" | "notifications";
 
 const ENTRIES: { key: MyNavKey; href: string; label: string }[] = [
   { key: "home", href: MY_PATH_PREFIX, label: "Your account" },
   { key: "details", href: `${MY_PATH_PREFIX}/details`, label: "Your details" },
-  { key: "hours", href: `${MY_PATH_PREFIX}/hours`, label: "Log your hours" },
   {
     key: "notifications",
     href: `${MY_PATH_PREFIX}/notifications`,
