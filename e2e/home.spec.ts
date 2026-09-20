@@ -28,6 +28,30 @@ test.describe("home page layout", () => {
   });
 });
 
+// #1327: the hero's three buttons became one content-authored list
+// (`home.ctas`), and the promise attached to that change was that no tenant's
+// home page moves. The registry default reproduces the three destinations the
+// page used to hard-code, so this is the assertion that would fail if the
+// default, the filter or the rendering order drifted -- none of which a unit
+// test over the registry alone would catch once the page reads a slot.
+test.describe("the home hero's buttons", () => {
+  test("still go where they went before the list", async ({ page }) => {
+    await page.goto("/home");
+
+    const hero = page.getByRole("main");
+    for (const [name, href] of [
+      ["Join an event", "/events"],
+      ["Get involved", "/get-involved"],
+      ["Donate", "/support"],
+    ] as const) {
+      await expect(hero.getByRole("button", { name }).first()).toHaveAttribute(
+        "href",
+        href,
+      );
+    }
+  });
+});
+
 /**
  * Which slide the track is showing, by the one sitting closest to the
  * viewport's left edge.

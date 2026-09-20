@@ -8,6 +8,7 @@ import {
   LEGAL_DOCUMENT_OUTLINES,
   SITE_CONTENT_SLOTS,
   TEAM_PHOTO_FIELD,
+  audiencePhotoField,
   contentSlot,
   imageSlotName,
   isValidSlotValue,
@@ -82,7 +83,7 @@ describe("the site content registry", () => {
   // image slot must carry it, and nothing else may (#812).
   test("image slots are the site_images.* keys, and only they are", () => {
     const images = SITE_CONTENT_SLOTS.filter((slot) => slot.type === "image");
-    expect(images).toHaveLength(28);
+    expect(images).toHaveLength(36);
     for (const slot of SITE_CONTENT_SLOTS) {
       expect(slot.key.startsWith(IMAGE_SLOT_KEY_PREFIX), slot.key).toBe(
         slot.type === "image",
@@ -564,5 +565,88 @@ describe("a list slot's photo field (#922)", () => {
   test("a row that names neither is still valid", () => {
     expect(isValidSlotValue(slot, [{ name: "Ada Lovelace" }])).toBe(true);
     expect(isValidSlotValue(slot, slot.default)).toBe(true);
+  });
+});
+
+/**
+ * The two audience paths (#1328). What is worth a test here is not the prose
+ * -- an editor rewrites that -- but the two structural claims the pages make:
+ * that governance is on one and deliberately absent from the other, and that
+ * each page illustrates itself with its own screenshots.
+ */
+describe("the audience pages", () => {
+  const PAGES = ["audience_nonprofits", "audience_business"] as const;
+
+  type Section = { label: string; body: string };
+
+  const sections = (page: string) =>
+    DEFAULT_SITE_CONTENT.list<Section>(`${page}.modules`);
+
+  test("both ship with copy rather than a prompt", () => {
+    for (const page of PAGES) {
+      expect(
+        DEFAULT_SITE_CONTENT.text(`${page}.heading`).length,
+        page,
+      ).toBeGreaterThan(20);
+      expect(sections(page).length, page).toBeGreaterThan(4);
+      for (const section of sections(page)) {
+        expect(section.label.trim(), page).not.toBe("");
+        expect(
+          section.body.trim().length,
+          `${page}: ${section.label}`,
+        ).toBeGreaterThan(40);
+      }
+    }
+  });
+
+  // The nonprofit moat, and the one section #998 says to drop rather than
+  // stretch into "advisory board minutes".
+  test("governance leads the nonprofit page and is absent from business", () => {
+    expect(sections("audience_nonprofits")[0]?.label).toBe("Governance");
+    expect(
+      sections("audience_business").map((section) => section.label),
+    ).not.toContain("Governance");
+  });
+
+  // The pages are the same product in two vocabularies, so a section that
+  // reads identically on both is a section that was not translated.
+  test("the two pages do not repeat each other's words", () => {
+    const business = new Set(
+      sections("audience_business").map((section) => section.body),
+    );
+    for (const section of sections("audience_nonprofits")) {
+      expect(business.has(section.body), section.label).toBe(false);
+    }
+  });
+
+  // A business visitor bouncing off donor screens is the obvious failure mode
+  // (#998), so neither page may reach into the other's image slots.
+  test("each page's screenshots come from its own slots", () => {
+    for (const page of PAGES) {
+      const names = photoSlotChoices(audiencePhotoField(page)).map(
+        (choice) => choice.name,
+      );
+      expect(names.length, page).toBeGreaterThan(0);
+      for (const name of names) expect(name.startsWith(page), name).toBe(true);
+    }
+  });
+
+  // The honest half of a dual-market claim: one product with per-tenant
+  // wording, not two editions.
+  test("both say the vocabulary is a setting, not a separate edition", () => {
+    for (const page of PAGES) {
+      expect(DEFAULT_SITE_CONTENT.text(`${page}.same_product`), page).toMatch(
+        /setting/i,
+      );
+    }
+  });
+
+  test("both are gated by the audiences slot", () => {
+    for (const page of PAGES) {
+      expect(
+        CONTENT_PAGES.find((entry) => entry.key === page)?.visibilityKey,
+        page,
+      ).toBe("audiences");
+    }
   });
 });

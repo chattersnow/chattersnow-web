@@ -216,7 +216,23 @@ export function SiteNav({
 
           Below `lg` the nav is a sheet and the cluster is 267px, which leaves
           room everywhere down to 390. Narrower than that the header wraps to a
-          second row, as it did before any of this. */}
+          second row, as it did before any of this.
+
+          **The budget is eight sections**, which is every section a customer
+          tenant has. #1328 added a ninth, `audiences`, and it does not fit:
+          re-measured on a tenant with all nine visible, the nav is 696px at
+          `lg` (against 591 for eight) and 732px at `xl` (against 623), and the
+          header wraps to two rows at every desktop width from 1024 to 1600.
+          That is accepted rather than unnoticed. `audiences` is the platform's
+          own pitch, off for every tenant until somebody turns it on, and the
+          site that turns it on is a marketing site -- no Events, no Programs,
+          no Get Involved -- so its nav is far under budget. The configuration
+          that wraps is the local seed, which turns on every section at once so
+          the e2e and a11y sweeps have something to visit, and is not a site
+          anybody serves. A tenth section, or a customer that really does want
+          all nine, needs the nav to overflow rather than the header to wrap,
+          and that is a change to this component rather than another entry in
+          this list. */}
       {showEventsCta && (
         <Button
           variant="rainbow"
