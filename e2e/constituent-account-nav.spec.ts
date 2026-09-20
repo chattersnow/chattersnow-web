@@ -1,5 +1,5 @@
 import { test, expect } from "./helpers/test";
-import { signIn } from "./helpers/auth";
+import { signIn, SEEDED_PASSWORD } from "./helpers/auth";
 
 /**
  * The public site's way in to `/my` (#1175).
@@ -70,9 +70,35 @@ test.describe("the public account control", () => {
     ).toBeVisible();
   });
 
+  // The mirror of the sign-out test below, and the reason both paths share
+  // `navigateAfterSessionChange` (#1304): `/my/sign-in` and `/my` sit in one
+  // layout segment, so without the refresh the header keeps the signed-out
+  // payload it was rendered with and offers "Sign in" on the signed-in page.
+  test("signs in from /my/sign-in and the header follows", async ({ page }) => {
+    await page.setViewportSize(WIDE);
+    await page.goto("/my/sign-in");
+
+    await page.getByLabel("Email").fill("admin@example.test");
+    await page.getByLabel("Password").fill(SEEDED_PASSWORD);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/my$/);
+    await expect(
+      page.locator("header").getByRole("button", { name: /Your account/ }),
+    ).toBeVisible();
+    await expect(
+      page.locator("header").getByRole("link", { name: "Sign in" }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .getByRole("navigation", { name: "Resources" })
+        .getByRole("link", { name: "Your account" }),
+    ).toHaveAttribute("href", "/my");
+  });
+
   // Signing out used to mean finding `/my` first. From any page now -- and the
-  // header has to agree afterwards, which is what `router.refresh()` in
-  // `useConstituentSignOut` is for.
+  // header has to agree afterwards, which is what the refresh in
+  // `navigateAfterSessionChange` is for.
   test("signs out from a public page and the header follows", async ({
     page,
   }) => {

@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { safeMyDestination } from "@/lib/constituent/paths";
+import { navigateAfterSessionChange } from "@/lib/constituent/session-navigation";
 
 type Mode = "sign-in" | "sign-up";
 
@@ -91,7 +92,7 @@ export function SignInForm() {
         return;
       }
 
-      router.replace(destination);
+      navigateAfterSessionChange(router, destination);
       return;
     }
 
@@ -106,7 +107,7 @@ export function SignInForm() {
       return;
     }
 
-    router.replace(destination);
+    navigateAfterSessionChange(router, destination);
   }
 
   async function handleGoogle() {
