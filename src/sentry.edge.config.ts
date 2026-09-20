@@ -9,6 +9,9 @@ Sentry.init({
     process.env.NEXT_PUBLIC_SENTRY_DSN ??
     "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
 
+  // See `src/sentry.server.config.ts`.
+  enabled: Boolean(process.env.VERCEL_ENV),
+
   tracesSampleRate: 0,
 
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,

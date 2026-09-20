@@ -10,6 +10,11 @@ Sentry.init({
     process.env.NEXT_PUBLIC_SENTRY_DSN ??
     "https://7e58098c646de634c9c1a1cb736bd1f3@o4512096441401344.ingest.us.sentry.io/4512096496910336",
 
+  // Only a Vercel deploy reports. VERCEL_ENV is set on every deployment and
+  // nowhere else, so this is off in CI and on developer machines -- see
+  // `src/instrumentation-client.ts` for why that matters.
+  enabled: Boolean(process.env.VERCEL_ENV),
+
   tracesSampleRate: 0,
 
   // Server-side, Vercel's system variables are available unprefixed.
