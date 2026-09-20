@@ -5,6 +5,13 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { getTenantContext } from "@/lib/portal/tenants";
+import {
+  ARTWORK_SUBMISSION_RECORD_TYPE,
+  NO_RECORD_MESSAGES,
+} from "@/lib/outbound-messages";
+import { loadRecordMessages } from "@/lib/portal/record-messages";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -135,6 +142,49 @@ export default async function ArtworkSubmissionsPage({
       .maybeSingle();
     linked = linkedRow ? normalize(linkedRow) : null;
   }
+
+  // What has been said to each artist on this page, in one query rather than
+  // one per sheet: the list renders a sheet per card, and a curator opens one
+  // of them. RLS answers with nothing without artwork_submissions:manage, so
+  // the check here only saves the round trips for a reader who cannot see it.
+  const submissionIds = [
+    ...submissions.map((row) => row.id),
+    ...(linked ? [linked.id] : []),
+  ];
+  const [recordMessages, orgEmailEnabled, tenantContext] = await Promise.all([
+    canManage
+      ? loadRecordMessages(
+          supabase,
+          ARTWORK_SUBMISSION_RECORD_TYPE,
+          submissionIds,
+        )
+      : NO_RECORD_MESSAGES,
+    canManage ? getOrgEmailEnabled(supabase) : false,
+    // Only for what the composer calls the organization in its default
+    // subject. Memoized per request, so the shell has already paid for it.
+    getTenantContext(supabase),
+  ]);
+  const orgName =
+    tenantContext.tenants.find(
+      (tenant) => tenant.id === tenantContext.currentTenantId,
+    )?.name ?? "";
+  // The Reply-To the composer quotes, through the view that exists because
+  // app_settings itself is closed to an artwork manager.
+  const { data: orgMail } = canManage
+    ? await supabase
+        .from("org_notification_settings")
+        .select("reply_to")
+        .maybeSingle()
+    : { data: null };
+  const replyTo = (orgMail?.reply_to as string | null) ?? null;
+
+  const messageProps = (submissionId: string) => ({
+    messages: recordMessages.byRecord[submissionId] ?? [],
+    messageActors: recordMessages.actors,
+    orgName,
+    replyTo,
+    orgEmailEnabled,
+  });
 
   // One signing round trip for the whole page, including the deep-linked row.
   const signed = await signArtworkImages(
@@ -321,6 +371,7 @@ export default async function ArtworkSubmissionsPage({
                               submission={submission}
                               images={images}
                               canManage={canManage}
+                              {...messageProps(submission.id)}
                               defaultOpen={submission.id === linkedId}
                             />
                           </div>
@@ -337,6 +388,7 @@ export default async function ArtworkSubmissionsPage({
                 submission={linked}
                 images={imagesFor(linked)}
                 canManage={canManage}
+                {...messageProps(linked.id)}
                 defaultOpen
                 withTrigger={false}
               />

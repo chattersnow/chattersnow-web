@@ -35,6 +35,7 @@ export const MAX_MESSAGE_BODY_LENGTH = 5000;
 export const GEAR_REQUEST_RECORD_TYPE = "gear_request";
 export const VOLUNTEER_APPLICATION_RECORD_TYPE = "volunteer_application";
 export const CONTACT_MESSAGE_RECORD_TYPE = "contact_message";
+export const ARTWORK_SUBMISSION_RECORD_TYPE = "artwork_submission";
 
 /**
  * One row of a record's message history, and the names behind `sent_by`.
