@@ -138,7 +138,9 @@ Specified in full in [§5.9](people.md#59-people-directory) — the fourteen-col
 
 ### Acting from your account
 
-Also [§5.9](people.md#59-people-directory): registering for an event as yourself (`register_myself_for_event()`), logging your own volunteer hours (`log_my_volunteer_hours()`, provisional until confirmed — [§5.17](volunteers.md#517-volunteer-management)), and choosing which emails you get (`my_notification_preferences()` / `set_my_notification_preference()`). The property they share is that **the caller never says who they are**: the person comes from `auth.uid()` and the request host, so no argument can steer a write onto someone else's record, and none of the three paths can mint a `people` row.
+Also [§5.9](people.md#59-people-directory): registering for an event as yourself (`register_myself_for_event()`) and choosing which emails you get (`my_notification_preferences()` / `set_my_notification_preference()`). The property they share is that **the caller never says who they are**: the person comes from `auth.uid()` and the request host, so no argument can steer a write onto someone else's record, and neither path can mint a `people` row.
+
+Logging your own volunteer hours was a third (`log_my_volunteer_hours()`, provisional until confirmed — [§5.17](volunteers.md#517-volunteer-management)) until #1303 removed `/my/hours` as a duplicate of `/portal/volunteers/participation`. The function and its two pickers (`my_loggable_events()`, `my_volunteer_role_types()`) are still defined and still granted to `authenticated`; nothing in the application calls them.
 
 ### The tenant's words
 

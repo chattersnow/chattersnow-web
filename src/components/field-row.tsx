@@ -29,8 +29,8 @@ import { cn } from "@/lib/utils";
  * That means a `FieldRow` belongs inside a `FieldGroup`, which is what
  * declares `@container/field-group`; outside one it simply stays stacked.
  *
- * Scoped to the constituent area for now -- `/my/details` and the one row on
- * `/my/hours`. The same misuse is in ~105 places across the portal and the
+ * Scoped to the constituent area for now -- `/my/details`. The same misuse is
+ * in ~105 places across the portal and the
  * other public forms, and each one needs looking at rather than sedding,
  * because `responsive` genuinely is the right variant for the
  * label-beside-control rows mixed in among them.

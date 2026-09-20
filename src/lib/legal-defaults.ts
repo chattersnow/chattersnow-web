@@ -133,9 +133,8 @@ const PRIVACY: DocumentProse = {
           "**Matching your account to our records** — the name we would have you under, and, if you give them, an email address, a phone number, a social handle and a note explaining who you are. Somebody here reads it and decides whether the record is yours. We keep what you sent either way, so there is a record of the decision.",
         surfaces.constituentAccounts &&
           "**What you keep up to date yourself** — once your account is matched to a record, you can correct the name you prefer, your pronouns, your phone number, your social handle and your postal address, tell us which activity you do, your experience level and where you prefer to go, and choose which of our emails you get. What you save replaces what we had.",
-        surfaces.constituentAccounts &&
-          surfaces.volunteerHours &&
-          "**Hours you log yourself** — how many, the date, which event and which role they were for, and any note you add. They stay pending until somebody here confirms them.",
+        surfaces.volunteerHours &&
+          "**Hours you log yourself** — if you volunteer with us and log your own hours: how many, the date, which event and which role they were for, and any note you add. They stay pending until somebody here confirms them.",
       ]),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",
     ],
@@ -252,8 +251,6 @@ const TERMS: DocumentProse = {
         "You can create an account on this site to see your own records with us. An account is for that and nothing else: it carries no role here, gives you no access to anyone else's information, and holding one does not admit you to the operations portal.",
         "The account is yours alone. Use an email address you actually control, keep your password to yourself, and don't let anyone else sign in as you — we treat what is done through your account as done by you. Tell us if you think somebody else has got into it.",
         "Asking us to match your account to a record we already hold is a statement about yourself, and somebody here reads it before anything is linked. We may decline a request we can't match, or one we have reason to think isn't yours, and claiming to be someone you aren't is a breach of these terms.",
-        surfaces.volunteerHours &&
-          "Hours you enter yourself are what you have told us, not something we have checked. They stay pending until somebody here confirms them, and we may correct or decline an entry that doesn't match our own records.",
         "What an account shows you depends on what we record about you and on which parts of this site we are running, and it can change. We may suspend or close an account — if these terms are broken, if the account isn't yours, or if we stop offering accounts at all — and we'll tell you when we do, unless we're prevented from it.",
         "Closing an account doesn't erase our records of you. It ends the sign-in; what we hold about your involvement with us stays under our [privacy policy](/privacy), which is also where you'll find how long we keep it and how to ask for a copy or a deletion.",
         "There is no charge for an account, and nothing here promises we will go on offering them.",

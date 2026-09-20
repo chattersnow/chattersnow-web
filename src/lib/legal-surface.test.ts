@@ -61,14 +61,16 @@ describe("collectionSurface", () => {
     expect(surface.volunteerHours).toBe(true);
   });
 
-  // #1296. The form that logs hours is in `/my`, so the Volunteers module
-  // alone does not mean a tenant collects self-logged hours -- and since the
-  // retention table filters its clock on this key, a surface that said
-  // otherwise would publish a period for data the tenant cannot receive.
-  test("self-logged hours need the constituent area, not just the module", () => {
+  // The reverse of the pairing #1296 introduced, undone by #1303: the form
+  // that logged hours was in `/my`, so the constituent area gated the surface
+  // too. A volunteer logs their own hours in the portal now, so turning the
+  // area off takes nothing away -- and since the retention table filters the
+  // `volunteer_hour_submissions` clock on this key, a surface that said
+  // otherwise would publish no period for rows the tenant still receives.
+  test("self-logged hours do not need the constituent area", () => {
     const surface = collectionSurface({}, { constituent_accounts: false });
     expect(surface.constituentAccounts).toBe(false);
-    expect(surface.volunteerHours).toBe(false);
+    expect(surface.volunteerHours).toBe(true);
   });
 
   // `getTenantPageVisibility()`, which the Site Content editor's starter is

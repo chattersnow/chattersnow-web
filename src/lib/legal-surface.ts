@@ -44,13 +44,19 @@ export type CollectionSurface = {
    */
   constituentAccounts: boolean;
   /**
-   * Whether a constituent can log their own volunteer hours (#1165).
+   * Whether a volunteer can log their own hours (#1165).
    *
    * Separate from `volunteerApplications` because the gates genuinely differ:
    * the application form is the public volunteer *page*, so hiding that slot
-   * takes it away, while `log_my_volunteer_hours()` and its two pickers check
-   * only the Volunteers module. A tenant that hides the public page and keeps
-   * the module still collects self-logged hours, and the policy has to say so.
+   * takes it away, while self-logging answers to the Volunteers module alone.
+   * A tenant that hides the public page and keeps the module still collects
+   * self-logged hours, and the policy has to say so.
+   *
+   * #1296 paired this with `constituentAccounts`, because the form that logged
+   * hours was `/my/hours`. #1303 removed that form as a duplicate of the
+   * portal's, which is where a volunteer logs their own hours now -- so the
+   * module stands alone again. The clock on `volunteer_hour_submissions` is
+   * filtered by this key, and those rows are still written.
    */
   volunteerHours: boolean;
   /**
@@ -72,7 +78,7 @@ export type CollectionSurface = {
  * page to hide, and its module answers alone: `(public)/artwork/[code]` is
  * reached by the code on an open call rather than from the nav, `/my` is gated
  * by its module in `requireConstituentArea()` and again on every RPC, and
- * self-logged hours are gated by the Volunteers module inside the RPC.
+ * self-logged hours are behind a portal permission rather than a public page.
  */
 export const SURFACE_GATES: Readonly<
   Record<string, { slot: string | null; module: string }>
@@ -127,16 +133,7 @@ export function collectionSurface(
     gearRequests: live("gearRequests", visibility, modules),
     artworkSubmissions: live("artworkSubmissions", visibility, modules),
     constituentAccounts: live("constituentAccounts", visibility, modules),
-    // The one surface behind two gates (#1296). Its own gate is the Volunteers
-    // module, which is what `log_my_volunteer_hours()` checks, but the form
-    // that calls it lives in `/my`: with the constituent area off there is no
-    // constituent to log anything, so the tenant collects no self-logged hours
-    // whatever the Volunteers module says. `legal-defaults.ts` expressed this
-    // as a `&&` at the one bullet that mentioned hours; it belongs in the
-    // surface itself now that a retention clock is filtered by the same key.
-    volunteerHours:
-      live("volunteerHours", visibility, modules) &&
-      live("constituentAccounts", visibility, modules),
+    volunteerHours: live("volunteerHours", visibility, modules),
     googleSignIn: true,
   };
 }

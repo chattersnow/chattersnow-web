@@ -13,17 +13,12 @@ import { signIn } from "./helpers/auth";
 // no <main> at all and the skip link pointed at nothing.
 const ROUTES = ["/home", "/about", "/inventory/sizing", "/my/sign-in"];
 
-// The rest of the area needs a session -- signed out all four redirect to
-// /my/sign-in, which would test that one page four times. admin@ is used for
+// The rest of the area needs a session -- signed out all three redirect to
+// /my/sign-in, which would test that one page three times. admin@ is used for
 // the reason the a11y sweep uses it: a staff account is linked to its own
 // people row on first sign-in, so these render the real pages rather than the
 // claim form. Any new signed-in /my route belongs here.
-const SIGNED_IN_ROUTES = [
-  "/my",
-  "/my/details",
-  "/my/hours",
-  "/my/notifications",
-];
+const SIGNED_IN_ROUTES = ["/my", "/my/details", "/my/notifications"];
 
 /**
  * Tabs to the first focusable element that belongs to the app. `next dev`
