@@ -13,7 +13,17 @@ mock.module("next/image", () => ({
 // React `cache()`, neither of which this test is about: it is about what the
 // page derives once it is allowed to render. `requireVisiblePage` has its own
 // coverage in page-visibility.test.ts.
+//
+// The rest of the module is spread back in rather than left out. A factory
+// replaces the module wholesale, so naming only the two functions this test
+// steers dropped every other export -- and the day something else under the
+// page's import graph reached for `getPageVisibility`, the file stopped
+// loading at all with "Export named 'getPageVisibility' not found", which
+// reads as a missing export rather than as this mock.
+const realPageVisibility = await import("@/lib/page-visibility");
+
 mock.module("@/lib/page-visibility", () => ({
+  ...realPageVisibility,
   requireVisiblePage: async () => {},
   isPageVisible: async () => true,
 }));
