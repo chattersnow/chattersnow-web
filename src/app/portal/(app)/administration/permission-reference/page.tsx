@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { getTenantModules } from "@/lib/page-visibility";
+import { deviceClass } from "@/lib/portal/device";
 import { moduleEnabled } from "@/lib/portal/modules";
 import { roleDisplayName } from "@/lib/format";
 import type { PermissionLevel } from "@/lib/auth/permissions";
 import { PermissionReferenceView } from "./permission-reference-view";
 
 export const metadata: Metadata = {
-  title: "Permission reference · Administration",
+  title: "Permission Reference · Administration",
 };
 
 /**
@@ -33,6 +34,7 @@ export default async function PermissionReferencePage() {
     { data: roles },
     { data: moduleRows },
     modules,
+    device,
   ] = await Promise.all([
     supabase
       .from("resources")
@@ -42,6 +44,9 @@ export default async function PermissionReferencePage() {
     supabase.from("roles").select("id, name, label, description").order("name"),
     supabase.from("modules").select("key, label"),
     getTenantModules(supabase),
+    // The rail is a sticky column at a desk and a sheet on a phone, and the
+    // choice is made on the server so neither flashes the other first.
+    deviceClass(),
   ]);
 
   const roleNameById = new Map(
@@ -74,15 +79,18 @@ export default async function PermissionReferencePage() {
 
   return (
     <>
-      <PortalBreadcrumbs current="Permission reference" />
+      {/* Exactly the sidebar's label, so the trail does not repeat it
+          as its own last step. */}
+      <PortalBreadcrumbs current="Permission Reference" />
       <div className="w-fit">
         <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
-          Permission reference
+          Permission Reference
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
       <PermissionReferenceView
+        device={device}
         resources={(resources ?? []).map((resource) => ({
           key: resource.key as string,
           section: resource.section as string,

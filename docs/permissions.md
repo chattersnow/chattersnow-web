@@ -127,11 +127,14 @@ Run it with `bun test src/lib/auth/permission-docs.test.ts`.
   opens the explanation beside the matrix, with the roles in this organization
   that hold it, read live from `role_permissions`.
 - **Administration → Permission Reference** — the same content for every
-  resource, grouped by section and filterable, linked from the portal's help
-  panel. It keeps resources whose module is off and marks them inert, because
-  "why can nobody reach Reimbursements?" is one of the questions it answers;
-  the matrix drops them, because offering a cell that would do nothing reads as
-  a bug.
+  resource, laid out to be read through, with a `PortalRail` beside it holding
+  the catalog grouped by section. Its search reaches into the prose rather than
+  the labels, so "approve" finds the entries that say so whatever they are
+  called, and the rail marks whichever resource the reader has scrolled to.
+  Linked from the portal's help panel. It keeps resources whose module is off
+  and marks them inert, because "why can nobody reach Reimbursements?" is one
+  of the questions it answers; the matrix drops them, because offering a cell
+  that would do nothing reads as a bug.
 
 ## Related
 
