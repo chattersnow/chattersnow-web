@@ -42,7 +42,19 @@ test.describe("the module tour", () => {
 
   test("is reachable from the main navigation", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "What it does", { group: "Product" });
+
+    // Two labels for one destination, and not a bug: `/modules` is the Product
+    // group's own landing page, so the desktop dropdown lists it as "What it
+    // does" while the mobile sheet renders it as the group label and drops the
+    // child that would have been the same page twice (`site-nav.tsx`). The
+    // audience paths and the price list are children of neither shape, which is
+    // why their specs need no branch.
+    const mobile = await page
+      .getByRole("button", { name: "Open menu" })
+      .isVisible();
+    await clickNavLink(page, mobile ? "Product" : "What it does", {
+      group: "Product",
+    });
 
     await expect(page).toHaveURL(/\/modules$/);
   });
