@@ -162,14 +162,14 @@ describe("event registrant check-in actions (integration)", () => {
 
     const listed = await listEventRegistrantsAction(event.id);
     if (!("data" in listed)) throw new Error("expected data");
-    expect(listed.data).toHaveLength(1);
-    expect(listed.data[0].checked_in_at).not.toBeNull();
+    expect(listed.data.registrants).toHaveLength(1);
+    expect(listed.data.registrants[0].checked_in_at).not.toBeNull();
 
     expect(await undoCheckInAction(registrationId)).toEqual({ success: true });
 
     const afterUndo = await listEventRegistrantsAction(event.id);
     if (!("data" in afterUndo)) throw new Error("expected data");
-    expect(afterUndo.data[0].checked_in_at).toBeNull();
+    expect(afterUndo.data.registrants[0].checked_in_at).toBeNull();
 
     expect(
       await createWalkInCheckInAction(event.id, walkInPerson(person.id), 1),
@@ -177,7 +177,7 @@ describe("event registrant check-in actions (integration)", () => {
 
     const withWalkIn = await listEventRegistrantsAction(event.id);
     if (!("data" in withWalkIn)) throw new Error("expected data");
-    expect(withWalkIn.data).toHaveLength(2);
+    expect(withWalkIn.data.registrants).toHaveLength(2);
 
     await event.cleanup();
     await person.cleanup();
@@ -194,9 +194,9 @@ describe("event registrant check-in actions (integration)", () => {
 
     const listed = await listEventRegistrantsAction(event.id);
     if (!("data" in listed)) throw new Error("expected data");
-    expect(listed.data).toHaveLength(1);
-    expect(listed.data[0].checked_in_at).toBeNull();
-    expect(listed.data[0].party_size).toBe(2);
+    expect(listed.data.registrants).toHaveLength(1);
+    expect(listed.data.registrants[0].checked_in_at).toBeNull();
+    expect(listed.data.registrants[0].party_size).toBe(2);
 
     await event.cleanup();
     await person.cleanup();
@@ -248,7 +248,7 @@ describe("event registrant check-in actions (integration)", () => {
 
     const listed = await listEventRegistrantsAction(event.id);
     if (!("data" in listed)) throw new Error("expected data");
-    expect(listed.data).toHaveLength(2);
+    expect(listed.data.registrants).toHaveLength(2);
 
     await event.cleanup();
     await personA.cleanup();
@@ -294,7 +294,7 @@ describe("event registrant check-in actions (integration)", () => {
 
     const listed = await listEventRegistrantsAction(event.id);
     if (!("data" in listed)) throw new Error("expected data");
-    expect(listed.data).toHaveLength(1);
+    expect(listed.data.registrants).toHaveLength(1);
 
     expect(await checkInRegistrantAction(registrationId)).toEqual(DENIED);
     expect(await undoCheckInAction(registrationId)).toEqual(DENIED);
@@ -316,7 +316,7 @@ describe("event registrant check-in actions (integration)", () => {
 
     const listed = await listEventRegistrantsAction(event.id);
     if (!("data" in listed)) throw new Error("expected data");
-    expect(listed.data).toHaveLength(1);
+    expect(listed.data.registrants).toHaveLength(1);
 
     expect(await checkInRegistrantAction(registrationId)).toEqual(DENIED);
 
@@ -489,7 +489,7 @@ describe("event registrant check-in actions (integration)", () => {
     currentSupabase = await signInAs(SEEDED_USERS.coordinator);
     const asCoordinator = await listEventRegistrantsAction(event.id);
     if (!("data" in asCoordinator)) throw new Error("expected data");
-    expect(asCoordinator.data[0].rider).toMatchObject({
+    expect(asCoordinator.data.registrants[0].rider).toMatchObject({
       riding_discipline: "ski",
       ski_experience_level: "beginner",
     });
@@ -497,7 +497,7 @@ describe("event registrant check-in actions (integration)", () => {
     currentSupabase = await signInAs(SEEDED_USERS.volunteer);
     const asVolunteer = await listEventRegistrantsAction(event.id);
     if (!("data" in asVolunteer)) throw new Error("expected data");
-    expect(asVolunteer.data[0].rider).toBeNull();
+    expect(asVolunteer.data.registrants[0].rider).toBeNull();
 
     await event.cleanup();
     await person.cleanup();

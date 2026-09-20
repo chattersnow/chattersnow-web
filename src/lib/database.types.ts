@@ -5104,6 +5104,7 @@ export type Database = {
       };
       outbound_messages: {
         Row: {
+          batch_id: string | null;
           body: string;
           created_at: string;
           delivery_id: string | null;
@@ -5120,6 +5121,7 @@ export type Database = {
           to_email: string;
         };
         Insert: {
+          batch_id?: string | null;
           body: string;
           created_at?: string;
           delivery_id?: string | null;
@@ -5136,6 +5138,7 @@ export type Database = {
           to_email: string;
         };
         Update: {
+          batch_id?: string | null;
           body?: string;
           created_at?: string;
           delivery_id?: string | null;

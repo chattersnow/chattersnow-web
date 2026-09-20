@@ -47,6 +47,16 @@ export type StaffMessage = {
    * set no branding gets anyway.
    */
   branding?: EmailBranding;
+  /**
+   * What this message is about, above the greeting (#1317).
+   *
+   * An announcement to everybody registered for an event arrives unprompted,
+   * which a reply to something somebody asked for does not, so the first thing
+   * it has to say is which event it is about and where to read more. Omitted
+   * for a one-to-one message, which needs no such line: the person it reaches
+   * already knows why.
+   */
+  about?: { text: string; url?: string };
 };
 
 export function renderStaffMessageEmail(message: StaffMessage): RenderedEmail {
@@ -54,14 +64,32 @@ export function renderStaffMessageEmail(message: StaffMessage): RenderedEmail {
     ? `Hi ${message.recipientName},`
     : "Hi,";
   const body = message.body.trim();
+  const about = message.about;
 
-  const text = [greeting, "", body, "", `— ${message.orgName}`].join("\n");
+  const text = [
+    ...(about
+      ? [about.url ? `${about.text} — ${about.url}` : about.text, ""]
+      : []),
+    greeting,
+    "",
+    body,
+    "",
+    `— ${message.orgName}`,
+  ].join("\n");
+
+  const aboutHtml = about
+    ? `  <p style="color: #57534e; font-size: 14px; margin: 0 0 16px;">${
+        about.url
+          ? `<a href="${escapeHtml(about.url)}" style="color: #57534e;">${escapeHtml(about.text)}</a>`
+          : escapeHtml(about.text)
+      }</p>\n`
+    : "";
 
   const html = renderEmailShell({
     orgName: message.orgName,
     siteUrl: message.siteUrl ?? "",
     branding: message.branding ?? EMPTY_EMAIL_BRANDING,
-    bodyHtml: `  <p style="margin: 0 0 16px;">${escapeHtml(greeting)}</p>
+    bodyHtml: `${aboutHtml}  <p style="margin: 0 0 16px;">${escapeHtml(greeting)}</p>
   <div style="margin: 0 0 16px; white-space: pre-line;">${escapeHtml(body)}</div>
   <p style="color: #57534e; margin: 12px 0 0;">— ${escapeHtml(message.orgName)}</p>`,
   });

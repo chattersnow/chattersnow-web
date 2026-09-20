@@ -22,6 +22,7 @@ function message(overrides: Partial<RecordMessageRow> = {}): RecordMessageRow {
     status: "sent",
     created_at: "2026-09-16T15:00:00.000Z",
     sent_by: ACTOR.user_id,
+    batch_id: null,
     ...overrides,
   };
 }

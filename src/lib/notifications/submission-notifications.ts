@@ -993,9 +993,43 @@ const EVENT_REGISTRATION_SELECT =
  * tenant is named on everything downstream of it -- the events read below, and
  * the ledger row deliverEmail() writes.
  */
+/**
+ * What makes this receipt's send unique. A resend passes a suffix, because the
+ * first send already claimed the bare key: a second insert with it raises
+ * 23505, deliverEmail() returns `skipped`, and at the call site that is
+ * indistinguishable from success. `resendDedupeSuffix()` builds the suffix
+ * from the server's clock (#1203), so a receipt can be sent again tomorrow
+ * while a double-click inside the same minute stays the no-op it should be.
+ */
+export function eventRegistrationConfirmationDedupeKey(
+  registrationId: string,
+  suffix?: string,
+): string {
+  return `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${registrationId}${suffix ? `:${suffix}` : ""}`;
+}
+
 export async function sendEventRegistrationConfirmation(
   admin: SupabaseClient,
-  options: { registrationId: string; siteUrl: string },
+  options: {
+    registrationId: string;
+    siteUrl: string;
+    /**
+     * Appended to the dedupe key so a deliberate resend is not read as the
+     * first send's duplicate (#1203). Absent on the original send.
+     */
+    dedupeSuffix?: string;
+    /**
+     * The rendered message, for a caller that has to record what it sent.
+     * Called from inside the render thunk, which is the right moment:
+     * deliverEmail() renders only after it has won the claim, so this fires if
+     * and only if an email really existed.
+     *
+     * One argument, like the gear sender's and unlike the artwork sender's:
+     * this send is handed a `person_id` on the registration it read and never
+     * resolves one of its own, so the caller already knows who it reached.
+     */
+    onRendered?: (email: RenderedEmail) => void;
+  },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
     .from("event_registrations")
@@ -1062,10 +1096,13 @@ export async function sendEventRegistrationConfirmation(
     identity: mail.identity,
     personId: data.person_id,
     kind: EVENT_REGISTRATION_CONFIRMATION_KIND,
-    dedupeKey: `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${data.id}`,
+    dedupeKey: eventRegistrationConfirmationDedupeKey(
+      data.id,
+      options.dedupeSuffix,
+    ),
     to,
-    render: () =>
-      renderEventRegistrationConfirmationEmail(
+    render: () => {
+      const email = renderEventRegistrationConfirmationEmail(
         {
           orgName: mail.displayName,
           registrantName: (data.name ?? "").trim(),
@@ -1080,7 +1117,10 @@ export async function sendEventRegistrationConfirmation(
           branding: mail.branding,
         },
         reply.slots,
-      ),
+      );
+      options.onRendered?.(email);
+      return email;
+    },
     logPrefix: "[event-registration-confirm]",
   });
 }

@@ -15,6 +15,29 @@ describe("renderStaffMessageEmail", () => {
     );
   });
 
+  test("says what an unprompted message is about, above the greeting (#1317)", () => {
+    // An announcement reaches somebody who did not ask a question, so the
+    // first thing it has to say is which event it is about and where to read
+    // more. A one-to-one reply carries no such line: the person it reaches
+    // already knows why.
+    const { text, html } = renderStaffMessageEmail({
+      ...base,
+      about: {
+        text: "About Mountain Day",
+        url: "https://example.test/events/e/1",
+      },
+    });
+    expect(text).toStartWith(
+      "About Mountain Day — https://example.test/events/e/1",
+    );
+    expect(html).toContain("https://example.test/events/e/1");
+    expect(html.indexOf("About Mountain Day")).toBeLessThan(
+      html.indexOf("Hi Priya,"),
+    );
+
+    expect(renderStaffMessageEmail(base).text).toStartWith("Hi Priya,");
+  });
+
   test("greets by name, and degrades to a bare greeting without one", () => {
     expect(renderStaffMessageEmail(base).text).toStartWith("Hi Priya,");
     expect(

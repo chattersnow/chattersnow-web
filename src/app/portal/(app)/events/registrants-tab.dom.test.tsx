@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { EventRegistrant } from "./registrants-actions";
-import * as RegistrantsActions from "./registrants-actions";
+import type {
+  EventRegistrant,
+  EventRegistrantsData,
+} from "./registrants-actions";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import type { TabData } from "@/hooks/use-tab-data";
+import { NO_RECORD_MESSAGES } from "@/lib/outbound-messages";
 
 // The #1082 Phase 2 envelope these actions answer with: `message` is the
 // display copy the tab is expected to put in front of the operator.
@@ -75,6 +78,14 @@ const derivedFigures: EventImpactDerived = {
   autoAssignDiscountCodes: false,
 };
 
+// The detail sheet's messaging island imports its Server Actions, and through
+// them the `server-only` sender (#1317). Next's bundler replaces that module
+// with action references for a client component; under bun it is imported for
+// real -- and a static import of the action module would evaluate it before
+// this line runs, so the module below is pulled in dynamically.
+mock.module("server-only", () => ({}));
+const RegistrantsActions = await import("./registrants-actions");
+
 const checkInRegistrantActionMock = mock<(id: string) => Promise<ActionResult>>(
   async () => ({ success: true }),
 );
@@ -107,13 +118,34 @@ const { RegistrantsTab } = await import("./registrants-tab");
 const refreshRegistrants = mock(() => {});
 const refreshDerived = mock(() => {});
 
+/**
+ * The payload listEventRegistrantsAction() answers with (#1317): the rows, the
+ * history behind them, and the composer's context. `messaging` is null here by
+ * default, which is what an `events: view` reader gets -- the cases that need
+ * the messaging half pass their own.
+ */
+function payload(
+  overrides: Partial<EventRegistrantsData> = {},
+): EventRegistrantsData {
+  return {
+    registrants,
+    messages: NO_RECORD_MESSAGES,
+    messaging: null,
+    ...overrides,
+  };
+}
+
 function slices(): {
-  registrants: TabData<EventRegistrant[]>;
+  eventId: string;
+  eventName: string;
+  registrants: TabData<EventRegistrantsData>;
   derived: TabData<EventImpactDerived>;
 } {
   return {
+    eventId: "event-1",
+    eventName: "Mountain Day",
     registrants: {
-      data: registrants,
+      data: payload(),
       loadError: null,
       refresh: refreshRegistrants,
     },
@@ -398,7 +430,7 @@ describe("RegistrantsTab", () => {
         mode="view"
         {...slices()}
         registrants={{
-          data: unasked,
+          data: payload({ registrants: unasked }),
           loadError: null,
           refresh: refreshRegistrants,
         }}

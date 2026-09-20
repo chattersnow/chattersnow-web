@@ -266,6 +266,8 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     sharedData: ["registrants", "impactDerived"],
     render: (ctx) => (
       <RegistrantsTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
         capacity={ctx.event.capacity}
         mode={ctx.mode}
         registrants={ctx.shared.registrants}

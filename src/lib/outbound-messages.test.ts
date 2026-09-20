@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  EVENT_ANNOUNCEMENT_KIND,
   MAX_MESSAGE_BODY_LENGTH,
   MAX_MESSAGE_SUBJECT_LENGTH,
   STAFF_MESSAGE_KIND,
+  outboundMessageSenderLabel,
   outboundMessageStatusLabel,
   outboundMessageStatusTone,
   resendDedupeSuffix,
@@ -46,5 +48,34 @@ describe("resendDedupeSuffix", () => {
 describe("the kind", () => {
   test("is the one the sender claims", () => {
     expect(STAFF_MESSAGE_KIND).toBe("staff_message");
+  });
+
+  test("an announcement is its own kind, not a batch of staff messages (#1317)", () => {
+    // Kept apart so a consent or unsubscribe story can attach to a notice
+    // posted to a list without touching correspondence somebody asked for.
+    expect(EVENT_ANNOUNCEMENT_KIND).toBe("event_announcement");
+    expect(EVENT_ANNOUNCEMENT_KIND).not.toBe(STAFF_MESSAGE_KIND);
+  });
+});
+
+describe("outboundMessageSenderLabel", () => {
+  // Three kinds reach a history card and they are not interchangeable: a
+  // message somebody wrote, a notice posted to everybody registered, and a
+  // receipt the organization wrote that a staffer only re-sent. Before #1317
+  // this was a two-way branch, so an announcement would have read "Receipt,
+  // resent by ..." -- which is the one thing it is not.
+  test("tells a message, an announcement and a resent receipt apart", () => {
+    expect(outboundMessageSenderLabel(STAFF_MESSAGE_KIND, "Dana Reyes")).toBe(
+      "Sent by Dana Reyes",
+    );
+    expect(
+      outboundMessageSenderLabel(EVENT_ANNOUNCEMENT_KIND, "Dana Reyes"),
+    ).toBe("Announcement, sent by Dana Reyes");
+    expect(
+      outboundMessageSenderLabel(
+        "event_registration_confirmation",
+        "Dana Reyes",
+      ),
+    ).toBe("Receipt, resent by Dana Reyes");
   });
 });
