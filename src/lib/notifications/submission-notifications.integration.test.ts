@@ -74,6 +74,7 @@ const {
   notifyNewGearRequest,
   notifyNewVolunteerApplication,
   notifyVolunteerApplicationConfirmation,
+  sendArtworkSubmissionConfirmation,
   sendEventRegistrationConfirmation,
   sendGearRequestConfirmation,
 } = await import("./submission-notifications");
@@ -611,6 +612,113 @@ describe("the sender's own acknowledgement (#1237)", () => {
       expect(part).not.toContain(".jpg");
     }
     expect(ack.html).not.toContain("<img");
+  });
+
+  // #1309. The artwork acknowledgement was the one receipt with no resend,
+  // and the case that prompted it is a submission nobody could tell had been
+  // acknowledged. It only works because the key varies: on the original key
+  // the second send loses the ledger race and returns `skipped`, which reads
+  // at the call site as though it went.
+  test("an artwork resend carries its own key, and the same key twice sends once", async () => {
+    const submission = await newArtworkSubmission({ images: 1 });
+    expect(
+      await sendArtworkSubmissionConfirmation(service, {
+        submissionId: submission.id,
+        siteUrl: SITE_URL,
+      }),
+    ).toBe("sent");
+
+    const suffix = resendDedupeSuffix(new Date("2026-09-16T14:31:00.000Z"));
+    expect(
+      await sendArtworkSubmissionConfirmation(service, {
+        submissionId: submission.id,
+        siteUrl: SITE_URL,
+        dedupeSuffix: suffix,
+      }),
+    ).toBe("sent");
+
+    const rows = await deliveries(ARTWORK_SUBMISSION_CONFIRMATION_KIND);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.dedupe_key).sort()).toEqual(
+      [
+        `${ARTWORK_SUBMISSION_CONFIRMATION_KIND}:${submission.id}`,
+        `${ARTWORK_SUBMISSION_CONFIRMATION_KIND}:${submission.id}:${suffix}`,
+      ].sort(),
+    );
+
+    // Twice inside the same minute is a double-click, not a second ask.
+    expect(
+      await sendArtworkSubmissionConfirmation(service, {
+        submissionId: submission.id,
+        siteUrl: SITE_URL,
+        dedupeSuffix: suffix,
+      }),
+    ).toBe("skipped");
+    expect(await deliveries(ARTWORK_SUBMISSION_CONFIRMATION_KIND)).toHaveLength(
+      2,
+    );
+
+    // A minute later it may go again: that is a person asking twice.
+    expect(
+      await sendArtworkSubmissionConfirmation(service, {
+        submissionId: submission.id,
+        siteUrl: SITE_URL,
+        dedupeSuffix: resendDedupeSuffix(new Date("2026-09-16T14:32:00.000Z")),
+      }),
+    ).toBe("sent");
+    expect(await deliveries(ARTWORK_SUBMISSION_CONFIRMATION_KIND)).toHaveLength(
+      3,
+    );
+  });
+
+  test("the artwork onRendered reports the person, and only when the claim was won", async () => {
+    const submission = await newArtworkSubmission({ images: 1 });
+    const seen: { subject: string; personId: string | null }[] = [];
+    const record = (
+      email: { subject: string },
+      resolved: { personId: string | null },
+    ) => seen.push({ subject: email.subject, personId: resolved.personId });
+
+    await sendArtworkSubmissionConfirmation(service, {
+      submissionId: submission.id,
+      siteUrl: SITE_URL,
+      onRendered: record,
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0].subject).toBeTruthy();
+    // submit_artwork() mints no people row, so this is the null the resend
+    // action writes to outbound_messages -- and the one findDeliveryId() has
+    // to match the ledger on.
+    expect(seen[0].personId).toBeNull();
+
+    // The losing send renders nothing, so a caller recording what it sent
+    // cannot record a message that never existed.
+    await sendArtworkSubmissionConfirmation(service, {
+      submissionId: submission.id,
+      siteUrl: SITE_URL,
+      onRendered: record,
+    });
+    expect(seen).toHaveLength(1);
+  });
+
+  test("an artist already in the directory is reported, not guessed at", async () => {
+    const submission = await newArtworkSubmission({ images: 1 });
+    // The case the second callback argument exists for: this sender resolves
+    // its own person, so a resend action that assumed null would look the
+    // delivery row up on the wrong person_id and lose the cross-reference.
+    const person = await createPerson({ email: submission.email });
+    personCleanups.push(person.cleanup);
+    const seen: (string | null)[] = [];
+
+    await sendArtworkSubmissionConfirmation(service, {
+      submissionId: submission.id,
+      siteUrl: SITE_URL,
+      onRendered: (_email, resolved) => seen.push(resolved.personId),
+    });
+
+    expect(seen).toEqual([person.id]);
+    const rows = await deliveries(ARTWORK_SUBMISSION_CONFIRMATION_KIND);
+    expect(rows[0].person_id).toBe(person.id);
   });
 
   test("a filled honeypot sends neither side anything", async () => {
