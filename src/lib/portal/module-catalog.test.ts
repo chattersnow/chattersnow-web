@@ -18,100 +18,22 @@
 // has already run. Adding a row to it for a new resource would be a statement
 // about the past that never executes.
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
+// The quote-aware readers this file grew first, extracted in #1324 so
+// permission-docs.test.ts reads the same statements the same way.
+import {
+  literal,
+  MIGRATIONS_DIR as MIGRATIONS,
+  migrationFileNames,
+  statementsAfter,
+  valueFields,
+  valueRows,
+} from "../../../test/migration-sql";
 
-const MIGRATIONS = join(import.meta.dir, "../../../supabase/migrations");
 const ENTITLEMENTS = "20260910010000_tenant_module_entitlements.sql";
 
-const migrationFiles = readdirSync(MIGRATIONS)
-  .filter((name) => name.endsWith(".sql"))
-  .sort();
-
-/** The text of one `insert`/`update` statement, from its header to its `;`. */
-function statementsAfter(sql: string, header: RegExp): string[] {
-  const out: string[] = [];
-  for (const match of sql.matchAll(header)) {
-    const from = match.index + match[0].length;
-    const to = sql.indexOf(";", from);
-    out.push(sql.slice(from, to === -1 ? undefined : to));
-  }
-  return out;
-}
-
-/**
- * The `(...)` rows of a values list, split on parens that are not inside a
- * string literal.
- *
- * A regex cannot do this: a resource's `description` is prose, and prose
- * contains commas, brackets and doubled apostrophes. Scanning for the quote
- * state costs a dozen lines and is right for every row, including the next one
- * somebody writes.
- */
-function valueRows(body: string): string[] {
-  const rows: string[] = [];
-  let depth = 0;
-  let inString = false;
-  let start = 0;
-
-  for (let i = 0; i < body.length; i++) {
-    const char = body[i];
-    if (inString) {
-      // '' is an escaped quote inside a literal, not the end of one.
-      if (char === "'") {
-        if (body[i + 1] === "'") i++;
-        else inString = false;
-      }
-      continue;
-    }
-    if (char === "'") inString = true;
-    else if (char === "(") {
-      if (depth === 0) start = i + 1;
-      depth++;
-    } else if (char === ")") {
-      depth--;
-      if (depth === 0) rows.push(body.slice(start, i));
-    }
-  }
-
-  return rows;
-}
-
-/** One row's values, split on top-level commas, in column order. */
-function valueFields(row: string): string[] {
-  const fields: string[] = [];
-  let depth = 0;
-  let inString = false;
-  let start = 0;
-
-  for (let i = 0; i < row.length; i++) {
-    const char = row[i];
-    if (inString) {
-      if (char === "'") {
-        if (row[i + 1] === "'") i++;
-        else inString = false;
-      }
-      continue;
-    }
-    if (char === "'") inString = true;
-    else if (char === "(") depth++;
-    else if (char === ")") depth--;
-    else if (char === "," && depth === 0) {
-      fields.push(row.slice(start, i));
-      start = i + 1;
-    }
-  }
-  fields.push(row.slice(start));
-
-  return fields.map((field) => field.trim());
-}
-
-/** A quoted literal's contents, or null for anything else (a number, null). */
-function literal(field: string | undefined): string | null {
-  if (!field) return null;
-  const match = /^'((?:[^']|'')*)'$/.exec(field);
-  return match ? match[1].replace(/''/g, "'") : null;
-}
+const migrationFiles = migrationFileNames();
 
 /** Every resource key any migration has ever seeded. */
 const resourceKeys = new Set<string>();

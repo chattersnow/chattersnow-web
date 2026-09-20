@@ -423,8 +423,10 @@ describe("navGroups", () => {
         group.items.map((sub) => sub.value),
       ]),
     ).toEqual([
-      // Two, not three: Permissions became a tab on Roles in #946.
-      ["Access & identity", ["users", "roles"]],
+      // Permissions became a tab on Roles in #946; the third entry is not it
+      // coming back but the reference #1324 added -- what a grant means rather
+      // than who holds it.
+      ["Access & identity", ["users", "roles", "permission-reference"]],
       // Down to one item when Access Management left in #943, Site Content in
       // #944 and Platform in #945; back to two with #1235. The heading names
       // a real distinction from identity and oversight, and the second entry

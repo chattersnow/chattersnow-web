@@ -39,6 +39,7 @@ import {
   PERMISSION_LEVELS,
   type PermissionLevel,
 } from "@/lib/auth/permissions";
+import { PermissionResourceSheet } from "@/components/portal/permission-resource-doc";
 import { roleDisplayName } from "@/lib/format";
 import { updateRolePermissionsAction } from "./actions";
 import type { RoleRow } from "./role-details-dialog";
@@ -52,6 +53,7 @@ export type MatrixResource = {
   label: string;
   description: string | null;
   sort_order: number;
+  module_key: string | null;
 };
 type RolePermission = { role_id: string; resource_id: string; level: string };
 
@@ -90,10 +92,12 @@ export function PermissionsMatrix({
   roles,
   resources,
   rolePermissions,
+  moduleLabels,
 }: {
   roles: RoleRow[];
   resources: MatrixResource[];
   rolePermissions: RolePermission[];
+  moduleLabels: Record<string, string>;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +131,32 @@ export function PermissionsMatrix({
   );
 
   const sections = useMemo(() => groupBySection(resources), [resources]);
+
+  /**
+   * resource key -> the roles holding it, for the explanation sheet. Read off
+   * the same `rolePermissions` the matrix is editing, so it answers for this
+   * organization rather than for the platform's defaults. Saved edits refresh
+   * it through `router.refresh()`; pending ones deliberately don't, since the
+   * sheet reports what is granted, not what is about to be.
+   */
+  const holdersByResource = useMemo(() => {
+    const holders: Record<string, { role: string; level: PermissionLevel }[]> =
+      {};
+    for (const rp of rolePermissions) {
+      if (rp.level === "none") continue;
+      const resource = resourceById.get(rp.resource_id);
+      const role = roleById.get(rp.role_id);
+      if (!resource || !role) continue;
+      (holders[resource.key] ??= []).push({
+        role: roleDisplayName(role),
+        level: rp.level as PermissionLevel,
+      });
+    }
+    for (const list of Object.values(holders)) {
+      list.sort((a, b) => a.role.localeCompare(b.role));
+    }
+    return holders;
+  }, [rolePermissions, resourceById, roleById]);
 
   const changedCells = useMemo(() => {
     const rows: ChangedCell[] = [];
@@ -341,8 +371,20 @@ export function PermissionsMatrix({
                           return (
                             <TableRow key={resource.id}>
                               <TableCell>
-                                <div className="font-medium">
-                                  {resource.label}
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium">
+                                    {resource.label}
+                                  </span>
+                                  {/* The one-line description below fits a
+                                      cell; what a level actually grants does
+                                      not, so it lives a click away (#1324). */}
+                                  <PermissionResourceSheet
+                                    resource={resource}
+                                    resources={resources}
+                                    holdersByResource={holdersByResource}
+                                    moduleLabels={moduleLabels}
+                                    triggerLabel={`What ${resource.label} grants`}
+                                  />
                                 </div>
                                 {resource.description && (
                                   <div className="app-muted text-xs">

@@ -21,6 +21,7 @@ export default async function RolesPage() {
     { data: resources, error: resourcesError },
     { data: rolePermissions, error: rolePermissionsError },
     modules,
+    { data: moduleRows },
   ] = await Promise.all([
     listRolesAction(),
     supabase
@@ -29,6 +30,9 @@ export default async function RolesPage() {
       .order("sort_order"),
     supabase.from("role_permissions").select("role_id, resource_id, level"),
     getTenantModules(supabase),
+    // Names for the "Module" line in a resource's explanation sheet (#1324).
+    // Not fatal if it fails: the sheet falls back to the module key.
+    supabase.from("modules").select("key, label"),
   ]);
 
   // FILTERED, not shown-and-inert (#903).
@@ -57,6 +61,13 @@ export default async function RolesPage() {
     moduleEnabled(modules, resource.module_key),
   );
 
+  const moduleLabels = Object.fromEntries(
+    (moduleRows ?? []).map((module) => [
+      module.key as string,
+      module.label as string,
+    ]),
+  );
+
   return (
     <>
       <PortalBreadcrumbs current="Roles" />
@@ -72,6 +83,7 @@ export default async function RolesPage() {
         rolesError={"error" in rolesResult ? rolesResult.error : null}
         resources={visibleResources}
         rolePermissions={rolePermissions ?? []}
+        moduleLabels={moduleLabels}
         matrixFailed={Boolean(resourcesError || rolePermissionsError)}
       />
     </>
