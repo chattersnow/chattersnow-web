@@ -127,7 +127,16 @@ export function collectionSurface(
     gearRequests: live("gearRequests", visibility, modules),
     artworkSubmissions: live("artworkSubmissions", visibility, modules),
     constituentAccounts: live("constituentAccounts", visibility, modules),
-    volunteerHours: live("volunteerHours", visibility, modules),
+    // The one surface behind two gates (#1296). Its own gate is the Volunteers
+    // module, which is what `log_my_volunteer_hours()` checks, but the form
+    // that calls it lives in `/my`: with the constituent area off there is no
+    // constituent to log anything, so the tenant collects no self-logged hours
+    // whatever the Volunteers module says. `legal-defaults.ts` expressed this
+    // as a `&&` at the one bullet that mentioned hours; it belongs in the
+    // surface itself now that a retention clock is filtered by the same key.
+    volunteerHours:
+      live("volunteerHours", visibility, modules) &&
+      live("constituentAccounts", visibility, modules),
     googleSignIn: true,
   };
 }

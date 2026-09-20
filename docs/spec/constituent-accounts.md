@@ -148,6 +148,16 @@ Also [§5.9](people.md#59-people-directory): registering for an event as yoursel
 
 The demo tenant does not offer constituent accounts, permanently and by decision (#1177). The area's value is a person's accumulated history and a tenant rebuilt from seed every night has none — and, more to the point, the nightly reset cannot clear what open sign-up creates: an `auth.users` row belongs to no tenant, so `delete_tenant()` leaves it behind on an Auth instance shared with every paying tenant. `docs/tenants.md` records the decision, the reasoning and the constraints on the sweep that would have to be built before the module could ever be turned on there.
 
+### How long any of it is kept
+
+Three clocks, added by #1296 and transcribed from the board record that amends the 2026-09-02 one, all in `dry_run` until the board rules on them:
+
+- **A claim** is deleted 2 years after it is decided, or 2 years after it was sent where nobody decided — `updated_at` carries both, since `set_updated_at` maintains it and it defaults to `created_at`. Nothing is left behind: every stated field and both notes are in `audited_tables.redacted_columns`, so the snapshot never held them, and what the audit trail keeps is the decision.
+- **A self-logged hour entry** is deleted 2 years after its last change, but only where `status <> 'confirmed'`. A confirmed entry is the record that the volunteer entered those hours themselves rather than a staffer entering them for them, and it stays with the `volunteer_hours` row it produced.
+- **An account** is deleted 2 years after its last sign-in, and only where it is attached to nothing at all — no directory record, no role, no membership, no claim, and no remaining foreign key to `auth.users` outside the `auth` schema. An account matched to a record follows the record instead. This is the one rule in the purge with no tenant to scope to, which changes how it is enforced; `docs/tenants.md` has the mechanics.
+
+`portal_accounts` was reworded in the same issue. Its clock starts when a role ends, and a constituent holds no role by design, so the published entry promised a member of the public that their account is kept indefinitely. It now names the population it is about, and `constituent_accounts` answers for the other one. Both entries are published only where the tenant has the area (#1291).
+
 ### Out of scope, and still open
 
 - **Cancelling a registration.** `event_registrations` has no cancelled state and no delete path anywhere in the application, staff included, so the only thing a button could do is destroy the row — taking the attendance figure and any assigned discount code with it. Changing your mind is a message to the organization until there is a model for it.

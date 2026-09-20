@@ -263,13 +263,23 @@ describe("the collection surface", () => {
 
   // Self-logged hours need the area *and* the Volunteers module, and the
   // module is not the same gate as the public volunteer page.
+  //
+  // Since #1296 the pairing is enforced by `collectionSurface()` itself rather
+  // than at this bullet -- `volunteerHours` cannot be on where the constituent
+  // area is off, which `legal-surface.test.ts` pins -- so the surface below
+  // turns both off, as the real one would. The `&&` in the bullet stays as the
+  // second belt.
   test("self-logged hours are described only where both gates are open", () => {
     const hours = "Hours you log yourself";
     expect(readable("legal.privacy")).toContain(hours);
     expect(
       readable(
         "legal.privacy",
-        withSurfaces({ ...EVERYTHING, constituentAccounts: false }),
+        withSurfaces({
+          ...EVERYTHING,
+          constituentAccounts: false,
+          volunteerHours: false,
+        }),
       ),
     ).not.toContain(hours);
     expect(

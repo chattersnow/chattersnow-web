@@ -132,6 +132,38 @@ async function countsFor(runId: string, policyKey: string) {
   return data ?? [];
 }
 
+/**
+ * An account with nothing attached to it -- what rule N (#1296) is about.
+ *
+ * Through the admin API rather than an insert into `auth.users`, so it has the
+ * shape of an account somebody signed up with at `/my`: confirmed, no
+ * `last_sign_in_at`, no directory record, no role.
+ */
+async function createAccount(label: string): Promise<string> {
+  const { data, error } = await serviceClient.auth.admin.createUser({
+    email: uniqueEmail(label),
+    password: crypto.randomUUID(),
+    email_confirm: true,
+  });
+  if (error) throw error;
+  return data.user!.id;
+}
+
+async function accountExists(userId: string): Promise<boolean> {
+  const { data } = await serviceClient.auth.admin.getUserById(userId);
+  return data?.user != null;
+}
+
+/** The signed-in administrator's own account id, for the reviewer columns. */
+let seededAdminId: string | null = null;
+async function adminUserId(): Promise<string> {
+  if (seededAdminId) return seededAdminId;
+  const { data, error } = await adminClient.auth.getUser();
+  if (error) throw error;
+  seededAdminId = data.user!.id;
+  return seededAdminId;
+}
+
 describe("run_retention_purge", () => {
   afterAll(async () => {
     for (const cleanup of cleanups.reverse()) await cleanup();
@@ -1001,6 +1033,314 @@ describe("run_retention_purge", () => {
     );
     if (error) throw error;
     expect(data ?? []).toEqual([]);
+  });
+
+  // #1296. The constituent area's three clocks. The board's 2026-09-02 record
+  // predates epic #1160, so until now an account held by a member of the
+  // public, a claim on a directory record and hours a volunteer logged
+  // themselves had no published period and nothing in this job.
+
+  describe("record claims, 2 years from the decision", () => {
+    let pendingId: string;
+    let rejectedId: string;
+    let claimantId: string;
+
+    beforeAll(async () => {
+      claimantId = await createAccount("retention-claimant");
+      const reviewerId = await adminUserId();
+
+      const { data, error } = await serviceClient
+        .from("person_claims")
+        .insert([
+          {
+            tenant_id: await tenantId(),
+            auth_user_id: claimantId,
+            stated_name: "Nobody Reviewed This",
+            stated_email: uniqueEmail("retention-claim-pending"),
+            // Named rather than defaulted: PostgREST sends one column list for
+            // a multi-row insert, so a key missing from one row arrives as an
+            // explicit null and the not-null constraint fires.
+            status: "pending",
+          },
+          {
+            tenant_id: await tenantId(),
+            auth_user_id: claimantId,
+            stated_name: "Refused Claimant",
+            stated_email: uniqueEmail("retention-claim-rejected"),
+            status: "rejected",
+            reviewed_by: reviewerId,
+            reviewed_at: new Date().toISOString(),
+            review_note: "Not this person",
+          },
+        ])
+        .select("id, status");
+      if (error) throw error;
+      pendingId = data!.find((row) => row.status === "pending")!.id;
+      rejectedId = data!.find((row) => row.status === "rejected")!.id;
+
+      cleanups.push(async () => {
+        await serviceClient
+          .from("person_claims")
+          .delete()
+          .in("id", [pendingId, rejectedId]);
+        await serviceClient.auth.admin.deleteUser(claimantId);
+      });
+    });
+
+    test("a claim one day inside the window survives, decided or not", async () => {
+      await setMode("person_claims", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR - DAY) });
+
+      const { data } = await serviceClient
+        .from("person_claims")
+        .select("id")
+        .in("id", [pendingId, rejectedId]);
+      expect(data ?? []).toHaveLength(2);
+    });
+
+    // Both clocks the decision record asks about, on one column: updated_at is
+    // the moment of the decision for the refused claim and, defaulted from
+    // created_at, the moment it was sent for the one nobody looked at.
+    test("a claim one day past the window is deleted, decided or not", async () => {
+      await setMode("person_claims", "enforce");
+      const runId = await runPurge({
+        dryRun: false,
+        asOf: clockAt(2 * YEAR + DAY),
+      });
+
+      const { data } = await serviceClient
+        .from("person_claims")
+        .select("id")
+        .in("id", [pendingId, rejectedId]);
+      expect(data ?? []).toHaveLength(0);
+
+      const logged = await countsFor(runId, "person_claims");
+      expect(logged[0]?.action).toBe("deleted");
+      expect(logged[0]?.row_count).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe("self-logged hours, 2 years for the ones nobody confirmed", () => {
+    let personId: string;
+    let pendingId: string;
+    let declinedId: string;
+    let confirmedId: string;
+
+    beforeAll(async () => {
+      const person = await createPerson({ name: "Retention Hour Logger" });
+      personId = person.id;
+      const reviewerId = await adminUserId();
+
+      const { data, error } = await serviceClient
+        .from("volunteer_hour_submissions")
+        .insert([
+          {
+            tenant_id: await tenantId(),
+            person_id: personId,
+            hours: 2,
+            logged_date: "2026-01-05",
+            notes: "Nobody has reviewed this",
+            // See the claim fixture above: one column list, so every row names
+            // every column it relies on.
+            status: "pending",
+          },
+          {
+            tenant_id: await tenantId(),
+            person_id: personId,
+            hours: 3,
+            logged_date: "2026-01-06",
+            status: "declined",
+            reviewed_by: reviewerId,
+            reviewed_at: new Date().toISOString(),
+          },
+          {
+            tenant_id: await tenantId(),
+            person_id: personId,
+            hours: 4,
+            logged_date: "2026-01-07",
+            status: "confirmed",
+            reviewed_by: reviewerId,
+            reviewed_at: new Date().toISOString(),
+          },
+        ])
+        .select("id, status");
+      if (error) throw error;
+      pendingId = data!.find((row) => row.status === "pending")!.id;
+      declinedId = data!.find((row) => row.status === "declined")!.id;
+      confirmedId = data!.find((row) => row.status === "confirmed")!.id;
+
+      cleanups.push(async () => {
+        await serviceClient
+          .from("volunteer_hour_submissions")
+          .delete()
+          .in("id", [pendingId, declinedId, confirmedId]);
+        await person.cleanup();
+      });
+    });
+
+    test("an unreviewed entry one day inside the window survives", async () => {
+      await setMode("volunteer_hour_submissions", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR - DAY) });
+
+      const { data } = await serviceClient
+        .from("volunteer_hour_submissions")
+        .select("id")
+        .in("id", [pendingId, declinedId, confirmedId]);
+      expect(data ?? []).toHaveLength(3);
+    });
+
+    // The whole shape of this rule: what it keeps is not a period, it is a
+    // status. A confirmed entry is the record that the volunteer logged these
+    // hours themselves, and the ledger row it produced has no clock at all.
+    test("past the window the unconfirmed go and the confirmed stays", async () => {
+      await setMode("volunteer_hour_submissions", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
+
+      const { data } = await serviceClient
+        .from("volunteer_hour_submissions")
+        .select("id")
+        .in("id", [pendingId, declinedId, confirmedId]);
+      expect((data ?? []).map((row) => row.id)).toEqual([confirmedId]);
+    });
+  });
+
+  // The one rule with no tenant. Everything here is about that: which accounts
+  // it can reach, and what has to be true before it deletes one.
+  //
+  // These tests run the purge enforcing, at a clock two years ahead, so every
+  // account in the database is past its date. Only accounts nothing refers to
+  // are candidates, which is what keeps that from being destructive -- but it
+  // is why the fixtures below assert on accounts they made rather than on
+  // counts.
+  describe("website accounts, 2 years for an account matched to nothing", () => {
+    let orphanId: string;
+    let linkedId: string;
+    let claimingId: string;
+    let claimId: string;
+    let personId: string;
+
+    beforeAll(async () => {
+      orphanId = await createAccount("retention-orphan-account");
+
+      linkedId = await createAccount("retention-linked-account");
+      const person = await createPerson({ name: "Retention Account Holder" });
+      personId = person.id;
+      const { error: linkError } = await serviceClient
+        .from("people")
+        .update({ auth_user_id: linkedId })
+        .eq("id", personId);
+      if (linkError) throw linkError;
+
+      claimingId = await createAccount("retention-claiming-account");
+      const { data: claim, error: claimError } = await serviceClient
+        .from("person_claims")
+        .insert({
+          tenant_id: await tenantId(),
+          auth_user_id: claimingId,
+          stated_name: "Waiting On A Decision",
+        })
+        .select("id")
+        .single();
+      if (claimError) throw claimError;
+      claimId = claim.id;
+
+      // The claim block above left rule L enforcing, and these tests run the
+      // clock two years on, so the next purge would delete this claim -- and
+      // the run after that would find the account attached to nothing and
+      // delete it too. That lag is the rule working as designed (rule N reads
+      // its candidates before the loop drops this run's claims), but it is not
+      // what this block is testing.
+      await setMode("person_claims", "dry_run");
+
+      cleanups.push(async () => {
+        await serviceClient.from("person_claims").delete().eq("id", claimId);
+        await person.cleanup();
+        for (const id of [orphanId, linkedId, claimingId]) {
+          await serviceClient.auth.admin.deleteUser(id);
+        }
+      });
+    });
+
+    afterAll(async () => {
+      // Never leave this one armed: it is the only rule whose enforcement is
+      // read from every tenant's row rather than from the one being swept.
+      await setMode("constituent_accounts", "dry_run");
+    });
+
+    test("only an account attached to nothing is a candidate", async () => {
+      const { data, error } = await serviceClient.rpc(
+        "retention_unclaimed_account_ids",
+        { p_cutoff: clockAt(2 * YEAR + DAY) },
+      );
+      if (error) throw error;
+      const candidates = (data ?? []) as string[];
+
+      expect(candidates).toContain(orphanId);
+      // A record the organization keeps, and an open claim asking for one.
+      expect(candidates).not.toContain(linkedId);
+      expect(candidates).not.toContain(claimingId);
+    });
+
+    test("an account one day inside the window survives", async () => {
+      await setMode("constituent_accounts", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR - DAY) });
+
+      expect(await accountExists(orphanId)).toBe(true);
+    });
+
+    test("one organization that is not enforcing is a veto", async () => {
+      const { data: other, error } = await serviceClient
+        .from("tenants")
+        .insert({
+          name: `Retention Veto ${crypto.randomUUID()}`,
+          slug: `retention-veto-${crypto.randomUUID().slice(0, 8)}`,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      // seed_tenant_retention_policies() gives a new tenant the shipped rules,
+      // always in dry_run (20260906160000). So this tenant has not agreed to
+      // the period, and the row is as much its sign-up as ours.
+      await setMode("constituent_accounts", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
+      expect(await accountExists(orphanId)).toBe(true);
+
+      // Suspended, not deleted: retention_policies references tenants with no
+      // cascade, and only active tenants are consulted or swept.
+      const { error: suspendError } = await serviceClient
+        .from("tenants")
+        .update({ status: "suspended" })
+        .eq("id", other.id);
+      if (suspendError) throw suspendError;
+
+      cleanups.push(async () => {
+        await serviceClient
+          .from("retention_policies")
+          .delete()
+          .eq("tenant_id", other.id);
+        await serviceClient.from("tenants").delete().eq("id", other.id);
+      });
+    });
+
+    test("past the window the unattached account is deleted and logged", async () => {
+      await setMode("constituent_accounts", "enforce");
+      const runId = await runPurge({
+        dryRun: false,
+        asOf: clockAt(2 * YEAR + DAY),
+      });
+
+      expect(await accountExists(orphanId)).toBe(false);
+      expect(await accountExists(linkedId)).toBe(true);
+      expect(await accountExists(claimingId)).toBe(true);
+
+      // Logged against this tenant's run like every other rule, so the page
+      // explains the rule rather than appearing to have skipped it.
+      const logged = await countsFor(runId, "constituent_accounts");
+      expect(logged[0]?.table_name).toBe("auth.users");
+      expect(logged[0]?.action).toBe("deleted");
+      expect(logged[0]?.row_count).toBeGreaterThanOrEqual(1);
+    });
   });
 
   describe("authorization", () => {

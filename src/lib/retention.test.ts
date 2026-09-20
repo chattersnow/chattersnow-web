@@ -54,4 +54,39 @@ describe("retention policies", () => {
     expect(portal!.howLong).toContain("permanently disable your access");
     expect(portal!.howLong).not.toContain("the account is removed");
   });
+
+  // #1296. The portal entry's clock starts when a role ends, and a member of
+  // the public holds no role -- so for the larger population it promised a
+  // clock that could never start. Both halves of the fix are load-bearing: the
+  // portal entry has to say which population it is about, and the other
+  // population has to have an entry of its own.
+  test("the portal accounts entry says whose accounts it is about", () => {
+    const portal = RETENTION_POLICIES.find((p) => p.key === "portal_accounts");
+    expect(portal!.howLong).toContain("hold a role with us");
+  });
+
+  test("an account held by a member of the public has its own clock", () => {
+    const account = RETENTION_POLICIES.find(
+      (p) => p.key === "constituent_accounts",
+    );
+    expect(account).toBeDefined();
+    // Published only where the site offers accounts (#1291): a tenant with no
+    // constituent area must not publish a clock for one.
+    expect(account!.surface).toBe("constituentAccounts");
+    expect(account!.howLong).toContain("has not been used for 2 years");
+  });
+
+  // Every clock the constituent area produces is gated on a surface, or a
+  // tenant that cannot collect the data publishes a period for it anyway.
+  test("the constituent clocks are all surface-gated", () => {
+    for (const key of [
+      "constituent_accounts",
+      "person_claims",
+      "volunteer_hour_submissions",
+    ]) {
+      const policy = RETENTION_POLICIES.find((p) => p.key === key);
+      expect(policy, `no policy for ${key}`).toBeDefined();
+      expect(policy!.surface, `${key} publishes on every tenant`).toBeDefined();
+    }
+  });
 });

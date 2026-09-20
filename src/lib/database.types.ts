@@ -9370,6 +9370,10 @@ export type Database = {
         Args: { p_slug: string };
         Returns: string;
       };
+      retention_auth_user_is_referenced: {
+        Args: { p_user_id: string };
+        Returns: boolean;
+      };
       retention_log: {
         Args: {
           p_action: string;
@@ -9400,6 +9404,10 @@ export type Database = {
       retention_snapshot_has_personal_data: {
         Args: { p_first: Json; p_second?: Json; p_table_name: string };
         Returns: boolean;
+      };
+      retention_unclaimed_account_ids: {
+        Args: { p_cutoff: string };
+        Returns: string[];
       };
       retention_unregistered_personal_columns: {
         Args: never;
