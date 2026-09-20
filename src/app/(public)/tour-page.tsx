@@ -1,12 +1,14 @@
 /**
- * `/nonprofits` and `/business` (#1328): the same argument in two
- * vocabularies.
+ * The tour pages: `/nonprofits` and `/business` (#1328), which make the same
+ * argument in two vocabularies, and `/modules` (#1329), which makes it in
+ * neither.
  *
- * One implementation rather than two, and the reason is not brevity -- the
+ * One implementation rather than three, and the reason is not brevity -- the
  * pages are structurally identical, so a second copy of this JSX would drift,
- * and a change made to one of two marketing pages nobody visits weekly is a
+ * and a change made to one of three marketing pages nobody visits weekly is a
  * change nobody notices was made to only one. What differs between them is a
- * page key, and that is all either route passes in.
+ * page key and the slot its closing paragraph lives in, which is all any route
+ * passes in.
  *
  * Lives beside `site-nav.tsx` rather than under a route folder: a directory
  * under `(public)` with no `page.tsx` is not a route, but one that looks like
@@ -22,13 +24,14 @@ import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { liveCtas, type ContentCta } from "@/lib/site-ctas";
 import {
-  audiencePhotoField,
   resolvePhoto,
-  type AudiencePageKey,
+  tourClosingSlot,
+  tourPhotoField,
+  type TourPageKey,
 } from "@/lib/site-content";
 
 /** What `<page>.modules` holds -- a content list is strings all the way down. */
-type ModuleSection = {
+type TourSection = {
   label: string;
   body: string;
   photo_url?: string;
@@ -36,16 +39,16 @@ type ModuleSection = {
 };
 
 /**
- * The tab title for one of the two routes. Not derived from the content
+ * The tab title for one of the three routes. Not derived from the content
  * heading: that is a sentence, and `publicTitle()` puts what it is given next
  * to the organization's name.
  */
-export async function audienceMetadata(title: string): Promise<Metadata> {
+export async function tourMetadata(title: string): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
   return { title: publicTitle(await getPublicSite(supabase), title) };
 }
 
-export async function AudiencePage({ page }: { page: AudiencePageKey }) {
+export async function TourPage({ page }: { page: TourPageKey }) {
   const supabase = await createSupabaseServerClient();
   const [{ content }, siteImages, visibility] = await Promise.all([
     getPublicSite(supabase),
@@ -55,11 +58,11 @@ export async function AudiencePage({ page }: { page: AudiencePageKey }) {
 
   const hidden = hiddenSlots(visibility);
   const ctas = liveCtas(content.list<ContentCta>(`${page}.ctas`), hidden);
-  const sections = content.list<ModuleSection>(`${page}.modules`);
+  const sections = content.list<TourSection>(`${page}.modules`);
   // The row's own link, then the slot it names, then the page's shared
   // screenshot -- resolved by the same call the Site Content editor's preview
   // makes, so the two cannot disagree about which source wins (#922).
-  const photoField = audiencePhotoField(page);
+  const photoField = tourPhotoField(page);
 
   return (
     <div>
@@ -142,7 +145,7 @@ export async function AudiencePage({ page }: { page: AudiencePageKey }) {
       </div>
 
       <p className="app-muted mt-12 max-w-3xl border-t border-border pt-6 text-sm leading-relaxed">
-        {content.text(`${page}.same_product`)}
+        {content.text(`${page}.${tourClosingSlot(page)}`)}
       </p>
     </div>
   );

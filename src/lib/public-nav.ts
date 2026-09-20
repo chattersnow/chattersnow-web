@@ -52,27 +52,42 @@ export type NavGroup = {
  * overview item would be a second route to the same page.
  */
 export const NAV_GROUPS: readonly NavGroup[] = [
-  // The two front doors (#1328), first because on a site that publishes them
-  // they are the point: a reader arriving cold picks the vocabulary that is
-  // theirs before they read anything else. Hidden for every tenant that has
-  // not turned the `audiences` slot on, which is every tenant by default.
+  // Everything the site says about the product itself (#1328, #1329, #1330),
+  // first because on a site that publishes any of it that is the point: a
+  // reader arriving cold wants to know what this is, whether it is for them,
+  // and what it costs, before they read anything else. Every child is hidden
+  // for every tenant that has not turned its slot on, which is every tenant by
+  // default, so the whole group is absent from a customer's nav.
   //
-  // `/nonprofits` is the group's own href as well as its first child, the
-  // same shape `/events` and `/get-involved` use. There is no parent route
-  // and inventing one -- a `/audiences` nobody would ever link to -- would be
-  // a page that exists only to hold a layout.
+  // **One group rather than four**, and this is a width decision rather than a
+  // taxonomy one. `site-nav.tsx` measures the header's budget at eight
+  // sections; #1328 spent the ninth on this group and recorded that it already
+  // wraps to two rows on a tenant with everything visible. A tenth needs the
+  // nav to overflow instead, which is a change to that component -- so Pricing,
+  // which would earn a top-level entry on any other marketing site, is a child
+  // here until somebody makes it. The nav this actually renders on is short:
+  // the site that publishes these four runs no Events, Programs or Get
+  // Involved.
   //
-  // The second child carries the slot again so `slotsForHref("/business")`
-  // resolves. The mapping is derived from this tree, and a child with no slot
-  // of its own inherits nothing: an in-page link to `/business` would have
-  // gone on reading as live after the board hid the section.
+  // **No slot on the group itself.** The four children become publishable at
+  // different moments -- the tour when its screenshots exist, the prices when
+  // somebody has decided them -- and a group-level slot would take the others
+  // dark with whichever is not ready. `visibleGroups()` already drops a group
+  // whose children are all hidden, and repoints `href` when the child it
+  // pointed at is one of the hidden ones.
+  //
+  // Every child carries its own slot, including the first. The mapping in
+  // `slotsForHref()` is derived from this tree and a child inherits nothing:
+  // without its own slot, an in-page link to `/business` would go on reading as
+  // live after the board hid the section.
   {
-    label: "Who it's for",
-    href: "/nonprofits",
-    slot: "audiences",
+    label: "Product",
+    href: "/modules",
     links: [
-      { label: "For nonprofits", href: "/nonprofits" },
+      { label: "What it does", href: "/modules", slot: "modules" },
+      { label: "For nonprofits", href: "/nonprofits", slot: "audiences" },
       { label: "For business", href: "/business", slot: "audiences" },
+      { label: "Pricing", href: "/pricing", slot: "pricing" },
     ],
   },
   {
@@ -191,12 +206,34 @@ export function visibleGroups(
   return NAV_GROUPS.filter((group) => !isHidden(group.slot))
     .map((group) => {
       if (!group.links) return named(group);
-      return named({
-        ...group,
-        links: group.links.filter((l) => !isHidden(l.slot)).map(named),
-      });
+      const links = group.links.filter((l) => !isHidden(l.slot)).map(named);
+      return named({ ...group, href: landingHref(group, links), links });
     })
     .filter((group) => group.links === undefined || group.links.length > 0);
+}
+
+/**
+ * A group's landing page once its hidden children are gone: the page it names,
+ * or the first child still standing when that page is one of the ones the
+ * board has hidden.
+ *
+ * The footer links this href and the mobile sheet makes it the group heading's
+ * target, so a group that survives filtering has to land somewhere that still
+ * renders. It only matters for a group whose children carry *different* slots
+ * -- `Product` is the only one (#1329), where the tour, the two audience paths
+ * and the price list are each switched on separately -- but the rule is
+ * written for any group rather than for that one.
+ *
+ * A group whose href is not among its children keeps it: `/about` and
+ * `/inventory` redirect to a child, so their landing page is live exactly when
+ * the group is.
+ */
+function landingHref(group: NavGroup, surviving: readonly NavLink[]): string {
+  const named = group.links?.some((link) => link.href === group.href);
+  if (!named || surviving.some((link) => link.href === group.href)) {
+    return group.href;
+  }
+  return surviving[0]?.href ?? group.href;
 }
 
 /** Whether a section is currently shown, for gating header/in-page CTAs. */

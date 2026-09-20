@@ -17,12 +17,19 @@
  * rollout step 3) and the defaults are prompts: they read as unwritten, which
  * is the honest thing for a site nobody has written yet to look like.
  *
- * The two audience pages added in #1328 are the deliberate exception, and the
- * reason is narrow: their slots describe the *platform* rather than the
+ * The four pages the platform wrote about itself are the deliberate exception,
+ * and the reason is narrow: their slots describe the *platform* rather than the
  * organization, and their routes are hidden for every tenant until somebody
  * turns them on. A default that speaks for the platform is the platform's own
  * to write. It still names no product and no company -- see the block above
- * those slots.
+ * those slots. They are the two audience paths (#1328), the module tour
+ * (#1329) and the price list (#1330).
+ *
+ * The exception stops at anything only *this deployment* knows. A destination
+ * is a host and a price is a commercial term, so `*.ctas`, `pricing.plans`'
+ * figures and the onboarding fee are the platform tenant's own rows
+ * (20260920030000 and its predecessor) rather than defaults every operator
+ * would inherit -- see the comment over `pricing.plans`.
  *
  * Only the slots that *named or described* an organization were rewritten.
  * "Get in touch" and "Meet the team" are product chrome that happens to live
@@ -112,6 +119,24 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
     label: "For business",
     route: "/business",
     visibilityKey: "audiences",
+  },
+  // The module tour (#1329) and the price list (#1330), the audience paths'
+  // neighbours in the nav and in this registry. Separate visibility slots:
+  // each becomes publishable at its own moment.
+  {
+    // `module_tour` rather than `modules`, though the route and the visibility
+    // slot are both `modules`: the page's list slot is the modules, and
+    // `modules.modules` is a key nobody would read twice the same way.
+    key: "module_tour",
+    label: "What it does",
+    route: "/modules",
+    visibilityKey: "modules",
+  },
+  {
+    key: "pricing",
+    label: "Pricing",
+    route: "/pricing",
+    visibilityKey: "pricing",
   },
   {
     key: "about_story",
@@ -243,6 +268,31 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     label: "What it covers",
     description:
       "One section per part of the platform, in the order they appear, in the vocabulary a business uses for them.",
+  },
+
+  { key: "module_tour:hero", page: "module_tour", label: "Hero" },
+  {
+    key: "module_tour:sections",
+    page: "module_tour",
+    label: "What it covers",
+    description:
+      "One section per part of the platform, in the order they appear. The closing note is the argument the page is making -- that the combination is the thing, not any one part of it.",
+  },
+
+  { key: "pricing:hero", page: "pricing", label: "Hero" },
+  {
+    key: "pricing:plans",
+    page: "pricing",
+    label: "Plans",
+    description:
+      "The plan cards, in the order they appear. A plan with no price written is a card with a blank where the number goes, which is why this page stays hidden until the numbers are yours.",
+  },
+  {
+    key: "pricing:details",
+    page: "pricing",
+    label: "What every plan includes",
+    description:
+      "What is true of all the plans, and what setting the system up costs on top of them.",
   },
 
   { key: "about_story:opening", page: "about_story", label: "Opening" },
@@ -600,6 +650,36 @@ export const CTA_FIELDS: readonly ListField[] = [
 ];
 
 /**
+ * One plan on the price list (#1330): what it is called, what it costs, who it
+ * is for, what comes with it, and the button on the card.
+ *
+ * `price` and `period` are two text fields rather than one, because the card
+ * sets them differently -- the figure is the largest thing on it and "per
+ * month" is a footnote to the figure -- and text rather than a number because
+ * the honest answer is not always one: "Free", "From $99", or a currency this
+ * registry has no business assuming.
+ *
+ * `cta_href` is a `url` field, so a plan can send a reader to a booking host or
+ * a payment link that is not this site, the same allowance `CTA_FIELDS` makes.
+ * A row with no destination renders as a card with no button, which is right
+ * for a plan whose sign-up is a conversation.
+ *
+ * `shown` rather than deleting a row: a plan withdrawn for a quarter comes back
+ * without being retyped, and a plan that is being drafted in the editor should
+ * not be on the page while it is half written.
+ */
+export const PLAN_FIELDS: readonly ListField[] = [
+  { key: "name", label: "Plan", kind: "text" },
+  { key: "price", label: "Price", kind: "text" },
+  { key: "period", label: "Per", kind: "text", optional: true },
+  { key: "who", label: "Who it's for", kind: "text" },
+  { key: "includes", label: "What's included", kind: "paragraphs" },
+  { key: "cta_label", label: "Button text", kind: "text", optional: true },
+  { key: "cta_href", label: "Button destination", kind: "url", optional: true },
+  { key: "shown", label: "Shown", kind: "boolean" },
+];
+
+/**
  * The photo a team member on the Meet the Team page shows.
  *
  * Named rather than inlined in the slot below because the public page imports
@@ -619,29 +699,50 @@ export const TEAM_PHOTO_FIELD: PhotoListField = {
 };
 
 /**
- * The two audience pages' module rows (#1328): a heading, a couple of lines,
+ * The section rows on a tour page (#1328, #1329): a heading, a couple of lines,
  * and a screenshot.
  *
- * Built rather than written twice because the two pages differ only in which
- * image slots their screenshots come from -- `/nonprofits` must not illustrate
- * itself with `/business`'s pictures, and vice versa, which is why the prefix
- * and the fallback are per page. Everything else about the row is identical,
- * and a second copy of it is how the two would drift.
+ * Three pages share the shape -- `/nonprofits` and `/business` tell it in each
+ * audience's vocabulary, `/modules` tells it in neither -- and they are one
+ * component, `src/app/(public)/tour-page.tsx`. Built rather than written three
+ * times because the pages differ only in which image slots their screenshots
+ * come from: `/nonprofits` must not illustrate itself with `/business`'s
+ * pictures, which is why the prefix and the fallback are per page. Everything
+ * else about the row is identical, and a second copy of it is how they drift.
  *
  * `photo_slot` is declared here for the same reason `about_team.members`
  * declares it: the `photo` field above owns it, the editor never renders it on
  * its own, and without it a new row would not carry the key at all.
  */
-export type AudiencePageKey = "audience_nonprofits" | "audience_business";
+export type TourPageKey =
+  "audience_nonprofits" | "audience_business" | "module_tour";
 
 /**
- * The screenshot control on one audience page's module rows.
+ * The slot a tour page's closing paragraph lives in.
+ *
+ * The audience pages close on the same note -- there is one product and no
+ * nonprofit edition of it -- and the module tour closes on the argument the tour
+ * exists to make: any one of these parts is ordinary, having them together is
+ * not. Two different things to say, so two keys rather than one shared
+ * `<page>.closing` that would be named wrongly on two of the three pages.
+ * `same_product` is also a stored key already, and renaming a stored key is a
+ * migration for a string nobody sees.
+ *
+ * Here rather than in `tour-page.tsx` so the answer sits beside the slots it
+ * names and a test can check that each one exists.
+ */
+export function tourClosingSlot(page: TourPageKey): string {
+  return page === "module_tour" ? "combination" : "same_product";
+}
+
+/**
+ * The screenshot control on one tour page's section rows.
  *
  * Named like `TEAM_PHOTO_FIELD` and for the same reason: the public page
  * resolves a row's picture with `resolvePhoto()`, the same call the editor's
  * preview makes, so the two cannot disagree about which source wins (#922).
  */
-export function audiencePhotoField(page: AudiencePageKey): PhotoListField {
+export function tourPhotoField(page: TourPageKey): PhotoListField {
   return {
     key: "photo_url",
     label: "Screenshot",
@@ -656,13 +757,11 @@ export function audiencePhotoField(page: AudiencePageKey): PhotoListField {
   };
 }
 
-export function audienceModuleFields(
-  page: AudiencePageKey,
-): readonly ListField[] {
+export function tourSectionFields(page: TourPageKey): readonly ListField[] {
   return [
     { key: "label", label: "Heading", kind: "text" },
     { key: "body", label: "Body", kind: "text" },
-    audiencePhotoField(page),
+    tourPhotoField(page),
     { key: "photo_slot", label: "Image slot", kind: "text", optional: true },
   ];
 }
@@ -972,7 +1071,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "audience_nonprofits:modules",
     label: "Sections",
     type: "list",
-    fields: audienceModuleFields("audience_nonprofits"),
+    fields: tourSectionFields("audience_nonprofits"),
     default: [
       {
         label: "Governance",
@@ -1102,7 +1201,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "audience_business:modules",
     label: "Sections",
     type: "list",
-    fields: audienceModuleFields("audience_business"),
+    fields: tourSectionFields("audience_business"),
     // No Governance row, and that is the decision rather than an omission
     // (#998): board meetings, minutes and resolutions are the nonprofit moat,
     // and stretching them into "advisory board minutes" would sell a business
@@ -1195,6 +1294,341 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "Shown for any section on /business that names no screenshot of its own. Leave it unset and those sections are words only.",
     "16/9",
   ),
+
+  // The module tour ----------------------------------------------------------
+  //
+  // `/modules` (#1329): one section per part of the platform, in nobody's
+  // vocabulary in particular. The audience pages tell this in each audience's
+  // words; this one is the neutral catalog, for a reader who has not yet
+  // decided which of those they are.
+  //
+  // Not generated from `public.modules`, and that was the tempting shortcut:
+  // the catalog is already 14 rows with a label and a description. It is an
+  // *entitlement* catalog -- it carries Administration and Access management,
+  // and its descriptions are written for an operator deciding what a tenant has
+  // been sold. A tour that opens on "Administration: users, roles, settings"
+  // sells nothing. If the two ever disagree, the catalog is right about what
+  // ships and this page is right about how it is sold.
+
+  {
+    key: "module_tour.heading",
+    page: "module_tour",
+    section: "module_tour:hero",
+    label: "Heading",
+    type: "text",
+    default: "One system for the whole organization, not one tool per problem",
+  },
+  {
+    key: "module_tour.intro",
+    page: "module_tour",
+    section: "module_tour:hero",
+    label: "Introduction",
+    type: "text",
+    default:
+      "Money, people, events, volunteers, programs, what you own and the paperwork your board signs — all of it here, and all of it the same records. An event's volunteer hours, the money it raised and the person who gave it are one set of facts rather than three exports that disagree.",
+  },
+  {
+    key: "module_tour.ctas",
+    page: "module_tour",
+    section: "module_tour:hero",
+    label: "Buttons",
+    description:
+      "Where this page sends a reader next -- a live demo, a price list, a contact form. Empty until you say, because a destination is usually a host of its own.",
+    type: "list",
+    fields: CTA_FIELDS,
+    // Empty for the reason the audience pages' are: every other default here is
+    // copy the platform can honestly write about itself, and a destination is
+    // not copy. It is a host, and a literal would publish one operator's demo
+    // on another's site.
+    default: [],
+  },
+  {
+    key: "module_tour.modules",
+    page: "module_tour",
+    section: "module_tour:sections",
+    label: "Sections",
+    description:
+      "The parts of the platform, in the order a reader meets them. Remove a row for anything you do not want to sell rather than leaving it unwritten.",
+    type: "list",
+    fields: tourSectionFields("module_tour"),
+    // The modules that actually ship, in the order #998 argues for: the money
+    // and the people first, because they are what a reader came to check, and
+    // governance late but before the closing note, because it is the part no
+    // competing product has and the note is about exactly that.
+    default: [
+      {
+        label: "Finance",
+        body: "Money in and money out in one ledger: donations, grants, sales and revenue on one side; expenses, reimbursements and receipts on the other; a fiscal year that matches yours. Every figure keeps its link to the event, program or person it came from, so a report is a question you ask rather than an afternoon you lose.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "People",
+        body: "One record per person, whatever they are to you — member, donor, customer, participant, volunteer. What they gave, what they booked, the events they came to and the hours they worked all hang off that one record, instead of four files that disagree about their email address.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "Events",
+        body: "From the listing on your own website through registration and reminders to check-in on the day, and then to what the event brought in against what it cost. The same event carries its volunteers' shifts and its own expenses, so the morning after it you already know how it went.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "Volunteers",
+        body: "Applications from your own website, approvals, shifts, and the hours that come out the other end — logged against the program or event they were worked on. That is the part that makes an annual report possible without asking anybody to remember last March.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "Programs",
+        body: "The programs or services you run and the sessions inside them: who is enrolled, who turned up, what it costs to put on and what it takes in.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "Inventory",
+        body: "What you own or lend: where it is, who has it out, what it is worth, and which drive or purchase it arrived on. Requests and returns are records rather than a thread in somebody's inbox.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "Governance",
+        body: "Board members and their terms, meetings with agendas, minutes and resolutions, and the documents a board has to be able to produce on request. Written as the year goes rather than reconstructed the week before an audit.",
+        photo_url: "",
+        photo_slot: "",
+      },
+      {
+        label: "Content calendar",
+        body: "One calendar for what you are publishing and what is happening in your community, so the newsletter, the post and the event are planned as one thing instead of three.",
+        photo_url: "",
+        photo_slot: "",
+      },
+    ],
+  },
+  {
+    key: "module_tour.combination",
+    page: "module_tour",
+    section: "module_tour:sections",
+    label: "Closing note",
+    description:
+      "The argument the page is making. Each part above is ordinary on its own; having them in one system is not.",
+    type: "text",
+    // The closing slot is `same_product` on the two audience pages and
+    // `combination` here, because the two pages close on different arguments --
+    // there is one product, and the combination is the product. `tour-page.tsx`
+    // maps each page to its own, rather than the three sharing a key whose name
+    // would be wrong on two of them.
+    default:
+      "None of this is novel on its own. What is unusual is having it together: donor databases do not keep board minutes, inventory systems do not raise money, scheduling tools do neither. Run a small organization on three of those and the same person types into all three. This is one system, with one answer to who did what.",
+  },
+  image(
+    "module_tour_photo_1",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 1",
+    "A screenshot to show beside one of the sections on /modules, chosen in that section's Screenshot field. There is one of these per section, so each part of the platform can show its own.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_2",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 2",
+    "A second screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_3",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 3",
+    "A third screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_4",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 4",
+    "A fourth screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_5",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 5",
+    "A fifth screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_6",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 6",
+    "A sixth screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_7",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 7",
+    "A seventh screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo_8",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — screenshot 8",
+    "An eighth screenshot for /modules.",
+    "16/9",
+  ),
+  image(
+    "module_tour_photo",
+    "module_tour",
+    "module_tour:sections",
+    "What it does — shared screenshot",
+    "Shown for any section on /modules that names no screenshot of its own. Leave it unset and those sections are words only, which reads better than the same picture eight times.",
+    "16/9",
+  ),
+
+  // Pricing -------------------------------------------------------------------
+  //
+  // `/pricing` (#1330): visible numbers rather than "contact sales", and the
+  // numbers in a content slot rather than in JSX.
+  //
+  // That is the whole design decision. A price is the single thing on this site
+  // most likely to change and least likely to deserve a code review, so it is
+  // typed into Administration -> Site Content by whoever sets prices, takes
+  // effect without a deploy, and changes again next quarter without a pull
+  // request.
+  //
+  // **What the defaults below do and do not say.** The *shape* of the price
+  // list is the platform's own decision and is written here: three sizes, every
+  // module on every plan, sized by how many people need a login rather than by
+  // which parts of the system you may use. The *figures* are this deployment's
+  // commercial terms -- another operator running this code charges its own --
+  // so every default price is an em dash, and the platform tenant's real
+  // numbers are its own `site_content` rows (20260920030000). The `pricing`
+  // visibility slot stays off until somebody has agreed to them.
+
+  {
+    key: "pricing.heading",
+    page: "pricing",
+    section: "pricing:hero",
+    label: "Heading",
+    type: "text",
+    default: "What it costs",
+  },
+  {
+    key: "pricing.intro",
+    page: "pricing",
+    section: "pricing:hero",
+    label: "Introduction",
+    type: "text",
+    default:
+      "Plans are sized by how many people need a login, not by which parts of the system you are allowed to use. Everything is in every plan.",
+  },
+  {
+    key: "pricing.plans",
+    page: "pricing",
+    section: "pricing:plans",
+    label: "Plans",
+    description:
+      'The cards, in the order they appear. Write the price as you want it read -- the figure and the period are separate, so "$49" and "per month" set differently on the card.',
+    type: "list",
+    fields: PLAN_FIELDS,
+    default: [
+      {
+        name: "Starter",
+        price: "—",
+        period: "per month",
+        who: "An organization of two or three people, running today on one spreadsheet and a shared drive.",
+        includes: ["Up to 3 people with logins."],
+        cta_label: "",
+        cta_href: "",
+        shown: true,
+      },
+      {
+        name: "Standard",
+        price: "—",
+        period: "per month",
+        who: "A small staff, a board, and whoever coordinates the volunteers.",
+        includes: ["Up to 10 people with logins."],
+        cta_label: "",
+        cta_href: "",
+        shown: true,
+      },
+      {
+        name: "Full",
+        price: "—",
+        period: "per month",
+        who: "Everybody who needs to be in the system is in it, and somebody wants a reply the same day.",
+        includes: ["Unlimited logins.", "Priority support."],
+        cta_label: "",
+        cta_href: "",
+        shown: true,
+      },
+    ],
+  },
+  {
+    key: "pricing.included_heading",
+    page: "pricing",
+    section: "pricing:details",
+    label: "Included heading",
+    type: "text",
+    default: "Every plan includes",
+  },
+  {
+    key: "pricing.included",
+    page: "pricing",
+    section: "pricing:details",
+    label: "What every plan includes",
+    description:
+      "The things that do not differ between plans. #998 asks this page to say three of them plainly: the modules, the custom domain, and the public website.",
+    type: "paragraphs",
+    default: [
+      "Every module: finance, people, events, volunteers, programs, inventory, governance and the content calendar. Nothing is held back for a larger plan.",
+      "Your own domain, and a public website on it that reads from the same records as the staff portal — your events listing, your programs and your volunteer form are the ones already in the system.",
+      "An export of everything you have, whenever you ask for it. If you leave, you leave with your data.",
+    ],
+  },
+  {
+    key: "pricing.onboarding_heading",
+    page: "pricing",
+    section: "pricing:details",
+    label: "Setup heading",
+    type: "text",
+    default: "Setting it up",
+  },
+  {
+    key: "pricing.onboarding",
+    page: "pricing",
+    section: "pricing:details",
+    label: "What setup costs",
+    description:
+      "What it costs to get started, and what that buys. Say the figure here even if it is nothing -- a setup fee a reader finds out about later is the one they remember.",
+    type: "paragraphs",
+    // No figure, for the same reason the plans above carry none: what setup
+    // costs is this deployment's term, not the platform's. The sentence says
+    // what the work *is*, which is true wherever it is run.
+    default: [
+      "Getting started is a one-time fee: your existing spreadsheets brought in, your domain and your branding set up, and time with whoever is going to run it.",
+      "Write what that costs here before this page is published.",
+    ],
+  },
+  {
+    key: "pricing.closing",
+    page: "pricing",
+    section: "pricing:details",
+    label: "Closing note",
+    type: "text",
+    default:
+      "The plans are the same whether you are a nonprofit or a business — it is one product, and what it calls things is a setting rather than a separate edition. If none of these fits, because you are smaller than the smallest or you are several organizations at once, say so and we will work it out.",
+  },
 
   // About: Our Story ------------------------------------------------------------
   {

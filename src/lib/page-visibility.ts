@@ -197,6 +197,35 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     defaultVisible: false,
     gate: ["(public)/nonprofits/layout.tsx", "(public)/business/layout.tsx"],
   },
+  // The module tour (#1329) and the price list (#1330), the audience paths'
+  // two neighbours. Three slots rather than one `marketing` switch, because
+  // the three pages become publishable at different moments: the tour is ready
+  // when the screenshots are (#1332) and the prices are ready when somebody
+  // has decided what they are (#998, open question 4). One switch would mean
+  // the last of the three held the other two dark.
+  //
+  // No module for either, for the reason `audiences` names: they describe what
+  // the platform does, and what a tenant has been sold does not change whether
+  // that description is true.
+  {
+    key: "modules",
+    label: "What it does",
+    description:
+      "The page at /modules, one section per part of the platform. Like the audience paths it is about the software rather than about you, so most organizations leave it off.",
+    defaultVisible: false,
+  },
+  {
+    // The one slot whose page should stay dark even on the site it was written
+    // for, until the numbers on it are ones somebody has agreed to. An
+    // unapproved price is the single worst thing on this site to publish by
+    // accident: it is quotable, it is screenshotted, and it is the one page a
+    // reader will hold you to.
+    key: "pricing",
+    label: "Pricing",
+    description:
+      "The plans and prices at /pricing. Turn it on once the numbers in Site Content are the ones you mean to charge -- until then the page is written but unreachable.",
+    defaultVisible: false,
+  },
   // The second single-route slot, and hidden by default for the opposite
   // reason from `gears-sizing`. That one is off because its content is one
   // organization's. This page's content is never anyone else's -- every colour,

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { AudiencePage, audienceMetadata } from "../audience-page";
+import { TourPage, tourMetadata } from "../tour-page";
 
 export function generateMetadata(): Promise<Metadata> {
-  return audienceMetadata("For nonprofits");
+  return tourMetadata("For nonprofits");
 }
 
 export default function NonprofitsPage() {
-  return <AudiencePage page="audience_nonprofits" />;
+  return <TourPage page="audience_nonprofits" />;
 }
