@@ -1077,19 +1077,19 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
         label: "Governance",
         body: "Board members, meetings, agendas, minutes and resolutions, kept together and searchable. The records a board has to produce at the end of the year, written as you go rather than reconstructed from an inbox.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "audience_nonprofits_photo_1",
       },
       {
         label: "Finance",
         body: "Donations, grants and reimbursements in one ledger, with the receipts attached and a fiscal year that matches yours. The totals a funder asks for come out of the system rather than out of a weekend.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "audience_nonprofits_photo_2",
       },
       {
         label: "People",
         body: "Members, donors and participants as one record each, so somebody's giving, the events they came to and the hours they volunteered belong to the same person instead of to three different files.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "audience_nonprofits_photo_3",
       },
       {
         label: "Volunteers",
@@ -1139,7 +1139,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "audience_nonprofits",
     "audience_nonprofits:modules",
     "For nonprofits — screenshot 1",
-    "A screenshot to show beside one of the sections on /nonprofits, chosen in that section's Screenshot field.",
+    "The screenshot beside the first section on /nonprofits, and beside any other section whose Screenshot field names it.",
     "16/9",
   ),
   image(
@@ -1147,7 +1147,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "audience_nonprofits",
     "audience_nonprofits:modules",
     "For nonprofits — screenshot 2",
-    "A second screenshot for /nonprofits.",
+    "The screenshot beside the second section on /nonprofits.",
     "16/9",
   ),
   image(
@@ -1155,7 +1155,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "audience_nonprofits",
     "audience_nonprofits:modules",
     "For nonprofits — screenshot 3",
-    "A third screenshot for /nonprofits.",
+    "The screenshot beside the third section on /nonprofits.",
     "16/9",
   ),
   image(
@@ -1211,19 +1211,19 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
         label: "Finance",
         body: "Revenue, invoices and expenses in one ledger, with the receipts attached and a fiscal year that matches yours. What you made and what it cost you, without reconciling two spreadsheets first.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "audience_business_photo_1",
       },
       {
         label: "Customers",
         body: "Customers and contacts as one record each, so what somebody bought, the classes they booked and the last thing you sent them belong to the same person.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "audience_business_photo_2",
       },
       {
         label: "Bookings and classes",
         body: "Classes, workshops and bookings, from the public listing through registration and check-in on the day to what each one brought in against what it cost.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "audience_business_photo_3",
       },
       {
         label: "Services",
@@ -1267,7 +1267,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "audience_business",
     "audience_business:modules",
     "For business — screenshot 1",
-    "A screenshot to show beside one of the sections on /business, chosen in that section's Screenshot field. Use business screens here rather than donor ones -- a visitor who meets a donation ledger on this page leaves.",
+    "The screenshot beside the first section on /business, and beside any other section whose Screenshot field names it. Use business screens here rather than donor ones -- a visitor who meets a donation ledger on this page leaves.",
     "16/9",
   ),
   image(
@@ -1275,7 +1275,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "audience_business",
     "audience_business:modules",
     "For business — screenshot 2",
-    "A second screenshot for /business.",
+    "The screenshot beside the second section on /business.",
     "16/9",
   ),
   image(
@@ -1283,7 +1283,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "audience_business",
     "audience_business:modules",
     "For business — screenshot 3",
-    "A third screenshot for /business.",
+    "The screenshot beside the third section on /business.",
     "16/9",
   ),
   image(
@@ -1360,49 +1360,49 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
         label: "Finance",
         body: "Money in and money out in one ledger: donations, grants, sales and revenue on one side; expenses, reimbursements and receipts on the other; a fiscal year that matches yours. Every figure keeps its link to the event, program or person it came from, so a report is a question you ask rather than an afternoon you lose.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_1",
       },
       {
         label: "People",
         body: "One record per person, whatever they are to you — member, donor, customer, participant, volunteer. What they gave, what they booked, the events they came to and the hours they worked all hang off that one record, instead of four files that disagree about their email address.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_2",
       },
       {
         label: "Events",
         body: "From the listing on your own website through registration and reminders to check-in on the day, and then to what the event brought in against what it cost. The same event carries its volunteers' shifts and its own expenses, so the morning after it you already know how it went.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_3",
       },
       {
         label: "Volunteers",
         body: "Applications from your own website, approvals, shifts, and the hours that come out the other end — logged against the program or event they were worked on. That is the part that makes an annual report possible without asking anybody to remember last March.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_4",
       },
       {
         label: "Programs",
         body: "The programs or services you run and the sessions inside them: who is enrolled, who turned up, what it costs to put on and what it takes in.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_5",
       },
       {
         label: "Inventory",
         body: "What you own or lend: where it is, who has it out, what it is worth, and which drive or purchase it arrived on. Requests and returns are records rather than a thread in somebody's inbox.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_6",
       },
       {
         label: "Governance",
         body: "Board members and their terms, meetings with agendas, minutes and resolutions, and the documents a board has to be able to produce on request. Written as the year goes rather than reconstructed the week before an audit.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_7",
       },
       {
         label: "Content calendar",
         body: "One calendar for what you are publishing and what is happening in your community, so the newsletter, the post and the event are planned as one thing instead of three.",
         photo_url: "",
-        photo_slot: "",
+        photo_slot: "module_tour_photo_8",
       },
     ],
   },
@@ -1427,7 +1427,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 1",
-    "A screenshot to show beside one of the sections on /modules, chosen in that section's Screenshot field. There is one of these per section, so each part of the platform can show its own.",
+    "The screenshot beside the first section on /modules. There is one of these per section, in the sections' order, so each part of the platform shows its own; a section's Screenshot field overrides which one it takes.",
     "16/9",
   ),
   image(
@@ -1435,7 +1435,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 2",
-    "A second screenshot for /modules.",
+    "The screenshot beside the second section on /modules.",
     "16/9",
   ),
   image(
@@ -1443,7 +1443,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 3",
-    "A third screenshot for /modules.",
+    "The screenshot beside the third section on /modules.",
     "16/9",
   ),
   image(
@@ -1451,7 +1451,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 4",
-    "A fourth screenshot for /modules.",
+    "The screenshot beside the fourth section on /modules.",
     "16/9",
   ),
   image(
@@ -1459,7 +1459,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 5",
-    "A fifth screenshot for /modules.",
+    "The screenshot beside the fifth section on /modules.",
     "16/9",
   ),
   image(
@@ -1467,7 +1467,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 6",
-    "A sixth screenshot for /modules.",
+    "The screenshot beside the sixth section on /modules.",
     "16/9",
   ),
   image(
@@ -1475,7 +1475,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 7",
-    "A seventh screenshot for /modules.",
+    "The screenshot beside the seventh section on /modules.",
     "16/9",
   ),
   image(
@@ -1483,7 +1483,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "module_tour",
     "module_tour:sections",
     "What it does — screenshot 8",
-    "An eighth screenshot for /modules.",
+    "The screenshot beside the eighth section on /modules.",
     "16/9",
   ),
   image(
@@ -2011,10 +2011,33 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     page: "learn",
     section: "learn:opening",
     label: "Introduction",
-    description: "A link to the sizing guide follows it.",
+    description:
+      'The line under the Learn heading. A link to the sizing guide is appended to it while that guide is one of your published pages, so a sentence written to run into it ("... check the") belongs to an organization that publishes one.',
     type: "text",
+    // Was Chatter Snow's "Snow sports 101 — orientation basics for anyone new
+    // to skiing or riding. Looking for equipment size charts specifically?
+    // Check the", which that tenant stores as its own row (20260908040000) and
+    // goes on reading. A default is what an organization that has written
+    // nothing gets, and it should not hand them another organization's sport
+    // (#1331).
+    default: "Guides, explanations and answers, written by us.",
+  },
+  {
+    key: "learn.disclaimer",
+    page: "learn",
+    section: "learn:opening",
+    label: "Disclaimer",
+    description:
+      "The notice under every Learn page. Clear it and the notice does not render at all.",
+    type: "text",
+    // Deliberately about advice rather than about equipment. The wording this
+    // replaced — "safety, equipment setup, or an injury ... a certified
+    // technician, instructor, or medical provider" — was hardcoded into
+    // `EducationalDisclaimer`, which put a ski technician under the Learn
+    // pages of every tenant on the platform, including the one that sells the
+    // platform (#1331). Chatter Snow keeps that exact wording as a row.
     default:
-      "Snow sports 101 — orientation basics for anyone new to skiing or riding. Looking for equipment size charts specifically? Check the",
+      "These articles are general information rather than advice about your situation. For anything involving safety, health, or a legal or financial decision, check with a qualified professional.",
   },
   image(
     "learn_photo",
