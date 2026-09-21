@@ -15,6 +15,15 @@ import { Spinner } from "@/components/ui/spinner";
 // which must not reach the client bundle. State arrives as props from the
 // server page, same as PageVisibilityPanel.
 import type { LegalDocument } from "@/lib/legal-documents";
+// Free of server helpers on purpose, so the drift sentence is written where it
+// is tested rather than assembled in JSX.
+import {
+  hasDrifted,
+  joinPhrases,
+  namedSurfaces,
+  type LegalDocumentDrift,
+} from "@/lib/legal-surface";
+import { formatInstantDate } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 
 /** What the public site is currently serving at this document's route. */
@@ -29,7 +38,74 @@ export type LegalDocumentStatus = {
    * and the switch works both ways.
    */
   heldInForceBy?: string;
+  /**
+   * Whether the text still describes what the site collects (#1292). Computed
+   * on the server and arriving as a prop, like everything else on this type:
+   * `@/lib/legal-publication` must not reach the client bundle. Undefined where
+   * the question does not arise -- the platform's document is being served, or
+   * nothing is.
+   */
+  drift?: LegalDocumentDrift;
 };
+
+/**
+ * The drift line, when there is one (#1292).
+ *
+ * Deliberately a sentence rather than a badge, and `app-muted` rather than an
+ * alert: nothing is broken, the organization's lawyer may well have signed the
+ * text off, and the only thing the platform is entitled to do is say what it
+ * noticed. It never blocks a publish and never edits the document.
+ */
+function DriftLine({
+  document,
+  drift,
+}: {
+  document: LegalDocument;
+  drift: LegalDocumentDrift;
+}) {
+  if (drift.status === "unknown") {
+    return (
+      <>
+        Published before we started recording what a document covers, so we
+        cannot tell whether it still matches your site. Re-publish it from Pages
+        to start tracking.
+      </>
+    );
+  }
+
+  const added = namedSurfaces(drift.added, "subject");
+  const removed = namedSurfaces(drift.removed, "subject");
+  if (added.length === 0 && removed.length === 0) return null;
+
+  // The date leads, so that "since" in the clauses after it has something to
+  // refer back to and neither clause has to repeat it.
+  const on = formatInstantDate(drift.publishedAt, "");
+
+  return (
+    <>
+      You published your {document.label.toLowerCase()}
+      {on ? ` on ${on}` : ""}.{" "}
+      {added.length > 0 ? (
+        <>
+          <span className="font-medium">{joinPhrases(added)}</span>{" "}
+          {added.length === 1 ? "has" : "have"} been turned on since, and your
+          text does not describe{" "}
+          {joinPhrases(namedSurfaces(drift.added, "collects"))}.{" "}
+        </>
+      ) : null}
+      {removed.length > 0 ? (
+        <>
+          <span className="font-medium">{joinPhrases(removed)}</span>{" "}
+          {removed.length === 1 ? "has" : "have"} been turned off since, and
+          your text still describes{" "}
+          {joinPhrases(namedSurfaces(drift.removed, "collects"))}.{" "}
+        </>
+      ) : null}
+      Nothing is broken and nothing has been changed for you &mdash; review the
+      wording in Pages when you next can.
+    </>
+  );
+}
 
 function ServingLine({
   document,
@@ -90,6 +166,13 @@ function LegalDocumentRow({
   // adopted yet has nothing depending on it, and the module that would depend
   // on it cannot be turned on until it is.
   const held = status.inForce ? status.heldInForceBy : undefined;
+  // A fingerprint that matches is the ordinary case and says nothing: the line
+  // exists for the two states worth reading, drifted and never recorded.
+  const drift =
+    status.drift &&
+    (status.drift.status === "unknown" || hasDrifted(status.drift))
+      ? status.drift
+      : undefined;
 
   function handleChange(next: boolean) {
     onError(null);
@@ -127,6 +210,11 @@ function LegalDocumentRow({
         </p>
         {held ? (
           <p className="app-muted mt-1 text-sm leading-relaxed">{held}</p>
+        ) : null}
+        {drift ? (
+          <p className="app-muted mt-1 text-sm leading-relaxed">
+            <DriftLine document={document} drift={drift} />
+          </p>
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-0.5">

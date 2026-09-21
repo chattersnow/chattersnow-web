@@ -9113,7 +9113,10 @@ export type Database = {
       public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };
       publish_article_category: { Args: { p_id: string }; Returns: number };
-      publish_site_content: { Args: { p_keys: string[] }; Returns: number };
+      publish_site_content: {
+        Args: { p_keys: string[]; p_legal_surface?: Json };
+        Returns: number;
+      };
       purge_rate_limit_hits: { Args: { p_as_of?: string }; Returns: number };
       record_event_distribution: {
         Args: {

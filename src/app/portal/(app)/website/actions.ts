@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { contentSlot, isValidSlotValue } from "@/lib/site-content";
+import { collectionSurface, surfaceKeys } from "@/lib/legal-surface";
+import {
+  getTenantModules,
+  getTenantPageVisibility,
+} from "@/lib/page-visibility";
 import type { Json } from "@/lib/supabase/types";
 
 export type SiteContentActionResult = { error: string } | { success: true };
@@ -117,8 +122,29 @@ export async function publishSiteContentAction(
   );
   if (permissionError) return permissionError;
 
+  // What the site collected at the moment this text went live (#1292), so the
+  // portal can say later that the configuration has moved on from a document
+  // only the organization can rewrite. Computed here, where the tenant the
+  // administrator has *selected* is knowable -- the same split the starter
+  // document on the editor observes -- and written by the RPC inside the
+  // publish transaction, so the publish cannot succeed while the fingerprint
+  // silently does not.
+  const legalSurface = keys.some((key) => key.startsWith("legal."))
+    ? {
+        surfaces: surfaceKeys(
+          collectionSurface(
+            ...(await Promise.all([
+              getTenantPageVisibility(supabase),
+              getTenantModules(supabase),
+            ])),
+          ),
+        ),
+      }
+    : null;
+
   const { error } = await supabase.rpc("publish_site_content", {
     p_keys: keys,
+    p_legal_surface: legalSurface,
   });
   if (error) {
     return { error: "Could not publish this content. Please try again." };
