@@ -44,9 +44,12 @@ const LEAD_IN: Record<PrivacyNoticeSurface, string> = {
  * `/privacy` is the one legal route served for every tenant whatever it has
  * adopted (#859), which is why this sentence is unconditional and safe on a
  * tenant that has adopted nothing. Terms of use and the code of conduct 404
- * there, so nothing here links them; whether submitting a form is agreement
- * to them is #1318's decision, and this component is the one place that
- * clause would be added when it lands.
+ * there, so nothing here links them -- and nothing here ever will. #1318
+ * decided that submitting a public form is not acceptance of any of the three
+ * documents: these forms collect, they do not take agreement, and what
+ * agreement the product does take is scoped to what is being submitted (the
+ * artwork call's rights note, #877) rather than to the site's documents. The
+ * decision and what would reopen it are in `docs/legal-basis.md`.
  *
  * A new tab, so that reading the policy does not discard a half-filled form --
  * hence the accessible name saying so, since a link that takes the tab without
