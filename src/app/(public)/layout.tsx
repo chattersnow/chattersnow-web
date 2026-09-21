@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrandLogoProvider } from "@/components/brand-logo-context";
@@ -12,14 +13,51 @@ import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
 import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import type { Lexicon } from "@/lib/lexicon";
 import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
-import { getConstituentAccountNav } from "@/lib/constituent/guard";
+import {
+  constituentAreaEnabled,
+  getConstituentAccountNav,
+} from "@/lib/constituent/guard";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
+import { servesPublicApp, surfaceAtRoot } from "@/lib/pwa/host";
+import {
+  APPLE_TOUCH_ICON_SIZE,
+  APP_ICON_PATH,
+  PUBLIC_MANIFEST_PATH,
+} from "@/lib/pwa/manifest";
+import { serviceWorkerScope } from "@/lib/pwa/service-worker";
 import { MY_PATH_PREFIX, MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
 import { SiteNav } from "./site-nav";
+
+/**
+ * Whether this request's host should advertise the supporter app (#1171).
+ *
+ * Mirrors the conditions `/site.webmanifest` answers on, because a link to a
+ * manifest that 404s is an install prompt that fails in front of the visitor:
+ *
+ *   - a `portal.` host serves no public page, so there is no app to install;
+ *   - a host that serves both surfaces from one origin narrows the public
+ *     app's `start_url` to `/my`, which the `constituent_accounts` module
+ *     gates -- and that module is off by default;
+ *   - a host whose portal lives elsewhere installs the whole website, so
+ *     there is nothing to gate.
+ *
+ * The module read is free here: it goes through the same `cache()`d
+ * `getPublicTenantModules` the layout below already awaits by way of
+ * `getPageVisibility`.
+ */
+async function publicManifestPath(host: string): Promise<string | undefined> {
+  if (!servesPublicApp(host)) return undefined;
+  if (surfaceAtRoot("public", host)) return PUBLIC_MANIFEST_PATH;
+  return (await constituentAreaEnabled()) ? PUBLIC_MANIFEST_PATH : undefined;
+}
 
 // The organization's name and description, per tenant (#707 Phase 4). Every
 // public page's own title is "<Page> | <name>", built from the same read.
 export async function generateMetadata(): Promise<Metadata> {
-  const supabase = await createSupabaseServerClient();
+  const [supabase, requestHeaders] = await Promise.all([
+    createSupabaseServerClient(),
+    headers(),
+  ]);
   const site = await getPublicSite(supabase);
   // A host that resolves to no tenant gets no organization's name in its tab
   // (#795 Phase 4). The layout below 404s this request; without this the 404
@@ -33,6 +71,16 @@ export async function generateMetadata(): Promise<Metadata> {
     // neutral title, which names no organization either.
     title: site.name ?? undefined,
     description: site.content.text("org.tagline"),
+    // The public site is its own installable app (#1171), linked from here
+    // rather than from a root metadata route -- a root one put the *portal's*
+    // manifest on every page of every host, so an Add to Home Screen from the
+    // website installed the staff portal.
+    manifest: await publicManifestPath(requestHeaders.get("host") ?? ""),
+    // iOS ignores the manifest's icons when adding a page to the home screen,
+    // so without this the supporter app installs as a screenshot of whatever
+    // page was open. The same route the portal points at, already resolved
+    // from the host.
+    icons: { apple: `${APP_ICON_PATH}/${APPLE_TOUCH_ICON_SIZE}` },
   };
 }
 
@@ -77,7 +125,10 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
+  const [supabase, requestHeaders] = await Promise.all([
+    createSupabaseServerClient(),
+    headers(),
+  ]);
   const [visibility, site, publication, account] = await Promise.all([
     getPageVisibility(supabase),
     getPublicSite(supabase),
@@ -108,6 +159,10 @@ export default async function PublicLayout({
   }
 
   const hidden = hiddenSlots(visibility);
+  // The same condition the manifest link is emitted on: a worker scoped to an
+  // app this host does not advertise would have no page to control (#1171).
+  const host = requestHeaders.get("host") ?? "";
+  const installable = Boolean(await publicManifestPath(host));
   const { name, branding, content, lexicon } = site;
   const contactEmail = content.text("org.email_general");
   const supportLabel = `Support ${content.text("org.short_name")}`;
@@ -115,6 +170,17 @@ export default async function PublicLayout({
   return (
     <>
       <BrandStyle branding={branding} />
+      {/* The supporter app's half of the PWA (#1171). Mounted at the top of
+          the public tree, the way the portal's shells mount it at the top of
+          theirs, so a navigation inside the site does not re-register it.
+          The scope is resolved here rather than in the browser -- the server
+          is what knows the host, and the client re-deriving it would be a
+          second copy of the rule the manifest's `scope` follows. */}
+      {installable && (
+        <ServiceWorkerRegistrar
+          scope={serviceWorkerScope("public", surfaceAtRoot("public", host))}
+        />
+      )}
       <SkipLink href="#main-content" />
       <div className="rainbow-strip" />
       <header className="border-b border-[var(--line)] px-6 py-4 sm:px-10">

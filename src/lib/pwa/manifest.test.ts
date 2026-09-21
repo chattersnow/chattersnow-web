@@ -3,30 +3,37 @@ import { EMPTY_BRANDING, type Branding } from "@/lib/branding";
 import {
   APP_ICON_PATH,
   NEUTRAL_APP_NAME,
+  NEUTRAL_PUBLIC_APP_NAME,
   appIconInitials,
-  portalManifest,
+  appManifest,
+  opsShortName,
   shortAppName,
   type ManifestInput,
 } from "@/lib/pwa/manifest";
 
 function input(overrides: Partial<ManifestInput> = {}): ManifestInput {
   return {
+    surface: "portal",
     status: "resolved",
     name: "Chatter Snow",
     branding: EMPTY_BRANDING,
-    portalAtRoot: false,
+    atRoot: false,
     ...overrides,
   };
+}
+
+function publicInput(overrides: Partial<ManifestInput> = {}): ManifestInput {
+  return input({ surface: "public", ...overrides });
 }
 
 function branded(colors: Record<string, string>): Branding {
   return { ...EMPTY_BRANDING, colors };
 }
 
-describe("portalManifest", () => {
+describe("appManifest", () => {
   test("installs under the tenant's own name, colour and icon", () => {
-    const manifest = portalManifest(
-      input({
+    const manifest = appManifest(
+      publicInput({
         name: "Chatter Snow",
         branding: branded({ primary_deep: "#101010", background: "#fefefe" }),
       }),
@@ -44,13 +51,13 @@ describe("portalManifest", () => {
   });
 
   test("two tenants on two hosts install as two different apps", () => {
-    const one = portalManifest(
+    const one = appManifest(
       input({
         name: "Chatter Snow",
         branding: branded({ primary_deep: "#111111" }),
       }),
     );
-    const two = portalManifest(
+    const two = appManifest(
       input({
         name: "Harbour Trust",
         branding: branded({ primary_deep: "#222222" }),
@@ -65,24 +72,35 @@ describe("portalManifest", () => {
   });
 
   test("names no organization -- and no product -- on an unresolved host", () => {
-    const manifest = portalManifest(
-      input({ status: "unresolved", name: "Chatter Snow" }),
-    );
+    for (const surface of ["portal", "public"] as const) {
+      const manifest = appManifest(
+        input({ surface, status: "unresolved", name: "Chatter Snow" }),
+      );
 
-    expect(manifest.name).toBe(NEUTRAL_APP_NAME);
-    expect(manifest.short_name).toBe(NEUTRAL_APP_NAME);
-    expect(JSON.stringify(manifest)).not.toContain("Chatter Snow");
-    expect(JSON.stringify(manifest)).not.toContain("Coven");
+      expect(manifest.name).toBe(
+        surface === "portal" ? NEUTRAL_APP_NAME : NEUTRAL_PUBLIC_APP_NAME,
+      );
+      expect(manifest.short_name).toBe(manifest.name);
+      expect(JSON.stringify(manifest)).not.toContain("Chatter Snow");
+      expect(JSON.stringify(manifest)).not.toContain("Coven");
+    }
   });
 
   test("names nobody when the tenant read failed", () => {
+    expect(appManifest(input({ status: "unavailable", name: null })).name).toBe(
+      NEUTRAL_APP_NAME,
+    );
     expect(
-      portalManifest(input({ status: "unavailable", name: null })).name,
-    ).toBe(NEUTRAL_APP_NAME);
+      appManifest(publicInput({ status: "unavailable", name: null })).name,
+    ).toBe(NEUTRAL_PUBLIC_APP_NAME);
+  });
+
+  test("the two neutral names are told apart on a home screen holding both", () => {
+    expect(NEUTRAL_APP_NAME).not.toBe(NEUTRAL_PUBLIC_APP_NAME);
   });
 
   test("falls back to the stylesheet's colours for an unbranded tenant", () => {
-    const manifest = portalManifest(input({ branding: EMPTY_BRANDING }));
+    const manifest = appManifest(input({ branding: EMPTY_BRANDING }));
 
     expect(manifest.theme_color).toBe("#32134f");
     expect(manifest.background_color).toBe("#f7f0ff");
@@ -91,14 +109,14 @@ describe("portalManifest", () => {
   });
 
   test("launches the portal, not the marketing site", () => {
-    const onPath = portalManifest(input({ portalAtRoot: false }));
+    const onPath = appManifest(input({ atRoot: false }));
     expect(onPath.start_url).toBe("/portal/home");
     expect(onPath.scope).toBe("/portal");
     expect(onPath.display).toBe("standalone");
   });
 
   test("drops the prefix on a host that serves the portal at its root", () => {
-    const atRoot = portalManifest(input({ portalAtRoot: true }));
+    const atRoot = appManifest(input({ atRoot: true }));
     // The proxy 307s /portal/home back to /home on a `portal.` host, so the
     // prefixed form would redirect on every launch, and a `/portal` scope
     // would contain no page the app can reach.
@@ -107,8 +125,62 @@ describe("portalManifest", () => {
     expect(atRoot.id).toBe("/");
   });
 
+  test("the public app is the whole website where it owns the origin", () => {
+    const manifest = appManifest(publicInput({ atRoot: true }));
+    // Tapping from /my through to an event or the donate page has to stay
+    // inside the standalone window.
+    expect(manifest.start_url).toBe("/");
+    expect(manifest.scope).toBe("/");
+    expect(manifest.id).toBe("/");
+  });
+
+  test("the public app narrows to /my where one origin serves both", () => {
+    const manifest = appManifest(publicInput({ atRoot: false }));
+    expect(manifest.start_url).toBe("/my");
+    expect(manifest.scope).toBe("/my");
+  });
+
+  test("the two scopes never overlap on a shared origin", () => {
+    const portal = appManifest(input({ atRoot: false }));
+    const supporter = appManifest(publicInput({ atRoot: false }));
+
+    expect(portal.scope).toBe("/portal");
+    expect(supporter.scope).toBe("/my");
+    expect(String(portal.scope).startsWith(String(supporter.scope))).toBe(
+      false,
+    );
+    expect(String(supporter.scope).startsWith(String(portal.scope))).toBe(
+      false,
+    );
+    // `id` is `scope`, so two installs on one origin are two apps.
+    expect(portal.id).not.toBe(supporter.id);
+  });
+
+  test("the staff app says what it is for, without naming the platform", () => {
+    const portal = appManifest(input({ name: "Chatter Snow" }));
+    const supporter = appManifest(publicInput({ name: "Chatter Snow" }));
+
+    expect(portal.name).toBe("Chatter Snow Ops");
+    expect(portal.short_name).toBe("Chatter Ops");
+    // The supporter app is the one most people install, so it carries the
+    // organization's plain name.
+    expect(supporter.name).toBe("Chatter Snow");
+    expect(supporter.short_name).toBe("Chatter Snow");
+    expect(portal.name).not.toBe(supporter.name);
+    expect(JSON.stringify([portal, supporter])).not.toContain("Coven");
+  });
+
+  test("a rename keeps the existing install rather than duplicating it", () => {
+    // `id` is `scope`, which no rename touches -- which is what made the
+    // `<Name> Ops` rename safe for the portals already on home screens.
+    const before = appManifest(input({ name: "Chatter Snow" }));
+    const after = appManifest(input({ name: "Chatter Snow Collective" }));
+    expect(after.id).toBe(before.id ?? "");
+    expect(after.name).not.toBe(before.name);
+  });
+
   test("lists every icon as both any and maskable", () => {
-    const purposes = portalManifest(input()).icons?.map((icon) => icon.purpose);
+    const purposes = appManifest(input()).icons?.map((icon) => icon.purpose);
     expect(purposes).toEqual(["any", "maskable", "any", "maskable"]);
   });
 });
@@ -124,6 +196,27 @@ describe("shortAppName", () => {
 
   test("cuts a single long word rather than showing nothing", () => {
     expect(shortAppName("Gemeinnuetzigkeitsverein")).toBe("Gemeinnuetzi");
+  });
+});
+
+describe("opsShortName", () => {
+  test("keeps the suffix inside what a launcher shows", () => {
+    // The budget is the same twelve characters, less " Ops".
+    expect(opsShortName("Chatter Snow")).toBe("Chatter Ops");
+    expect(opsShortName("Chatter Snow").length).toBeLessThanOrEqual(12);
+  });
+
+  test("clamps a long name against the smaller budget", () => {
+    expect(opsShortName("Riverside Community Tool Library")).toBe(
+      "Riversid Ops",
+    );
+    expect(
+      opsShortName("Riverside Community Tool Library").length,
+    ).toBeLessThanOrEqual(12);
+  });
+
+  test("still ends in the role word for a single long word", () => {
+    expect(opsShortName("Gemeinnuetzigkeitsverein")).toBe("Gemeinnu Ops");
   });
 });
 

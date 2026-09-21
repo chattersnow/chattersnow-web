@@ -19,7 +19,7 @@ import { SkipLink } from "@/components/skip-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LexiconProvider } from "@/components/lexicon-context";
 import { OfflineBanner } from "@/components/portal/offline-banner";
-import { ServiceWorkerRegistrar } from "@/components/portal/service-worker-registrar";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { CommandPalette } from "../command-palette";
 import { HelpButton } from "../help/help-button";
 import { IdleTimeout } from "../idle-timeout";
@@ -41,6 +41,7 @@ import type { PortalShellProps } from "./shell-props";
  * byte-identical to what it was before the split.
  */
 export async function PortalShellDesktop({
+  serviceWorkerScope,
   permissions,
   lexicon,
   branding,
@@ -182,7 +183,7 @@ export async function PortalShellDesktop({
             past the signed-in guard above, which is what keeps the timeout
             off the login page and off every public route. */}
         <IdleTimeout />
-        <ServiceWorkerRegistrar />
+        <ServiceWorkerRegistrar scope={serviceWorkerScope} />
         {/* One viewport for the whole portal: the sidebar quick actions
             save from every route, so the confirmation has to live above
             the page rather than inside it. */}

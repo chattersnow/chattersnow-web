@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { BrandStyle } from "@/components/brand-style";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
-import { APPLE_TOUCH_ICON_SIZE, APP_ICON_PATH } from "@/lib/pwa/manifest";
+import {
+  APPLE_TOUCH_ICON_SIZE,
+  APP_ICON_PATH,
+  PORTAL_MANIFEST_PATH,
+} from "@/lib/pwa/manifest";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PortalUrlCanonicalizer } from "./portal-url-canonicalizer";
 
@@ -18,6 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const name = tenant ? `${tenant.name} Portal` : "Portal";
   return {
     title: { default: name, template: `%s | ${name}` },
+    // Linked from the portal's own layout rather than from a root metadata
+    // route (#1171). A root one injects the link into every page on every
+    // host, so a visitor to the public site who tapped "Add to Home Screen"
+    // installed the staff portal. Next accepts a URL path here and emits the
+    // `<link rel="manifest">` for this subtree alone; the public site links
+    // its own manifest the same way.
+    manifest: PORTAL_MANIFEST_PATH,
     // iOS reads `apple-touch-icon` rather than the manifest's icons when it
     // adds a page to the home screen, so the manifest alone would install the
     // portal as a screenshot of the page (#1083). The route composes whatever
