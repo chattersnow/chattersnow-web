@@ -25,6 +25,17 @@ test.describe("legal documents a tenant has not adopted", () => {
     });
   }
 
+  // A permalink is the live document's own route with `?version=` on it
+  // (#601), so the adoption gate covers it for free -- and has to, or text
+  // nobody adopted would be one query parameter from being published under
+  // this organization's name.
+  for (const path of ["/terms?version=1", "/code-of-conduct?version=1"]) {
+    test(`${path} is not served either`, async ({ page }) => {
+      const response = await page.goto(path);
+      expect(response?.status()).toBe(404);
+    });
+  }
+
   test("the footer links to neither", async ({ page }) => {
     await page.goto("/home");
 
@@ -53,6 +64,18 @@ test.describe("the privacy policy", () => {
       page.getByRole("heading", { level: 1, name: "Privacy Policy" }),
     ).toBeVisible();
     await expect(page.getByText("Last updated:")).toBeVisible();
+  });
+
+  // This tenant has published no document of its own, so it has no version
+  // history to cite (#601). A version number it never published is a 404
+  // rather than a quiet redirect to the current text: an address that serves
+  // something other than what it names gives the reader no way to tell.
+  test("has no versions to cite until the tenant publishes one", async ({
+    page,
+  }) => {
+    const response = await page.goto("/privacy?version=1");
+
+    expect(response?.status()).toBe(404);
   });
 
   test("is reachable from the footer of a public page", async ({ page }) => {

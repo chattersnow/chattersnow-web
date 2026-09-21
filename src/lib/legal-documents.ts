@@ -195,3 +195,16 @@ export function gatesHolding(
 ): LegalDocumentGate[] {
   return document.gates.filter((gate) => modules[gate.module] === true);
 }
+
+/**
+ * The registry entry for a `legal.*` site content slot.
+ *
+ * The inverse of `legalDocument()`, for the public routes, which know the slot
+ * they render and need the document's key, route and label to say which
+ * version they are showing (#601).
+ */
+export function legalDocumentBySlot(
+  slotKey: string,
+): LegalDocument | undefined {
+  return LEGAL_DOCUMENTS.find((document) => document.slotKey === slotKey);
+}
