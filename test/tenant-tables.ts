@@ -60,6 +60,8 @@ export const TENANT_TABLES = [
   "events",
   "giveaway_buckets",
   "giveaway_prizes",
+  "giveaway_rules",
+  "giveaway_rules_versions",
   "giveaway_ticket_grants",
   "giveaway_ticket_packages",
   "giveaway_ticket_sales",

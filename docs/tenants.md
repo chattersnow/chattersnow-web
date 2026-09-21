@@ -655,6 +655,32 @@ Both are the tenant admin's, not the operator's:
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
 
+- **Website → Giveaway rules**: the answers a promotion's official rules are
+  built from, given once per organization (#1322). Beside Legal documents
+  because it is the same kind of decision and carries the same disclaimer: the
+  platform owns a neutral template (`src/lib/giveaway-rules.ts` for the twelve
+  sections, `src/lib/giveaway-rules-template.ts` for the prose, held to the
+  same rules as `legal-defaults.ts`), and the organization owns everything only
+  it can answer — sponsor name and address, who may and may not enter, where
+  the promotion is open, how somebody enters without donating or buying, what
+  is published about a winner, publicity, and who to ask about the rules. One
+  `app_settings` row per question, `giveaway_rules.<key>`, private: no view
+  serves them to `anon`, and `provision_tenant()` does not copy them (it takes
+  `finance.%`, `content.%` and `org.%` only), so a new tenant starts with every
+  question unanswered. **Nothing here is published by itself.** What the public
+  site serves is a frozen document belonging to one promotion: the per-giveaway
+  half lives in that event's Giveaway tab, where the entry period, prizes, odds
+  and drawing date are derived from the giveaway's own rows, any section can be
+  rewritten for that promotion alone, and publishing writes a
+  `giveaway_rules_versions` row holding the text and the numbers together. A
+  promotion whose rules nobody has published has no public page and
+  `/giveaways/<id>/rules` 404s — the same stance #859 takes on a legal document
+  nobody adopted, one promotion at a time. Publishing is refused while a
+  section is still unanswered rather than publishing a gap, editing afterwards
+  creates a new version with its own effective date, and earlier versions stay
+  readable. None of it is clearance to run a promotion; see
+  [spec/giveaways.md](spec/giveaways.md#58-giveaways).
+
 - **Website → Site Content → Organization → Security reporting**: who a
   security researcher should write to, published at
   `/.well-known/security.txt` (#975). Two slots — an address (or an

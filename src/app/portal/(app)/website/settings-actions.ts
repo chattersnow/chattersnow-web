@@ -10,6 +10,12 @@ import {
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
 import {
+  GIVEAWAY_RULES_ANSWER_MAX_LENGTH,
+  GIVEAWAY_RULES_ANSWER_MAX_PARAGRAPHS,
+  giveawayRulesAnswerField,
+  giveawayRulesSettingKey,
+} from "@/lib/giveaway-rules";
+import {
   LEGAL_APPROVAL_SETTING_KEY,
   MINIMUM_APPROVERS,
 } from "@/lib/legal-approval";
@@ -61,6 +67,7 @@ import {
 const LAYOUT_PATHS = ["/portal/website/page-layout"] as const;
 const VISIBILITY_PATHS = ["/portal/website/page-visibility"] as const;
 const LEGAL_PATHS = ["/portal/website/legal-documents"] as const;
+const GIVEAWAY_RULES_PATHS = ["/portal/website/giveaway-rules"] as const;
 // The approval gate is the one setting on this page that changes what another
 // page does: the publish dialog in the editor asks for a reference and review
 // notes only while it is on, so that page is revalidated too.
@@ -267,4 +274,39 @@ export async function updateLayoutSettingAction(
   }
 
   return writeAppSetting(layoutSettingKey(slot), value, LAYOUT_PATHS);
+}
+
+/**
+ * One of the answers every set of giveaway official rules is built from
+ * (#1322).
+ *
+ * Validated against the registry rather than trusted from the client, like
+ * the layout setting above: the key has to be one somebody was asked, or a
+ * Server Action becomes a way to write arbitrary `app_settings` rows under the
+ * `giveaway_rules.` prefix.
+ *
+ * Paragraphs in, paragraphs out, and a blank answer is stored as an empty
+ * array rather than deleted -- `resolveGiveawayRulesAnswer` reads either as
+ * unanswered, and keeping the row keeps the audit trail of somebody having
+ * cleared it.
+ */
+export async function updateGiveawayRulesAnswerAction(
+  key: string,
+  paragraphs: string[],
+): Promise<SettingActionResult> {
+  const field = giveawayRulesAnswerField(key);
+  if (!field)
+    return { error: "That is not one of the giveaway rules questions." };
+
+  const cleaned = paragraphs
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .slice(0, GIVEAWAY_RULES_ANSWER_MAX_PARAGRAPHS)
+    .map((paragraph) => paragraph.slice(0, GIVEAWAY_RULES_ANSWER_MAX_LENGTH));
+
+  return writeAppSetting(
+    giveawayRulesSettingKey(field.key),
+    cleaned,
+    GIVEAWAY_RULES_PATHS,
+  );
 }

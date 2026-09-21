@@ -311,6 +311,12 @@ src/app/
     events/
       [id]/                     # direct-link event detail page
       community/                # public Community Calendar (§5.20)
+    giveaways/
+      [giveawayId]/rules/       # a promotion's published official rules (§5.8).
+                                # Its own route rather than part of the event's,
+                                # because the rules outlive the event and every
+                                # published version stays readable at ?version=N.
+                                # 404s until somebody publishes.
     inventory/
       library/                  # gear catalog + detail/request flow — implemented
       donate/                   # donate-gear info page

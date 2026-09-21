@@ -1846,3 +1846,138 @@ insert into public.tenant_modules (tenant_id, module_key, enabled)
 select t.id, 'constituent_accounts', true
 from (select id from public.tenants order by created_at limit 1) t
 on conflict (tenant_id, module_key) do update set enabled = excluded.enabled;
+
+-- Giveaway official rules (#1322). Two things are seeded, and they are the two
+-- layers the feature is made of:
+--
+--  1. The organization's standing answers, `giveaway_rules.*` -- example
+--     wording, of the kind Website > Giveaway rules asks for. Not copied by
+--     provision_tenant(), which takes only `finance.%`, `content.%` and
+--     `org.%`, so a real tenant still starts with every question unanswered
+--     and publishes nothing until somebody answers them.
+--  2. One published version for the seeded giveaway, so the public rules page
+--     and the version list have something to render locally, and so the
+--     tenant-isolation suite's per-table checks are not asserting against
+--     empty tables.
+--
+-- The prose is deliberately the length real official rules run to rather than
+-- one line per section: a page of this shape is where a layout bug hides.
+insert into public.app_settings (key, value) values
+  ('giveaway_rules.sponsor_name', to_jsonb(array['Example Nonprofit, Inc.'])),
+  ('giveaway_rules.sponsor_address', to_jsonb(array[
+    'Example Nonprofit, Inc.',
+    '1200 Mountain Road, Suite 4',
+    'Denver, CO 80202'
+  ])),
+  ('giveaway_rules.rules_contact', to_jsonb(array['promotions@example.org'])),
+  ('giveaway_rules.eligibility', to_jsonb(array[
+    'Entry is open to legal residents of the states named below who are 18 years of age or older at the time they enter. One person may earn any number of tickets, but a person may hold only one account with us and may not enter under more than one name.',
+    'Everybody who enters has to be able to collect a prize in person, or to arrange collection with us, within the state they entered from.'
+  ])),
+  ('giveaway_rules.exclusions', to_jsonb(array[
+    'Employees, board members and volunteers of the sponsor, and the members of their immediate households, may not enter. Anybody who helps draw the winning tickets, or who handles the tickets before the drawing, is excluded on the same terms whether or not they are otherwise connected to us.'
+  ])),
+  ('giveaway_rules.operating_states', to_jsonb(array['Colorado and Utah'])),
+  ('giveaway_rules.free_entry', to_jsonb(array[
+    'You do not have to donate anything or buy anything to enter. To enter for free, mail a postcard with your full name, postal address, email address and a daytime telephone number to the sponsor''s address above, marked "Giveaway entry".',
+    'Each postcard earns one ticket of the lowest tier, the same ticket a donated item in that tier earns. There is no limit on how many postcards you may send, but each has to be mailed separately and hand-written by the person entering. Postcards have to be postmarked within the entry period and reach us within seven days of it closing.',
+    'We will confirm by email that a free entry arrived, and the ticket it earned is entered in whichever bucket you name on the card.'
+  ])),
+  ('giveaway_rules.winner_publication', to_jsonb(array[
+    'We publish the first name and last initial of each winner, and the prize they won, on our website for 30 days after the drawing. We do not publish addresses, email addresses or telephone numbers.',
+    'For a written list of winners, write to the sponsor''s address above within 60 days of the drawing and enclose a stamped, self-addressed envelope.'
+  ])),
+  ('giveaway_rules.publicity', to_jsonb(array[
+    'Accepting a prize permits us to use the winner''s name, the town they live in and a photograph taken at the handover in material about this promotion and about our work, without further payment, except where the law forbids it.',
+    'A winner who would rather we did not may say so when the prize is claimed, and it makes no difference to the prize.'
+  ]))
+on conflict (tenant_id, key) do update set value = excluded.value;
+
+insert into public.giveaway_rules (giveaway_id, odds_basis, created_by)
+select g.id, 'colour', u.id
+from public.giveaways g
+join auth.users u on u.email = 'admin@example.test'
+where g.id = 'babababa-0000-4000-8000-000000000002'
+on conflict (tenant_id, giveaway_id) do nothing;
+
+insert into public.giveaway_rules_versions
+  (giveaway_rules_id, version, content, effective_at, created_by)
+select
+  r.id,
+  1,
+  jsonb_build_object(
+    'title', 'Official Rules',
+    'effective_at', to_jsonb(now() - interval '60 days'),
+    'time_zone', 'America/Denver',
+    'summary', jsonb_build_array(
+      'These are the official rules for Trailhead Cleanup Giveaway, run by Example Nonprofit, Inc. They say who can enter, how an entry is earned, what is being given away, what the chances are, and how a winner is picked.',
+      'Read them before you enter. Entering means you accept them.'
+    ),
+    'sections', jsonb_build_array(
+      jsonb_build_object('id', 'sponsor', 'title', 'Who is running this promotion', 'paragraphs', jsonb_build_array(
+        'This promotion is run by **Example Nonprofit, Inc.** (“the sponsor”). These rules are an agreement between you and the sponsor.',
+        'The sponsor can be written to at:',
+        '- Example Nonprofit, Inc.' || chr(10) || '- 1200 Mountain Road, Suite 4' || chr(10) || '- Denver, CO 80202',
+        'Questions about these rules go to [promotions@example.org](mailto:promotions@example.org).'
+      )),
+      jsonb_build_object('id', 'eligibility', 'title', 'Who can enter', 'paragraphs', jsonb_build_array(
+        'Entry is open to legal residents of the states named below who are 18 years of age or older at the time they enter. One person may earn any number of tickets, but a person may hold only one account with us and may not enter under more than one name.',
+        'Employees, board members and volunteers of the sponsor, and the members of their immediate households, may not enter.'
+      )),
+      jsonb_build_object('id', 'entry-period', 'title', 'When entries open and close', 'paragraphs', jsonb_build_array(
+        'Entries are accepted from Jul 12, 2026, 9:00 AM MDT until Jul 12, 2026, 4:00 PM MDT. An entry earned after that is not entered in the drawing.',
+        'Every time in these rules is given in the timezone shown beside it, which is the timezone the promotion runs in.'
+      )),
+      jsonb_build_object('id', 'how-to-enter', 'title', 'How to enter', 'paragraphs', jsonb_build_array(
+        'Tickets are earned, and each ticket is one entry. There is more than one way to earn them:',
+        '- **Donating gold-tier gear** — each item donated is classified when it is handed over, and every item earns its own tickets: 3 gold, 1 silver and 1 bronze tickets.' || chr(10) || '- **Donating silver-tier gear** — 1 gold, 3 silver and 2 bronze tickets.' || chr(10) || '- **Donating bronze-tier gear** — 1 silver and 3 bronze tickets.',
+        'How much you donate or buy changes how many tickets you earn, and therefore your chances — that is how this promotion is designed. You can also enter without donating or buying anything: see “Entering without donating or buying” below.',
+        'Tickets are handed over at the event and dropped into the bucket you choose. A ticket you do not drop into a bucket is not entered in the drawing.'
+      )),
+      jsonb_build_object('id', 'free-entry', 'title', 'Entering without donating or buying', 'paragraphs', jsonb_build_array(
+        'You do not have to donate anything or buy anything to enter. To enter for free, mail a postcard with your full name, postal address, email address and a daytime telephone number to the sponsor''s address above, marked "Giveaway entry".',
+        'Each postcard earns one ticket of the lowest tier, the same ticket a donated item in that tier earns. Postcards have to be postmarked within the entry period and reach us within seven days of it closing.'
+      )),
+      jsonb_build_object('id', 'odds', 'title', 'Odds of winning', 'paragraphs', jsonb_build_array(
+        'Tickets come in colours, and the chance a ticket has depends on its colour. As of the date at the top of these rules:',
+        '- **Gold tickets** — 48 tickets entered, 1 prize to be drawn: 1 in 48 per ticket.' || chr(10) || '- **Silver tickets** — 61 tickets entered, 1 prize to be drawn: 1 in 61 per ticket.',
+        'These figures were worked out from the tickets that had been issued when this version of the rules was published, and they do not change afterwards. The chance a ticket actually has depends on how many entries there are in total by the time of the drawing.'
+      )),
+      jsonb_build_object('id', 'prizes', 'title', 'Prizes', 'paragraphs', jsonb_build_array(
+        '2 prizes are being given away:',
+        '- **Weekend cabin stay** — approximate retail value $400.00.' || chr(10) || '- **Gift basket** — approximate retail value $60.00.',
+        'The approximate retail value of everything being given away is $460.00. A value given here is the sponsor''s good-faith estimate of what the item would sell for; what it is actually worth may differ, and no cash alternative is offered.'
+      )),
+      jsonb_build_object('id', 'drawing-and-notification', 'title', 'The drawing, and how a winner is notified', 'paragraphs', jsonb_build_array(
+        'The drawing is held on Jul 12, 2026. Winning tickets are drawn at random, by hand, from the tickets entered — from each bucket separately where the promotion uses buckets.',
+        'A winner is contacted using the details recorded when they entered. The sponsor will say, when it notifies a winner, how long that winner has to claim the prize and what it needs from them; a prize that goes unclaimed by then may be drawn again or kept.',
+        'If you think you have won and have not heard anything, write to [promotions@example.org](mailto:promotions@example.org).'
+      )),
+      jsonb_build_object('id', 'winner-publication', 'title', 'What is published about a winner', 'paragraphs', jsonb_build_array(
+        'We publish the first name and last initial of each winner, and the prize they won, on our website for 30 days after the drawing. We do not publish addresses, email addresses or telephone numbers.',
+        'For a written list of winners, write to the sponsor''s address above within 60 days of the drawing and enclose a stamped, self-addressed envelope.'
+      )),
+      jsonb_build_object('id', 'publicity-and-privacy', 'title', 'Publicity and privacy', 'paragraphs', jsonb_build_array(
+        'Accepting a prize permits us to use the winner''s name, the town they live in and a photograph taken at the handover in material about this promotion and about our work, without further payment, except where the law forbids it.',
+        'A winner who would rather we did not may say so when the prize is claimed, and it makes no difference to the prize.',
+        'What the sponsor collects from you when you enter, how long it keeps it, and how to ask for a copy or a deletion, is covered by its [privacy policy](/privacy).'
+      )),
+      jsonb_build_object('id', 'void-where-prohibited', 'title', 'Where this promotion is open', 'paragraphs', jsonb_build_array(
+        'This promotion is open in Colorado and Utah only. It is void everywhere else, and wherever it is prohibited or restricted by law.',
+        'Nothing in these rules overrides a law that applies to the promotion where you live.'
+      )),
+      jsonb_build_object('id', 'general-conditions', 'title', 'General conditions', 'paragraphs', jsonb_build_array(
+        'Entering means you accept these rules and the sponsor''s decisions, which are final in everything to do with this promotion.',
+        'The sponsor may change these rules, or suspend or call off the promotion, if something outside its control makes it impossible to run as described. A change is published as a new version of this page with its own effective date, and earlier versions stay readable here — the version in force when you entered is the one that governs your entry.',
+        'A prize cannot be exchanged for cash and cannot be transferred to somebody else. If a prize becomes unavailable before it is handed over, the sponsor may substitute one of equal or greater value.',
+        'Any tax owed on a prize is the winner''s responsibility.',
+        'An entry that is incomplete, or that is made by anyone the rules exclude, may be disqualified.'
+      ))
+    )
+  ),
+  now() - interval '60 days',
+  u.id
+from public.giveaway_rules r
+join auth.users u on u.email = 'admin@example.test'
+where r.giveaway_id = 'babababa-0000-4000-8000-000000000002'
+on conflict (tenant_id, giveaway_rules_id, version) do nothing;
