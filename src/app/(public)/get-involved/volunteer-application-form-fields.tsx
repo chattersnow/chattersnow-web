@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 
@@ -162,6 +163,8 @@ export function VolunteerApplicationForm() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <PrivacyNotice surface="volunteerApplication" />
 
         <Button
           type="submit"

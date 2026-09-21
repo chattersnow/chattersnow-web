@@ -20,6 +20,7 @@ import type {
   DeliveryMethod,
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
+import type { Lexicon } from "@/lib/lexicon";
 
 export function GearCartSheet({
   items,
@@ -30,6 +31,7 @@ export function GearCartSheet({
   onSubmitted,
   placeholderUrl,
   requestOptions,
+  lexicon,
 }: {
   items: GearItem[];
   open: boolean;
@@ -40,6 +42,8 @@ export function GearCartSheet({
   onSubmitted: (deliveryMethod: DeliveryMethod) => void;
   placeholderUrl: string | null;
   requestOptions: PublicGearRequestOptions;
+  /** This organization's words (#896), for the checkout form's copy. */
+  lexicon: Lexicon;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -121,6 +125,7 @@ export function GearCartSheet({
                   itemIds={items.map((item) => item.id)}
                   options={requestOptions}
                   onSuccess={onSubmitted}
+                  lexicon={lexicon}
                 />
               </div>
             </>
