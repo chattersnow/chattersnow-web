@@ -11,7 +11,10 @@ import {
   notificationKindDefault,
   notificationKindEnabled,
 } from "./kinds";
-import { STAFF_MESSAGE_KIND } from "@/lib/outbound-messages";
+import {
+  EVENT_ANNOUNCEMENT_KIND,
+  STAFF_MESSAGE_KIND,
+} from "@/lib/outbound-messages";
 
 describe("the registry", () => {
   test("every kind says who it is for", () => {
@@ -107,5 +110,14 @@ describe("the registry", () => {
     // start suppressing those replies.
     expect(isNotificationKind(STAFF_MESSAGE_KIND)).toBe(false);
     expect(notificationKindDefault(STAFF_MESSAGE_KIND)).toBe(false);
+  });
+
+  test("event_announcement is deliberately not a kind either (#1317)", () => {
+    // Same reasoning as staff_message above, and the same trap: registering it
+    // would run every announcement through hasOptedOut(), which consults a
+    // preference nobody was ever offered for it. The org-wide kill switch is
+    // the gate an announcement obeys, and the composer says so.
+    expect(isNotificationKind(EVENT_ANNOUNCEMENT_KIND)).toBe(false);
+    expect(notificationKindDefault(EVENT_ANNOUNCEMENT_KIND)).toBe(false);
   });
 });

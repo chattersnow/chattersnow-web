@@ -15,6 +15,21 @@ afterEach(cleanup);
 // far enough out that a slow machine is not mistaken for a hung test.
 setDefaultTimeout(20_000);
 
+// `server-only` exists to throw when a Server Component module is pulled into
+// the client bundle, and Next's bundler is what decides that: a `"use server"`
+// module is replaced with action references, so the sender behind it never
+// reaches the browser. Bun has no such bundler -- it imports the chain for
+// real -- so a client component whose island imports its own Server Actions
+// blows up here for a reason that does not exist in the application. Several
+// files already stubbed this one at a time (#1309); #1317 put a `server-only`
+// sender behind the registrants tab, which every event-page test reaches
+// through, so it moves here.
+//
+// This is not the check that a client component stays on the client. `bun run
+// build`, which CI runs, is -- and it enforces the boundary against the real
+// module graph rather than against whichever chain a test happened to import.
+mock.module("server-only", () => ({}));
+
 // Client components can call these hooks outside of a real Next.js router
 // (e.g. useRouter() at the top of a dialog that's currently closed), so give
 // every DOM test a harmless default. Override with a per-file mock.module

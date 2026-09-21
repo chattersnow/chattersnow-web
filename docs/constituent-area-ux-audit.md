@@ -6,15 +6,14 @@ Findings-only audit of the public constituent area, prompted by `/my` rendering 
 
 **Scope.** The five routes of the area, the claim flow that feeds it, and the staff-visible consequences of what the claim form collects. The area shipped as epic #1160's five sub-issues — #1161 session and shell, #1162 claims, #1163 history, #1164 self-edit, #1165 acting — merged between 2026-09-14 and 2026-09-16. Each added a page or a section to the same area; this is the first pass over it as a whole.
 
-**Status.** Findings 1, 2, 3, 4, 5, 8, 9, 11 and 13 are fixed — #1175 landed the way in and turned the module on for the seed, #1179 gave the area its page shell and its boundaries, #1180 gave it a nav, #1181 regrouped `/my/details` and bound its errors to their fields. The rest are open and unowned. The findings below are left as they were written, in the present tense of 2026-09-16; the Status column is the record of what has moved.
+**Status.** Findings 1, 2, 3, 4, 5, 8, 9, 11 and 13 are fixed — #1175 landed the way in and turned the module on for the seed, #1179 gave the area its page shell and its boundaries, #1180 gave it a nav, #1181 regrouped `/my/details` and bound its errors to their fields. The rest are open and unowned. The findings below are left as they were written, in the present tense of 2026-09-16; the Status column is the record of what has moved. One route has since gone: `/my/hours` was removed in #1303 as a duplicate of `/portal/volunteers/participation`, so where the text below counts five routes or four signed-in destinations, read four and three.
 
-| Route               | Purpose                     | Ends with                         |
-| ------------------- | --------------------------- | --------------------------------- |
-| `/my`               | history, claim, and hub     | `<SignOutButton />`               |
-| `/my/details`       | 14 self-editable fields     | underlined "Back to your account" |
-| `/my/hours`         | log volunteer hours (#1165) | underlined "Back to your account" |
-| `/my/notifications` | email preferences (#1165)   | underlined "Back to your account" |
-| `/my/sign-in`       | Google + email/password     | —                                 |
+| Route               | Purpose                   | Ends with                         |
+| ------------------- | ------------------------- | --------------------------------- |
+| `/my`               | history, claim, and hub   | `<SignOutButton />`               |
+| `/my/details`       | 14 self-editable fields   | underlined "Back to your account" |
+| `/my/notifications` | email preferences (#1165) | underlined "Back to your account" |
+| `/my/sign-in`       | Google + email/password   | —                                 |
 
 ---
 
@@ -61,7 +60,6 @@ The last one is the serious half. `src/components/skip-link.tsx` documents that 
 | ------------------- | ----------- | ---------------------------------------------------------- |
 | `/my`               | `max-w-3xl` | One column of cards; `max-w-6xl` sets 120-character lines. |
 | `/my/details`       | `max-w-2xl` | Public type runs larger than the portal's `max-w-xl`.      |
-| `/my/hours`         | `max-w-2xl` | Single form.                                               |
 | `/my/notifications` | `max-w-2xl` | Single form.                                               |
 | `/my/sign-in`       | `max-w-md`  | Delete the page's own `mx-auto w-full max-w-md` wrapper.   |
 

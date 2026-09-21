@@ -1,6 +1,7 @@
 import {
   hasAnyPermission,
   type PermissionCheck,
+  type PermissionLevel,
   type PermissionMap,
 } from "@/lib/auth/permissions";
 import { applyLexicon, type Lexicon } from "@/lib/lexicon";
@@ -711,6 +712,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "administration", level: "manage" }],
       },
       {
+        // The catalog explained, rather than a third view of a role (#1324).
+        // A sibling entry rather than a tab on Roles: a tab is another view of
+        // one object, and this is about the resources a grant names, not about
+        // any one role. It is also the destination the portal help panel
+        // points at, which a tab of a tabbed page makes awkward to link.
+        value: "permission-reference",
+        label: "Permission Reference",
+        href: "/portal/administration/permission-reference",
+        group: "Access & identity",
+        access: [{ resource: "administration", level: "manage" }],
+      },
+      {
         // Renamed from System Settings by #992: nothing on the page was about
         // "the system", and once #990 took Layout, Page visibility and Legal
         // documents to Website, the five that remain are all org-wide
@@ -750,6 +763,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
         value: "audit-log",
         label: "Audit Log",
         href: "/portal/administration/audit-log",
+        group: "Oversight",
+        access: [{ resource: "administration", level: "manage" }],
+      },
+      {
+        // #1310. Beside the audit log rather than under Organization, because
+        // it answers the same shape of question -- what did the platform do,
+        // and when -- and shares its audience. administration:manage is
+        // notification_deliveries' own select policy (20260906140000), not a
+        // wider gate chosen for the sidebar.
+        value: "delivery-log",
+        label: "Email Delivery",
+        href: "/portal/administration/delivery-log",
         group: "Oversight",
         access: [{ resource: "administration", level: "manage" }],
       },
@@ -936,4 +961,49 @@ export function firstAccessibleHref(
     (candidate) => candidate.value === sectionValue,
   );
   return item?.href ?? null;
+}
+
+/** One sidebar destination a grant reveals, and the level it takes. */
+export type NavPlacement = {
+  /** "Finance > Reimbursements", or "Events" for a section with no children. */
+  label: string;
+  href: string;
+  level: PermissionLevel;
+};
+
+/**
+ * Every sidebar entry this resource reveals (#1324).
+ *
+ * The permission reference answers "where does this grant show up?" from here
+ * rather than from a hand-written list, so the answer cannot drift from the
+ * tree the sidebar actually renders. `alsoRequires` is deliberately ignored:
+ * it narrows what the sidebar shows, so an entry carrying one is revealed by
+ * *less* than `access` alone, which makes `access` the honest answer to what a
+ * grant reaches.
+ *
+ * Labels are lexicon templates, like everything else out of this tree, so a
+ * caller resolves them against the tenant's words before printing them.
+ */
+export function navPlacementsForResource(resource: string): NavPlacement[] {
+  const placements: NavPlacement[] = [];
+
+  const add = (
+    label: string,
+    href: string,
+    access: readonly PermissionCheck[],
+  ) => {
+    for (const check of access) {
+      if (check.resource !== resource) continue;
+      placements.push({ label, href, level: check.level });
+    }
+  };
+
+  for (const item of NAV_ITEMS) {
+    if (item.access) add(item.label, item.href, item.access);
+    for (const sub of item.subItems ?? []) {
+      add(`${item.label} > ${sub.label}`, sub.href, sub.access);
+    }
+  }
+
+  return placements;
 }

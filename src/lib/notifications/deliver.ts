@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/send";
 import type { MailIdentity } from "@/lib/email/identity";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { notificationKindDefault } from "@/lib/notifications/kinds";
+import type { DeliverySkipReason } from "@/lib/notifications/delivery-record";
 
 /**
  * Claim the send, then send it (#488, extracted for #742).
@@ -108,11 +109,50 @@ async function hasOptedOut(
   return data ? !data.enabled : false;
 }
 
+/**
+ * Record a send that never happened, so the delivery log can say so (#1310).
+ *
+ * Until this existed, an opt-out was the one outcome the ledger did not hold:
+ * deliverEmail() returned "skipped" and wrote nothing, so the receipt somebody
+ * had switched off and the receipt that was never triggered looked identical
+ * from the portal -- both absent. 20260906140000 already claimed this table
+ * was "the evidence that an opt-out was honored"; this is what makes that
+ * sentence true.
+ *
+ * A 23505 here is not a problem to report. It means a row for this
+ * (tenant, person, kind, dedupe_key) already exists, which is the ledger
+ * answering the question this row was going to answer.
+ */
+async function recordSkip(
+  admin: SupabaseClient,
+  request: DeliveryRequest,
+  reason: DeliverySkipReason,
+): Promise<DeliveryOutcome> {
+  const { error } = await admin.from("notification_deliveries").insert({
+    tenant_id: request.tenantId,
+    person_id: request.personId,
+    kind: request.kind,
+    dedupe_key: request.dedupeKey,
+    status: "skipped",
+    skip_reason: reason,
+  });
+
+  if (error && error.code !== "23505") {
+    console.error(
+      `${request.logPrefix} could not record a skipped delivery`,
+      error,
+    );
+  }
+  return "skipped";
+}
+
 export async function deliverEmail(
   admin: SupabaseClient,
   request: DeliveryRequest,
 ): Promise<DeliveryOutcome> {
-  if (await hasOptedOut(admin, request)) return "skipped";
+  if (await hasOptedOut(admin, request)) {
+    return recordSkip(admin, request, "opted_out");
+  }
 
   const { data: claimed, error: claimError } = await admin
     .from("notification_deliveries")
@@ -127,6 +167,9 @@ export async function deliverEmail(
     .single();
 
   if (claimError) {
+    // Deliberately no skip row: the row that won the race is already the
+    // ledger's answer for this send, and a second one cannot be written
+    // without colliding with it.
     if (claimError.code === "23505") return "skipped";
     console.error(
       `${request.logPrefix} could not claim a delivery row; skipping this recipient`,

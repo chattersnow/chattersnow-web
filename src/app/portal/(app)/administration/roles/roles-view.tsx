@@ -28,12 +28,14 @@ export function RolesView({
   rolesError,
   resources,
   rolePermissions,
+  moduleLabels,
   matrixFailed,
 }: {
   roles: RoleRow[];
   rolesError: string | null;
   resources: MatrixResource[];
   rolePermissions: { role_id: string; resource_id: string; level: string }[];
+  moduleLabels: Record<string, string>;
   matrixFailed: boolean;
 }) {
   const [tab, setTab] = useUrlTabState<TabValue>({
@@ -87,6 +89,7 @@ export function RolesView({
             roles={roles}
             resources={resources}
             rolePermissions={rolePermissions}
+            moduleLabels={moduleLabels}
           />
         )}
       </TabsContent>

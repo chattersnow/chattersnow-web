@@ -1095,12 +1095,29 @@ rescheduled: it calls `run_retention_purge(p_dry_run => false, p_trigger =>
 means every active tenant -- one run row, one log and one status per tenant, so
 one organization's bad clock cannot discard another's sweep.
 
-One rule is deliberately platform-wide. `rate_limit_hits` holds an IP address
+Two rules are deliberately platform-wide. `rate_limit_hits` holds an IP address
 and a route and has no tenant to belong to, so the sweep purges it once and
 takes the **shortest** period any tenant has set -- the privacy-correct
 direction for that data, and the reason the page labels that row as shared.
 Each tenant's run still logs the rule, so the page explains it rather than
 appearing to have skipped it.
+
+`constituent_accounts` (#1296) is the second, for a stronger reason: an account
+has **no tenant** until a claim is approved. Somebody signs up at `/my` against
+whichever host they were on and nothing records which, because #1161 resolves a
+constituent's tenant from the request rather than from a membership. So
+`run_retention_purge()` decides this rule once, above the tenant loop, on the
+shortest period any tenant has set -- and enforces it only where **every**
+active tenant has the rule enforcing. One organization that has not agreed to
+the period is a veto, because the row it would remove is as much the next
+organization's sign-up as its own; a tenant with no row for the rule reads as
+`off` and vetoes too. The rule can only ever reach an account that is attached
+to nothing at all: `retention_unclaimed_account_ids()` excludes anyone with a
+directory record, a role, a membership, a deactivation record or an open claim,
+and then `retention_auth_user_is_referenced()` walks every remaining foreign key
+to `auth.users` outside the `auth` schema and keeps the identity if anything
+points at it. Each tenant's run logs the rule with the platform-wide count, and
+the page says whose count it is.
 
 ### A disabled module's retention clocks keep running (#903)
 

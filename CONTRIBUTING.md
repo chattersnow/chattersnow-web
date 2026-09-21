@@ -54,6 +54,12 @@ any future decision about the codebase at all.
 - Database changes are migrations, never manual edits to a hosted database.
 - If a change touches permissions, RLS, or anything handling personal data, say
   so explicitly in the pull request description so it gets the review it needs.
+- **A permission check is not finished until `src/lib/auth/permission-docs.ts`
+  says what it does.** Adding, moving or tightening a `requirePermission()` /
+  `has_permission()` check, or adding a row to `public.resources`, means
+  updating that module in the same pull request, so the administrator granting
+  the role can still predict what the grant does. Read `docs/permissions.md`
+  first; `src/lib/auth/permission-docs.test.ts` enforces it.
 
 ## Reporting a security issue
 

@@ -261,28 +261,31 @@ describe("the collection surface", () => {
     }
   });
 
-  // Self-logged hours need the area *and* the Volunteers module, and the
-  // module is not the same gate as the public volunteer page.
-  test("self-logged hours are described only where both gates are open", () => {
+  // Self-logged hours answer to the Volunteers module, which is not the same
+  // gate as the public volunteer page -- and, since #1303 moved the only form
+  // that logs them into the portal, not the same gate as the constituent area
+  // either.
+  test("self-logged hours are described wherever the module is on", () => {
     const hours = "Hours you log yourself";
     expect(readable("legal.privacy")).toContain(hours);
-    expect(
-      readable(
-        "legal.privacy",
-        withSurfaces({ ...EVERYTHING, constituentAccounts: false }),
-      ),
-    ).not.toContain(hours);
     expect(
       readable(
         "legal.privacy",
         withSurfaces({ ...EVERYTHING, volunteerHours: false }),
       ),
     ).not.toContain(hours);
-    // The public volunteer page being hidden is not the same thing.
+    // Neither the public volunteer page nor the constituent area being off is
+    // the same thing: a volunteer logs their own hours in the portal.
     expect(
       readable(
         "legal.privacy",
         withSurfaces({ ...EVERYTHING, volunteerApplications: false }),
+      ),
+    ).toContain(hours);
+    expect(
+      readable(
+        "legal.privacy",
+        withSurfaces({ ...EVERYTHING, constituentAccounts: false }),
       ),
     ).toContain(hours);
   });
@@ -427,19 +430,19 @@ describe("the terms and the constituent area", () => {
     expect(text).toContain("There is no charge for an account");
   });
 
-  // Self-logged hours need the Volunteers module as well as the area, the same
-  // pair of gates the privacy policy's hours bullet answers to.
-  test("provisional hours are promised only where they can be logged", () => {
-    const pending = "They stay pending until somebody here confirms them";
+  // The account section promised that hours you enter yourself stay pending
+  // until somebody confirms them, which was a statement about what an account
+  // let you do. #1303 took self-logging out of `/my`, so the terms no longer
+  // describe it at all -- the privacy policy still does, under the Volunteers
+  // module, because the rows are still collected in the portal.
+  test("the account section no longer promises anything about hours", () => {
+    const pending = "Hours you enter yourself";
     expect(
       readable(
         "legal.terms",
         withSurfaces({ ...ACCOUNTS, volunteerHours: true }),
       ),
-    ).toContain(pending);
-    expect(readable("legal.terms", withSurfaces(ACCOUNTS))).not.toContain(
-      pending,
-    );
+    ).not.toContain(pending);
   });
 
   test("the summary and the description name accounts only where they exist", () => {

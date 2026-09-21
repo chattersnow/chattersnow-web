@@ -9,8 +9,21 @@ import {
 } from "./public-nav";
 import { PUBLIC_PAGE_SLOTS } from "./page-visibility";
 
-/** The four sections the board had hidden when this nav was reworked. */
-const HIDDEN = ["about", "programs", "learn", "support"];
+/**
+ * The four sections the board had hidden when this nav was reworked, plus the
+ * three that make up the Product group (#1328, #1329, #1330) -- those are off
+ * for every tenant that has not deliberately turned them on, so a realistic
+ * "reduced nav" has them out too, and the group itself with them.
+ */
+const HIDDEN = [
+  "about",
+  "programs",
+  "learn",
+  "support",
+  "audiences",
+  "modules",
+  "pricing",
+];
 
 describe("NAV_GROUPS", () => {
   test("every group's slot is a registered page-visibility slot", () => {
@@ -155,6 +168,44 @@ describe("visibleGroups", () => {
   test("drops a group whose sub-links are all hidden", () => {
     const groups = visibleGroups([]).map((group) => ({ ...group }));
     expect(groups.some((group) => group.links?.length === 0)).toBe(false);
+  });
+
+  /**
+   * The Product group is the one whose children carry different slots (#1329):
+   * the module tour, the two audience paths and the price list are switched on
+   * separately. Its `href` is the tour's route, and the footer links that href
+   * while the mobile sheet makes it the group heading's target -- so a group
+   * that survives filtering because *some* child did has to land on that child
+   * rather than on the page the board hid.
+   */
+  test("repoints a group's landing page at a child that survived", () => {
+    const groups = visibleGroups(["modules", "pricing"]);
+    const product = groups.find((group) => group.label === "Product");
+
+    expect(product?.href).toBe("/nonprofits");
+    expect(product?.links?.map((link) => link.href)).toEqual([
+      "/nonprofits",
+      "/business",
+    ]);
+  });
+
+  test("leaves a landing page alone while its own page is live", () => {
+    const product = visibleGroups(["pricing"]).find(
+      (group) => group.label === "Product",
+    );
+
+    expect(product?.href).toBe("/modules");
+  });
+
+  // /about and /inventory redirect to a child rather than being one of them, so
+  // there is nothing to repoint: the landing page is live exactly when the
+  // group is.
+  test("leaves a redirecting group's landing page alone", () => {
+    const about = visibleGroups(["gears-sizing"]).find(
+      (group) => group.label === "About",
+    );
+
+    expect(about?.href).toBe("/about");
   });
 
   test("does not mutate NAV_GROUPS", () => {

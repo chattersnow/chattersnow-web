@@ -5041,6 +5041,7 @@ export type Database = {
           person_id: string | null;
           provider_message_id: string | null;
           sent_at: string | null;
+          skip_reason: string | null;
           status: string;
           tenant_id: string;
         };
@@ -5053,6 +5054,7 @@ export type Database = {
           person_id?: string | null;
           provider_message_id?: string | null;
           sent_at?: string | null;
+          skip_reason?: string | null;
           status?: string;
           tenant_id?: string;
         };
@@ -5065,6 +5067,7 @@ export type Database = {
           person_id?: string | null;
           provider_message_id?: string | null;
           sent_at?: string | null;
+          skip_reason?: string | null;
           status?: string;
           tenant_id?: string;
         };
@@ -5101,6 +5104,7 @@ export type Database = {
       };
       outbound_messages: {
         Row: {
+          batch_id: string | null;
           body: string;
           created_at: string;
           delivery_id: string | null;
@@ -5117,6 +5121,7 @@ export type Database = {
           to_email: string;
         };
         Insert: {
+          batch_id?: string | null;
           body: string;
           created_at?: string;
           delivery_id?: string | null;
@@ -5133,6 +5138,7 @@ export type Database = {
           to_email: string;
         };
         Update: {
+          batch_id?: string | null;
           body?: string;
           created_at?: string;
           delivery_id?: string | null;
@@ -9370,6 +9376,10 @@ export type Database = {
         Args: { p_slug: string };
         Returns: string;
       };
+      retention_auth_user_is_referenced: {
+        Args: { p_user_id: string };
+        Returns: boolean;
+      };
       retention_log: {
         Args: {
           p_action: string;
@@ -9400,6 +9410,10 @@ export type Database = {
       retention_snapshot_has_personal_data: {
         Args: { p_first: Json; p_second?: Json; p_table_name: string };
         Returns: boolean;
+      };
+      retention_unclaimed_account_ids: {
+        Args: { p_cutoff: string };
+        Returns: string[];
       };
       retention_unregistered_personal_columns: {
         Args: never;

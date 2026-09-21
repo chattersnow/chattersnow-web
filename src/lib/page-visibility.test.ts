@@ -92,20 +92,47 @@ describe("PUBLIC_PAGE_SLOTS", () => {
     const appDir = join(import.meta.dirname, "..", "app");
 
     for (const slot of PUBLIC_PAGE_SLOTS) {
-      const gate = slot.gate ?? join("(public)", slot.key, "layout.tsx");
-      let source: string;
-      try {
-        source = readFileSync(join(appDir, gate), "utf8");
-      } catch {
-        throw new Error(
-          `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${gate} to gate it.`,
-        );
-      }
+      // A slot may name more than one gate: `audiences` covers /nonprofits and
+      // /business, sibling routes with no shared layout, and each has to call
+      // it or the ungated one stays live (#1328).
+      const gates = slot.gate
+        ? [slot.gate].flat()
+        : [join("(public)", slot.key, "layout.tsx")];
 
-      expect(
-        source.includes(`requireVisiblePage("${slot.key}")`),
-        `${gate} must call requireVisiblePage("${slot.key}")`,
-      ).toBe(true);
+      for (const gate of gates) {
+        let source: string;
+        try {
+          source = readFileSync(join(appDir, gate), "utf8");
+        } catch {
+          throw new Error(
+            `${slot.key} is registered in PUBLIC_PAGE_SLOTS but has no ${gate} to gate it.`,
+          );
+        }
+
+        expect(
+          source.includes(`requireVisiblePage("${slot.key}")`),
+          `${gate} must call requireVisiblePage("${slot.key}")`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  /**
+   * The three routes that exist for the platform's own marketing (#1328, #1329,
+   * #1330). They are off for the same reason as each other -- a customer
+   * publishing the product's pitch under their brand would be introducing their
+   * visitors to their software vendor -- and `pricing` is off for a second
+   * reason on top: it stays dark even on the site it was written for until
+   * somebody has agreed to the numbers on it (#998, open question 4).
+   */
+  test("keeps the product's own marketing routes dark by default", () => {
+    for (const key of ["audiences", "modules", "pricing"]) {
+      const slot = PUBLIC_PAGE_SLOTS.find((entry) => entry.key === key);
+      expect(slot, key).toBeDefined();
+      expect(slot?.defaultVisible, key).toBe(false);
+      // No module either: these describe what the platform does, and what a
+      // tenant has been sold does not change whether that is true.
+      expect(slot?.module, key).toBeUndefined();
     }
   });
 
@@ -345,9 +372,12 @@ describe("hiddenSlots", () => {
     );
 
     expect(hiddenSlots(visibility).sort()).toEqual([
+      "audiences",
       "brand",
       "gears-sizing",
       "links",
+      "modules",
+      "pricing",
       "programs",
       "support",
     ]);

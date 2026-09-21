@@ -423,15 +423,20 @@ describe("navGroups", () => {
         group.items.map((sub) => sub.value),
       ]),
     ).toEqual([
-      // Two, not three: Permissions became a tab on Roles in #946.
-      ["Access & identity", ["users", "roles"]],
+      // Permissions became a tab on Roles in #946; the third entry is not it
+      // coming back but the reference #1324 added -- what a grant means rather
+      // than who holds it.
+      ["Access & identity", ["users", "roles", "permission-reference"]],
       // Down to one item when Access Management left in #943, Site Content in
       // #944 and Platform in #945; back to two with #1235. The heading names
       // a real distinction from identity and oversight, and the second entry
       // is not a sixth tab on the first because a tab is another view of one
       // object and five reply templates are five objects.
       ["Organization", ["organization-settings", "automatic-replies"]],
-      ["Oversight", ["audit-log", "data-retention"]],
+      // The delivery log joined Oversight in #1310: same audience and same
+      // administration:manage gate as the audit log, and the same shape of
+      // question -- what did the platform do, and when.
+      ["Oversight", ["audit-log", "delivery-log", "data-retention"]],
     ]);
   });
 

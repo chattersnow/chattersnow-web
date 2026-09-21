@@ -25,9 +25,18 @@ A user may hold more than one role. The full page-by-page breakdown is the entit
 
 **Who receives which email.** Most outbound kinds are addressed to a role, not to a person: an event-triggered send reaches the people who both hold the resource the kind names (`volunteers:manage` for a volunteer application, `communications`/`administration:manage` for a contact message, `artwork_submissions:manage` for a submission, `inventory:manage` for a gear request) **and** have opted in to that kind on their own `/portal/account` page. Either half missing means silence, which used to be invisible from anywhere in the portal. **Implemented** (issue #1044): Administration → Organization Settings → Notifications carries a read-only "Who receives what" card, one section per kind, listing the people who receive it and, below them, the two gaps — role holders who have not opted in, and opted-in people who hold no role that receives it. It is fed by `notification_recipients()`, a `security definer` RPC gated on `administration:manage` and scoped to `current_tenant_id()`, which resolves the role half through the same `people_with_permission()` the senders call, so the card cannot drift from what actually goes out. It takes the kind → resource/level mapping as an argument from `src/lib/notifications/kinds.ts`, which stays the single source of truth. Nothing on the card edits anyone's opt-in: a preference is the person's own record (an `enabled = false` row is the evidence an opt-out was honoured) and the table's write policies pin writes to `my_person_id()`. The same table's select policy also admits `administration:manage` — so an administrator can clear a row to unblock a person merge — which is why `/portal/account` filters its own read by `person_id` rather than relying on the policy to scope it (issue #1043).
 
+**The user-facing surface for all of this is Administration → Permission Reference** (#1324): every resource in the live catalog, what it grants at View and at Manage, which adjacent resource covers what it does not, where it shows up in the sidebar, and which of this organization's roles hold it. The same content opens from a help button on each row of the permissions matrix. Its prose lives in `src/lib/auth/permission-docs.ts` and is held to the checks on disk by `src/lib/auth/permission-docs.test.ts`; [`docs/permissions.md`](../permissions.md) is the rule for keeping it current when a check changes.
+
 ### Entitlement matrix
 
 Role columns below are keyed by `roles.name`; each organization may label them as it likes.
+
+> **This table is a five-role snapshot, not the live catalog.** It was written
+> against the original five roles and the pre-module resource catalog, and a
+> tenant may retire a seeded role, add its own, or have a module switched off
+> that removes rows from its matrix entirely. For what a grant means today, in
+> a given organization, read Administration → Permission Reference. Generating
+> this table from the catalog is worth doing and is not done.
 
 | Section / page                                                  | `admin` | `event_coordinator` | `finance`              | `board`              | `volunteer`                        |
 | --------------------------------------------------------------- | ------- | ------------------- | ---------------------- | -------------------- | ---------------------------------- |

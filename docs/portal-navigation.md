@@ -1,6 +1,6 @@
 # Portal navigation: where a new surface goes
 
-**Updated:** 2026-09-12
+**Updated:** 2026-09-20
 
 The rule for deciding how a portal surface exposes its parts — sidebar entry,
 tab, rail or card — and the boundary between Administration and a feature
@@ -95,6 +95,15 @@ every page's copy, not just the current one, because that is the question it
 exists to answer. (It lived under `administration/site-content/` until #944/#990
 moved the website into a section of its own.)
 
+A rail does not have to select. **Permission Reference**
+(`administration/permission-reference/`, #1334) fills the same component with
+35 permissions under ten section headings, but the page beside it stays a
+document with every permission expanded: its audience arrives either to read it
+through or to answer one question, and swapping one permission in and out would
+serve only the second. The rail jumps and marks whichever one the reader has
+scrolled to, the way a table of contents does. Reach for that shape when the
+right-hand side is something to read rather than something to edit.
+
 ## What the rule decides
 
 | Surface               | Parts                                 | Answer                                    |
@@ -106,6 +115,7 @@ moved the website into a section of its own.)
 | Roles + Permissions   | 2 views of one role                   | one entry, two tabs                       |
 | Governance            | 10 distinct jobs                      | sidebar entries, grouped                  |
 | Finance → Sales       | Sales, Register, Products             | Register and Products nest under Sales    |
+| Permission Reference  | 35 permissions over 10 sections       | left rail + search, page stays a document |
 | People segments       | 7 views of one directory              | segments of one page                      |
 | Users page            | table, pending access, support access | stacked cards                             |
 

@@ -47,16 +47,15 @@ const SKIP: Record<string, string> = {
   // is the change those comments kept asking for: `/my/sign-in` now scans in
   // the anon pass and `/portal/people/claims` in the admin pass.
   //
-  // The four routes below stay out of the *anon* pass, for the reason
+  // The three routes below stay out of the *anon* pass, for the reason
   // /portal/set-password is out of it: they need a session, and scanned signed
-  // out all four redirect to `/my/sign-in`, so the run would measure that one
-  // page four times and file the results under four other names. They are not
+  // out all three redirect to `/my/sign-in`, so the run would measure that one
+  // page three times and file the results under three other names. They are not
   // unscanned -- a11y-scan.ts sweeps them as a signed-in account, where they
   // render what they are actually for. Any new signed-in `/my` route belongs
   // in both lists.
   "/my": "needs a session; scanned by the constituent sweep",
   "/my/details": "needs a session; scanned by the constituent sweep",
-  "/my/hours": "needs a session; scanned by the constituent sweep",
   "/my/notifications": "needs a session; scanned by the constituent sweep",
 };
 

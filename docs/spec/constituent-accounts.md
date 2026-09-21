@@ -138,7 +138,9 @@ Specified in full in [§5.9](people.md#59-people-directory) — the fourteen-col
 
 ### Acting from your account
 
-Also [§5.9](people.md#59-people-directory): registering for an event as yourself (`register_myself_for_event()`), logging your own volunteer hours (`log_my_volunteer_hours()`, provisional until confirmed — [§5.17](volunteers.md#517-volunteer-management)), and choosing which emails you get (`my_notification_preferences()` / `set_my_notification_preference()`). The property they share is that **the caller never says who they are**: the person comes from `auth.uid()` and the request host, so no argument can steer a write onto someone else's record, and none of the three paths can mint a `people` row.
+Also [§5.9](people.md#59-people-directory): registering for an event as yourself (`register_myself_for_event()`) and choosing which emails you get (`my_notification_preferences()` / `set_my_notification_preference()`). The property they share is that **the caller never says who they are**: the person comes from `auth.uid()` and the request host, so no argument can steer a write onto someone else's record, and neither path can mint a `people` row.
+
+Logging your own volunteer hours was a third (`log_my_volunteer_hours()`, provisional until confirmed — [§5.17](volunteers.md#517-volunteer-management)) until #1303 removed `/my/hours` as a duplicate of `/portal/volunteers/participation`. The function and its two pickers (`my_loggable_events()`, `my_volunteer_role_types()`) are still defined and still granted to `authenticated`; nothing in the application calls them.
 
 ### The tenant's words
 
@@ -147,6 +149,16 @@ Also [§5.9](people.md#59-people-directory): registering for an event as yoursel
 ### The demo tenant
 
 The demo tenant does not offer constituent accounts, permanently and by decision (#1177). The area's value is a person's accumulated history and a tenant rebuilt from seed every night has none — and, more to the point, the nightly reset cannot clear what open sign-up creates: an `auth.users` row belongs to no tenant, so `delete_tenant()` leaves it behind on an Auth instance shared with every paying tenant. `docs/tenants.md` records the decision, the reasoning and the constraints on the sweep that would have to be built before the module could ever be turned on there.
+
+### How long any of it is kept
+
+Three clocks, added by #1296 and transcribed from the board record that amends the 2026-09-02 one, all in `dry_run` until the board rules on them:
+
+- **A claim** is deleted 2 years after it is decided, or 2 years after it was sent where nobody decided — `updated_at` carries both, since `set_updated_at` maintains it and it defaults to `created_at`. Nothing is left behind: every stated field and both notes are in `audited_tables.redacted_columns`, so the snapshot never held them, and what the audit trail keeps is the decision.
+- **A self-logged hour entry** is deleted 2 years after its last change, but only where `status <> 'confirmed'`. A confirmed entry is the record that the volunteer entered those hours themselves rather than a staffer entering them for them, and it stays with the `volunteer_hours` row it produced.
+- **An account** is deleted 2 years after its last sign-in, and only where it is attached to nothing at all — no directory record, no role, no membership, no claim, and no remaining foreign key to `auth.users` outside the `auth` schema. An account matched to a record follows the record instead. This is the one rule in the purge with no tenant to scope to, which changes how it is enforced; `docs/tenants.md` has the mechanics.
+
+`portal_accounts` was reworded in the same issue. Its clock starts when a role ends, and a constituent holds no role by design, so the published entry promised a member of the public that their account is kept indefinitely. It now names the population it is about, and `constituent_accounts` answers for the other one. Both entries are published only where the tenant has the area (#1291).
 
 ### Out of scope, and still open
 

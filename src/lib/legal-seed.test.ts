@@ -147,13 +147,133 @@ describe("Chatter Snow's seeded legal documents", () => {
   // Once this text is a row rather than a render of `RETENTION_POLICIES`,
   // nothing else stops a period changing in code while the published page keeps
   // promising the old one -- the failure #602 exists to prevent, one layer down.
-  // Changing a period means a follow-up migration against this row.
+  // Changing a period means a follow-up migration against this row, which is
+  // why the document is read here *after* those migrations rather than as
+  // 20260909020000 seeded it.
+  //
+  // "Every period" means every period this document's own forms can produce
+  // (#1291, #1296), not every rule the purge enforces. Chatter Snow has no
+  // constituent area -- `constituent_accounts` is the one module seeded
+  // `default_enabled = false` -- so publishing a clock for accounts, claims or
+  // self-logged hours would be the thing #1291 removed from the platform
+  // default, one layer down again. Turning that area on makes this document
+  // stale, which is what #1292's surface fingerprint reports.
   test("the privacy policy publishes every enforced retention period", () => {
-    const text = readable(documents.get("legal.privacy")!);
+    const text = readable(publishedPrivacy());
     for (const policy of RETENTION_POLICIES) {
+      if (policy.surface && !SEEDED_SURFACES.has(policy.surface)) {
+        expect(text, `${policy.key} is published anyway`).not.toContain(
+          policy.what,
+        );
+        continue;
+      }
       expect(text, `${policy.key} is not published`).toContain(policy.howLong);
       expect(text).toContain(policy.what);
     }
+  });
+});
+
+/** The collection surfaces Chatter Snow's seeded document describes. */
+const SEEDED_SURFACES: ReadonlySet<string> = new Set([
+  "contact",
+  "volunteerApplications",
+  "eventRegistrations",
+  "gearRequests",
+]);
+
+const PORTAL_ACCOUNTS_MIGRATION = join(
+  import.meta.dirname,
+  "..",
+  "..",
+  "supabase",
+  "migrations",
+  "20260919050000_privacy_policy_portal_accounts_name_the_role.sql",
+);
+
+/** The `$tag$...$tag$` body a guarded content migration quotes its text in. */
+function dollarQuoted(sql: string, tag: string): string | undefined {
+  return new RegExp(`\\$${tag}\\$([\\s\\S]*?)\\$${tag}\\$`).exec(sql)?.[1];
+}
+
+/** The seeded document with every later content migration applied to it. */
+function publishedPrivacy(): LegalDocumentContent {
+  const sql = readFileSync(PORTAL_ACCOUNTS_MIGRATION, "utf8");
+  const before = dollarQuoted(sql, "old")!;
+  const after = dollarQuoted(sql, "new")!;
+  const seeded = JSON.stringify(seededDocuments().get("legal.privacy")!);
+  return JSON.parse(
+    seeded.replace(
+      JSON.stringify(before).slice(1, -1),
+      JSON.stringify(after).slice(1, -1),
+    ),
+  ) as LegalDocumentContent;
+}
+
+/**
+ * The follow-up that names the population the Portal accounts clock is about
+ * (#1296).
+ *
+ * The same silent failure mode the Resend migration below has, checked the same
+ * way: the `where` clause quotes the seeded bullet list slightly differently,
+ * matches nothing, and the deploy reports success while the page still says
+ * what it said. This one has a second: the replacement has to be the bullet
+ * list with one clause changed, because a retention bullet lost here is a
+ * period the page stops publishing while the purge keeps enforcing it.
+ */
+describe("naming the role in the Portal accounts clock", () => {
+  const sql = readFileSync(PORTAL_ACCOUNTS_MIGRATION, "utf8");
+  const before = dollarQuoted(sql, "old");
+  const after = dollarQuoted(sql, "new");
+  const seeded = seededDocuments().get("legal.privacy")!;
+  const bullets = seeded.sections
+    .find((section) => section.id === "how-long-we-keep-it")!
+    .paragraphs.find((paragraph) => paragraph.includes("**Portal accounts**"));
+
+  test("guards on the bullet list the seed migration wrote", () => {
+    expect(before).toBeDefined();
+    expect(before).toBe(bullets);
+  });
+
+  // 20260909030000 moved it, so this migration has to guard on where that one
+  // left it rather than on where the seed did.
+  test("guards on the date the previous content migration left", () => {
+    expect(sql).toContain("'September 9, 2026'");
+  });
+
+  test("moves the date, because published text changed", () => {
+    const updated = /to_jsonb\('([^']+)'::text\)\s*\)/.exec(sql)?.[1];
+    expect(updated).toBeDefined();
+    expect(updated).not.toBe(seeded.last_updated);
+    expect(updated).not.toBe("September 9, 2026");
+  });
+
+  test("changes one clause and no period", () => {
+    const removed = before!
+      .split("\n")
+      .filter((line) => !after!.split("\n").includes(line));
+    const added = after!
+      .split("\n")
+      .filter((line) => !before!.split("\n").includes(line));
+    expect(removed).toHaveLength(1);
+    expect(added).toHaveLength(1);
+    expect(removed[0]).toContain("**Portal accounts**");
+    expect(added[0]).toContain("**Portal accounts**");
+  });
+
+  // The whole point of the change: a reader could not tell which of the two
+  // account clocks covered them.
+  test("says whose accounts the clock is about", () => {
+    expect(after).toContain("If you hold a role with us");
+  });
+
+  test("the replacement is markup the parser can publish", () => {
+    expect(legalPlainText([after!])).not.toMatch(/\]\(|\*\*/);
+  });
+
+  test("the document it produces is still valid for its slot", () => {
+    expect(
+      isValidSlotValue(contentSlot("legal.privacy")!, publishedPrivacy()),
+    ).toBe(true);
   });
 });
 

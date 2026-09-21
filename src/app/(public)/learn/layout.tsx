@@ -28,7 +28,7 @@ export default async function LearnLayout({
           alt={content.text("org.image_alt")}
           className="aspect-[21/9] rounded-2xl"
         />
-        <EducationalDisclaimer />
+        <EducationalDisclaimer text={content.text("learn.disclaimer")} />
       </div>
     </PageShell>
   );

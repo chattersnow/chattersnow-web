@@ -47,6 +47,11 @@ function renderSheet(canManage = true) {
       submission={SUBMISSION}
       images={[]}
       canManage={canManage}
+      messages={[]}
+      messageActors={[]}
+      orgName="Chatter Snow"
+      replyTo={null}
+      orgEmailEnabled
       defaultOpen
       withTrigger={false}
     />,

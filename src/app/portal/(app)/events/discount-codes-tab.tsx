@@ -8,7 +8,7 @@ import {
   markDiscountCodeSentAction,
   type DiscountCode,
 } from "./discount-codes-actions";
-import type { EventRegistrant } from "./registrants-actions";
+import type { EventRegistrantsData } from "./registrants-actions";
 import { useTabData, type TabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
@@ -47,7 +47,7 @@ export function DiscountCodesTab({
 }: {
   eventId: string;
   mode: "view" | "edit";
-  registrants: TabData<EventRegistrant[]>;
+  registrants: TabData<EventRegistrantsData>;
   /** Rows before the rest move behind "View all"; `null` disables the cap. */
   previewRows?: number | null;
 }) {
@@ -59,7 +59,7 @@ export function DiscountCodesTab({
     () => listDiscountCodesAction(eventId),
     [eventId],
   );
-  const registrants = registrantsData.data;
+  const registrants = registrantsData.data?.registrants;
   const refreshRegistrants = registrantsData.refresh;
   const [actionError, setActionError] = useState<string | null>(null);
   const [query, setQuery] = useState("");

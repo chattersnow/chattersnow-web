@@ -1,5 +1,5 @@
-// Integration test: exercises the six Administration route guards
-// (`administration/layout.tsx` and its five section layouts) against a real
+// Integration test: exercises the seven Administration route guards
+// (`administration/layout.tsx` and its six section layouts) against a real
 // local Supabase stack, so the real my_permissions() RPC and the seeded
 // role_permissions matrix decide each outcome rather than a mocked client.
 // `administration/audit-log` has no actions.ts of its own (a read-only log
@@ -46,6 +46,7 @@ const { default: RolesLayout } = await import("./roles/layout");
 const { default: OrganizationSettingsLayout } =
   await import("./organization-settings/layout");
 const { default: AuditLogLayout } = await import("./audit-log/layout");
+const { default: DeliveryLogLayout } = await import("./delivery-log/layout");
 // Technology (formerly Administration -> Access Management) left this section
 // in #943. Its guard is unchanged and still admits administration:manage, so
 // it is exercised here from its new home.
@@ -89,7 +90,7 @@ async function expectDenied(layout: Layout, email: string) {
   expect(redirectMock).toHaveBeenCalledWith(deniedHref);
 }
 
-// users/roles/audit-log all guard on administration:manage alone, per their
+// users/roles/audit-log/delivery-log all guard on administration:manage alone, per their
 // layout.tsx files -- only the admin role holds that. The permissions layout
 // left this list with the page it guarded (#946): the matrix is a tab on
 // Roles now, so RolesLayout is the guard that stands in front of it.
@@ -102,6 +103,9 @@ describe.each([
   ["administration/users", () => UsersLayout],
   ["administration/roles", () => RolesLayout],
   ["administration/audit-log", () => AuditLogLayout],
+  // #1310. Same gate as the audit log, matching notification_deliveries' own
+  // select policy rather than widening it for the sake of a sidebar entry.
+  ["administration/delivery-log", () => DeliveryLogLayout],
   ["technology", () => TechnologyLayout],
 ])("%s layout guard (integration)", (_name, getLayout) => {
   test("admin (administration manage) renders the page", async () => {

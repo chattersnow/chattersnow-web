@@ -10,9 +10,9 @@ import { StatusBadge } from "@/components/portal/status-badge";
 import { ViewerTime } from "@/components/viewer-time";
 import { actorDisplayName } from "@/lib/format";
 import {
+  outboundMessageSenderLabel,
   outboundMessageStatusLabel,
   outboundMessageStatusTone,
-  STAFF_MESSAGE_KIND,
   type MessageActor,
   type RecordMessageRow,
 } from "@/lib/outbound-messages";
@@ -80,9 +80,10 @@ export function RecordMessages({
               <TableCell className="font-medium">
                 {message.subject}
                 <span className="app-muted block text-xs font-normal">
-                  {message.kind === STAFF_MESSAGE_KIND
-                    ? `Sent by ${actorDisplayName(sender(message), "a staff member")}`
-                    : `Receipt, resent by ${actorDisplayName(sender(message), "a staff member")}`}
+                  {outboundMessageSenderLabel(
+                    message.kind,
+                    actorDisplayName(sender(message), "a staff member"),
+                  )}
                   {" · "}
                   <ViewerTime iso={message.created_at} fallbackZone="UTC" />
                 </span>

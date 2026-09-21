@@ -300,11 +300,13 @@ type ContactMessageRow = {
  * What makes one sender's acknowledgement unique, on the existing pattern:
  * the kind and the row it is about.
  *
- * No resend suffix, unlike the gear and volunteer receipts (#1203): there is
- * no portal screen that re-sends one of these, because there is nothing in it
- * worth recovering -- no reference code, no instructions, just "we got it".
+ * No resend suffix, unlike the gear, volunteer and artwork receipts: there is
+ * no portal screen that re-sends one of *these*, because there is nothing in
+ * it worth recovering -- no reference code, no instructions, just "we got it".
  * Staff answering a message use the message itself, which is correspondence
- * and goes out under `staff_message`.
+ * and goes out under `staff_message`. The artwork acknowledgement below was
+ * held to the same rule until #1309 and is no longer: it names the call the
+ * artist answered and counts what arrived, which is worth a second copy.
  */
 export function contactMessageConfirmationDedupeKey(messageId: string): string {
   return `${CONTACT_MESSAGE_CONFIRMATION_KIND}:${messageId}`;
@@ -414,11 +416,21 @@ type ArtworkSubmissionRow = {
   artwork_submission_images: unknown[] | null;
 };
 
-/** The acknowledgement's key, on the pattern above. */
+/**
+ * What makes this acknowledgement's send unique, and what a resend appends to
+ * it (#1309).
+ *
+ * The suffix is the gear receipt's, for the reason
+ * gearRequestConfirmationDedupeKey() gives: the first send already claimed the
+ * bare key, so a second insert with it raises 23505, deliverEmail() returns
+ * `skipped`, and at the call site that is indistinguishable from success --
+ * a resend on the original key would silently do nothing.
+ */
 export function artworkSubmissionConfirmationDedupeKey(
   submissionId: string,
+  suffix?: string,
 ): string {
-  return `${ARTWORK_SUBMISSION_CONFIRMATION_KIND}:${submissionId}`;
+  return `${ARTWORK_SUBMISSION_CONFIRMATION_KIND}:${submissionId}${suffix ? `:${suffix}` : ""}`;
 }
 
 /**
@@ -436,7 +448,33 @@ export function artworkSubmissionConfirmationDedupeKey(
  */
 export async function sendArtworkSubmissionConfirmation(
   admin: SupabaseClient,
-  options: { submissionId: string; siteUrl: string },
+  options: {
+    submissionId: string;
+    siteUrl: string;
+    /**
+     * Appended to the dedupe key so a deliberate resend is not read as the
+     * first send's duplicate (#1203, adopted here in #1309). Absent on the
+     * original send.
+     */
+    dedupeSuffix?: string;
+    /**
+     * The rendered message and the person it was ledgered against, for a
+     * caller that has to record what it sent. Called from inside the render
+     * thunk, which fires only after deliverEmail() has won the claim -- so it
+     * fires if and only if an email really existed.
+     *
+     * The second argument is what this sender has that the gear and volunteer
+     * ones do not: those are handed a person_id by their caller, while this
+     * one resolves its own from the directory and may legitimately find none
+     * (personIdForEmail()). A recorder that guessed would look the delivery
+     * row up under the wrong person_id and lose the cross-reference
+     * (findDeliveryId(), #1309).
+     */
+    onRendered?: (
+      email: RenderedEmail,
+      resolved: { personId: string | null },
+    ) => void;
+  },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
     .from("artwork_submissions")
@@ -481,10 +519,13 @@ export async function sendArtworkSubmissionConfirmation(
     identity: mail.identity,
     personId: person.personId,
     kind: ARTWORK_SUBMISSION_CONFIRMATION_KIND,
-    dedupeKey: artworkSubmissionConfirmationDedupeKey(data.id),
+    dedupeKey: artworkSubmissionConfirmationDedupeKey(
+      data.id,
+      options.dedupeSuffix,
+    ),
     to,
-    render: () =>
-      renderArtworkSubmissionConfirmationEmail(
+    render: () => {
+      const email = renderArtworkSubmissionConfirmationEmail(
         {
           orgName: mail.displayName,
           artistName: (data.submitter_name ?? "").trim(),
@@ -495,7 +536,10 @@ export async function sendArtworkSubmissionConfirmation(
           branding: mail.branding,
         },
         reply.slots,
-      ),
+      );
+      options.onRendered?.(email, { personId: person.personId });
+      return email;
+    },
     logPrefix: "[artwork-submission-confirm]",
   });
 }
@@ -949,9 +993,43 @@ const EVENT_REGISTRATION_SELECT =
  * tenant is named on everything downstream of it -- the events read below, and
  * the ledger row deliverEmail() writes.
  */
+/**
+ * What makes this receipt's send unique. A resend passes a suffix, because the
+ * first send already claimed the bare key: a second insert with it raises
+ * 23505, deliverEmail() returns `skipped`, and at the call site that is
+ * indistinguishable from success. `resendDedupeSuffix()` builds the suffix
+ * from the server's clock (#1203), so a receipt can be sent again tomorrow
+ * while a double-click inside the same minute stays the no-op it should be.
+ */
+export function eventRegistrationConfirmationDedupeKey(
+  registrationId: string,
+  suffix?: string,
+): string {
+  return `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${registrationId}${suffix ? `:${suffix}` : ""}`;
+}
+
 export async function sendEventRegistrationConfirmation(
   admin: SupabaseClient,
-  options: { registrationId: string; siteUrl: string },
+  options: {
+    registrationId: string;
+    siteUrl: string;
+    /**
+     * Appended to the dedupe key so a deliberate resend is not read as the
+     * first send's duplicate (#1203). Absent on the original send.
+     */
+    dedupeSuffix?: string;
+    /**
+     * The rendered message, for a caller that has to record what it sent.
+     * Called from inside the render thunk, which is the right moment:
+     * deliverEmail() renders only after it has won the claim, so this fires if
+     * and only if an email really existed.
+     *
+     * One argument, like the gear sender's and unlike the artwork sender's:
+     * this send is handed a `person_id` on the registration it read and never
+     * resolves one of its own, so the caller already knows who it reached.
+     */
+    onRendered?: (email: RenderedEmail) => void;
+  },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
     .from("event_registrations")
@@ -1018,10 +1096,13 @@ export async function sendEventRegistrationConfirmation(
     identity: mail.identity,
     personId: data.person_id,
     kind: EVENT_REGISTRATION_CONFIRMATION_KIND,
-    dedupeKey: `${EVENT_REGISTRATION_CONFIRMATION_KIND}:${data.id}`,
+    dedupeKey: eventRegistrationConfirmationDedupeKey(
+      data.id,
+      options.dedupeSuffix,
+    ),
     to,
-    render: () =>
-      renderEventRegistrationConfirmationEmail(
+    render: () => {
+      const email = renderEventRegistrationConfirmationEmail(
         {
           orgName: mail.displayName,
           registrantName: (data.name ?? "").trim(),
@@ -1036,7 +1117,10 @@ export async function sendEventRegistrationConfirmation(
           branding: mail.branding,
         },
         reply.slots,
-      ),
+      );
+      options.onRendered?.(email);
+      return email;
+    },
     logPrefix: "[event-registration-confirm]",
   });
 }

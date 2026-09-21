@@ -24,6 +24,22 @@ Sentry.init({
   // Opt in one category at a time if an issue genuinely can't be diagnosed
   // without it.
 
+  // Only a Vercel deploy reports -- production and preview alike. Vercel sets
+  // NEXT_PUBLIC_VERCEL_ENV on every deployment and nothing else does, so this
+  // is off in CI and on developer machines, which is the whole point.
+  //
+  // The DSN fallback above means an unconfigured *deploy* still reports, but
+  // it also meant every `next start` anywhere reported into the production
+  // project. E2E runs on GitHub Actions sent 113k events in three days --
+  // 99.4% of everything the project had ever received, against a 5k/month
+  // quota -- all of it Playwright tearing down a page mid-navigation and Next
+  // reporting the aborted RSC prefetch stream as an unhandled server error
+  // ("The destination stream closed early"). CI reported as `production`
+  // besides, because VERCEL_ENV is unset there and `next start` sets
+  // NODE_ENV=production, so it was indistinguishable from real user traffic.
+  // Errors in CI are the test suite's job to fail on, not Sentry's to bill for.
+  enabled: Boolean(process.env.NEXT_PUBLIC_VERCEL_ENV),
+
   // Off everywhere. The free plan's 5k/month is an *error* quota; spans draw on
   // a separate, smaller one, and nothing here reads the trace view today. This
   // is not what ties an error to its request: trace ids are propagated whatever

@@ -60,6 +60,13 @@ import {
   DiscardChangesDialog,
   useUnsavedChangesGuard,
 } from "@/components/portal/unsaved-changes-guard";
+import { RecordMessages } from "@/components/portal/record-messages";
+import {
+  messagingDisabledReason,
+  type MessageActor,
+  type RecordMessageRow,
+} from "@/lib/outbound-messages";
+import { ArtworkSubmissionMessageActions } from "./submission-message-actions";
 
 const STATUS_ITEMS = ARTWORK_SUBMISSION_STATUSES.map((status) => ({
   value: status,
@@ -70,12 +77,25 @@ export function ArtworkSubmissionReviewSheet({
   submission,
   images,
   canManage,
+  messages,
+  messageActors,
+  orgName,
+  replyTo,
+  orgEmailEnabled,
   defaultOpen = false,
   withTrigger = true,
 }: {
   submission: ArtworkSubmission;
   images: SignedArtworkImage[];
   canManage: boolean;
+  /** This submission's slice of the page's history, loaded in one query. */
+  messages: RecordMessageRow[];
+  messageActors: MessageActor[];
+  /** The organization's own name, for the composer's default subject. */
+  orgName: string;
+  /** The tenant's Reply-To, or null when only the platform default applies. */
+  replyTo: string | null;
+  orgEmailEnabled: boolean;
   /** True when `?submission=` names this row. */
   defaultOpen?: boolean;
   /**
@@ -359,6 +379,33 @@ export function ArtworkSubmissionReviewSheet({
                 </Alert>
               )}
             </FieldGroup>
+
+            {/* In the scrolling body rather than the footer, which belongs to
+              Save and Delete: this is a record of what happened, not a
+              decision about the piece. */}
+            {canManage && (
+              <section className="mt-6 flex flex-col gap-3">
+                <h3 className="app-muted text-sm font-semibold">Messages</h3>
+                <ArtworkSubmissionMessageActions
+                  submissionId={submission.id}
+                  artistName={submission.submitter_name}
+                  toEmail={submission.submitter_email}
+                  callTitle={submission.call?.title ?? ""}
+                  orgName={orgName}
+                  replyTo={replyTo}
+                  disabledReason={messagingDisabledReason(
+                    orgEmailEnabled,
+                    submission.submitter_email,
+                    "This submission has no email address to write to.",
+                  )}
+                />
+                <RecordMessages
+                  messages={messages}
+                  actors={messageActors}
+                  emptyMessage="Nothing has been sent to this artist from the portal. The acknowledgement they received when they submitted is not listed here — it was sent by the application itself."
+                />
+              </section>
+            )}
           </div>
 
           {/* Out of the scrolling body and pinned to the bottom edge, which is

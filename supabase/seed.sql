@@ -1728,7 +1728,20 @@ insert into public.app_settings (key, value) values
   -- The link-in-bio page (#937). Off by default like every new section, and
   -- it is not in the nav either, so without this the a11y route sweep and
   -- e2e/links.spec.ts would both be scanning a 404 rather than the page.
-  ('page_visibility.links', to_jsonb(true))
+  ('page_visibility.links', to_jsonb(true)),
+  -- The two audience paths (#1328). Off by default everywhere, because they
+  -- are the platform's own pitch rather than an organization's page -- so
+  -- without this the a11y route sweep and e2e/audience-paths.spec.ts would
+  -- both be measuring a 404.
+  ('page_visibility.audiences', to_jsonb(true)),
+  -- The module tour (#1329) and the price list (#1330), on here for the reason
+  -- the audience paths are: both are off for every tenant by default, so
+  -- without these the a11y route sweep and their two e2e specs would all be
+  -- measuring a 404. The prices this tenant shows are the registry's em dashes
+  -- -- the figures belong to the platform tenant's own rows (20260920030000),
+  -- and this is not that tenant.
+  ('page_visibility.modules', to_jsonb(true)),
+  ('page_visibility.pricing', to_jsonb(true))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a

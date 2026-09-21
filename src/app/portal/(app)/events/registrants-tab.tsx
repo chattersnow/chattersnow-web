@@ -7,14 +7,23 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
-import { Check, Snowflake, Undo2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Eye, Snowflake, Undo2 } from "lucide-react";
 import {
   checkInRegistrantAction,
   undoCheckInAction,
   type EventRegistrant,
+  type EventRegistrantsData,
 } from "./registrants-actions";
 import { RiderProfileDialog } from "./rider-profile-dialog";
+import {
+  REGISTRANT_PARAM,
+  RegistrantDetailSheet,
+} from "./registrant-detail-sheet";
+import { RegistrantAnnouncements } from "./registrant-announcements";
+import { AnnounceToRegistrantsDialog } from "./announce-to-registrants-dialog";
+import { announcementBatches } from "@/lib/event-announcements";
+import { NO_RECORD_MESSAGES } from "@/lib/outbound-messages";
 import {
   experienceLevelLabel,
   ridingDisciplineLabel,
@@ -86,6 +95,8 @@ function matchesQuery(registrant: EventRegistrant, needle: string): boolean {
 }
 
 export function RegistrantsTab({
+  eventId,
+  eventName,
   capacity,
   mode,
   registrants: registrantsData,
@@ -93,9 +104,12 @@ export function RegistrantsTab({
   previewRows = LIST_PREVIEW_ROWS,
   headerActions,
 }: {
+  eventId: string;
+  /** Names the event in a message's default subject and an announcement's. */
+  eventName: string;
   capacity: number | null;
   mode: "view" | "edit";
-  registrants: TabData<EventRegistrant[]>;
+  registrants: TabData<EventRegistrantsData>;
   derived: TabData<EventImpactDerived>;
   /**
    * Rows shown before the rest move behind "View all". `null` renders the whole
@@ -109,13 +123,37 @@ export function RegistrantsTab({
   headerActions?: ReactNode;
 }) {
   const router = useRouter();
-  const { data: registrants, loadError } = registrantsData;
+  const { data, loadError } = registrantsData;
+  const registrants = data?.registrants;
+  const messages = data?.messages ?? NO_RECORD_MESSAGES;
+  const messaging = data?.messaging ?? null;
+  // `messaging` is populated only for a caller holding `events: manage`, which
+  // is the same gate the sheet's messaging half and the announcement composer
+  // are behind -- so one nullable read answers "may this person write to
+  // registrants?" without a second permissions round trip in the client.
+  const canManage = messaging !== null;
   const refreshRegistrants = registrantsData.refresh;
   const refreshDerived = derived.refresh;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
   const [query, setQuery] = useState("");
+
+  // A notification can link straight at one registration (#742's shape). The
+  // list arrives from a Server Action rather than the page's own render, so
+  // the parameter is read here and the sheet opens as soon as the row it names
+  // is in hand; RegistrantDetailSheet takes it back out of the URL on close.
+  const linkedId = useSearchParams().get(REGISTRANT_PARAM);
+  const [detailId, setDetailId] = useState<string | null>(linkedId);
+  // A second deep link arriving while this tab is already mounted re-renders
+  // it in place, which the initializer above would miss. Adjusting state
+  // during render is React's documented pattern for that, and unlike an effect
+  // it never lets the stale sheet paint.
+  const [prevLinkedId, setPrevLinkedId] = useState(linkedId);
+  if (linkedId !== prevLinkedId) {
+    setPrevLinkedId(linkedId);
+    if (linkedId) setDetailId(linkedId);
+  }
 
   // Stable, so the column list below only rebuilds when something it renders
   // differently changes.
@@ -272,47 +310,60 @@ export function RegistrantsTab({
         cellClassName: "app-muted whitespace-nowrap",
         render: (registrant) => formatDateTime(registrant.checked_in_at),
       },
-      ...(mode === "edit"
-        ? [
-            {
-              key: "actions",
-              label: "Actions",
-              srOnlyLabel: true,
-              headClassName: "w-0",
-              cellClassName: "text-right whitespace-nowrap",
-              render: (registrant: EventRegistrant) => (
-                <>
-                  {/* The profile hangs off the person record, so a
-                      registration never linked to one has nowhere to put it —
-                      link it from the People module first. */}
-                  {registrant.rider && registrant.person_id && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Rider profile for ${registrant.name}`}
-                      onClick={() => setRiderTarget(registrant)}
-                    >
-                      <Snowflake />
-                    </Button>
-                  )}
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        cellClassName: "text-right whitespace-nowrap",
+        render: (registrant: EventRegistrant) => (
+          <>
+            {/* Always, whatever the page's edit toggle says: opening a
+                registration to read a party size or a note is not editing,
+                and the door staff who hold `events: view` are exactly who
+                does it. What is inside the sheet is gated, not the sheet. */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Registration details for ${registrant.name}`}
+              onClick={() => setDetailId(registrant.id)}
+            >
+              <Eye />
+            </Button>
+            {mode === "edit" && (
+              <>
+                {/* The profile hangs off the person record, so a
+                    registration never linked to one has nowhere to put it —
+                    link it from the People module first. */}
+                {registrant.rider && registrant.person_id && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={
-                      registrant.checked_in_at ? "Undo check-in" : "Check in"
-                    }
-                    disabled={isPending && pendingId === registrant.id}
-                    onClick={() => handleToggleCheckIn(registrant)}
+                    aria-label={`Rider profile for ${registrant.name}`}
+                    onClick={() => setRiderTarget(registrant)}
                   >
-                    {registrant.checked_in_at ? <Undo2 /> : <Check />}
+                    <Snowflake />
                   </Button>
-                </>
-              ),
-            } satisfies PortalDataTableColumn<EventRegistrant>,
-          ]
-        : []),
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={
+                    registrant.checked_in_at ? "Undo check-in" : "Check in"
+                  }
+                  disabled={isPending && pendingId === registrant.id}
+                  onClick={() => handleToggleCheckIn(registrant)}
+                >
+                  {registrant.checked_in_at ? <Undo2 /> : <Check />}
+                </Button>
+              </>
+            )}
+          </>
+        ),
+      } satisfies PortalDataTableColumn<EventRegistrant>,
     ],
     [
       showAttendedBefore,
@@ -352,6 +403,25 @@ export function RegistrantsTab({
       </>
     );
 
+  const detailTarget = list.find((registrant) => registrant.id === detailId);
+  const batches = canManage ? announcementBatches(messages) : [];
+
+  const announceAction =
+    canManage && messaging ? (
+      <AnnounceToRegistrantsDialog
+        eventId={eventId}
+        eventName={eventName}
+        registrations={list}
+        replyTo={messaging.replyTo}
+        onSent={refreshAll}
+        disabledReason={
+          messaging.orgEmailEnabled
+            ? undefined
+            : "Outbound email is switched off for this organization."
+        }
+      />
+    ) : null;
+
   return (
     <div className="flex flex-col gap-4">
       {loadError && (
@@ -360,7 +430,12 @@ export function RegistrantsTab({
         </Alert>
       )}
 
-      {summary && <p className="app-muted text-sm">{summary}</p>}
+      {(summary || announceAction) && (
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          {summary ? <p className="app-muted text-sm">{summary}</p> : <span />}
+          {announceAction}
+        </div>
+      )}
 
       {registrants === undefined ? (
         <TabLoadingSkeleton />
@@ -398,7 +473,12 @@ export function RegistrantsTab({
               onQueryChange={setQuery}
               totalCount={list.length}
               filteredCount={filtered.length}
-              actions={headerActions}
+              actions={
+                <>
+                  {headerActions}
+                  {announceAction}
+                </>
+              }
             >
               <PortalDataTable
                 columns={columns}
@@ -416,6 +496,35 @@ export function RegistrantsTab({
             </ListPreviewSheet>
           )}
         </>
+      )}
+
+      {/* Only once something has gone out. An empty card headed
+          "Announcements" on every event would be a permanent reminder of a
+          feature most events never need. */}
+      {batches.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h3 className="app-muted text-sm font-semibold">Announcements</h3>
+          <RegistrantAnnouncements batches={batches} actors={messages.actors} />
+        </section>
+      )}
+
+      {/* Keyed by registrant, and mounted only for the one being read: the
+          sheet seeds its own open state, so switching rows has to remount it
+          rather than hand it a new registrant behind its back. */}
+      {detailTarget && (
+        <RegistrantDetailSheet
+          key={detailTarget.id}
+          registrant={detailTarget}
+          eventName={eventName}
+          canManage={canManage}
+          messages={messages.byRecord[detailTarget.id] ?? []}
+          messageActors={messages.actors}
+          orgName={messaging?.orgName ?? ""}
+          replyTo={messaging?.replyTo ?? null}
+          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          onClosed={() => setDetailId(null)}
+          onSent={refreshRegistrants}
+        />
       )}
 
       {/* Keyed so the form re-seeds from whichever registrant was opened.

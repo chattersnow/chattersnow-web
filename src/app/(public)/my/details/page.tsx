@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageShell } from "@/components/page-shell";
 import { requireConstituentSession } from "@/lib/constituent/guard";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -9,7 +8,7 @@ import { getPublicSite, publicTitle } from "@/lib/public-site";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { ContactForm } from "./contact-form";
 import { EmailChangeForm } from "./email-form";
-import { MyNav } from "../my-nav";
+import { MyPageLayout } from "../my-page-layout";
 
 const MY_DETAILS_PATH = `${MY_PATH_PREFIX}/details`;
 
@@ -35,6 +34,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * `/my`, which is where the claim form is. There is nothing to edit until a
  * staffer has approved the claim, and a form with no record behind it would
  * fail at the database with nothing useful to say.
+ *
+ * ## What a card means here
+ *
+ * The page carried four of them, one per group, and they were the same box
+ * four times over -- while three of the four saved together on one button at
+ * the foot of the page and the fourth had a button of its own. Identical
+ * chrome over two different commits is the thing a reader cannot see past:
+ * nothing on screen said what "Save" saved.
+ *
+ * So a card now means *this commits on its own*, and only the email block
+ * qualifies -- an address changes when a link sent to it comes back, not when
+ * a form is submitted. `ContactForm`'s three groups are plain sections under
+ * their own legends, which is the structure #1181 established and the card
+ * borders were only redrawing. The card sits last for the same reason:
+ * everything above the Save button belongs to it.
  */
 export default async function MyDetailsPage() {
   const { personId } = await requireConstituentSession(MY_DETAILS_PATH);
@@ -55,56 +69,30 @@ export default async function MyDetailsPage() {
   if (!details) redirect(MY_PATH_PREFIX);
 
   return (
-    <PageShell>
-      <div className="space-y-8">
-        <section>
-          <div className="w-fit">
-            <div className="rainbow-accent w-full" />
-            <h1 className="brand-display mt-4 text-4xl font-semibold tracking-brand sm:text-5xl">
-              Your details
-            </h1>
-          </div>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
-            Keep this current and we will reach you. Everything here is yours to
-            change; the rest of your record is ours to keep.
-          </p>
-          <MyNav current="details" />
-        </section>
+    <MyPageLayout
+      current="details"
+      title="Your details"
+      intro="Keep this current and we will reach you. Everything here is yours to change; the rest of your record is ours to keep."
+    >
+      <ContactForm details={details} />
 
-        <Card>
-          <CardHeader>
-            {/* Not "Sign-in email", which #1181 sketched: this column is the
+      <Card>
+        <CardHeader>
+          {/* Not "Sign-in email", which #1181 sketched: this column is the
               address the organization writes to, and the form below says in
               so many words that it is not how you sign in. */}
-            <CardTitle className="brand-display text-lg font-semibold">
-              Your email address
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EmailChangeForm
-              email={details.email}
-              pendingEmail={details.email_pending}
-              pendingExpiresAt={details.email_pending_expires_at}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Cards of its own, not one card here: the three groups inside it are
-          the page's real structure, and a card titled "Everything else"
-          wrapped around them threw that structure away (#1181). The form
-          spans all three because the RPC behind it writes the whole
-          allowlist in one call. */}
-        <ContactForm details={details} />
-
-        {/* The one repeat in the area. This page is the only one long enough
-          that arriving at the bottom of it leaves the header nav off-screen;
-          the other three fit a viewport. */}
-        <MyNav
-          current="details"
-          label="Your account, end of page"
-          className="mt-0"
-        />
-      </div>
-    </PageShell>
+          <CardTitle className="brand-display text-lg font-semibold">
+            Your email address
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmailChangeForm
+            email={details.email}
+            pendingEmail={details.email_pending}
+            pendingExpiresAt={details.email_pending_expires_at}
+          />
+        </CardContent>
+      </Card>
+    </MyPageLayout>
   );
 }
