@@ -3433,6 +3433,119 @@ export type Database = {
           },
         ];
       };
+      giveaway_rules: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          giveaway_id: string;
+          id: string;
+          odds_basis: string;
+          overrides: Json;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string;
+          giveaway_id: string;
+          id?: string;
+          odds_basis?: string;
+          overrides?: Json;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          giveaway_id?: string;
+          id?: string;
+          odds_basis?: string;
+          overrides?: Json;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_rules_giveaway_fk";
+            columns: ["tenant_id", "giveaway_id"];
+            isOneToOne: true;
+            referencedRelation: "giveaways";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      giveaway_rules_versions: {
+        Row: {
+          content: Json;
+          created_at: string;
+          created_by: string;
+          effective_at: string;
+          giveaway_rules_id: string;
+          id: string;
+          tenant_id: string;
+          version: number;
+        };
+        Insert: {
+          content: Json;
+          created_at?: string;
+          created_by?: string;
+          effective_at?: string;
+          giveaway_rules_id: string;
+          id?: string;
+          tenant_id?: string;
+          version: number;
+        };
+        Update: {
+          content?: Json;
+          created_at?: string;
+          created_by?: string;
+          effective_at?: string;
+          giveaway_rules_id?: string;
+          id?: string;
+          tenant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_rules_versions_rules_fk";
+            columns: ["tenant_id", "giveaway_rules_id"];
+            isOneToOne: false;
+            referencedRelation: "giveaway_rules";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       giveaway_ticket_grants: {
         Row: {
           created_at: string;
@@ -8012,6 +8125,16 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_giveaway_rules: {
+        Row: {
+          content: Json | null;
+          effective_at: string | null;
+          event_id: string | null;
+          giveaway_id: string | null;
+          version: number | null;
+        };
+        Relationships: [];
+      };
       public_legal_publication: {
         Row: {
           document: string | null;
@@ -9125,6 +9248,13 @@ export type Database = {
       public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };
       publish_article_category: { Args: { p_id: string }; Returns: number };
+      publish_giveaway_rules: {
+        Args: { p_content: Json; p_giveaway_id: string };
+        Returns: {
+          effective_at: string;
+          version: number;
+        }[];
+      };
       publish_site_content: {
         Args: { p_approval?: Json; p_keys: string[]; p_legal_surface?: Json };
         Returns: number;

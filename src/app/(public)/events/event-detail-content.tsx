@@ -6,6 +6,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { formatDateTimeInZone } from "@/lib/time";
+import { publicGiveawayRulesPath } from "@/lib/giveaway-rules-path";
+import { getEventGiveawayRulesLink } from "@/lib/giveaway-rules-publication";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
@@ -89,11 +92,14 @@ function EventDetailBody({
   variant,
   viewer,
   accountOffer,
+  giveawayRulesId,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
   viewer: EventViewer | null;
   accountOffer: AccountOffer | null;
+  /** The promotion whose official rules this event serves, if any (#1322). */
+  giveawayRulesId: string | null;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -123,6 +129,20 @@ function EventDetailBody({
       )}
 
       <EventSponsors sponsors={event.sponsors} />
+
+      {giveawayRulesId && (
+        /* In the flow the rules govern, not only in a footer: somebody about
+           to enter a promotion has to be able to read what they are entering
+           before they do (#666, #1322). */
+        <p className={page ? "mt-8 text-sm" : "mt-6 text-sm"}>
+          <Link
+            href={publicGiveawayRulesPath(giveawayRulesId)}
+            className="underline underline-offset-4"
+          >
+            Official rules for the giveaway at this event
+          </Link>
+        </p>
+      )}
 
       {event.registration_enabled && (
         /* No "Register" heading above this any more (#1256): the button is
@@ -216,6 +236,13 @@ export async function EventDetailContent({
   // same reason the viewer is: the page and the sheet must not drift into two
   // different answers about the same registration.
   const accountOffer = await loadRegistrationAccountOffer(viewer);
+  // Whether this event's promotion has published rules to point at. Loaded
+  // here for the same reason the viewer is: the page and the sheet must not
+  // drift into two different answers.
+  const giveawayRules = await getEventGiveawayRulesLink(
+    await createSupabaseServerClient(),
+    event.id,
+  );
 
   if (variant === "sheet") {
     return (
@@ -233,6 +260,7 @@ export async function EventDetailContent({
             variant="sheet"
             viewer={viewer}
             accountOffer={accountOffer}
+            giveawayRulesId={giveawayRules?.giveawayId ?? null}
           />
         </div>
       </>
@@ -256,6 +284,7 @@ export async function EventDetailContent({
         variant="page"
         viewer={viewer}
         accountOffer={accountOffer}
+        giveawayRulesId={giveawayRules?.giveawayId ?? null}
       />
     </>
   );

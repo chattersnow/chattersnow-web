@@ -484,7 +484,18 @@ describe("navGroups", () => {
       ]),
     ).toEqual([
       ["Content", ["pages", "articles", "content-packs"]],
-      ["Site settings", ["page-layout", "page-visibility", "legal-documents"]],
+      [
+        "Site settings",
+        [
+          "page-layout",
+          "page-visibility",
+          "legal-documents",
+          // #1322: the answers every set of giveaway official rules is built
+          // from. Same group and same gate as Legal documents -- it is the
+          // organization stating its own position, not the CMS.
+          "giveaway-rules",
+        ],
+      ],
     ]);
   });
 
@@ -510,7 +521,10 @@ describe("navGroups", () => {
         group.items.map((sub) => sub.value),
       ]),
     ).toEqual([
-      ["Site settings", ["page-layout", "page-visibility", "legal-documents"]],
+      [
+        "Site settings",
+        ["page-layout", "page-visibility", "legal-documents", "giveaway-rules"],
+      ],
     ]);
     // And the section opens on one of them rather than on the page editor.
     expect(website.href).toBe("/portal/website/page-layout");

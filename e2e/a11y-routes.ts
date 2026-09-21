@@ -134,6 +134,15 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
     listPath: "/events",
     linkPattern: /^\/events\/e\/[0-9a-f-]{36}$/,
   },
+  // The escape hatch this file keeps for a route nothing links to from a
+  // listing: the promotion's rules are linked from its *event's* page, and the
+  // seeded promotion belongs to a past event the public listing does not show.
+  // The giveaway's id is a literal in seed.sql, and `expectHeading` is what
+  // keeps that honest.
+  "/giveaways/[giveawayId]/rules": {
+    path: "/giveaways/babababa-0000-4000-8000-000000000002/rules",
+    expectHeading: "Official Rules",
+  },
   "/learn/[slug]": {
     listPath: "/learn",
     linkPattern: /^\/learn\/[a-z0-9-]+$/,

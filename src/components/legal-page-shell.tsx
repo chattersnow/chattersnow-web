@@ -30,12 +30,20 @@ export type { LegalSection };
 export function LegalPageShell({
   title,
   lastUpdated,
+  dateLabel = "Last updated",
   summary,
   sections,
   children,
 }: {
   title: string;
   lastUpdated: string;
+  /**
+   * What the date under the title is. "Last updated" for the three legal
+   * documents; a promotion's official rules say "Effective" instead, because
+   * the date is the moment that version took force rather than the day
+   * somebody edited it (#1322).
+   */
+  dateLabel?: string;
   /** The "short version" opening. Every one of these pages gets one: people
    *  scan policy pages rather than read them, so the page has to answer the
    *  reader's question before it starts explaining itself. */
@@ -62,7 +70,9 @@ export function LegalPageShell({
               {title}
             </h1>
           </div>
-          <p className="app-muted mt-4 text-sm">Last updated: {lastUpdated}</p>
+          <p className="app-muted mt-4 text-sm">
+            {dateLabel}: {lastUpdated}
+          </p>
           <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
             {summary}
           </div>
