@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
+import { getLegalDocumentDrift } from "@/lib/legal-publication";
+import { hasDrifted } from "@/lib/legal-surface";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
 import { deriveEventPhaseTasks } from "@/app/portal/(app)/events/phase-status";
 import type { EventTaskKind } from "@/app/portal/(app)/events/phase-status";
@@ -72,6 +74,48 @@ export async function getPendingApprovalsSummary(
   }
 
   return { items };
+}
+
+/**
+ * Legal documents that no longer describe what the site collects (#1292).
+ *
+ * The Legal documents panel makes drift knowable; this is what makes it
+ * *known*, because nobody visits that panel on a schedule and nobody re-reads
+ * their own privacy policy unprompted. A document published in March never
+ * mentions the open calls switched on in June, and only the organization can
+ * rewrite it.
+ *
+ * `attention`, not `urgent`: nothing is broken, the text may well have been
+ * through counsel, and a document somebody signed off should not be shouted at
+ * in red. Documents published before the fingerprint existed are left out
+ * entirely -- "unknown" is not a finding, and counting it would have handed
+ * every tenant that has ever published an alert on the day this shipped.
+ *
+ * Gated on `site_content:manage`, the same permission the editor checks, so
+ * the reads behind it are skipped for the overwhelming majority of a tenant's
+ * members -- this runs in the portal layout, on every portal page render.
+ */
+export async function getLegalDriftSummary(
+  supabase: SupabaseClient,
+  options: { canManageSiteContent: boolean },
+): Promise<PendingApprovalsSummary> {
+  if (!options.canManageSiteContent) return { items: [] };
+
+  const drift = await getLegalDocumentDrift(supabase);
+  const count = Object.values(drift).filter(hasDrifted).length;
+  if (count === 0) return { items: [] };
+
+  return {
+    items: [
+      {
+        key: "legal_documents_drift",
+        label: `${count} legal document${count === 1 ? "" : "s"} to review`,
+        count,
+        href: "/portal/website/legal-documents",
+        severity: "attention",
+      },
+    ],
+  };
 }
 
 /**

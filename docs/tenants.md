@@ -589,7 +589,23 @@ Both are the tenant admin's, not the operator's:
   is declared in `src/lib/legal-documents.ts` (`LegalDocument.gates`) and
   enforced in the two Server Actions the two switches call, so seeding, the
   demo reset and the e2e fixtures — all of which write these rows as
-  `service_role` — are free to set whatever state they need. The site's photos are
+  `service_role` — are free to set whatever state they need. **Publishing a
+  `legal.*` slot records what the site was collecting at that moment** (#1292):
+  one `app_settings` row per document, `legal_surface.<key>`, holding the
+  sorted keys of `collectionSurface()` (`src/lib/legal-surface.ts`) — the same
+  definition that writes the platform's own document. It is written by
+  `publish_site_content` inside the publish transaction rather than by the
+  Server Action afterwards, so a publish cannot succeed while the fingerprint
+  silently does not, and it is deliberately private: no view serves
+  `legal_surface.%` to `anon`. Its purpose is drift. An organization's own
+  privacy policy is the one document the platform may not rewrite, so when a
+  module is switched on or off afterwards the Legal documents panel says which
+  one moved and what the text now describes wrongly, and an `attention`-level
+  item appears in the portal's attention list for anyone holding
+  `site_content:manage`. Nothing is blocked and nothing is re-inserted into the
+  document. There is no backfill: a document published before this existed
+  reads as _unknown_ and asks to be re-published, rather than being reported as
+  describing nothing. The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.

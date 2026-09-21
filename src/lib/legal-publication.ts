@@ -7,6 +7,17 @@ import {
   resolveInForce,
   type LegalDocument,
 } from "@/lib/legal-documents";
+import {
+  collectionSurface,
+  LEGAL_SURFACE_PREFIX,
+  surfaceDrift,
+  surfaceKeys,
+  type LegalDocumentDrift,
+} from "@/lib/legal-surface";
+import {
+  getTenantModules,
+  getTenantPageVisibility,
+} from "@/lib/page-visibility";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -98,6 +109,131 @@ export const getTenantLegalPublication = cache(
     return inForce;
   },
 );
+
+/**
+ * Which of the three the tenant has published text of its own for.
+ *
+ * A published row is `value not null`; a draft is not being served and does not
+ * count. Shared -- and `cache()`d -- because the Legal documents panel and the
+ * portal shell's attention list both need it and both run on the same request.
+ */
+export const getTenantOwnLegalDocuments = cache(
+  async (supabase: SupabaseClient): Promise<Set<string>> => {
+    const { data } = await supabase
+      .from("site_content")
+      .select("key, value")
+      .like("key", "legal.%")
+      .not("value", "is", null);
+    return new Set((data ?? []).map((row) => String(row.key)));
+  },
+);
+
+/** What one published document recorded about the site it was written for. */
+export type LegalSurfaceFingerprint = {
+  surfaces: string[];
+  publishedAt: string | null;
+};
+
+/**
+ * The fingerprint each of this tenant's published legal documents carries
+ * (#1292), or `null` where there is none.
+ *
+ * `null` is **unknown**, not "collected nothing" -- see `surfaceDrift()`. Only
+ * documents published since the fingerprint shipped have one, which on day one
+ * is none of them.
+ *
+ * Read from `app_settings` for the *selected* tenant rather than through a
+ * public view, for the same reason `getTenantLegalPublication` above does: the
+ * write goes to the admin's own tenant, and reading the request host's would
+ * answer for a different organization.
+ */
+export const getTenantLegalSurfaces = cache(
+  async (
+    supabase: SupabaseClient,
+  ): Promise<Record<string, LegalSurfaceFingerprint | null>> => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .like("key", `${LEGAL_SURFACE_PREFIX}%`);
+
+    // Quiet in the UI, loud in the log: an unreadable fingerprint lands on
+    // "unknown", which is the honest answer and the one that says nothing
+    // alarming -- but it is indistinguishable from a document published before
+    // this existed, so nothing else would ever mention it.
+    if (error) {
+      console.error(
+        "[legal-publication] could not read legal_surface.* from app_settings; every document is showing as never fingerprinted",
+        error,
+      );
+    }
+
+    const fingerprints: Record<string, LegalSurfaceFingerprint | null> = {};
+    for (const document of LEGAL_DOCUMENTS) fingerprints[document.key] = null;
+
+    for (const row of data ?? []) {
+      const key = String(row.key).slice(LEGAL_SURFACE_PREFIX.length);
+      if (!(key in fingerprints)) continue;
+      const value = row.value as {
+        surfaces?: unknown;
+        published_at?: unknown;
+      } | null;
+      if (!value || !Array.isArray(value.surfaces)) continue;
+      fingerprints[key] = {
+        surfaces: value.surfaces.map(String),
+        publishedAt:
+          typeof value.published_at === "string" ? value.published_at : null,
+      };
+    }
+    return fingerprints;
+  },
+);
+
+/**
+ * Whether a published legal document still describes what the site collects
+ * (#1292).
+ *
+ * Reported only for a document that is **both** the tenant's own text **and**
+ * in force. The platform's own document regenerates from the live
+ * configuration on every request and cannot go stale, and text nobody is being
+ * served cannot mislead anybody -- so the panel line and the shell's attention
+ * item answer to one rule rather than to two that could disagree.
+ *
+ * Every read it makes is `cache()`d per request, so an administrator whose
+ * portal shell asked this question and then opened Legal documents pays for it
+ * once.
+ */
+export async function getLegalDocumentDrift(
+  supabase: SupabaseClient,
+): Promise<Record<string, LegalDocumentDrift>> {
+  const [publication, ownDocuments, fingerprints, visibility, modules] =
+    await Promise.all([
+      getTenantLegalPublication(supabase),
+      getTenantOwnLegalDocuments(supabase),
+      getTenantLegalSurfaces(supabase),
+      getTenantPageVisibility(supabase),
+      getTenantModules(supabase),
+    ]);
+
+  const current = surfaceKeys(collectionSurface(visibility, modules));
+  const state: Record<string, LegalDocumentDrift> = {};
+
+  for (const document of LEGAL_DOCUMENTS) {
+    if (!publication[document.key]) continue;
+    if (!ownDocuments.has(document.slotKey)) continue;
+
+    const fingerprint = fingerprints[document.key];
+    const drift = surfaceDrift(fingerprint?.surfaces, current);
+    state[document.key] = drift
+      ? {
+          status: "checked",
+          publishedAt: fingerprint?.publishedAt ?? null,
+          ...drift,
+        }
+      : { status: "unknown" };
+  }
+
+  return state;
+}
 
 /** The documents this tenant serves, in registry order, for the footer. */
 export function documentsInForce(

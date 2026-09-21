@@ -5,7 +5,7 @@
 // than `publish_site_content`. That is a column-privilege and RLS question,
 // and the whole design -- including the approval gate the legal documents get
 // on top of it -- rests on the answer being no.
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   adminClient,
   anonClient,
@@ -238,6 +238,167 @@ describe("image slots", () => {
       .like("key", "site_images.%");
     expect(error).toBeNull();
     expect(data).toEqual([]);
+  });
+});
+
+// #1292. The fingerprint is written by `publish_site_content` rather than by
+// the Server Action afterwards, and that is the whole point: two transactions
+// would let the publish succeed while the fingerprint write failed, leaving the
+// document reading as *unknown* forever with nothing left to retry it. Only a
+// real stack can show that the two land together, and that a caller naming a
+// slot with nothing pending does not get a fresh stamp on stale text.
+describe("the legal-document surface fingerprint", () => {
+  const LEGAL_KEY = "legal.privacy";
+  const SETTING_KEY = "legal_surface.privacy";
+  const SURFACE = { surfaces: ["artworkSubmissions", "contact"] };
+
+  // `legal.privacy` is a real slot this tenant may already be serving, so the
+  // row is put back rather than deleted.
+  let before: { value: unknown } | null = null;
+
+  beforeEach(async () => {
+    const { data } = await service
+      .from("site_content")
+      .select("value")
+      .eq("key", LEGAL_KEY)
+      .maybeSingle();
+    before = data ?? null;
+  });
+
+  afterEach(async () => {
+    if (before) {
+      await service
+        .from("site_content")
+        .update({ value: before.value, draft_value: null, has_draft: false })
+        .eq("key", LEGAL_KEY);
+    } else {
+      await service.from("site_content").delete().eq("key", LEGAL_KEY);
+    }
+    await service.from("app_settings").delete().eq("key", SETTING_KEY);
+  });
+
+  async function fingerprint() {
+    const { data } = await service
+      .from("app_settings")
+      .select("value")
+      .eq("key", SETTING_KEY)
+      .maybeSingle();
+    return (data?.value ?? null) as {
+      surfaces?: string[];
+      published_at?: string;
+    } | null;
+  }
+
+  test("records what the site collected, stamped with the publish itself", async () => {
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: LEGAL_KEY, value: "Our own privacy policy" }],
+    });
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_legal_surface: SURFACE,
+    });
+    expect(error).toBeNull();
+
+    const stored = await fingerprint();
+    expect(stored?.surfaces).toEqual(["artworkSubmissions", "contact"]);
+    // The transaction's own clock, not the caller's: a browser that is a week
+    // out would otherwise date the document a week out.
+    expect(Date.parse(stored!.published_at!)).toBeGreaterThan(
+      Date.now() - 60_000,
+    );
+  });
+
+  test("writes nothing for a slot that is not a legal document", async () => {
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: KEY, value: "An ordinary heading" }],
+    });
+    await adminClient.rpc("publish_site_content", {
+      p_keys: [KEY],
+      p_legal_surface: SURFACE,
+    });
+
+    expect(await fingerprint()).toBeNull();
+  });
+
+  // The feature's own failure mode, written by its own hand: a caller may name
+  // a slot with no pending draft, nothing publishes, and stamping it anyway
+  // would mark text that never changed as freshly checked.
+  test("writes nothing when the document did not actually publish", async () => {
+    await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_legal_surface: SURFACE,
+    });
+
+    expect(await fingerprint()).toBeNull();
+  });
+
+  test("a caller that passes no surface writes no fingerprint", async () => {
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: LEGAL_KEY, value: "Our own privacy policy" }],
+    });
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+    });
+
+    expect(error).toBeNull();
+    expect(await fingerprint()).toBeNull();
+  });
+
+  // Reverting to the platform's document hands the route back to text that is
+  // regenerated on every request and so cannot go stale. A fingerprint left
+  // behind would describe a document nobody is serving.
+  test("clears the fingerprint when the tenant reverts to the platform's text", async () => {
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: LEGAL_KEY, value: "Our own privacy policy" }],
+    });
+    await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_legal_surface: SURFACE,
+    });
+    expect(await fingerprint()).not.toBeNull();
+
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: LEGAL_KEY, value: null }],
+    });
+    await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_legal_surface: SURFACE,
+    });
+
+    expect(await fingerprint()).toBeNull();
+  });
+
+  test("a later publish replaces the fingerprint rather than adding one", async () => {
+    for (const surfaces of [["contact"], ["contact", "eventRegistrations"]]) {
+      await adminClient.rpc("save_site_content_drafts", {
+        p_entries: [{ key: LEGAL_KEY, value: `Revision ${surfaces.length}` }],
+      });
+      await adminClient.rpc("publish_site_content", {
+        p_keys: [LEGAL_KEY],
+        p_legal_surface: { surfaces },
+      });
+    }
+
+    const { data } = await service
+      .from("app_settings")
+      .select("key")
+      .eq("key", SETTING_KEY);
+    expect(data).toHaveLength(1);
+    expect((await fingerprint())?.surfaces).toEqual([
+      "contact",
+      "eventRegistrations",
+    ]);
+  });
+
+  test("a session without site_content:manage cannot write one", async () => {
+    const volunteer = await signInAs(SEEDED_USERS.volunteer);
+    const { error } = await volunteer.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_legal_surface: SURFACE,
+    });
+
+    expect(error?.message).toContain("FORBIDDEN");
+    expect(await fingerprint()).toBeNull();
   });
 });
 

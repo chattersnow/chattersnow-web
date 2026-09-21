@@ -13,6 +13,7 @@ import {
 import {
   getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
+  getLegalDriftSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
@@ -196,6 +197,13 @@ export default async function PortalAppLayout({
     "access_management_assets",
     "view",
   );
+  // The same permission the Site Content editor checks. Almost nobody in a
+  // tenant holds it, and almost nobody should pay for the drift reads (#1292).
+  const canManageSiteContent = hasPermission(
+    permissions,
+    "site_content",
+    "manage",
+  );
 
   // These reads are independent of each other, and this layout re-runs on
   // every portal navigation -- including every filter submit, which is a full
@@ -215,6 +223,7 @@ export default async function PortalAppLayout({
     opsInbox,
     calendarCoverageReminder,
     accessManagementAlerts,
+    legalDrift,
   ] = await Promise.all([
     currentPersonPromise,
     // Records this account's first arrival and tells us what it has already
@@ -245,6 +254,7 @@ export default async function PortalAppLayout({
       : { items: [] },
     getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
+    getLegalDriftSummary(supabase, { canManageSiteContent }),
   ]);
 
   const welcomeOwed =
@@ -264,6 +274,7 @@ export default async function PortalAppLayout({
     ...opsInbox.items,
     ...calendarCoverageReminder.items,
     ...accessManagementAlerts.items,
+    ...legalDrift.items,
   ];
 
   // Same display rule as every other person in the portal, so a preferred

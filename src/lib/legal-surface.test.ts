@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   collectionSurface,
+  hasDrifted,
+  joinPhrases,
+  namedSurfaces,
+  surfaceDrift,
   surfaceKeys,
   SURFACE_GATES,
+  SURFACE_LABELS,
   type CollectionSurface,
 } from "@/lib/legal-surface";
 import { PUBLIC_PAGE_SLOTS } from "@/lib/page-visibility";
@@ -159,5 +164,96 @@ describe("surfaceKeys", () => {
         googleSignIn: false,
       }),
     ).toEqual([]);
+  });
+});
+
+// #1292. The whole feature rests on absent reading as *unknown*: a tenant that
+// published before the fingerprint existed -- which on the day this ships is
+// every tenant that has published anything -- must not be told its policy is
+// wrong on the strength of a record nobody kept.
+describe("surfaceDrift", () => {
+  test("is null when the document carries no fingerprint", () => {
+    expect(surfaceDrift(null, ["contact"])).toBeNull();
+    expect(surfaceDrift(undefined, ["contact"])).toBeNull();
+    expect(hasDrifted({ status: "unknown" })).toBe(false);
+  });
+
+  test("reports nothing when the surface has not moved", () => {
+    const drift = surfaceDrift(
+      ["contact", "googleSignIn"],
+      ["contact", "googleSignIn"],
+    );
+    expect(drift).toEqual({ added: [], removed: [] });
+    expect(
+      hasDrifted({ status: "checked", publishedAt: null, ...drift! }),
+    ).toBe(false);
+  });
+
+  test("an empty fingerprint is a fingerprint, not an absent one", () => {
+    expect(surfaceDrift([], ["contact"])).toEqual({
+      added: ["contact"],
+      removed: [],
+    });
+  });
+
+  test("names what was turned on after the document was written", () => {
+    expect(
+      surfaceDrift(["contact"], ["artworkSubmissions", "contact"]),
+    ).toEqual({ added: ["artworkSubmissions"], removed: [] });
+  });
+
+  test("names what the document still describes and the site no longer does", () => {
+    expect(
+      surfaceDrift(["contact", "volunteerApplications"], ["contact"]),
+    ).toEqual({ added: [], removed: ["volunteerApplications"] });
+  });
+
+  test("reports both directions separately", () => {
+    const drift = surfaceDrift(
+      ["contact", "volunteerApplications"],
+      ["artworkSubmissions", "contact"],
+    );
+    expect(drift).toEqual({
+      added: ["artworkSubmissions"],
+      removed: ["volunteerApplications"],
+    });
+    expect(
+      hasDrifted({ status: "checked", publishedAt: null, ...drift! }),
+    ).toBe(true);
+  });
+});
+
+describe("naming surfaces in a sentence", () => {
+  test("every surface has a label", () => {
+    expect(Object.keys(SURFACE_LABELS).sort()).toEqual(
+      Object.keys(collectionSurface({}, {})).sort(),
+    );
+  });
+
+  // One module governs both, so switching it off moves both keys at once --
+  // and "Volunteers and Volunteers was disabled" is the line that would ship.
+  test("collapses two surfaces that share one switch", () => {
+    expect(
+      namedSurfaces(["volunteerApplications", "volunteerHours"], "subject"),
+    ).toEqual(["Volunteers"]);
+    expect(
+      namedSurfaces(["volunteerApplications", "volunteerHours"], "collects"),
+    ).toEqual([
+      "volunteer applications",
+      "hours volunteers log for themselves",
+    ]);
+  });
+
+  test("ignores a key no registry knows about", () => {
+    expect(namedSurfaces(["retiredSurface"], "subject")).toEqual([]);
+  });
+
+  test("joins phrases as prose", () => {
+    expect(joinPhrases([])).toBe("");
+    expect(joinPhrases(["Artwork"])).toBe("Artwork");
+    expect(joinPhrases(["Artwork", "Events"])).toBe("Artwork and Events");
+    expect(joinPhrases(["Artwork", "Events", "Contact"])).toBe(
+      "Artwork, Events and Contact",
+    );
   });
 });
