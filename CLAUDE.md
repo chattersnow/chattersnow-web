@@ -28,6 +28,7 @@ bun run a11y:baseline     # re-record the baseline after fixing (or accepting) v
 bun run format      # prettier --write .
 bun run format:check
 bun run docs:links  # every `](file.md#anchor)` in the repo's Markdown resolves (runs in CI's quality job)
+bun run docs:legal  # print the platform's three legal documents as Markdown (`--minimal` for the shortest form); docs/legal-basis.md
 ```
 
 Husky runs a pre-commit hook (`.husky/pre-commit`). CI extends coverage over these same checks.

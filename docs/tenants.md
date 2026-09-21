@@ -567,7 +567,9 @@ Both are the tenant admin's, not the operator's:
   what this application does for a nonprofit, names the organization and its
   `org.email_*` addresses, and leaves out everything only that organization
   can answer -- so it is a starting point for their own counsel rather than
-  legal advice, which the editor says beside the slot. Chatter Snow's own
+  legal advice, which the editor says beside the slot. Read that text with
+  `bun run docs:legal`; [legal-basis.md](legal-basis.md) has the rules it is
+  written under and the record of who approved it. Chatter Snow's own
   three documents are its tenant's rows
   (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
   three is served is a separate per-tenant decision, in **Administration →
