@@ -68,6 +68,47 @@ longer applies to is still a change.
 | ---------- | ------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-09-21 | September 21, 2026 | Rickie (platform owner) | First recorded approval of all three documents. Covers the text as rendered by `bun run docs:legal` at this version, which is the first to name Sentry in the privacy policy's subprocessor list (#1340). The prior state was not an approval: the documents had been served since #858 and #1291 with no reviewer and no record. |
 
+## What submitting a public form means
+
+**Decided 2026-09-21 by the platform owner (#1318): submitting a public form is
+not acceptance of the legal documents.**
+
+The public forms — event registration, volunteer application, gear request,
+contact — collect information. They do not take agreement to anything. A privacy
+policy is a notice rather than a contract: it binds the organization whether or
+not the visitor read it. Since #684 each of those forms says at the point of
+collection what is done with what is entered and links `/privacy`, and the
+footer links it on every page. That notice is the whole of what a submission
+means.
+
+Nothing asserts acceptance of the terms of use or the code of conduct either,
+and that is a decision rather than an omission waiting to be fixed. Those two
+routes 404 until a tenant adopts them (#859), so a site-wide agreement sentence
+would have to disappear per tenant; and blanket assent to three documents nobody
+opened is not what consent looks like.
+
+Where the platform does take agreement, it is scoped to the thing being
+submitted and worded by the organization for that purpose:
+
+- **Artwork submissions** — an unticked box confirming the work is the artist's
+  own, and agreeing to the call's own `rights_note` (#876, #877) where it has
+  one. The timestamp is stored on the submission.
+- **Photo and media consent** (#599) and **the participant waiver** (#686) are
+  the same shape when they land: a real choice, and a box that can be left
+  unticked.
+
+What follows from this:
+
+- No consent checkbox for the privacy policy on any public form. A box that
+  cannot be declined dilutes the ones that can.
+- No stored pointer to a legal document version on a public submission. Such a
+  column would assert an acceptance the interface never obtained.
+  `legal_document_versions` (#601) stays evidence-driven; this is not the
+  evidence for it.
+- Reopening this needs a legal reason rather than a design one — a tenant whose
+  terms of use genuinely bind a registrant, say. It would be that tenant's claim
+  to make, in that tenant's wording, and conditional on what it has adopted.
+
 ## What this does not cover
 
 - **A tenant that has published its own documents.** Those are that tenant's
