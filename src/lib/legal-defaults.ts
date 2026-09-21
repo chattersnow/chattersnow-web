@@ -67,7 +67,7 @@ export type LegalOrgContext = {
  * Printed on all three documents. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 19, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 21, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -175,6 +175,14 @@ const PRIVACY: DocumentProse = {
           `**Supabase** — hosts our database and handles ${org.surfaces.constituentAccounts ? "sign-in" : "portal sign-in"}.`,
           "**Vercel** — hosts this website and provides the aggregate traffic counts we use to see which pages get visited.",
           "**Resend** — delivers the email this site sends, such as a confirmation or a reply to something you submitted.",
+          // Unconditional, unlike Google below: errors happen on every page of
+          // every deployment, and there is no per-tenant switch to read. The
+          // second sentence is the honest part -- `sendDefaultPii` is left at
+          // its default of false, tracing is off and Session Replay is not
+          // enabled, so nothing about the person is sent on purpose. Keep the
+          // sentence and the configuration in step: turning any of those on
+          // makes this bullet false (#1340).
+          "**Sentry** — receives a technical report when something on the site goes wrong, so we can find and fix it. Those reports describe the failure rather than you: we don't attach your account details to one, and we don't record your session.",
           org.surfaces.googleSignIn &&
             `**Google** — only if someone chooses to sign in${org.surfaces.constituentAccounts ? "" : " to the portal"} with a Google account.`,
         ]),
