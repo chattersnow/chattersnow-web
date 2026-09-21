@@ -9,9 +9,14 @@ import {
   legalDocument,
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
+import {
+  LEGAL_APPROVAL_SETTING_KEY,
+  MINIMUM_APPROVERS,
+} from "@/lib/legal-approval";
 import { legalAcknowledgementSettingKey } from "@/lib/legal-acknowledgement";
 import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
 import {
+  getSiteContentApproverCount,
   getTenantLegalPublication,
   getTenantOwnLegalDocuments,
 } from "@/lib/legal-publication";
@@ -56,6 +61,13 @@ import {
 const LAYOUT_PATHS = ["/portal/website/page-layout"] as const;
 const VISIBILITY_PATHS = ["/portal/website/page-visibility"] as const;
 const LEGAL_PATHS = ["/portal/website/legal-documents"] as const;
+// The approval gate is the one setting on this page that changes what another
+// page does: the publish dialog in the editor asks for a reference and review
+// notes only while it is on, so that page is revalidated too.
+const LEGAL_APPROVAL_PATHS = [
+  "/portal/website/legal-documents",
+  "/portal/website",
+] as const;
 
 export async function updatePageVisibilityAction(
   slot: string,
@@ -184,6 +196,58 @@ export async function acknowledgeLegalDocumentAction(
       platform_last_updated: PLATFORM_LEGAL_LAST_UPDATED,
     },
     LEGAL_PATHS,
+  );
+}
+
+/**
+ * Whether publishing a legal document here requires somebody other than the
+ * person who drafted it (#600).
+ *
+ * The decision this setting exists to leave open is in `@/lib/legal-approval`:
+ * a four-eyes rule on legal text is reasonable for an organization that has
+ * the eyes, and a platform-wide one would leave a single-administrator tenant
+ * unable to publish its own privacy policy at all. So it is the tenant's
+ * choice, off until they make it.
+ *
+ * The refusal below is that same lockout, blocked at the door it arrives by:
+ * switching the gate on in an organization where only one person can publish
+ * website content means no legal document can be published by anybody, since
+ * the only possible publisher is always the drafter. Refused with the reason
+ * rather than saved -- and counted in the database, because how many *other*
+ * people hold a permission is not a question a portal read can answer.
+ *
+ * Switching it back off is never refused. It is the way out of that state, and
+ * a tenant that has lost its second administrator needs the way out to work.
+ */
+export async function updateLegalApprovalAction(
+  required: boolean,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  // Checked here as well as inside `writeAppSetting`, like
+  // `acknowledgeLegalDocumentAction` above: the refusal below describes this
+  // organization's own staffing, which is not something to tell a reader who
+  // could not have saved the setting anyway.
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (required) {
+    const approvers = await getSiteContentApproverCount(supabase);
+    if (approvers < MINIMUM_APPROVERS) {
+      return {
+        error:
+          "Only one person here can publish website content, so nobody could ever be the second approver. Give someone else the Site content permission at Manage first, then switch this on.",
+      };
+    }
+  }
+
+  return writeAppSetting(
+    LEGAL_APPROVAL_SETTING_KEY,
+    required,
+    LEGAL_APPROVAL_PATHS,
   );
 }
 

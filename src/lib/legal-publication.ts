@@ -14,6 +14,11 @@ import {
   type LegalAcknowledgement,
   type LegalAcknowledgementRecord,
 } from "@/lib/legal-acknowledgement";
+import {
+  LEGAL_APPROVAL_SETTING_KEY,
+  resolveApprovalRequired,
+  type LegalPublishState,
+} from "@/lib/legal-approval";
 import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
 import {
   collectionSurface,
@@ -26,6 +31,7 @@ import {
   getTenantModules,
   getTenantPageVisibility,
 } from "@/lib/page-visibility";
+import { siteContentActorNames } from "@/lib/site-content-actors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -326,6 +332,133 @@ export async function getLegalAcknowledgementState(
   }
   return state;
 }
+
+/**
+ * Whether this tenant requires a second approver before a legal document
+ * publishes (#600).
+ *
+ * Read from `app_settings` for the *selected* tenant, like every read above
+ * it, and off wherever the row is missing or unreadable. Off is the cautious
+ * answer in both directions here: the panel would otherwise show a gate nobody
+ * set, and the gate that actually decides a publish is the one inside
+ * `publish_site_content` rather than this.
+ */
+export const getTenantLegalApproval = cache(
+  async (supabase: SupabaseClient): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", LEGAL_APPROVAL_SETTING_KEY)
+      .maybeSingle();
+
+    if (error) {
+      console.error(
+        "[legal-publication] could not read legal_approval.required from app_settings; the second-approver gate is showing as off",
+        error,
+      );
+    }
+
+    return resolveApprovalRequired(data?.value);
+  },
+);
+
+/**
+ * How many people here could publish website content, for the refusal that
+ * stops a single-administrator tenant switching the gate on.
+ *
+ * The count comes from the database rather than from a permissions read in
+ * TypeScript because it is a question about *other people's* roles, which no
+ * ordinary portal read can answer: `my_permissions()` answers for the caller
+ * alone, and `auth.users` is not readable from the browser at all. Nought on a
+ * failed read, which refuses the switch -- a gate switched on because a count
+ * came back empty would be the lockout the refusal exists to prevent.
+ */
+export const getSiteContentApproverCount = cache(
+  async (supabase: SupabaseClient): Promise<number> => {
+    const { data, error } = await supabase.rpc("site_content_approver_count");
+    if (error) {
+      console.error(
+        "[legal-publication] could not count the people who can publish website content; the second-approver gate cannot be switched on",
+        error,
+      );
+      return 0;
+    }
+    return typeof data === "number" ? data : 0;
+  },
+);
+
+/**
+ * Per document: the draft waiting to be published, and the approval recorded
+ * on the text being served now (#600).
+ *
+ * This is what lets the panel say who is waiting on whom. The viewer's own id
+ * is compared here rather than sent to the browser -- the panel is a client
+ * component, and whether *you* drafted this is the only part of an account id
+ * it has any use for.
+ */
+export const getTenantLegalPublishState = cache(
+  async (
+    supabase: SupabaseClient,
+  ): Promise<Record<string, LegalPublishState>> => {
+    const [{ data }, { data: userData }] = await Promise.all([
+      supabase
+        .from("site_content")
+        .select(
+          "key, has_draft, draft_updated_at, draft_updated_by, approved_at, approved_by, approval_reference, review_notes",
+        )
+        .like("key", "legal.%"),
+      supabase.auth.getUser(),
+    ]);
+
+    const rows = (data ?? []) as {
+      key: string;
+      has_draft: boolean;
+      draft_updated_at: string | null;
+      draft_updated_by: string | null;
+      approved_at: string | null;
+      approved_by: string | null;
+      approval_reference: string | null;
+      review_notes: string | null;
+    }[];
+    const viewerId = userData.user?.id ?? null;
+    const names = await siteContentActorNames(
+      supabase,
+      rows.flatMap((row) => [row.draft_updated_by, row.approved_by]),
+    );
+
+    const state: Record<string, LegalPublishState> = {};
+    for (const document of LEGAL_DOCUMENTS) {
+      const row = rows.find((candidate) => candidate.key === document.slotKey);
+      state[document.key] = {
+        pending: row?.has_draft
+          ? {
+              draftedAt: row.draft_updated_at,
+              draftedBy: row.draft_updated_by
+                ? (names.get(row.draft_updated_by) ?? null)
+                : null,
+              draftedByViewer: Boolean(
+                viewerId && row.draft_updated_by === viewerId,
+              ),
+            }
+          : null,
+        // An approval shows only where the reference survives: that is what
+        // names the decision, and a row carrying a date without one is a row
+        // the gate was off for.
+        approval: row?.approval_reference
+          ? {
+              approvedAt: row.approved_at,
+              approvedBy: row.approved_by
+                ? (names.get(row.approved_by) ?? null)
+                : null,
+              reference: row.approval_reference,
+              notes: row.review_notes ?? "",
+            }
+          : null,
+      };
+    }
+    return state;
+  },
+);
 
 /** The documents this tenant serves, in registry order, for the footer. */
 export function documentsInForce(

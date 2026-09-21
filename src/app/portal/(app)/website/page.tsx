@@ -29,6 +29,8 @@ import {
   slotsForPage,
 } from "@/lib/site-content";
 import { deviceClass } from "@/lib/portal/device";
+import { siteContentActorNames } from "@/lib/site-content-actors";
+import { getTenantLegalApproval } from "@/lib/legal-publication";
 import { ContentEditor } from "./content-editor";
 import {
   buildOutline,
@@ -40,36 +42,6 @@ import {
 export const metadata: Metadata = {
   title: "Site Content",
 };
-
-/** The people named on this tenant's rows, by id, for the attribution lines. */
-async function actorNames(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  rows: readonly SiteContentDraftRow[],
-): Promise<Map<string, string>> {
-  const ids = [
-    ...new Set(
-      rows
-        .flatMap((row) => [row.draft_updated_by, row.published_by])
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ];
-  if (ids.length === 0) return new Map();
-
-  const { data } = await supabase.rpc("list_site_content_actors", {
-    p_user_ids: ids,
-  });
-  const actors = (data ?? []) as {
-    user_id: string;
-    email: string | null;
-    full_name: string | null;
-  }[];
-  return new Map(
-    actors.map((actor) => [
-      actor.user_id,
-      actor.full_name || actor.email || "someone",
-    ]),
-  );
-}
 
 export default async function SiteContentPage({
   searchParams,
@@ -98,6 +70,8 @@ export default async function SiteContentPage({
     layoutValues,
     tenantVisibility,
     tenantModules,
+    approvalRequired,
+    { data: userData },
   ] = await Promise.all([
     getCurrentUserPermissions(supabase),
     supabase
@@ -114,6 +88,11 @@ export default async function SiteContentPage({
     // policy has to start from one that matches the site they are editing.
     getTenantPageVisibility(supabase),
     getTenantModules(supabase),
+    // Whether a legal document needs a second pair of eyes before it publishes
+    // (#600). The publish dialog asks for an approval only while this is on,
+    // and refuses outright on a draft the reader wrote themselves.
+    getTenantLegalApproval(supabase),
+    supabase.auth.getUser(),
   ]);
   const rows = (data ?? []) as SiteContentDraftRow[];
   const { published, draft } = resolveDraftAndPublished(rows);
@@ -126,7 +105,11 @@ export default async function SiteContentPage({
   // browser: `useIsMobile()` answers `false` on the server, so a phone would
   // paint the full column and swap it after hydration (#1093).
   const device = await deviceClass();
-  const actors = await actorNames(supabase, rows);
+  const actors = await siteContentActorNames(
+    supabase,
+    rows.flatMap((row) => [row.draft_updated_by, row.published_by]),
+  );
+  const viewerId = userData.user?.id ?? null;
 
   // Who the platform's own legal documents are about, read the way the public
   // site reads them: from what is published, not from a pending draft, so the
@@ -155,6 +138,9 @@ export default async function SiteContentPage({
       draftUpdatedBy: row?.draft_updated_by
         ? (actors.get(row.draft_updated_by) ?? null)
         : null,
+      draftedByViewer: Boolean(
+        viewerId && row?.has_draft && row.draft_updated_by === viewerId,
+      ),
       publishedAt: row?.published_at ?? null,
       publishedBy: row?.published_by
         ? (actors.get(row.published_by) ?? null)
@@ -222,6 +208,7 @@ export default async function SiteContentPage({
           programsFromModule={layoutValues[PROGRAMS_SOURCE_SLOT] === "module"}
           teamFromPeople={layoutValues[TEAM_SOURCE_SLOT] === "people"}
           canEdit={canEdit}
+          approvalRequired={approvalRequired}
         />
       </div>
     </>

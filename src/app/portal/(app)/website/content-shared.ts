@@ -39,6 +39,13 @@ export type EditorSlot = {
   hasDraft: boolean;
   draftUpdatedAt: string | null;
   draftUpdatedBy: string | null;
+  /**
+   * Whether the pending draft is the reader's own (#600). Compared on the
+   * server, so the browser is told a yes or no rather than an account id: with
+   * the second-approver gate on, this is the difference between a slot the
+   * reader may publish and one they may not.
+   */
+  draftedByViewer: boolean;
   publishedAt: string | null;
   publishedBy: string | null;
   /**

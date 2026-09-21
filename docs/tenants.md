@@ -633,7 +633,24 @@ Both are the tenant admin's, not the operator's:
   the document and read it. A document is answered by exactly one of the two —
   its own text can drift, the platform's can go unread — so the two never
   double-count and never leave one unaccounted for. Chatter Snow is unaffected,
-  since #858 it publishes its own three. The site's photos are
+  since #858 it publishes its own three. **An organization may ask for a
+  second pair of eyes before any of the three publishes** (#600): one
+  `app_settings` row, `legal_approval.required`, off until that tenant switches
+  it on in the same panel. With it on, a `legal.*` slot can only be published
+  by somebody other than the person whose draft it is, and that person is asked
+  what approved the text and what they made of it; both land on the
+  `site_content` row, which `audit_log` snapshots on the same publish, so the
+  approval sits beside the exact words it approved rather than in a version
+  table (#601 owns that). It is enforced in `publish_site_content` rather than
+  in the Server Action, since that function is the only write path onto the
+  public site. It is deliberately **not** a platform-wide rule: a
+  single-administrator tenant is an expected, supported state — the portal
+  ships `access_management_single_administrator` for it — and a hard four-eyes
+  gate would leave such an organization unable to publish its own privacy
+  policy at all, pinned to the platform's default with no way out short of
+  buying another seat. For the same reason a tenant with fewer than two holders
+  of `site_content:manage` is refused when it tries to switch the gate on, and
+  switching it back off is never refused. The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.

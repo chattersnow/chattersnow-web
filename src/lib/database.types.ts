@@ -7028,6 +7028,9 @@ export type Database = {
       };
       site_content: {
         Row: {
+          approval_reference: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
           draft_updated_at: string | null;
           draft_updated_by: string | null;
           draft_value: Json | null;
@@ -7036,12 +7039,16 @@ export type Database = {
           key: string;
           published_at: string | null;
           published_by: string | null;
+          review_notes: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
           value: Json | null;
         };
         Insert: {
+          approval_reference?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
           draft_updated_at?: string | null;
           draft_updated_by?: string | null;
           draft_value?: Json | null;
@@ -7050,12 +7057,16 @@ export type Database = {
           key: string;
           published_at?: string | null;
           published_by?: string | null;
+          review_notes?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
           value?: Json | null;
         };
         Update: {
+          approval_reference?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
           draft_updated_at?: string | null;
           draft_updated_by?: string | null;
           draft_value?: Json | null;
@@ -7064,6 +7075,7 @@ export type Database = {
           key?: string;
           published_at?: string | null;
           published_by?: string | null;
+          review_notes?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -9114,7 +9126,7 @@ export type Database = {
       public_tenant_id: { Args: never; Returns: string };
       publish_article_category: { Args: { p_id: string }; Returns: number };
       publish_site_content: {
-        Args: { p_keys: string[]; p_legal_surface?: Json };
+        Args: { p_approval?: Json; p_keys: string[]; p_legal_surface?: Json };
         Returns: number;
       };
       purge_rate_limit_hits: { Args: { p_as_of?: string }; Returns: number };
@@ -9607,6 +9619,7 @@ export type Database = {
       };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
+      site_content_approver_count: { Args: never; Returns: number };
       submit_artwork: {
         Args: {
           p_code: string;
