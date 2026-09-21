@@ -29,6 +29,8 @@ const SUBMISSION: ArtworkSubmission = {
   credit_name: null,
   portfolio_url: null,
   consented_at: "2026-01-02T03:04:05.000Z",
+  consented_terms:
+    "You keep the original. We print it once and credit you by name.",
   title: "First Light",
   medium: "Linocut",
   artist_statement: "A print of the first sunrise after the storm.",
@@ -41,10 +43,13 @@ const SUBMISSION: ArtworkSubmission = {
   images: [],
 };
 
-function renderSheet(canManage = true) {
+function renderSheet(
+  canManage = true,
+  overrides: Partial<ArtworkSubmission> = {},
+) {
   return render(
     <ArtworkSubmissionReviewSheet
-      submission={SUBMISSION}
+      submission={{ ...SUBMISSION, ...overrides }}
       images={[]}
       canManage={canManage}
       messages={[]}
@@ -84,6 +89,28 @@ describe("ArtworkSubmissionReviewSheet", () => {
         name: "Delete submission",
       }),
     ).toBeVisible();
+  });
+
+  // #1319: the snapshot is only worth taking if a reviewer sees it where the
+  // timestamp is, rather than having to open the call -- which by then may say
+  // something else.
+  test("shows the terms agreed to beside the consent timestamp", () => {
+    renderSheet();
+
+    const consent = sheet().getByText(/Confirmed the work is theirs/)
+      .parentElement as HTMLElement;
+    expect(
+      within(consent).getByText(/We print it once and credit you by name/),
+    ).toBeVisible();
+  });
+
+  test("shows no terms where the call stated none", () => {
+    renderSheet(true, { consented_terms: null });
+
+    expect(sheet().getByText(/Confirmed the work is theirs/)).toBeVisible();
+    expect(
+      sheet().queryByText(/We print it once and credit you by name/),
+    ).toBeNull();
   });
 
   test("a reader who cannot manage gets no footer", () => {

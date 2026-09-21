@@ -85,6 +85,7 @@ const b = {
   taggedSponsorPersonId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
   disabledModuleKey: "",
+  giveawayId: "",
 };
 // The marker rows in A that the public-view checks point at (#887). The ones
 // with a seeded equivalent are looked up; the four prefixes the seed leaves
@@ -301,6 +302,53 @@ beforeAll(async () => {
       "b event",
     )
   ).id as string;
+
+  // B's promotion, with published official rules (#1322), so the
+  // public_giveaway_rules probe below has a marker row in each tenant. A's is
+  // the seeded one. The version row goes in as service_role because the table
+  // has no insert grant at all -- publish_giveaway_rules() is its only writer,
+  // which is the point -- and it names its author, since created_by defaults
+  // to auth.uid() and service_role has none.
+  b.giveawayId = (
+    await must(
+      bAdmin
+        .from("giveaways")
+        .insert({ event_id: b.eventId, name: `Isolation Giveaway ${run}` })
+        .select("id")
+        .single(),
+      "b giveaway",
+    )
+  ).id as string;
+  const bRulesId = (
+    await must(
+      bAdmin
+        .from("giveaway_rules")
+        .insert({ giveaway_id: b.giveawayId })
+        .select("id")
+        .single(),
+      "b giveaway rules",
+    )
+  ).id as string;
+  await must(
+    service
+      .from("giveaway_rules_versions")
+      .insert({
+        tenant_id: tenantB,
+        giveaway_rules_id: bRulesId,
+        version: 1,
+        content: {
+          title: "Official Rules",
+          effective_at: new Date().toISOString(),
+          time_zone: "America/Chicago",
+          summary: [],
+          sections: [{ id: "sponsor", title: "Sponsor", paragraphs: ["B."] }],
+        },
+        created_by: bAdminUserId,
+      })
+      .select("id")
+      .single(),
+    "b giveaway rules version",
+  );
   await must(
     bAdmin
       .from("event_registrations")
@@ -417,6 +465,23 @@ beforeAll(async () => {
       })
       .select("id"),
     "b site image",
+  );
+  await must(
+    service
+      .from("legal_document_versions")
+      .insert({
+        tenant_id: tenantB,
+        document: probeToken.b,
+        version: 1,
+        content: {
+          title: "Isolation Policy B",
+          last_updated: "January 1, 2030",
+          summary: [],
+          sections: [{ id: "scope", title: "Scope", paragraphs: ["B."] }],
+        },
+      })
+      .select("id"),
+    "b legal document version",
   );
   await must(
     bAdmin
@@ -732,6 +797,27 @@ beforeAll(async () => {
     service,
   );
 
+  // A published legal document version (#601). Via `service` because the table
+  // has no insert grant at all -- publish_site_content() is its only writer,
+  // which is the point -- and under the probe token rather than a real document
+  // key, since both tenants have a `privacy` and the probe below needs a value
+  // that tells them apart.
+  await fixture(
+    "legal_document_versions",
+    {
+      tenant_id: tenantA,
+      document: probeToken.a,
+      version: 1,
+      content: {
+        title: "Isolation Policy A",
+        last_updated: "January 1, 2030",
+        summary: [],
+        sections: [{ id: "scope", title: "Scope", paragraphs: ["A."] }],
+      },
+    },
+    service,
+  );
+
   // Giveaway tiers, grants, rules, a bucket, a package and a sale on A's
   // past-event giveaway; seed_giveaway_tiers is a no-op if tiers exist.
   await must(
@@ -816,6 +902,7 @@ afterAll(async () => {
     // person or a donation below it.
     "tenant_modules",
     "site_content",
+    "legal_document_versions",
     "calendar_items",
     "calendar_categories",
     "volunteer_role_types",
@@ -823,6 +910,11 @@ afterAll(async () => {
     "event_sponsors",
     "inventory_items",
     "donations",
+    // Before `events`: the event delete trigger refuses while a giveaway is
+    // still linked, and the rules (and their versions) go with the giveaway.
+    "giveaway_rules_versions",
+    "giveaway_rules",
+    "giveaways",
     "events",
     // Before `people`, which it references -- the cascade would take it anyway,
     // but the list is read as the dependency order it documents.
@@ -1602,6 +1694,20 @@ describe("every anon-readable view follows the host", () => {
       column: "document",
       inA: () => probeToken.a,
       inB: () => probeToken.b,
+    },
+    {
+      view: "public_legal_document_versions",
+      column: "document",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_giveaway_rules",
+      column: "giveaway_id",
+      // A's is the seeded promotion, which supabase/seed.sql publishes one
+      // version of; B's is created in beforeAll.
+      inA: () => a.giveawayId,
+      inB: () => b.giveawayId,
     },
     {
       view: "public_tenant",

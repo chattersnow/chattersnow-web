@@ -124,7 +124,7 @@ async function submissionsFor(callId: string) {
   const { data, error } = await service
     .from("artwork_submissions")
     .select(
-      "id, submitter_name, submitter_email, title, status, credit_name, portfolio_url, consented_at",
+      "id, submitter_name, submitter_email, title, status, credit_name, portfolio_url, consented_at, consented_terms",
     )
     .eq("call_id", callId);
   if (error) throw error;
@@ -210,6 +210,57 @@ describe("submitArtworkAction (integration)", () => {
       credit_name: "snowghost",
       portfolio_url: "@snowghost",
     });
+    expect(rows[0].consented_at).not.toBeNull();
+  });
+
+  // #1319. The consent checkbox points at the call's rights note rather than
+  // restating it, so the timestamp alone answers nothing once a curator edits
+  // the note -- which they are free to do, mid-call, with no publish step. The
+  // snapshot is what makes that editing safe, and the only way to see it hold
+  // is to edit the note out from under a submission that already exists.
+  test("keeps the rights note as it stood, after the call's is rewritten", async () => {
+    currentIp = uniqueIp();
+    const original = "You keep the original. We print it once and credit you.";
+    const call = await createCall({ rights_note: original });
+
+    const result = await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari Nakamura",
+        email: uniqueEmail("artwork-terms"),
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+    expect(result).toEqual({ success: true });
+
+    const { error } = await service
+      .from("event_artwork_calls")
+      .update({ rights_note: "We take worldwide rights in perpetuity." })
+      .eq("id", call.id);
+    expect(error).toBeNull();
+
+    const rows = await submissionsFor(call.id);
+    expect(rows[0].consented_terms).toBe(original);
+  });
+
+  // Null, not an empty string: "this call stated no terms" is a different fact
+  // from "the terms said nothing", and the checkbox's own wording branches on
+  // it on the public page.
+  test("stores no terms where the call stated none", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall();
+
+    await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari Nakamura",
+        email: uniqueEmail("artwork-noterms"),
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+
+    const rows = await submissionsFor(call.id);
+    expect(rows[0].consented_terms).toBeNull();
     expect(rows[0].consented_at).not.toBeNull();
   });
 

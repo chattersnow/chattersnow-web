@@ -123,6 +123,17 @@ Module entitlements are seeded, but from `plan_modules` rather than from the
 template tenant — for the same reason retention rules always arrive in
 `dry_run`: what the template was sold is not what this organization was sold.
 
+**No legal acknowledgement is seeded either, and recording one is the last step
+of provisioning** (#1321). A new tenant's `/privacy` is live from the moment it
+exists, serving the platform's neutral default, because its forms collect
+personal information from the same moment — so the new organization has a
+privacy policy under its own name that nobody there has read. Provisioning is
+not finished until an administrator opens **Website → Legal documents** and
+confirms they have read it; until they do, the panel says nobody has, and the
+portal's attention list asks. Nothing is blocked in the meantime: the page must
+stay reachable while the forms collect, so an unconfirmed default is a prompt
+and never a 404.
+
 ## Custom domains
 
 The host is what decides which tenant a public request is for
@@ -567,7 +578,9 @@ Both are the tenant admin's, not the operator's:
   what this application does for a nonprofit, names the organization and its
   `org.email_*` addresses, and leaves out everything only that organization
   can answer -- so it is a starting point for their own counsel rather than
-  legal advice, which the editor says beside the slot. Chatter Snow's own
+  legal advice, which the editor says beside the slot. Read that text with
+  `bun run docs:legal`; [legal-basis.md](legal-basis.md) has the rules it is
+  written under and the record of who approved it. Chatter Snow's own
   three documents are its tenant's rows
   (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
   three is served is a separate per-tenant decision, in **Administration →
@@ -587,10 +600,106 @@ Both are the tenant admin's, not the operator's:
   is declared in `src/lib/legal-documents.ts` (`LegalDocument.gates`) and
   enforced in the two Server Actions the two switches call, so seeding, the
   demo reset and the e2e fixtures — all of which write these rows as
-  `service_role` — are free to set whatever state they need. The site's photos are
+  `service_role` — are free to set whatever state they need. **Publishing a
+  `legal.*` slot records what the site was collecting at that moment** (#1292):
+  one `app_settings` row per document, `legal_surface.<key>`, holding the
+  sorted keys of `collectionSurface()` (`src/lib/legal-surface.ts`) — the same
+  definition that writes the platform's own document. It is written by
+  `publish_site_content` inside the publish transaction rather than by the
+  Server Action afterwards, so a publish cannot succeed while the fingerprint
+  silently does not, and it is deliberately private: no view serves
+  `legal_surface.%` to `anon`. Its purpose is drift. An organization's own
+  privacy policy is the one document the platform may not rewrite, so when a
+  module is switched on or off afterwards the Legal documents panel says which
+  one moved and what the text now describes wrongly, and an `attention`-level
+  item appears in the portal's attention list for anyone holding
+  `site_content:manage`. Nothing is blocked and nothing is re-inserted into the
+  document. There is no backfill: a document published before this existed
+  reads as _unknown_ and asks to be re-published, rather than being reported as
+  describing nothing. **The mirror-image question is whether anybody here ever
+  read the platform's text** (#1321), which #1292 cannot answer for the reason
+  it gives: the platform's document regenerates on every request and so cannot
+  drift. A tenant serving it has published nothing for #600 to gate and has no
+  version row from #601, so one `app_settings` row per document,
+  `legal_acknowledged.<key>`, is the only record — who confirmed it, when, and
+  the `PLATFORM_LEGAL_LAST_UPDATED` value the text carried when they read it.
+  Private, like `legal_surface.%` and for the same reason: no view serves it to
+  `anon`. That stored version is what makes the record go stale by itself, so
+  bumping the constant and editing the prose — or enabling a module, which
+  moves the text through `collectionSurface()` — tells every default-serving
+  organization that the document moved rather than changing it under them
+  silently. The same panel line and the same `legal_documents_drift` attention
+  item carry it, because the administrator's job is the same either way: open
+  the document and read it. A document is answered by exactly one of the two —
+  its own text can drift, the platform's can go unread — so the two never
+  double-count and never leave one unaccounted for. Chatter Snow is unaffected,
+  since #858 it publishes its own three. **An organization may ask for a
+  second pair of eyes before any of the three publishes** (#600): one
+  `app_settings` row, `legal_approval.required`, off until that tenant switches
+  it on in the same panel. With it on, a `legal.*` slot can only be published
+  by somebody other than the person whose draft it is, and that person is asked
+  what approved the text and what they made of it; both land on the
+  `site_content` row, which `audit_log` snapshots on the same publish, so the
+  approval sits beside the exact words it approved rather than on the version
+  row (#601). It is enforced in `publish_site_content` rather than
+  in the Server Action, since that function is the only write path onto the
+  public site. It is deliberately **not** a platform-wide rule: a
+  single-administrator tenant is an expected, supported state — the portal
+  ships `access_management_single_administrator` for it — and a hard four-eyes
+  gate would leave such an organization unable to publish its own privacy
+  policy at all, pinned to the platform's default with no way out short of
+  buying another seat. For the same reason a tenant with fewer than two holders
+  of `site_content:manage` is refused when it tries to switch the gate on, and
+  switching it back off is never refused. **Every publish of a `legal.*` slot
+  is also a version** (#601): one append-only `legal_document_versions` row per
+  tenant, per document, holding the published `value` as served, the instant it
+  took effect, the organization's zone at that moment, and the #1292 collection
+  surface it was published against. Written by `publish_site_content` inside
+  the same transaction and by nothing else — the table has no insert grant, no
+  update policy and no delete policy, so a correction is a new version rather
+  than a rewrite of an old one. The public site reads it through
+  `public_legal_document_versions` (definer, `public_tenant_id()`, `document`,
+  `version`, `content`, `effective_at` and `time_zone` — the surface is
+  deliberately not exposed), which is what lets `/privacy?version=2` answer
+  "which version was in force when I registered" to a person rather than to a
+  developer reading `audit_log`. The live document says which version it is and
+  lists the rest; a superseded one says so and links the one in force; and a
+  tenant serving the platform's default has no version of its own and is told
+  that, keyed to `PLATFORM_LEGAL_LAST_UPDATED`. Adoption still decides the
+  route: a permalink is the same route as the live document, so `/terms` and
+  `/code-of-conduct` 404 at every version for a tenant that never put them in
+  force. Documents already published when the table shipped were backfilled as
+  version 1 from `site_content.published_at` and `published_by`. The site's
+  photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
+
+- **Website → Giveaway rules**: the answers a promotion's official rules are
+  built from, given once per organization (#1322). Beside Legal documents
+  because it is the same kind of decision and carries the same disclaimer: the
+  platform owns a neutral template (`src/lib/giveaway-rules.ts` for the twelve
+  sections, `src/lib/giveaway-rules-template.ts` for the prose, held to the
+  same rules as `legal-defaults.ts`), and the organization owns everything only
+  it can answer — sponsor name and address, who may and may not enter, where
+  the promotion is open, how somebody enters without donating or buying, what
+  is published about a winner, publicity, and who to ask about the rules. One
+  `app_settings` row per question, `giveaway_rules.<key>`, private: no view
+  serves them to `anon`, and `provision_tenant()` does not copy them (it takes
+  `finance.%`, `content.%` and `org.%` only), so a new tenant starts with every
+  question unanswered. **Nothing here is published by itself.** What the public
+  site serves is a frozen document belonging to one promotion: the per-giveaway
+  half lives in that event's Giveaway tab, where the entry period, prizes, odds
+  and drawing date are derived from the giveaway's own rows, any section can be
+  rewritten for that promotion alone, and publishing writes a
+  `giveaway_rules_versions` row holding the text and the numbers together. A
+  promotion whose rules nobody has published has no public page and
+  `/giveaways/<id>/rules` 404s — the same stance #859 takes on a legal document
+  nobody adopted, one promotion at a time. Publishing is refused while a
+  section is still unanswered rather than publishing a gap, editing afterwards
+  creates a new version with its own effective date, and earlier versions stay
+  readable. None of it is clearance to run a promotion; see
+  [spec/giveaways.md](spec/giveaways.md#58-giveaways).
 
 - **Website → Site Content → Organization → Security reporting**: who a
   security researcher should write to, published at

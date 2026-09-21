@@ -29,13 +29,29 @@ export type { LegalSection };
  */
 export function LegalPageShell({
   title,
+  banner,
   lastUpdated,
+  dateLabel = "Last updated",
   summary,
   sections,
   children,
 }: {
   title: string;
+  /**
+   * Rendered above the title, before anything else on the page. For the one
+   * thing a reader has to know before they start reading rather than after --
+   * today, that this is a superseded version of the document (#601). Nothing
+   * a tenant can write goes here.
+   */
+  banner?: ReactNode;
   lastUpdated: string;
+  /**
+   * What the date under the title is. "Last updated" for the three legal
+   * documents; a promotion's official rules say "Effective" instead, because
+   * the date is the moment that version took force rather than the day
+   * somebody edited it (#1322).
+   */
+  dateLabel?: string;
   /** The "short version" opening. Every one of these pages gets one: people
    *  scan policy pages rather than read them, so the page has to answer the
    *  reader's question before it starts explaining itself. */
@@ -56,13 +72,16 @@ export function LegalPageShell({
           against it. Set here so each page's <section> elements stay plain. */}
       <div className="space-y-12 [&_section]:scroll-mt-8 print:max-w-none">
         <section id="top">
+          {banner}
           <div className="w-fit">
             <div className="rainbow-accent w-full" />
             <h1 className="brand-display mt-4 text-4xl font-semibold tracking-brand sm:text-5xl">
               {title}
             </h1>
           </div>
-          <p className="app-muted mt-4 text-sm">Last updated: {lastUpdated}</p>
+          <p className="app-muted mt-4 text-sm">
+            {dateLabel}: {lastUpdated}
+          </p>
           <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
             {summary}
           </div>

@@ -2,7 +2,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { broadcastSignOut } from "@/lib/auth/idle-timeout";
 import { safePortalDestination } from "@/lib/auth/next-destination";
-import { clearPortalCaches } from "@/lib/pwa/service-worker";
+import { clearAppCaches } from "@/lib/pwa/service-worker";
 
 /**
  * The one browser sign-out path: end the session, leave the shell, and drop
@@ -38,7 +38,7 @@ export async function signOutAndRedirect(
     // login page's own public chunks on the way out, which is the point: what
     // it holds afterwards belongs to nobody. Awaited before the redirect so
     // the clear is not racing a navigation, and it never rejects.
-    await clearPortalCaches();
+    await clearAppCaches();
     // Even a failed sign-out has to leave the portal. Letting a network blip
     // strand someone on an authenticated-looking shell with no error is worse
     // than redirecting to a login page they may still hold a session for.

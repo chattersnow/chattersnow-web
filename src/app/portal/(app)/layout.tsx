@@ -13,6 +13,7 @@ import {
 import {
   getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
+  getLegalDriftSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
@@ -29,6 +30,8 @@ import {
 import { deviceClass } from "@/lib/portal/device";
 import { PortalDeviceProvider } from "@/lib/portal/device-context";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { surfaceAtRoot } from "@/lib/pwa/host";
+import { serviceWorkerScope } from "@/lib/pwa/service-worker";
 import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
@@ -194,6 +197,13 @@ export default async function PortalAppLayout({
     "access_management_assets",
     "view",
   );
+  // The same permission the Site Content editor checks. Almost nobody in a
+  // tenant holds it, and almost nobody should pay for the drift reads (#1292).
+  const canManageSiteContent = hasPermission(
+    permissions,
+    "site_content",
+    "manage",
+  );
 
   // These reads are independent of each other, and this layout re-runs on
   // every portal navigation -- including every filter submit, which is a full
@@ -213,6 +223,7 @@ export default async function PortalAppLayout({
     opsInbox,
     calendarCoverageReminder,
     accessManagementAlerts,
+    legalDrift,
   ] = await Promise.all([
     currentPersonPromise,
     // Records this account's first arrival and tells us what it has already
@@ -243,6 +254,7 @@ export default async function PortalAppLayout({
       : { items: [] },
     getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
+    getLegalDriftSummary(supabase, { canManageSiteContent }),
   ]);
 
   const welcomeOwed =
@@ -262,6 +274,7 @@ export default async function PortalAppLayout({
     ...opsInbox.items,
     ...calendarCoverageReminder.items,
     ...accessManagementAlerts.items,
+    ...legalDrift.items,
   ];
 
   // Same display rule as every other person in the portal, so a preferred
@@ -288,6 +301,13 @@ export default async function PortalAppLayout({
   ]);
 
   const shellProps = {
+    // Decided here rather than in the registrar: the server is what knows the
+    // request host, and a client that re-derived it would be a second copy of
+    // the host rule the manifest's `scope` already follows (#1171).
+    serviceWorkerScope: serviceWorkerScope(
+      "portal",
+      surfaceAtRoot("portal", (await headers()).get("host") ?? ""),
+    ),
     permissions,
     lexicon,
     branding,

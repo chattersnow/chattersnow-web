@@ -151,3 +151,136 @@ export function surfaceKeys(surface: CollectionSurface): string[] {
     .filter((key) => surface[key as keyof CollectionSurface])
     .sort();
 }
+
+/**
+ * What a surface is called in a sentence about a legal document (#1292).
+ *
+ * Two words per key, because the drift line needs both: the thing an
+ * administrator switched -- named as the control that moved is named -- and
+ * the collecting the document does or does not describe. "Artwork was enabled
+ * ... your policy does not describe artwork submissions" reads as one sentence
+ * about one change; either half used in both places reads as a template.
+ */
+export const SURFACE_LABELS: Readonly<
+  Record<keyof CollectionSurface, { subject: string; collects: string }>
+> = {
+  contact: { subject: "Contact", collects: "contact messages" },
+  volunteerApplications: {
+    subject: "Volunteers",
+    collects: "volunteer applications",
+  },
+  eventRegistrations: { subject: "Events", collects: "event registrations" },
+  gearRequests: { subject: "Inventory", collects: "item requests" },
+  artworkSubmissions: { subject: "Artwork", collects: "artwork submissions" },
+  constituentAccounts: {
+    subject: "Accounts",
+    collects: "accounts on your public site",
+  },
+  volunteerHours: {
+    subject: "Volunteers",
+    collects: "hours volunteers log for themselves",
+  },
+  googleSignIn: {
+    subject: "Google sign-in",
+    collects: "signing in with Google",
+  },
+};
+
+/**
+ * How a published document's fingerprint compares with what this tenant
+ * collects now (#1292).
+ *
+ * `added` is collecting the document cannot describe, because it did not exist
+ * when the text was written; `removed` is collecting the document still
+ * describes and the organization no longer does. Both are wrong in a privacy
+ * policy and wrong in opposite directions, so they are reported separately
+ * rather than as one count of differences.
+ */
+export type SurfaceDrift = { added: string[]; removed: string[] };
+
+/**
+ * Where a published document's fingerprint is stored: one `app_settings` row
+ * per document, `legal_surface.<document key>` (#1292).
+ *
+ * A third prefix beside `page_visibility.` and `legal_publication.`, and
+ * deliberately **not** one of the reserved public namespaces in
+ * `src/lib/public-namespaces.ts`: no view serves it to `anon`, because which
+ * switches an organization has flipped since it last published is nobody's
+ * business but its own.
+ */
+export const LEGAL_SURFACE_PREFIX = "legal_surface.";
+
+/**
+ * An absent fingerprint is **unknown**, not "collected nothing" (#1292).
+ *
+ * Every document published before the fingerprint existed has no record of
+ * what it covered. Reading that as an empty set would report every live
+ * surface as added and hand every tenant that has ever published a false drift
+ * warning on the day this ships -- starting with the first tenant, whose three
+ * documents are its own. How to say "unknown" is the caller's problem; it only
+ * has to survive the comparison, which is what the `null` return is for.
+ */
+export function surfaceDrift(
+  published: readonly string[] | null | undefined,
+  current: readonly string[],
+): SurfaceDrift | null {
+  if (!published) return null;
+  const before = new Set(published);
+  const now = new Set(current);
+  return {
+    added: current.filter((key) => !before.has(key)),
+    removed: published.filter((key) => !now.has(key)),
+  };
+}
+
+/**
+ * One published legal document's drift state, as the portal renders it.
+ *
+ * Lives here rather than beside the read in `@/lib/legal-publication` because
+ * the Legal documents panel is a client component and that module must not
+ * reach the client bundle.
+ */
+export type LegalDocumentDrift =
+  /** Published before the fingerprint existed: no claim either way. */
+  | { status: "unknown" }
+  | {
+      status: "checked";
+      publishedAt: string | null;
+      added: string[];
+      removed: string[];
+    };
+
+/** Whether a document's drift state is worth saying anything about. */
+export function hasDrifted(drift: LegalDocumentDrift | undefined): boolean {
+  return (
+    drift?.status === "checked" &&
+    (drift.added.length > 0 || drift.removed.length > 0)
+  );
+}
+
+/**
+ * The surfaces named, de-duplicated, in the order given.
+ *
+ * De-duplication is not cosmetic: `volunteerApplications` and `volunteerHours`
+ * are both "Volunteers", because one module governs both, and switching it off
+ * moves both keys at once. "Volunteers and Volunteers was disabled" is the
+ * line that would otherwise ship.
+ */
+export function namedSurfaces(
+  keys: readonly string[],
+  field: "subject" | "collects",
+): string[] {
+  const named: string[] = [];
+  for (const key of keys) {
+    const label = SURFACE_LABELS[key as keyof CollectionSurface];
+    if (!label) continue;
+    if (!named.includes(label[field])) named.push(label[field]);
+  }
+  return named;
+}
+
+/** "a", "a and b", "a, b and c" -- the list as prose rather than as a CSV. */
+export function joinPhrases(phrases: readonly string[]): string {
+  if (phrases.length <= 1) return phrases[0] ?? "";
+  return `${phrases.slice(0, -1).join(", ")} and ${phrases[phrases.length - 1]}`;
+}

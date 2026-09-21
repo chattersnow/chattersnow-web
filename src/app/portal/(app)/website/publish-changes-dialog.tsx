@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +12,16 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { RequiredFieldsNote } from "@/components/required-fields-note";
+import {
+  APPROVAL_REFERENCE_MAX_LENGTH,
+  completeApproval,
+  REVIEW_NOTES_MAX_LENGTH,
+  type LegalPublishApproval,
+} from "@/lib/legal-approval";
 import { cn } from "@/lib/utils";
 import type { ImageCrop } from "@/lib/image-crop";
 import type { ContentSlot } from "@/lib/site-content";
@@ -142,14 +153,32 @@ export function PublishChangesDialog({
   onOpenChange,
   changes,
   pending,
+  approvalNeeded,
+  draftedByViewer,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   changes: readonly SlotChange[];
   pending: boolean;
-  onConfirm: () => void;
+  /**
+   * Whether a legal document is among these changes in an organization that
+   * requires a second approver (#600).
+   */
+  approvalNeeded: boolean;
+  /** Whether the reader is the one who wrote the legal text being published. */
+  draftedByViewer: boolean;
+  onConfirm: (approval: LegalPublishApproval | null) => void;
 }) {
+  const [reference, setReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const approval = completeApproval({ reference, notes });
+  // Their own words cannot be their own second opinion. Said here rather than
+  // left to the database's refusal, which is the backstop: `site_content` is
+  // not writable by `authenticated`, so the rule is enforced inside
+  // `publish_site_content` whatever this dialog does.
+  const blocked = approvalNeeded && draftedByViewer;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -219,11 +248,59 @@ export function PublishChangesDialog({
           </div>
         )}
 
+        {blocked ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              You wrote this text, and this organization asks a second person to
+              approve a legal document before it is published. Leave it saved as
+              a draft and ask somebody else here to read it and publish it.
+            </AlertDescription>
+          </Alert>
+        ) : approvalNeeded ? (
+          <FieldGroup>
+            <p className="app-muted text-sm leading-relaxed">
+              This organization asks a second person to approve a legal document
+              before it is published. Both answers are recorded in the audit log
+              beside the words they approve.
+            </p>
+            <RequiredFieldsNote />
+            <Field>
+              <FieldLabel htmlFor="publish-approval-reference" required>
+                What approved this text
+              </FieldLabel>
+              <Input
+                id="publish-approval-reference"
+                value={reference}
+                maxLength={APPROVAL_REFERENCE_MAX_LENGTH}
+                placeholder="Board meeting, 14 March"
+                onChange={(event) => setReference(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="publish-review-notes" required>
+                What you made of it
+              </FieldLabel>
+              <Textarea
+                id="publish-review-notes"
+                value={notes}
+                rows={3}
+                maxLength={REVIEW_NOTES_MAX_LENGTH}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+        ) : null}
+
         <DialogFooter showCloseButton>
           <Button
             type="button"
-            disabled={pending || changes.length === 0}
-            onClick={onConfirm}
+            disabled={
+              pending ||
+              changes.length === 0 ||
+              blocked ||
+              (approvalNeeded && approval === null)
+            }
+            onClick={() => onConfirm(approval)}
           >
             {pending ? (
               <>

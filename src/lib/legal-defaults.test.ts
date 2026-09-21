@@ -303,6 +303,16 @@ describe("the collection surface", () => {
     );
   });
 
+  // The opposite of Google: an error report has no surface behind it, so the
+  // bullet is there for a site with every form switched off too (#1340).
+  test("Sentry is a subprocessor whatever the site collects", () => {
+    for (const surfaces of [EVERYTHING, NOTHING]) {
+      const text = readable("legal.privacy", withSurfaces(surfaces));
+      expect(text).toContain("Sentry — receives a technical report");
+      expect(text).toContain("we don't record your session");
+    }
+  });
+
   // Registrations seen by volunteers needs both halves to be true.
   test("volunteers see registrations only where both surfaces are live", () => {
     const staffing =

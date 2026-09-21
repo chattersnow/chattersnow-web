@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { LegalPageShell } from "@/components/legal-page-shell";
 import {
@@ -17,11 +18,34 @@ import type { LegalDocumentContent } from "@/lib/site-content";
  * documents may carry: bullets, links and bold. Nothing here renders HTML from
  * a stored string.
  */
-export function LegalDocument({ doc }: { doc: LegalDocumentContent }) {
+export function LegalDocument({
+  doc,
+  dateLabel,
+  banner,
+  appendix,
+}: {
+  doc: LegalDocumentContent;
+  /** Overrides the "Last updated" label under the title. */
+  dateLabel?: string;
+  /**
+   * Rendered above the title, for the one thing a reader has to know before
+   * they start reading: that this is not the document in force (#601).
+   */
+  banner?: ReactNode;
+  /**
+   * Rendered after the last section. The document is data and carries only
+   * its own text, so anything *about* the document -- which version this is,
+   * where the earlier ones are (#1322) -- belongs here rather than in a
+   * section somebody could rewrite.
+   */
+  appendix?: ReactNode;
+}) {
   return (
     <LegalPageShell
       title={doc.title}
+      banner={banner}
       lastUpdated={doc.last_updated}
+      dateLabel={dateLabel}
       sections={doc.sections}
       summary={<Blocks paragraphs={doc.summary} />}
     >
@@ -35,6 +59,7 @@ export function LegalDocument({ doc }: { doc: LegalDocumentContent }) {
           </div>
         </section>
       ))}
+      {appendix}
     </LegalPageShell>
   );
 }

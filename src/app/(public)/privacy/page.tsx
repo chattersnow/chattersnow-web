@@ -1,34 +1,39 @@
 import type { Metadata } from "next";
-import { LegalDocument } from "@/components/legal-document";
 import {
-  platformLegalDescription,
-  platformLegalDocument,
-} from "@/lib/legal-defaults";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getPublicSite, legalOrg, publicTitle } from "@/lib/public-site";
+  LegalDocumentPage,
+  legalDocumentMetadata,
+} from "@/components/legal-document-page";
 
 const SLOT = "legal.privacy";
+const FALLBACK_TITLE = "Privacy Policy";
 
 // The platform's neutral document renders unless the tenant has published its
 // own under `legal.privacy`, in which case that replaces the page outright --
-// legal text is published per organization, not templated (#858).
-export async function generateMetadata(): Promise<Metadata> {
-  const supabase = await createSupabaseServerClient();
-  const site = await getPublicSite(supabase);
-  const doc = site.content.document(SLOT);
-  return {
-    title: publicTitle(site, doc?.title ?? "Privacy Policy"),
-    description: doc
-      ? undefined
-      : platformLegalDescription(SLOT, await legalOrg(supabase, site)),
-  };
+// legal text is published per organization, not templated (#858). `?version=N`
+// serves a published version from its frozen snapshot (#601); everything the
+// three pages share lives in `LegalDocumentPage`.
+type PageProps = {
+  searchParams: Promise<{ version?: string }>;
+};
+
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
+  const { version } = await searchParams;
+  return legalDocumentMetadata({
+    slotKey: SLOT,
+    fallbackTitle: FALLBACK_TITLE,
+    requestedVersion: version,
+  });
 }
 
-export default async function Page() {
-  const supabase = await createSupabaseServerClient();
-  const site = await getPublicSite(supabase);
-  const doc =
-    site.content.document(SLOT) ??
-    platformLegalDocument(SLOT, await legalOrg(supabase, site));
-  return <LegalDocument doc={doc} />;
+export default async function Page({ searchParams }: PageProps) {
+  const { version } = await searchParams;
+  return (
+    <LegalDocumentPage
+      slotKey={SLOT}
+      fallbackTitle={FALLBACK_TITLE}
+      requestedVersion={version}
+    />
+  );
 }

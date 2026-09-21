@@ -5,21 +5,29 @@ import {
 } from "@/lib/pwa/service-worker";
 
 describe("serviceWorkerScope", () => {
-  test("is the whole origin on a host that serves the portal at its root", () => {
-    expect(serviceWorkerScope("portal.chattersnow.org")).toBe("/");
-    expect(serviceWorkerScope("portal.rickiecruz.com")).toBe("/");
+  test("is the whole origin for whichever surface owns it", () => {
+    // A `portal.` host for the portal; a host whose portal lives on a
+    // subdomain of its own for the public site.
+    expect(serviceWorkerScope("portal", true)).toBe("/");
+    expect(serviceWorkerScope("public", true)).toBe("/");
   });
 
-  test("is the portal alone on a host that also serves a public site", () => {
-    // The marketing site is not what anyone installs, so the worker has no
-    // business caching it.
-    expect(serviceWorkerScope("www.chattersnow.org")).toBe("/portal/");
-    expect(serviceWorkerScope("demo.rickiecruz.com")).toBe("/portal/");
-    expect(serviceWorkerScope("localhost")).toBe("/portal/");
+  test("is one surface's subtree where a single origin serves both", () => {
+    expect(serviceWorkerScope("portal", false)).toBe("/portal/");
+    expect(serviceWorkerScope("public", false)).toBe("/my/");
+  });
+
+  test("the two scopes cannot claim each other's pages", () => {
+    const portal = serviceWorkerScope("portal", false);
+    const supporter = serviceWorkerScope("public", false);
+    expect(portal.startsWith(supporter)).toBe(false);
+    expect(supporter.startsWith(portal)).toBe(false);
   });
 
   test("ends in a slash so it cannot claim a sibling path", () => {
-    expect(serviceWorkerScope("example.org").endsWith("/")).toBe(true);
+    // `/portal` would also claim a future `/portal-status`.
+    expect(serviceWorkerScope("portal", false).endsWith("/")).toBe(true);
+    expect(serviceWorkerScope("public", false).endsWith("/")).toBe(true);
   });
 });
 

@@ -15,6 +15,7 @@ import { PrizesSection } from "./giveaway/prizes";
 import { TiersSection } from "./giveaway/tiers";
 import { BucketsSection } from "./giveaway/buckets";
 import { PackagesSection } from "./giveaway/packages";
+import { RulesSection } from "./giveaway/rules";
 import { GiveawaySection } from "./giveaway/section";
 import {
   getGiveawayTierConfigAction,
@@ -200,6 +201,20 @@ export function GiveawayTab({
                 />
               </GiveawaySection>
             </>
+          )}
+
+          {giveaway && (
+            <GiveawaySection
+              title="Official rules"
+              description="What this promotion publishes: who may enter, how, the prizes, the odds and the drawing. The parts that are the same every time come from Website › Giveaway rules; the numbers come from this giveaway. Publishing freezes them."
+              summary="Publish before any public promotion"
+            >
+              <RulesSection
+                giveawayId={giveaway.id}
+                canEdit={canEdit}
+                onChanged={refresh}
+              />
+            </GiveawaySection>
           )}
 
           <p className="app-muted text-xs">

@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { gatesHolding, LEGAL_DOCUMENTS } from "@/lib/legal-documents";
-import { getTenantLegalPublication } from "@/lib/legal-publication";
+import {
+  getLegalAcknowledgementState,
+  getLegalDocumentDrift,
+  getSiteContentApproverCount,
+  getTenantLegalApproval,
+  getTenantLegalPublication,
+  getTenantLegalPublishState,
+  getTenantOwnLegalDocuments,
+} from "@/lib/legal-publication";
 import { getTenantModules } from "@/lib/page-visibility";
 import {
   LegalDocumentsPanel,
@@ -25,34 +33,52 @@ export const metadata: Metadata = {
  */
 export default async function WebsiteLegalDocumentsPage() {
   const supabase = await createSupabaseServerClient();
-  const [legalPublication, modules, { data: ownLegalDocuments }] =
-    await Promise.all([
-      getTenantLegalPublication(supabase),
-      // Which modules are on, so a document something depends on shows why it
-      // cannot be withdrawn rather than offering a switch that will refuse
-      // (#1295) -- the same stance `notifications.from_address` takes on an
-      // unverified domain.
-      getTenantModules(supabase),
-      // Which of the three this tenant has published text of its own for, so the
-      // panel can say what each route is actually serving rather than only
-      // whether it is served (#859). A published row is `value not null`; a
-      // draft is not being served and does not count.
-      supabase
-        .from("site_content")
-        .select("key, value")
-        .like("key", "legal.%")
-        .not("value", "is", null),
-    ]);
+  const [
+    legalPublication,
+    modules,
+    ownLegalSlots,
+    drift,
+    acknowledgement,
+    approvalRequired,
+    approvers,
+    publishState,
+  ] = await Promise.all([
+    getTenantLegalPublication(supabase),
+    // Which modules are on, so a document something depends on shows why it
+    // cannot be withdrawn rather than offering a switch that will refuse
+    // (#1295) -- the same stance `notifications.from_address` takes on an
+    // unverified domain.
+    getTenantModules(supabase),
+    // Which of the three this tenant has published text of its own for, so the
+    // panel can say what each route is actually serving rather than only
+    // whether it is served (#859).
+    getTenantOwnLegalDocuments(supabase),
+    // And whether that text still describes what the site collects (#1292).
+    // Every read behind this is `cache()`d, so the three it shares with the
+    // ones above cost nothing twice.
+    getLegalDocumentDrift(supabase),
+    // And, for the documents where the platform's own text is what the site
+    // serves, whether anybody here has ever said they read it (#1321). The
+    // complement of the line above: every document in force answers to one or
+    // the other.
+    getLegalAcknowledgementState(supabase),
+    // And whether publishing any of them takes a second person here (#600),
+    // how many people there are to be that person, and what is waiting on
+    // whom right now.
+    getTenantLegalApproval(supabase),
+    getSiteContentApproverCount(supabase),
+    getTenantLegalPublishState(supabase),
+  ]);
 
-  const ownLegalSlots = new Set(
-    (ownLegalDocuments ?? []).map((row) => row.key as string),
-  );
   const legalStatuses: LegalDocumentStatus[] = LEGAL_DOCUMENTS.map(
     (document) => ({
       key: document.key,
       inForce: Boolean(legalPublication[document.key]),
       ownDocument: ownLegalSlots.has(document.slotKey),
       heldInForceBy: gatesHolding(document, modules)[0]?.refuseWithdrawing,
+      drift: drift[document.key],
+      acknowledgement: acknowledgement[document.key],
+      publishState: publishState[document.key],
     }),
   );
 
@@ -86,6 +112,7 @@ export default async function WebsiteLegalDocumentsPage() {
         <LegalDocumentsPanel
           documents={LEGAL_DOCUMENTS}
           statuses={legalStatuses}
+          gate={{ required: approvalRequired, approvers }}
         />
       </div>
     </>

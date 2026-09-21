@@ -314,6 +314,20 @@ export function ArtworkSubmissionReviewSheet({
                     // asked" and "they declined" are not the same thing and a
                     // reviewer reprinting the piece should know which it is.
                     "Not recorded — submitted before consent was collected"}
+                {/*
+                  The wording as it stood that day (#1319), not the call's
+                  current note -- the curator may have rewritten it since, and
+                  the point of the snapshot is that this reviewer sees what this
+                  artist agreed to without going to read the call. Absent means
+                  the call stated no rights or credit terms, which is why there
+                  is no placeholder: there is nothing to show, and inventing one
+                  would read as terms.
+                */}
+                {submission.consented_terms && (
+                  <blockquote className="mt-2 border-l-2 border-border pl-3 whitespace-pre-line text-muted-foreground">
+                    {submission.consented_terms}
+                  </blockquote>
+                )}
               </ReadOnlyField>
 
               {canManage ? (

@@ -23,7 +23,7 @@ export default async function GearLibraryPage() {
   const [
     { data: items },
     siteImages,
-    { content },
+    { content, lexicon },
     sizingVisible,
     requestOptions,
   ] = await Promise.all([
@@ -74,6 +74,7 @@ export default async function GearLibraryPage() {
           items={items ?? []}
           placeholderUrl={siteImages.gear_placeholder ?? null}
           requestOptions={requestOptions}
+          lexicon={lexicon}
         />
       </div>
     </div>

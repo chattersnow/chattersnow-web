@@ -64,8 +64,10 @@ const saveMock = mock(
     ({ success: true }) as const,
 );
 const publishMock = mock(
-  async (_keys: string[]): Promise<ActionResult> =>
-    ({ success: true }) as const,
+  async (
+    _keys: string[],
+    _approval?: { reference: string; notes: string } | null,
+  ): Promise<ActionResult> => ({ success: true }) as const,
 );
 const discardMock = mock(
   async (_keys: string[]): Promise<ActionResult> =>
@@ -148,6 +150,7 @@ function editorSlot(
   value: Json,
   overridden = false,
   hasDraft = false,
+  draftedByViewer = false,
 ): EditorSlot {
   return {
     slot,
@@ -159,6 +162,7 @@ function editorSlot(
     hasDraft,
     draftUpdatedAt: hasDraft ? "2026-09-07T10:00:00Z" : null,
     draftUpdatedBy: hasDraft ? "Robin" : null,
+    draftedByViewer: hasDraft && draftedByViewer,
     publishedAt: overridden ? "2026-09-01T10:00:00Z" : null,
     publishedBy: overridden ? "Alex" : null,
     starter:
@@ -202,7 +206,11 @@ function outlineFor(slots: EditorSlot[]): OutlineEntry[] {
   ];
 }
 
-function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
+function renderEditor(
+  slots: EditorSlot[],
+  hiddenPages: string[] = [],
+  approvalRequired = false,
+) {
   const props = (next: EditorSlot[]) => ({
     page: PAGES[0],
     device: "desktop" as const,
@@ -214,6 +222,7 @@ function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
     programsFromModule: false,
     teamFromPeople: false,
     canEdit: true,
+    approvalRequired,
   });
   const view = renderWithToaster(<ContentEditor {...props(slots)} />);
   return {
@@ -341,7 +350,7 @@ describe("saving and publishing are two steps", () => {
       within(dialog).getByRole("button", { name: "Publish" }),
     );
     await waitFor(() =>
-      expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"], null),
     );
   });
 
@@ -372,7 +381,7 @@ describe("saving and publishing are two steps", () => {
     // Staging and publishing are two round trips, so the second one is still
     // in front of us when the first is recorded.
     await waitFor(() =>
-      expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"], null),
     );
   });
 
@@ -512,19 +521,31 @@ describe("the save bar", () => {
 // the copy, previews what the link points at, and clears back to the
 // placeholder through the same draft as a sentence does.
 describe("image slots", () => {
-  /** The preview image, or null while the box is blank or unreadable. */
+  /** The preview image, or null while the slot is empty or unreadable. */
   function preview(): HTMLImageElement | null {
     return document.querySelector("img");
+  }
+
+  /**
+   * The paste box, which since #921 sits beside an upload control rather than
+   * being the whole of the slot -- so it is named "Or paste a link", and the
+   * slot's own label belongs to the file input.
+   */
+  function linkBox(): HTMLElement {
+    return screen.getByRole("textbox", { name: "Or paste a link" });
   }
 
   test("shows the photo the link points at, and clears it as a draft", async () => {
     renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
 
-    // Named by its label alone, with "Your image" describing it rather than
-    // renaming it (#924).
-    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    // The slot's own label names the upload control, which is the primary one
+    // since #921, with "Your image" describing it rather than renaming it
+    // (#924). The paste box beside it carries a label of its own.
+    expect(screen.getByLabelText(CAROUSEL.label)).toHaveAccessibleDescription(
+      "Your image",
+    );
+    const box = linkBox();
     expect(box).toHaveValue(PHOTO_URL);
-    expect(box).toHaveAccessibleDescription("Your image");
     // The preview is decorative -- it sits against the labelled box holding
     // the link it previews -- so it is found by what it points at (#918).
     expect(preview()).toHaveAttribute("src", PHOTO_URL);
@@ -552,9 +573,7 @@ describe("image slots", () => {
       screen.getByRole("button", { name: "Back to default" }),
     );
 
-    expect(
-      screen.getByRole("textbox", { name: /Homepage carousel/ }),
-    ).toHaveValue("");
+    expect(linkBox()).toHaveValue("");
   });
 
   test("a photo that is not set offers nothing to revert", () => {
@@ -582,7 +601,7 @@ describe("image slots", () => {
     const cropped = `${PHOTO_URL}#crop=0.1000,0.2000,0.5000,0.5000`;
     renderEditor([editorSlot(CAROUSEL, cropped, true)]);
 
-    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    const box = linkBox();
     expect(box).toHaveValue(PHOTO_URL);
     expect(
       screen.getByRole("group", { name: `Crop of ${CAROUSEL.label}` }),
@@ -607,7 +626,7 @@ describe("image slots", () => {
       ),
     ]);
 
-    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    const box = linkBox();
     fireEvent.change(box, {
       target: { value: "https://example.test/carousel-2.jpg" },
     });
@@ -696,6 +715,7 @@ describe("publishing a photo", () => {
       hasDraft: true,
       draftUpdatedAt: "2026-09-07T10:00:00Z",
       draftUpdatedBy: "Robin",
+      draftedByViewer: false,
       publishedAt: "2026-09-01T10:00:00Z",
       publishedBy: "Alex",
       starter: null,
@@ -904,6 +924,149 @@ describe("legal documents", () => {
     expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("");
     expect(screen.queryAllByRole("textbox", { name: "Heading" })).toHaveLength(
       0,
+    );
+  });
+});
+
+// #600. An organization may ask for a second pair of eyes on its legal text.
+// The rule is enforced in `publish_site_content`, which is the only write path
+// onto the public site; what the dialog owes the reader is not making them
+// type an approval that was never going to be accepted.
+describe("publishing a legal document where a second approver is required", () => {
+  const PUBLISHED_PRIVACY = {
+    title: "Privacy Policy",
+    last_updated: "March 1, 2026",
+    summary: ["What we do with your details."],
+    sections: [
+      { id: "collect", title: "What we collect", paragraphs: ["Your name."] },
+    ],
+  };
+  const DRAFTED_PRIVACY = {
+    ...PUBLISHED_PRIVACY,
+    sections: [
+      {
+        id: "collect",
+        title: "What we collect",
+        paragraphs: ["Your name and your email address."],
+      },
+    ],
+  };
+
+  /** A legal slot with a pending draft, written by the reader or by somebody else. */
+  function pendingPrivacy(draftedByViewer: boolean): EditorSlot {
+    return {
+      ...editorSlot(
+        PRIVACY,
+        DRAFTED_PRIVACY as Json,
+        false,
+        true,
+        draftedByViewer,
+      ),
+      published: PUBLISHED_PRIVACY as Json,
+      overridden: true,
+    };
+  }
+
+  async function openPublishDialog(): Promise<HTMLElement> {
+    await userEvent.click(publishBar());
+    return screen.findByRole("dialog");
+  }
+
+  test("asks what approved the text, and publishes with it", async () => {
+    renderEditor([pendingPrivacy(false)], [], true);
+
+    const dialog = await openPublishDialog();
+    const publish = within(dialog).getByRole("button", { name: "Publish" });
+    // Nothing to send yet, so nothing to press: an approval with half of it
+    // missing is not an approval.
+    expect(publish).toBeDisabled();
+
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /What approved this text/ }),
+      "Board meeting, 4 March",
+    );
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /What you made of it/ }),
+      "Counsel read it first.",
+    );
+    await userEvent.click(publish);
+
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["legal.privacy"], {
+        reference: "Board meeting, 4 March",
+        notes: "Counsel read it first.",
+      }),
+    );
+  });
+
+  // Their own words cannot be their own second opinion.
+  test("refuses the reader's own draft rather than taking an approval for it", async () => {
+    renderEditor([pendingPrivacy(true)], [], true);
+
+    const dialog = await openPublishDialog();
+
+    expect(dialog).toHaveTextContent(/You wrote this text/);
+    expect(
+      within(dialog).queryByRole("textbox", {
+        name: /What approved this text/,
+      }),
+    ).toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    ).toBeDisabled();
+    expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  // Publishing stages what is on screen first, so an unsaved edit makes the
+  // reader the drafter whatever the saved row says.
+  test("an unsaved edit of somebody else's draft is still the reader's own words", async () => {
+    renderEditor([pendingPrivacy(false)], [], true);
+
+    await userEvent.type(
+      screen.getAllByRole("textbox", { name: "Text" })[0],
+      " And your postcode.",
+    );
+    const dialog = await openPublishDialog();
+
+    expect(dialog).toHaveTextContent(/You wrote this text/);
+  });
+
+  // The gate is about legal text alone: the other twelve pages publish as they
+  // always have.
+  test("ordinary copy is published without an approval", async () => {
+    renderEditor(
+      [editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)],
+      [],
+      true,
+    );
+
+    const dialog = await openPublishDialog();
+    expect(
+      within(dialog).queryByRole("textbox", {
+        name: /What approved this text/,
+      }),
+    ).toBeNull();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    );
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"], null),
+    );
+  });
+
+  // And where the organization has not asked for one, nothing changes at all.
+  test("asks for nothing where the gate is off", async () => {
+    renderEditor([pendingPrivacy(true)]);
+
+    const dialog = await openPublishDialog();
+
+    expect(dialog).not.toHaveTextContent(/You wrote this text/);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    );
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["legal.privacy"], null),
     );
   });
 });

@@ -23,6 +23,7 @@ import type {
   DeliveryMethod,
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
 const PAGE_SIZE = 12;
 
@@ -48,11 +49,17 @@ export function GearCatalog({
   items,
   placeholderUrl,
   requestOptions,
+  lexicon = DEFAULT_LEXICON,
 }: {
   items: GearItem[];
   placeholderUrl: string | null;
   /** What the checkout form may offer (#1032): shipping, and how to pay for it. */
   requestOptions: PublicGearRequestOptions;
+  /**
+   * This organization's words (#896), passed down to the checkout form's
+   * privacy notice (#684), which names what was requested.
+   */
+  lexicon?: Lexicon;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -387,6 +394,7 @@ export function GearCatalog({
         }}
         placeholderUrl={placeholderUrl}
         requestOptions={requestOptions}
+        lexicon={lexicon}
       />
     </div>
   );

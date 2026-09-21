@@ -1,5 +1,11 @@
 /*
- * The installed portal's service worker (#1083).
+ * The installed apps' service worker (#1083, #1171).
+ *
+ * One file for both surfaces. Nothing in here is portal-specific: it caches
+ * immutable chunks and a tenant-neutral offline page, which is as correct for
+ * the organization's website as for its operations portal. What differs
+ * between the two is only the scope it is registered over, which the page
+ * decides (`serviceWorkerScope` in src/lib/pwa/service-worker.ts).
  *
  * A service worker is a cache that outlives a deploy, so the governing rule
  * here is how little it is allowed to keep rather than how much it can. It
@@ -17,7 +23,7 @@
  *   - anything that is not a GET.
  *
  * A stale donation total or an out-of-date check-in list is worse than a
- * spinner, so there is no read-through cache for portal data at all, and
+ * spinner, so there is no read-through cache for app data at all, and
  * offline is honest failure (see `offline.html` and the portal's offline
  * banner) rather than a plausible-looking stale page.
  *
@@ -26,8 +32,20 @@
  * build step worth having. Bump CACHE_VERSION whenever this file changes.
  */
 
-const CACHE_VERSION = "v1";
-const STATIC_CACHE = `portal-static-${CACHE_VERSION}`;
+const CACHE_VERSION = "v2";
+const STATIC_CACHE = `app-static-${CACHE_VERSION}`;
+
+/**
+ * Every cache name this worker has ever owned.
+ *
+ * The prefix changed from `portal-` to `app-` when the public site became an
+ * installable app of its own (#1171). Activation below deletes anything
+ * matching either prefix that is not the current cache, so the `portal-v1`
+ * cache on an existing install is collected rather than orphaned -- left
+ * unmatched it would sit in the origin's storage quota forever, refilled by
+ * nothing and read by nobody.
+ */
+const CACHE_PREFIXES = ["app-", "portal-"];
 const OFFLINE_URL = "/offline.html";
 
 /**
@@ -73,7 +91,11 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("portal-") && key !== STATIC_CACHE)
+            .filter(
+              (key) =>
+                CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
+                key !== STATIC_CACHE,
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -81,8 +103,9 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Sign-out clears every cache, but it does it from the page rather than by
-// messaging this worker (`clearPortalCaches` in src/lib/pwa/service-worker.ts).
+// Sign-out on either surface clears every cache, but it does it from the page
+// rather than by messaging this worker (`clearAppCaches` in
+// src/lib/pwa/service-worker.ts).
 // CacheStorage is per origin, not per worker, so the page can do it directly --
 // and a sign-out must not depend on a worker being alive to answer.
 

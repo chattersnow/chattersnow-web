@@ -547,6 +547,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
         group: "Site settings",
         access: [{ resource: "system_settings", level: "manage" }],
       },
+      // Beside Legal documents rather than under Events, and the same reader
+      // comes for both (#1322): these are the organization's standing answers
+      // about a promotion it runs -- who the sponsor is, who may enter, how to
+      // enter without paying -- not the recording of one giveaway, which
+      // stays in that event's Giveaway tab.
+      {
+        value: "giveaway-rules",
+        label: "Giveaway rules",
+        href: "/portal/website/giveaway-rules",
+        group: "Site settings",
+        access: [{ resource: "system_settings", level: "manage" }],
+      },
     ],
   },
   {

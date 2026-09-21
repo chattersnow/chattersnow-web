@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { contactTopics } from "@/lib/contact-topics";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
@@ -162,6 +163,8 @@ export function ContactForm({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <PrivacyNotice surface="contact" />
 
         <Button type="submit" disabled={isPending} className="w-full sm:w-fit">
           {isPending ? "Sending..." : "Send message"}

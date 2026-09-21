@@ -688,6 +688,7 @@ export type Database = {
           artist_statement: string | null;
           call_id: string;
           consented_at: string | null;
+          consented_terms: string | null;
           created_at: string;
           credit_name: string | null;
           event_id: string | null;
@@ -709,6 +710,7 @@ export type Database = {
           artist_statement?: string | null;
           call_id: string;
           consented_at?: string | null;
+          consented_terms?: string | null;
           created_at?: string;
           credit_name?: string | null;
           event_id?: string | null;
@@ -730,6 +732,7 @@ export type Database = {
           artist_statement?: string | null;
           call_id?: string;
           consented_at?: string | null;
+          consented_terms?: string | null;
           created_at?: string;
           credit_name?: string | null;
           event_id?: string | null;
@@ -3430,6 +3433,119 @@ export type Database = {
           },
         ];
       };
+      giveaway_rules: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          giveaway_id: string;
+          id: string;
+          odds_basis: string;
+          overrides: Json;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string;
+          giveaway_id: string;
+          id?: string;
+          odds_basis?: string;
+          overrides?: Json;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          giveaway_id?: string;
+          id?: string;
+          odds_basis?: string;
+          overrides?: Json;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_rules_giveaway_fk";
+            columns: ["tenant_id", "giveaway_id"];
+            isOneToOne: true;
+            referencedRelation: "giveaways";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      giveaway_rules_versions: {
+        Row: {
+          content: Json;
+          created_at: string;
+          created_by: string;
+          effective_at: string;
+          giveaway_rules_id: string;
+          id: string;
+          tenant_id: string;
+          version: number;
+        };
+        Insert: {
+          content: Json;
+          created_at?: string;
+          created_by?: string;
+          effective_at?: string;
+          giveaway_rules_id: string;
+          id?: string;
+          tenant_id?: string;
+          version: number;
+        };
+        Update: {
+          content?: Json;
+          created_at?: string;
+          created_by?: string;
+          effective_at?: string;
+          giveaway_rules_id?: string;
+          id?: string;
+          tenant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_rules_versions_rules_fk";
+            columns: ["tenant_id", "giveaway_rules_id"];
+            isOneToOne: false;
+            referencedRelation: "giveaway_rules";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "giveaway_rules_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       giveaway_ticket_grants: {
         Row: {
           created_at: string;
@@ -4753,6 +4869,60 @@ export type Database = {
           },
           {
             foreignKeyName: "inventory_movements_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      legal_document_versions: {
+        Row: {
+          content: Json;
+          created_at: string;
+          created_by: string | null;
+          document: string;
+          effective_at: string;
+          id: string;
+          surfaces: Json | null;
+          tenant_id: string;
+          time_zone: string;
+          version: number;
+        };
+        Insert: {
+          content: Json;
+          created_at?: string;
+          created_by?: string | null;
+          document: string;
+          effective_at?: string;
+          id?: string;
+          surfaces?: Json | null;
+          tenant_id?: string;
+          time_zone?: string;
+          version: number;
+        };
+        Update: {
+          content?: Json;
+          created_at?: string;
+          created_by?: string | null;
+          document?: string;
+          effective_at?: string;
+          id?: string;
+          surfaces?: Json | null;
+          tenant_id?: string;
+          time_zone?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "legal_document_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "legal_document_versions_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -7025,6 +7195,9 @@ export type Database = {
       };
       site_content: {
         Row: {
+          approval_reference: string | null;
+          approved_at: string | null;
+          approved_by: string | null;
           draft_updated_at: string | null;
           draft_updated_by: string | null;
           draft_value: Json | null;
@@ -7033,12 +7206,16 @@ export type Database = {
           key: string;
           published_at: string | null;
           published_by: string | null;
+          review_notes: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
           value: Json | null;
         };
         Insert: {
+          approval_reference?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
           draft_updated_at?: string | null;
           draft_updated_by?: string | null;
           draft_value?: Json | null;
@@ -7047,12 +7224,16 @@ export type Database = {
           key: string;
           published_at?: string | null;
           published_by?: string | null;
+          review_notes?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
           value?: Json | null;
         };
         Update: {
+          approval_reference?: string | null;
+          approved_at?: string | null;
+          approved_by?: string | null;
           draft_updated_at?: string | null;
           draft_updated_by?: string | null;
           draft_value?: Json | null;
@@ -7061,6 +7242,7 @@ export type Database = {
           key?: string;
           published_at?: string | null;
           published_by?: string | null;
+          review_notes?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -7994,6 +8176,40 @@ export type Database = {
         Row: {
           slot: string | null;
           value: Json | null;
+        };
+        Relationships: [];
+      };
+      public_giveaway_rules: {
+        Row: {
+          content: Json | null;
+          effective_at: string | null;
+          event_id: string | null;
+          giveaway_id: string | null;
+          version: number | null;
+        };
+        Relationships: [];
+      };
+      public_legal_document_versions: {
+        Row: {
+          content: Json | null;
+          document: string | null;
+          effective_at: string | null;
+          time_zone: string | null;
+          version: number | null;
+        };
+        Insert: {
+          content?: Json | null;
+          document?: string | null;
+          effective_at?: string | null;
+          time_zone?: string | null;
+          version?: number | null;
+        };
+        Update: {
+          content?: Json | null;
+          document?: string | null;
+          effective_at?: string | null;
+          time_zone?: string | null;
+          version?: number | null;
         };
         Relationships: [];
       };
@@ -9110,7 +9326,17 @@ export type Database = {
       public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };
       publish_article_category: { Args: { p_id: string }; Returns: number };
-      publish_site_content: { Args: { p_keys: string[] }; Returns: number };
+      publish_giveaway_rules: {
+        Args: { p_content: Json; p_giveaway_id: string };
+        Returns: {
+          effective_at: string;
+          version: number;
+        }[];
+      };
+      publish_site_content: {
+        Args: { p_approval?: Json; p_keys: string[]; p_legal_surface?: Json };
+        Returns: number;
+      };
       purge_rate_limit_hits: { Args: { p_as_of?: string }; Returns: number };
       record_event_distribution: {
         Args: {
@@ -9601,6 +9827,7 @@ export type Database = {
       };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
+      site_content_approver_count: { Args: never; Returns: number };
       submit_artwork: {
         Args: {
           p_code: string;

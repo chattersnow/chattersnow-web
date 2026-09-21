@@ -40,6 +40,27 @@ const nextConfig: NextConfig = {
         port: "54321",
         pathname: "/storage/v1/object/public/gear-photos/**",
       },
+      // Uploaded site photos (#921), on the same terms as gear photos above:
+      // one bucket's public prefix rather than arbitrary content on any
+      // Supabase project. Without these three, every slot an editor uploads to
+      // throws at render -- `SiteImage` draws them through `next/image`.
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/site-photos/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "54321",
+        pathname: "/storage/v1/object/public/site-photos/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "54321",
+        pathname: "/storage/v1/object/public/site-photos/**",
+      },
     ],
   },
   async redirects() {

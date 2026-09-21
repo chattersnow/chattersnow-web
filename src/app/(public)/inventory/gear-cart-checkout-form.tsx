@@ -10,20 +10,28 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import type {
   DeliveryMethod,
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
 export function GearCartCheckoutForm({
   itemIds,
   options,
   onSuccess,
+  lexicon = DEFAULT_LEXICON,
 }: {
   itemIds: string[];
   options: PublicGearRequestOptions;
   onSuccess: (deliveryMethod: DeliveryMethod) => void;
+  /**
+   * This organization's words (#896), for the privacy notice: it names what
+   * was requested, and "gear" is one tenant's word for it.
+   */
+  lexicon?: Lexicon;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -114,6 +122,8 @@ export function GearCartCheckoutForm({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <PrivacyNotice surface="gearRequest" lexicon={lexicon} />
 
         <Button
           type="submit"

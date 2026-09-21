@@ -30,6 +30,20 @@ const PHOTO = "/chatter-logo-transparent.png";
 
 const SLOT_LABEL = "Meet the Team — top photo";
 
+/**
+ * This slot's paste box.
+ *
+ * Scoped to the slot's own field rather than found by name across the page:
+ * since #921 the slot's label belongs to its upload control and the box is
+ * labelled "Or paste a link", which every image slot on this page now carries.
+ * The id holds a dot, so it is matched as an attribute rather than as a CSS id.
+ */
+function linkBox(page: Page): Locator {
+  return page
+    .locator(`[id="field-${SLOT}"]`)
+    .getByRole("textbox", { name: "Or paste a link" });
+}
+
 async function seedPhoto(url: string) {
   const admin = createAdminClient();
   const { error } = await admin
@@ -98,7 +112,7 @@ test.describe("framing a site photo", () => {
 
     // The link box shows the photo, never the rect: the fragment is the one
     // cost of this encoding and it must not reach a person as text.
-    const link = page.getByRole("textbox", { name: SLOT_LABEL });
+    const link = linkBox(page);
     await expect(link).toHaveValue(PHOTO);
 
     // Zoom in first, from the keyboard, which is the whole reason the control
@@ -145,9 +159,7 @@ test.describe("framing a site photo", () => {
     await expect(
       page.getByRole("group", { name: `Crop of ${SLOT_LABEL}` }),
     ).toBeVisible();
-    await expect(page.getByRole("textbox", { name: SLOT_LABEL })).toHaveValue(
-      PHOTO,
-    );
+    await expect(linkBox(page)).toHaveValue(PHOTO);
     await expect(
       page.getByRole("button", { name: "Reset crop" }),
     ).toBeEnabled();

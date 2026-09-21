@@ -9,6 +9,26 @@ import {
   legalDocument,
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
+import {
+  GIVEAWAY_RULES_ANSWER_MAX_LENGTH,
+  GIVEAWAY_RULES_ANSWER_MAX_PARAGRAPHS,
+  giveawayRulesAnswerField,
+  giveawayRulesSettingKey,
+} from "@/lib/giveaway-rules";
+import {
+  LEGAL_APPROVAL_SETTING_KEY,
+  MINIMUM_APPROVERS,
+} from "@/lib/legal-approval";
+import { legalAcknowledgementSettingKey } from "@/lib/legal-acknowledgement";
+import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
+import {
+  getSiteContentApproverCount,
+  getTenantLegalPublication,
+  getTenantOwnLegalDocuments,
+} from "@/lib/legal-publication";
+import { resolveCurrentPerson } from "@/lib/auth/current-person";
+import { checkPermission } from "@/lib/auth/permissions";
+import { personDisplayName } from "@/lib/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   LAYOUT_SLOTS,
@@ -47,6 +67,14 @@ import {
 const LAYOUT_PATHS = ["/portal/website/page-layout"] as const;
 const VISIBILITY_PATHS = ["/portal/website/page-visibility"] as const;
 const LEGAL_PATHS = ["/portal/website/legal-documents"] as const;
+const GIVEAWAY_RULES_PATHS = ["/portal/website/giveaway-rules"] as const;
+// The approval gate is the one setting on this page that changes what another
+// page does: the publish dialog in the editor asks for a reference and review
+// notes only while it is on, so that page is revalidated too.
+const LEGAL_APPROVAL_PATHS = [
+  "/portal/website/legal-documents",
+  "/portal/website",
+] as const;
 
 export async function updatePageVisibilityAction(
   slot: string,
@@ -102,6 +130,135 @@ export async function updateLegalPublicationAction(
 }
 
 /**
+ * Records that somebody here has read the platform's text for a document this
+ * organization serves (#1321).
+ *
+ * Not the same decision as putting a document in force, and deliberately a
+ * third action rather than a flag on that one. Adopting the terms of use is a
+ * decision about whether a document governs; this is a statement that a named
+ * person read the words. The privacy policy has no adoption switch at all --
+ * it is served for every tenant from the day it is provisioned, because the
+ * forms are collecting from that day -- so for the one document where the
+ * question matters most there is no other act to hang it on.
+ *
+ * What it writes is a record, not a permission: nothing here gates serving the
+ * page, and #1321 is explicit that an unacknowledged default is a prompt and
+ * never a 404. The policy must stay reachable while the forms collect.
+ *
+ * Both refusals below are the honest answer to a call that cannot mean
+ * anything, rather than a no-op to swallow -- the same stance the
+ * `alwaysInForce` refusal above takes. The panel offers the control in neither
+ * state, so reaching either one is a bug worth hearing about.
+ */
+export async function acknowledgeLegalDocumentAction(
+  key: string,
+): Promise<SettingActionResult> {
+  const document = legalDocument(key);
+  if (!document) return { error: "That is not a legal document." };
+
+  const supabase = await createSupabaseServerClient();
+  // Checked here as well as inside `writeAppSetting`, unlike its neighbours,
+  // because both refusals below describe this organization's own state. A
+  // reader who reaches the Website section on `site_content:view` alone should
+  // be told they cannot do this, not told what their tenant is serving and
+  // then refused on the way out.
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const [publication, ownDocuments] = await Promise.all([
+    getTenantLegalPublication(supabase),
+    getTenantOwnLegalDocuments(supabase),
+  ]);
+
+  if (!publication[document.key]) {
+    return {
+      error: `Your ${document.label.toLowerCase()} is not being served, so there is nothing to confirm yet.`,
+    };
+  }
+  // Publishing your own text is the confirmation. There is no platform
+  // document in the way to have gone unread.
+  if (ownDocuments.has(document.slotKey)) {
+    return {
+      error: `Your site serves your own ${document.label.toLowerCase()}, not the platform's, so there is nothing of ours to confirm.`,
+    };
+  }
+
+  // Captured from the session rather than accepted as an argument: this row's
+  // whole value is that it names who read the text, and a Server Action's
+  // arguments are whatever the caller sent.
+  const person = await resolveCurrentPerson(supabase);
+
+  return writeAppSetting(
+    legalAcknowledgementSettingKey(document.key),
+    {
+      person_id: person?.id ?? null,
+      person_name: personDisplayName(person, "") || null,
+      acknowledged_at: new Date().toISOString(),
+      // The version of the text that was read, which is what makes the record
+      // go stale by itself when the platform edits the prose.
+      platform_last_updated: PLATFORM_LEGAL_LAST_UPDATED,
+    },
+    LEGAL_PATHS,
+  );
+}
+
+/**
+ * Whether publishing a legal document here requires somebody other than the
+ * person who drafted it (#600).
+ *
+ * The decision this setting exists to leave open is in `@/lib/legal-approval`:
+ * a four-eyes rule on legal text is reasonable for an organization that has
+ * the eyes, and a platform-wide one would leave a single-administrator tenant
+ * unable to publish its own privacy policy at all. So it is the tenant's
+ * choice, off until they make it.
+ *
+ * The refusal below is that same lockout, blocked at the door it arrives by:
+ * switching the gate on in an organization where only one person can publish
+ * website content means no legal document can be published by anybody, since
+ * the only possible publisher is always the drafter. Refused with the reason
+ * rather than saved -- and counted in the database, because how many *other*
+ * people hold a permission is not a question a portal read can answer.
+ *
+ * Switching it back off is never refused. It is the way out of that state, and
+ * a tenant that has lost its second administrator needs the way out to work.
+ */
+export async function updateLegalApprovalAction(
+  required: boolean,
+): Promise<SettingActionResult> {
+  const supabase = await createSupabaseServerClient();
+  // Checked here as well as inside `writeAppSetting`, like
+  // `acknowledgeLegalDocumentAction` above: the refusal below describes this
+  // organization's own staffing, which is not something to tell a reader who
+  // could not have saved the setting anyway.
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  if (required) {
+    const approvers = await getSiteContentApproverCount(supabase);
+    if (approvers < MINIMUM_APPROVERS) {
+      return {
+        error:
+          "Only one person here can publish website content, so nobody could ever be the second approver. Give someone else the Site content permission at Manage first, then switch this on.",
+      };
+    }
+  }
+
+  return writeAppSetting(
+    LEGAL_APPROVAL_SETTING_KEY,
+    required,
+    LEGAL_APPROVAL_PATHS,
+  );
+}
+
+/**
  * How much of a section the public site shows (#846). Validated against the
  * slot's own options rather than trusted from the client: this is a Server
  * Action, so the argument is whatever the caller sent, and a value nobody
@@ -117,4 +274,39 @@ export async function updateLayoutSettingAction(
   }
 
   return writeAppSetting(layoutSettingKey(slot), value, LAYOUT_PATHS);
+}
+
+/**
+ * One of the answers every set of giveaway official rules is built from
+ * (#1322).
+ *
+ * Validated against the registry rather than trusted from the client, like
+ * the layout setting above: the key has to be one somebody was asked, or a
+ * Server Action becomes a way to write arbitrary `app_settings` rows under the
+ * `giveaway_rules.` prefix.
+ *
+ * Paragraphs in, paragraphs out, and a blank answer is stored as an empty
+ * array rather than deleted -- `resolveGiveawayRulesAnswer` reads either as
+ * unanswered, and keeping the row keeps the audit trail of somebody having
+ * cleared it.
+ */
+export async function updateGiveawayRulesAnswerAction(
+  key: string,
+  paragraphs: string[],
+): Promise<SettingActionResult> {
+  const field = giveawayRulesAnswerField(key);
+  if (!field)
+    return { error: "That is not one of the giveaway rules questions." };
+
+  const cleaned = paragraphs
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .slice(0, GIVEAWAY_RULES_ANSWER_MAX_PARAGRAPHS)
+    .map((paragraph) => paragraph.slice(0, GIVEAWAY_RULES_ANSWER_MAX_LENGTH));
+
+  return writeAppSetting(
+    giveawayRulesSettingKey(field.key),
+    cleaned,
+    GIVEAWAY_RULES_PATHS,
+  );
 }
