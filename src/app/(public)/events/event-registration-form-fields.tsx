@@ -9,6 +9,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AttendedBeforeField } from "@/components/attended-before-field";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
@@ -243,6 +244,8 @@ export function EventRegistrationForm({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <PrivacyNotice surface="eventRegistration" />
 
         {/* Not "Register": that is the disclosure's trigger above the form
             (#1256), and two buttons of the same name in one section are one
