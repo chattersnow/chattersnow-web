@@ -1,4 +1,4 @@
-import { compressImage } from "./gear-photos";
+import { compressImage } from "./compress-image";
 
 /**
  * The bucket created by 20260909040000. Private, and with no `anon` policy on

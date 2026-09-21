@@ -521,19 +521,31 @@ describe("the save bar", () => {
 // the copy, previews what the link points at, and clears back to the
 // placeholder through the same draft as a sentence does.
 describe("image slots", () => {
-  /** The preview image, or null while the box is blank or unreadable. */
+  /** The preview image, or null while the slot is empty or unreadable. */
   function preview(): HTMLImageElement | null {
     return document.querySelector("img");
+  }
+
+  /**
+   * The paste box, which since #921 sits beside an upload control rather than
+   * being the whole of the slot -- so it is named "Or paste a link", and the
+   * slot's own label belongs to the file input.
+   */
+  function linkBox(): HTMLElement {
+    return screen.getByRole("textbox", { name: "Or paste a link" });
   }
 
   test("shows the photo the link points at, and clears it as a draft", async () => {
     renderEditor([editorSlot(CAROUSEL, PHOTO_URL, true)]);
 
-    // Named by its label alone, with "Your image" describing it rather than
-    // renaming it (#924).
-    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    // The slot's own label names the upload control, which is the primary one
+    // since #921, with "Your image" describing it rather than renaming it
+    // (#924). The paste box beside it carries a label of its own.
+    expect(screen.getByLabelText(CAROUSEL.label)).toHaveAccessibleDescription(
+      "Your image",
+    );
+    const box = linkBox();
     expect(box).toHaveValue(PHOTO_URL);
-    expect(box).toHaveAccessibleDescription("Your image");
     // The preview is decorative -- it sits against the labelled box holding
     // the link it previews -- so it is found by what it points at (#918).
     expect(preview()).toHaveAttribute("src", PHOTO_URL);
@@ -561,9 +573,7 @@ describe("image slots", () => {
       screen.getByRole("button", { name: "Back to default" }),
     );
 
-    expect(
-      screen.getByRole("textbox", { name: /Homepage carousel/ }),
-    ).toHaveValue("");
+    expect(linkBox()).toHaveValue("");
   });
 
   test("a photo that is not set offers nothing to revert", () => {
@@ -591,7 +601,7 @@ describe("image slots", () => {
     const cropped = `${PHOTO_URL}#crop=0.1000,0.2000,0.5000,0.5000`;
     renderEditor([editorSlot(CAROUSEL, cropped, true)]);
 
-    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    const box = linkBox();
     expect(box).toHaveValue(PHOTO_URL);
     expect(
       screen.getByRole("group", { name: `Crop of ${CAROUSEL.label}` }),
@@ -616,7 +626,7 @@ describe("image slots", () => {
       ),
     ]);
 
-    const box = screen.getByRole("textbox", { name: CAROUSEL.label });
+    const box = linkBox();
     fireEvent.change(box, {
       target: { value: "https://example.test/carousel-2.jpg" },
     });
