@@ -72,9 +72,16 @@ longer applies to is still a change.
 
 - **A tenant that has published its own documents.** Those are that tenant's
   `site_content` rows and that tenant's decision; nothing here applies to them.
-- **Whether a tenant has read this text.** A default-serving tenant has
-  published a privacy policy nobody there confirmed, and is not told when this
-  text changes. Tracked separately.
+- **Whether a tenant has read this text.** An approval here is the platform's
+  own, and it is not a substitute for somebody in the organization reading the
+  words published under their name. Since #1321 that is recorded per tenant per
+  document — `legal_acknowledged.<key>` in `app_settings`, holding who
+  confirmed it, when, and the `PLATFORM_LEGAL_LAST_UPDATED` value they read —
+  and bumping the constant above makes every one of those records stale, which
+  is what tells a default-serving organization the text moved. So an approval
+  row below is also a decision to ask every such tenant to read the document
+  again; that is the intended cost of a prose change, not a reason to avoid
+  one.
 - **A citable version identity.** `PLATFORM_LEGAL_LAST_UPDATED` is the version
   key in all but name, but there is no archive of superseded text and no
   permalink to one.

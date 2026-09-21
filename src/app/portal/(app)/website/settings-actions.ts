@@ -9,6 +9,15 @@ import {
   legalDocument,
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
+import { legalAcknowledgementSettingKey } from "@/lib/legal-acknowledgement";
+import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
+import {
+  getTenantLegalPublication,
+  getTenantOwnLegalDocuments,
+} from "@/lib/legal-publication";
+import { resolveCurrentPerson } from "@/lib/auth/current-person";
+import { checkPermission } from "@/lib/auth/permissions";
+import { personDisplayName } from "@/lib/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   LAYOUT_SLOTS,
@@ -97,6 +106,83 @@ export async function updateLegalPublicationAction(
   return writeAppSetting(
     legalPublicationSettingKey(document.key),
     inForce,
+    LEGAL_PATHS,
+  );
+}
+
+/**
+ * Records that somebody here has read the platform's text for a document this
+ * organization serves (#1321).
+ *
+ * Not the same decision as putting a document in force, and deliberately a
+ * third action rather than a flag on that one. Adopting the terms of use is a
+ * decision about whether a document governs; this is a statement that a named
+ * person read the words. The privacy policy has no adoption switch at all --
+ * it is served for every tenant from the day it is provisioned, because the
+ * forms are collecting from that day -- so for the one document where the
+ * question matters most there is no other act to hang it on.
+ *
+ * What it writes is a record, not a permission: nothing here gates serving the
+ * page, and #1321 is explicit that an unacknowledged default is a prompt and
+ * never a 404. The policy must stay reachable while the forms collect.
+ *
+ * Both refusals below are the honest answer to a call that cannot mean
+ * anything, rather than a no-op to swallow -- the same stance the
+ * `alwaysInForce` refusal above takes. The panel offers the control in neither
+ * state, so reaching either one is a bug worth hearing about.
+ */
+export async function acknowledgeLegalDocumentAction(
+  key: string,
+): Promise<SettingActionResult> {
+  const document = legalDocument(key);
+  if (!document) return { error: "That is not a legal document." };
+
+  const supabase = await createSupabaseServerClient();
+  // Checked here as well as inside `writeAppSetting`, unlike its neighbours,
+  // because both refusals below describe this organization's own state. A
+  // reader who reaches the Website section on `site_content:view` alone should
+  // be told they cannot do this, not told what their tenant is serving and
+  // then refused on the way out.
+  const permissionError = await checkPermission(
+    supabase,
+    "system_settings",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const [publication, ownDocuments] = await Promise.all([
+    getTenantLegalPublication(supabase),
+    getTenantOwnLegalDocuments(supabase),
+  ]);
+
+  if (!publication[document.key]) {
+    return {
+      error: `Your ${document.label.toLowerCase()} is not being served, so there is nothing to confirm yet.`,
+    };
+  }
+  // Publishing your own text is the confirmation. There is no platform
+  // document in the way to have gone unread.
+  if (ownDocuments.has(document.slotKey)) {
+    return {
+      error: `Your site serves your own ${document.label.toLowerCase()}, not the platform's, so there is nothing of ours to confirm.`,
+    };
+  }
+
+  // Captured from the session rather than accepted as an argument: this row's
+  // whole value is that it names who read the text, and a Server Action's
+  // arguments are whatever the caller sent.
+  const person = await resolveCurrentPerson(supabase);
+
+  return writeAppSetting(
+    legalAcknowledgementSettingKey(document.key),
+    {
+      person_id: person?.id ?? null,
+      person_name: personDisplayName(person, "") || null,
+      acknowledged_at: new Date().toISOString(),
+      // The version of the text that was read, which is what makes the record
+      // go stale by itself when the platform edits the prose.
+      platform_last_updated: PLATFORM_LEGAL_LAST_UPDATED,
+    },
     LEGAL_PATHS,
   );
 }

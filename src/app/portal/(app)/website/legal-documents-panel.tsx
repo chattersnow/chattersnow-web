@@ -4,9 +4,13 @@ import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { updateLegalPublicationAction } from "./settings-actions";
+import {
+  acknowledgeLegalDocumentAction,
+  updateLegalPublicationAction,
+} from "./settings-actions";
 import type { SettingActionResult } from "@/lib/settings/write-app-setting";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
@@ -23,6 +27,12 @@ import {
   namedSurfaces,
   type LegalDocumentDrift,
 } from "@/lib/legal-surface";
+// Same reasoning: the registry and the words are client-safe, the reads are
+// not. The resolved state arrives as a prop.
+import {
+  needsAcknowledgement,
+  type LegalAcknowledgement,
+} from "@/lib/legal-acknowledgement";
 import { formatInstantDate } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 
@@ -46,6 +56,14 @@ export type LegalDocumentStatus = {
    * nothing is.
    */
   drift?: LegalDocumentDrift;
+  /**
+   * Whether anybody here has confirmed they have read the platform's text for
+   * this document, and whether the platform has changed it since (#1321).
+   * Undefined where the question does not arise -- the tenant serves its own
+   * text, or serves nothing. The exact complement of `drift` above: a document
+   * in force carries one or the other, never both.
+   */
+  acknowledgement?: LegalAcknowledgement;
 };
 
 /**
@@ -107,6 +125,62 @@ function DriftLine({
   );
 }
 
+/**
+ * The confirmation line, for a document served from the platform's text
+ * (#1321).
+ *
+ * All three states are said out loud, including the settled one: the whole
+ * point of the row is that an organization can answer "when did we last read
+ * our own privacy policy, and who", and a record that only appears when
+ * something is wrong cannot answer it. `app-muted` throughout, and no alert --
+ * nothing here is broken, and the page stays served whatever this says.
+ */
+function AcknowledgementLine({
+  document,
+  acknowledgement,
+}: {
+  document: LegalDocument;
+  acknowledgement: LegalAcknowledgement;
+}) {
+  const label = document.label.toLowerCase();
+
+  if (acknowledgement.status === "never") {
+    return (
+      <>
+        Your {label} is the platform&rsquo;s neutral default. Nobody here has
+        confirmed they have read it.
+      </>
+    );
+  }
+
+  const { confirmed } = acknowledgement;
+  const on = formatInstantDate(confirmed.acknowledgedAt, "");
+  // A record written before anybody had a people row, or by a service-role
+  // script: the date is still the answer, and "confirmed by nobody" would be
+  // worse than not naming anyone.
+  const by = confirmed.personName ? ` by ${confirmed.personName}` : "";
+  const when = on ? ` on ${on}` : "";
+
+  if (acknowledgement.status === "stale") {
+    return (
+      <>
+        The platform updated this text on{" "}
+        <span className="font-medium">{acknowledgement.updatedTo}</span>. It was
+        last confirmed here{by}
+        {when}, against the earlier version.
+      </>
+    );
+  }
+
+  return (
+    <>
+      Confirmed here{by}
+      {when}, against the text the platform published on{" "}
+      {confirmed.platformLastUpdated}.
+    </>
+  );
+}
+
 function ServingLine({
   document,
   inForce,
@@ -162,6 +236,7 @@ function LegalDocumentRow({
   // transition ends and can never keep showing a change the server refused.
   const [checked, setChecked] = useOptimistic(status.inForce);
   const [isPending, startTransition] = useTransition();
+  const [isConfirming, startConfirming] = useTransition();
   // Held in force only matters while it *is* in force: a document nothing has
   // adopted yet has nothing depending on it, and the module that would depend
   // on it cannot be turned on until it is.
@@ -173,6 +248,21 @@ function LegalDocumentRow({
     (status.drift.status === "unknown" || hasDrifted(status.drift))
       ? status.drift
       : undefined;
+
+  function handleConfirm() {
+    onError(null);
+
+    startConfirming(async () => {
+      await runAction<SettingActionResult>(
+        () => acknowledgeLegalDocumentAction(document.key),
+        {
+          success: `Recorded that you have read the ${document.label.toLowerCase()}.`,
+          onError,
+          onSuccess: () => router.refresh(),
+        },
+      );
+    });
+  }
 
   function handleChange(next: boolean) {
     onError(null);
@@ -215,6 +305,30 @@ function LegalDocumentRow({
           <p className="app-muted mt-1 text-sm leading-relaxed">
             <DriftLine document={document} drift={drift} />
           </p>
+        ) : null}
+        {status.acknowledgement ? (
+          <p className="app-muted mt-1 text-sm leading-relaxed">
+            <AcknowledgementLine
+              document={document}
+              acknowledgement={status.acknowledgement}
+            />
+          </p>
+        ) : null}
+        {/* Beside the sentence rather than in the control column on the right,
+            where the privacy policy has no switch to sit under and the other
+            two have one that means something else entirely. */}
+        {needsAcknowledgement(status.acknowledgement) ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={handleConfirm}
+            disabled={isConfirming}
+          >
+            {isConfirming ? <Spinner className="size-3.5" /> : null}I have read
+            this
+          </Button>
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-0.5">

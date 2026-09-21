@@ -123,6 +123,17 @@ Module entitlements are seeded, but from `plan_modules` rather than from the
 template tenant — for the same reason retention rules always arrive in
 `dry_run`: what the template was sold is not what this organization was sold.
 
+**No legal acknowledgement is seeded either, and recording one is the last step
+of provisioning** (#1321). A new tenant's `/privacy` is live from the moment it
+exists, serving the platform's neutral default, because its forms collect
+personal information from the same moment — so the new organization has a
+privacy policy under its own name that nobody there has read. Provisioning is
+not finished until an administrator opens **Website → Legal documents** and
+confirms they have read it; until they do, the panel says nobody has, and the
+portal's attention list asks. Nothing is blocked in the meantime: the page must
+stay reachable while the forms collect, so an unconfirmed default is a prompt
+and never a 404.
+
 ## Custom domains
 
 The host is what decides which tenant a public request is for
@@ -605,7 +616,24 @@ Both are the tenant admin's, not the operator's:
   `site_content:manage`. Nothing is blocked and nothing is re-inserted into the
   document. There is no backfill: a document published before this existed
   reads as _unknown_ and asks to be re-published, rather than being reported as
-  describing nothing. The site's photos are
+  describing nothing. **The mirror-image question is whether anybody here ever
+  read the platform's text** (#1321), which #1292 cannot answer for the reason
+  it gives: the platform's document regenerates on every request and so cannot
+  drift. A tenant serving it has published nothing for #600 to gate and has no
+  version row from #601, so one `app_settings` row per document,
+  `legal_acknowledged.<key>`, is the only record — who confirmed it, when, and
+  the `PLATFORM_LEGAL_LAST_UPDATED` value the text carried when they read it.
+  Private, like `legal_surface.%` and for the same reason: no view serves it to
+  `anon`. That stored version is what makes the record go stale by itself, so
+  bumping the constant and editing the prose — or enabling a module, which
+  moves the text through `collectionSurface()` — tells every default-serving
+  organization that the document moved rather than changing it under them
+  silently. The same panel line and the same `legal_documents_drift` attention
+  item carry it, because the administrator's job is the same either way: open
+  the document and read it. A document is answered by exactly one of the two —
+  its own text can drift, the platform's can go unread — so the two never
+  double-count and never leave one unaccounted for. Chatter Snow is unaffected,
+  since #858 it publishes its own three. The site's photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.

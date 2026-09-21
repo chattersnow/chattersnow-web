@@ -33,10 +33,14 @@ const serviceRoleClient = createSupabaseAdminClient();
 const {
   updatePageVisibilityAction,
   updateLegalPublicationAction,
+  acknowledgeLegalDocumentAction,
   updateLayoutSettingAction,
 } = await import("./settings-actions");
 const { pageVisibilitySettingKey } = await import("@/lib/page-visibility");
 const { legalPublicationSettingKey } = await import("@/lib/legal-documents");
+const { legalAcknowledgementSettingKey, parseLegalAcknowledgement } =
+  await import("@/lib/legal-acknowledgement");
+const { PLATFORM_LEGAL_LAST_UPDATED } = await import("@/lib/legal-defaults");
 const { LAYOUT_SLOTS, layoutSettingKey } = await import("@/lib/site-layout");
 
 afterEach(() => {
@@ -69,6 +73,32 @@ async function withRestoredSetting(key: string, run: () => Promise<void>) {
         .update({ value: original })
         .eq("key", key);
     }
+  }
+}
+
+/**
+ * Runs `run` with this tenant publishing text of its own for `slot`, then
+ * takes it away again (#1321).
+ *
+ * The seeded tenant has **no** `legal.*` rows at all -- local development is a
+ * freshly provisioned organization, prompts and platform defaults everywhere
+ * (see `docs/tenants.md`, "Local development: one tenant"), which is precisely
+ * the state this ticket exists for. So the fixture that has to be built is the
+ * other one: an organization that wrote its own document and therefore has
+ * nothing of the platform's to confirm.
+ */
+async function withOwnDocument(slot: string, run: () => Promise<void>) {
+  const { error } = await serviceRoleClient
+    .from("site_content")
+    .upsert(
+      { key: slot, value: { sections: [] } },
+      { onConflict: "tenant_id,key" },
+    );
+  if (error) throw error;
+  try {
+    await run();
+  } finally {
+    await serviceRoleClient.from("site_content").delete().eq("key", slot);
   }
 }
 
@@ -141,6 +171,82 @@ describe("website settings actions (integration)", () => {
     const result = await updateLegalPublicationAction("privacy", false);
     expect(result).toEqual({
       error: "The privacy policy is always served.",
+    });
+  });
+
+  // #1321. A tenant serving the platform's text has published nothing for #600
+  // to gate, no version row for #601 to hold and nothing #1292 can call drift,
+  // so this row is the only record that anybody there ever read the document.
+  describe("confirming the platform's own text has been read", () => {
+    const KEY = legalAcknowledgementSettingKey("privacy");
+
+    test("records who read it, when, and which version they read", async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      await withRestoredSetting(KEY, async () => {
+        expect(await acknowledgeLegalDocumentAction("privacy")).toEqual({
+          success: true,
+        });
+
+        const record = parseLegalAcknowledgement(await settingValue(KEY));
+        // The version is what makes the record go stale by itself when the
+        // platform next edits the prose -- without it there is nothing to
+        // compare and nothing to notice.
+        expect(record?.platformLastUpdated).toBe(PLATFORM_LEGAL_LAST_UPDATED);
+        // Taken from the session, not from the argument: the whole value of
+        // the row is that it names who read the text.
+        expect(record?.personId).toBeTruthy();
+        expect(record?.personName).toBeTruthy();
+        expect(record?.acknowledgedAt).toBeTruthy();
+        expect(revalidatePathMock).toHaveBeenCalledWith(
+          "/portal/website/legal-documents",
+        );
+      });
+    });
+
+    // Publishing your own text is the confirmation. Refused rather than
+    // swallowed: the panel offers the control in neither state, so a call that
+    // gets here is a bug worth hearing about.
+    test("a tenant serving its own text has nothing of ours to confirm", async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      await withOwnDocument("legal.privacy", async () => {
+        expect(await acknowledgeLegalDocumentAction("privacy")).toEqual({
+          error:
+            "Your site serves your own privacy policy, not the platform's, so there is nothing of ours to confirm.",
+        });
+      });
+    });
+
+    // Asking somebody to confirm they have read a page that 404s is asking for
+    // a signature on a blank sheet. The code of conduct is not in force on a
+    // freshly provisioned tenant, and the seed is one.
+    test("a document nobody is being served has nothing to confirm", async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      expect(await acknowledgeLegalDocumentAction("code_of_conduct")).toEqual({
+        error:
+          "Your code of conduct is not being served, so there is nothing to confirm yet.",
+      });
+    });
+
+    test("something that is not a legal document is refused", async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      expect(await acknowledgeLegalDocumentAction("cookies")).toEqual({
+        error: "That is not a legal document.",
+      });
+    });
+
+    // The same gate as the switch beside it, and checked before either refusal
+    // above: a reader who reaches the Website section on `site_content:view`
+    // alone is told they cannot do this, rather than told what their
+    // organization is serving and then refused on the way out.
+    test("a role without system_settings:manage cannot record one", async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.coordinator);
+
+      expect(await acknowledgeLegalDocumentAction("privacy")).toEqual(DENIED);
+      expect(await settingValue(KEY)).toBeUndefined();
     });
   });
 

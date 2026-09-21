@@ -4,8 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../test/toast-testing";
 import { LEGAL_DOCUMENTS, legalDocument } from "@/lib/legal-documents";
 import type { LegalDocumentDrift } from "@/lib/legal-surface";
+import type { LegalAcknowledgement } from "@/lib/legal-acknowledgement";
 
 const saveMock = mock(async (_key: string, _inForce: boolean) => ({
+  success: true as const,
+}));
+const acknowledgeMock = mock(async (_key: string) => ({
   success: true as const,
 }));
 
@@ -16,6 +20,7 @@ mock.module("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
 // `cookies()` into a DOM test.
 mock.module("./settings-actions", () => ({
   updateLegalPublicationAction: saveMock,
+  acknowledgeLegalDocumentAction: acknowledgeMock,
   updatePageVisibilityAction: saveMock,
   updateLayoutSettingAction: saveMock,
 }));
@@ -161,5 +166,99 @@ describe("a published document whose surface has moved", () => {
 
     expect(screen.queryByText(/does not describe/)).toBeNull();
     expect(screen.queryByText(/before we started recording/)).toBeNull();
+  });
+});
+
+// #1321. The tenant is being served the platform's own text, which cannot go
+// stale against the site the way #1292's drift does -- but it can go unread,
+// and it can be rewritten underneath an organization that read it once.
+describe("a document served from the platform's own text", () => {
+  const CONFIRMED = {
+    personId: "11111111-1111-1111-1111-111111111111",
+    personName: "Dana Whitfield",
+    acknowledgedAt: "2026-03-04T12:00:00Z",
+    platformLastUpdated: "March 1, 2026",
+  };
+
+  function renderPrivacy(acknowledgement?: LegalAcknowledgement) {
+    renderWithToaster(
+      <LegalDocumentsPanel
+        documents={LEGAL_DOCUMENTS}
+        statuses={LEGAL_DOCUMENTS.map((document) => ({
+          key: document.key,
+          inForce: document.alwaysInForce,
+          ownDocument: false,
+          acknowledgement:
+            document.key === "privacy" ? acknowledgement : undefined,
+        }))}
+      />,
+    );
+  }
+
+  const confirm = () =>
+    userEvent.click(screen.getByRole("button", { name: "I have read this" }));
+
+  beforeEach(() => {
+    acknowledgeMock.mockClear();
+  });
+
+  // The state every tenant is in the day it is provisioned: /privacy is live,
+  // because the forms are collecting, and nobody there has read it.
+  test("says nobody has confirmed it, and offers to record that somebody has", async () => {
+    renderPrivacy({ status: "never" });
+
+    expect(screen.getByText(/Nobody here has confirmed/)).toBeTruthy();
+    await confirm();
+    expect(acknowledgeMock).toHaveBeenCalledWith("privacy");
+  });
+
+  // The failure the ticket is really about: the words changed and the printed
+  // date moved on a document nobody re-read.
+  test("names the version it moved to, and when it was last read", async () => {
+    renderPrivacy({
+      status: "stale",
+      confirmed: CONFIRMED,
+      updatedTo: "September 21, 2026",
+    });
+
+    expect(screen.getByText("September 21, 2026")).toBeTruthy();
+    expect(screen.getByText(/Dana Whitfield/)).toBeTruthy();
+    expect(screen.getByText(/Mar 4, 2026/)).toBeTruthy();
+    await confirm();
+    expect(acknowledgeMock).toHaveBeenCalledWith("privacy");
+  });
+
+  // Said out loud rather than left blank: the point of the row is that an
+  // organization can answer "when did we last read our own privacy policy".
+  test("a settled confirmation is stated, and asks for nothing", () => {
+    renderPrivacy({ status: "confirmed", confirmed: CONFIRMED });
+
+    expect(screen.getByText(/Dana Whitfield/)).toBeTruthy();
+    expect(screen.getByText(/March 1, 2026/)).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "I have read this" }),
+    ).toBeNull();
+  });
+
+  // A service-role script or a person with no people row yet. The date is
+  // still the answer; "confirmed by nobody" would be worse than saying nothing.
+  test("states the date when it cannot name who confirmed it", () => {
+    renderPrivacy({
+      status: "confirmed",
+      confirmed: { ...CONFIRMED, personId: null, personName: null },
+    });
+
+    expect(screen.getByText(/Confirmed here on Mar 4, 2026/)).toBeTruthy();
+  });
+
+  // Publishing your own text is the confirmation; there is no platform
+  // document in the way to have gone unread.
+  test("says nothing where the tenant serves text of its own", () => {
+    renderPrivacy(undefined);
+
+    expect(screen.queryByText(/Nobody here has confirmed/)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "I have read this" }),
+    ).toBeNull();
   });
 });
