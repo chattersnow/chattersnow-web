@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
+import { createAdminClient } from "./helpers/admin-client";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 // The legal notices have to be reachable from anywhere on the site, which is
@@ -151,6 +152,38 @@ test.describe("notice at the point of collection", () => {
     // "items" rather than "gear": the noun is this tenant's own word (#896),
     // and the seeded tenant has not renamed it.
     await expectPrivacyNotice(cart, /match you with the items you asked for/);
+  });
+
+  // The fifth form, and the one #684 missed (#1344). It is reached by its code
+  // rather than from the nav and nothing seeds a call, so this stands one up
+  // and takes it away again -- safe beside the other projects because a call
+  // with no event is surfaced nowhere but its own link (#879).
+  test("the artwork submission form", async ({ page }) => {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("event_artwork_calls")
+      .insert({
+        event_id: null,
+        title: "E2E Privacy Notice Call",
+        is_open: true,
+      })
+      .select("id, submission_code")
+      .single();
+    if (error) throw error;
+
+    try {
+      await page.goto(`/artwork/${data.submission_code}`);
+
+      await expectPrivacyNotice(page, /credit you if it's shown/);
+
+      // The call's own rights-and-credit box is a real choice and stays one:
+      // the notice sits above it rather than replacing or absorbing it.
+      await expect(
+        page.getByRole("checkbox", { name: /This is my own work/ }),
+      ).toBeVisible();
+    } finally {
+      await admin.from("event_artwork_calls").delete().eq("id", data.id);
+    }
   });
 });
 
