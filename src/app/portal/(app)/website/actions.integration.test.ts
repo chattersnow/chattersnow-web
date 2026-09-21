@@ -275,6 +275,12 @@ describe("the legal-document surface fingerprint", () => {
       await service.from("site_content").delete().eq("key", LEGAL_KEY);
     }
     await service.from("app_settings").delete().eq("key", SETTING_KEY);
+    // Publishing a legal slot appends a version row (#601), which nothing
+    // else here removes -- the table has no delete policy at all.
+    await service
+      .from("legal_document_versions")
+      .delete()
+      .eq("document", "privacy");
   });
 
   async function fingerprint() {
@@ -508,6 +514,10 @@ describe("a tenant that requires a second approver on legal documents", () => {
       .from("app_settings")
       .delete()
       .eq("key", "legal_approval.required");
+    await service
+      .from("legal_document_versions")
+      .delete()
+      .eq("document", "privacy");
   });
 
   test("the drafter cannot publish their own text, approval or no approval", async () => {

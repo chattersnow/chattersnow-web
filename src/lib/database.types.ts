@@ -4876,6 +4876,60 @@ export type Database = {
           },
         ];
       };
+      legal_document_versions: {
+        Row: {
+          content: Json;
+          created_at: string;
+          created_by: string | null;
+          document: string;
+          effective_at: string;
+          id: string;
+          surfaces: Json | null;
+          tenant_id: string;
+          time_zone: string;
+          version: number;
+        };
+        Insert: {
+          content: Json;
+          created_at?: string;
+          created_by?: string | null;
+          document: string;
+          effective_at?: string;
+          id?: string;
+          surfaces?: Json | null;
+          tenant_id?: string;
+          time_zone?: string;
+          version: number;
+        };
+        Update: {
+          content?: Json;
+          created_at?: string;
+          created_by?: string | null;
+          document?: string;
+          effective_at?: string;
+          id?: string;
+          surfaces?: Json | null;
+          tenant_id?: string;
+          time_zone?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "legal_document_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "legal_document_versions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       meeting_minutes: {
         Row: {
           agenda_snapshot: Json;
@@ -8132,6 +8186,30 @@ export type Database = {
           event_id: string | null;
           giveaway_id: string | null;
           version: number | null;
+        };
+        Relationships: [];
+      };
+      public_legal_document_versions: {
+        Row: {
+          content: Json | null;
+          document: string | null;
+          effective_at: string | null;
+          time_zone: string | null;
+          version: number | null;
+        };
+        Insert: {
+          content?: Json | null;
+          document?: string | null;
+          effective_at?: string | null;
+          time_zone?: string | null;
+          version?: number | null;
+        };
+        Update: {
+          content?: Json | null;
+          document?: string | null;
+          effective_at?: string | null;
+          time_zone?: string | null;
+          version?: number | null;
         };
         Relationships: [];
       };

@@ -29,6 +29,7 @@ export type { LegalSection };
  */
 export function LegalPageShell({
   title,
+  banner,
   lastUpdated,
   dateLabel = "Last updated",
   summary,
@@ -36,6 +37,13 @@ export function LegalPageShell({
   children,
 }: {
   title: string;
+  /**
+   * Rendered above the title, before anything else on the page. For the one
+   * thing a reader has to know before they start reading rather than after --
+   * today, that this is a superseded version of the document (#601). Nothing
+   * a tenant can write goes here.
+   */
+  banner?: ReactNode;
   lastUpdated: string;
   /**
    * What the date under the title is. "Last updated" for the three legal
@@ -64,6 +72,7 @@ export function LegalPageShell({
           against it. Set here so each page's <section> elements stay plain. */}
       <div className="space-y-12 [&_section]:scroll-mt-8 print:max-w-none">
         <section id="top">
+          {banner}
           <div className="w-fit">
             <div className="rainbow-accent w-full" />
             <h1 className="brand-display mt-4 text-4xl font-semibold tracking-brand sm:text-5xl">

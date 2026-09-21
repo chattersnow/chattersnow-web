@@ -79,6 +79,7 @@ export const TENANT_TABLES = [
   "inventory_category_groups",
   "inventory_items",
   "inventory_movements",
+  "legal_document_versions",
   "meeting_minutes",
   "monetary_donations",
   "nonprofit_status_milestones",

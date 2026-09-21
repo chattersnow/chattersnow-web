@@ -467,6 +467,23 @@ beforeAll(async () => {
     "b site image",
   );
   await must(
+    service
+      .from("legal_document_versions")
+      .insert({
+        tenant_id: tenantB,
+        document: probeToken.b,
+        version: 1,
+        content: {
+          title: "Isolation Policy B",
+          last_updated: "January 1, 2030",
+          summary: [],
+          sections: [{ id: "scope", title: "Scope", paragraphs: ["B."] }],
+        },
+      })
+      .select("id"),
+    "b legal document version",
+  );
+  await must(
     bAdmin
       .from("app_settings")
       .insert(
@@ -780,6 +797,27 @@ beforeAll(async () => {
     service,
   );
 
+  // A published legal document version (#601). Via `service` because the table
+  // has no insert grant at all -- publish_site_content() is its only writer,
+  // which is the point -- and under the probe token rather than a real document
+  // key, since both tenants have a `privacy` and the probe below needs a value
+  // that tells them apart.
+  await fixture(
+    "legal_document_versions",
+    {
+      tenant_id: tenantA,
+      document: probeToken.a,
+      version: 1,
+      content: {
+        title: "Isolation Policy A",
+        last_updated: "January 1, 2030",
+        summary: [],
+        sections: [{ id: "scope", title: "Scope", paragraphs: ["A."] }],
+      },
+    },
+    service,
+  );
+
   // Giveaway tiers, grants, rules, a bucket, a package and a sale on A's
   // past-event giveaway; seed_giveaway_tiers is a no-op if tiers exist.
   await must(
@@ -864,6 +902,7 @@ afterAll(async () => {
     // person or a donation below it.
     "tenant_modules",
     "site_content",
+    "legal_document_versions",
     "calendar_items",
     "calendar_categories",
     "volunteer_role_types",
@@ -1652,6 +1691,12 @@ describe("every anon-readable view follows the host", () => {
     },
     {
       view: "public_legal_publication",
+      column: "document",
+      inA: () => probeToken.a,
+      inB: () => probeToken.b,
+    },
+    {
+      view: "public_legal_document_versions",
       column: "document",
       inA: () => probeToken.a,
       inB: () => probeToken.b,

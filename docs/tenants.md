@@ -640,8 +640,8 @@ Both are the tenant admin's, not the operator's:
   by somebody other than the person whose draft it is, and that person is asked
   what approved the text and what they made of it; both land on the
   `site_content` row, which `audit_log` snapshots on the same publish, so the
-  approval sits beside the exact words it approved rather than in a version
-  table (#601 owns that). It is enforced in `publish_site_content` rather than
+  approval sits beside the exact words it approved rather than on the version
+  row (#601). It is enforced in `publish_site_content` rather than
   in the Server Action, since that function is the only write path onto the
   public site. It is deliberately **not** a platform-wide rule: a
   single-administrator tenant is an expected, supported state — the portal
@@ -650,7 +650,27 @@ Both are the tenant admin's, not the operator's:
   policy at all, pinned to the platform's default with no way out short of
   buying another seat. For the same reason a tenant with fewer than two holders
   of `site_content:manage` is refused when it tries to switch the gate on, and
-  switching it back off is never refused. The site's photos are
+  switching it back off is never refused. **Every publish of a `legal.*` slot
+  is also a version** (#601): one append-only `legal_document_versions` row per
+  tenant, per document, holding the published `value` as served, the instant it
+  took effect, the organization's zone at that moment, and the #1292 collection
+  surface it was published against. Written by `publish_site_content` inside
+  the same transaction and by nothing else — the table has no insert grant, no
+  update policy and no delete policy, so a correction is a new version rather
+  than a rewrite of an old one. The public site reads it through
+  `public_legal_document_versions` (definer, `public_tenant_id()`, `document`,
+  `version`, `content`, `effective_at` and `time_zone` — the surface is
+  deliberately not exposed), which is what lets `/privacy?version=2` answer
+  "which version was in force when I registered" to a person rather than to a
+  developer reading `audit_log`. The live document says which version it is and
+  lists the rest; a superseded one says so and links the one in force; and a
+  tenant serving the platform's default has no version of its own and is told
+  that, keyed to `PLATFORM_LEGAL_LAST_UPDATED`. Adoption still decides the
+  route: a permalink is the same route as the live document, so `/terms` and
+  `/code-of-conduct` 404 at every version for a tenant that never put them in
+  force. Documents already published when the table shipped were backfilled as
+  version 1 from `site_content.published_at` and `published_by`. The site's
+  photos are
   slots here too (`site_images.*`, a Google Drive link each, blank for the
   placeholder icon), edited beside the copy they sit next to and published
   the same way; a new tenant starts with placeholders everywhere.
