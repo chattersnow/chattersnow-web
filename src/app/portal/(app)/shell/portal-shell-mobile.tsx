@@ -5,7 +5,7 @@ import { SkipLink } from "@/components/skip-link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LexiconProvider } from "@/components/lexicon-context";
 import { OfflineBanner } from "@/components/portal/offline-banner";
-import { ServiceWorkerRegistrar } from "@/components/portal/service-worker-registrar";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { CommandPalette } from "../command-palette";
 import { HelpButton } from "../help/help-button";
 import { IdleTimeout } from "../idle-timeout";
@@ -31,6 +31,7 @@ import type { PortalShellProps } from "./shell-props";
  * mount in the desktop shell: this is the one tree that survives a navigation.
  */
 export function PortalShellMobile({
+  serviceWorkerScope,
   permissions,
   lexicon,
   branding,
@@ -116,7 +117,7 @@ export function PortalShellMobile({
       )}
       {whatsNewOwed && <WhatsNewDialog key={CURRENT_RELEASE} initialOpen />}
       <IdleTimeout />
-      <ServiceWorkerRegistrar />
+      <ServiceWorkerRegistrar scope={serviceWorkerScope} />
       <Toaster />
     </div>
   );

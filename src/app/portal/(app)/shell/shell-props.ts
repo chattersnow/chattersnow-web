@@ -16,6 +16,12 @@ import type { TenantContext } from "@/lib/portal/tenants";
  * given device.
  */
 export type PortalShellProps = {
+  /**
+   * The paths the portal's service worker may control on this host (#1171).
+   * Resolved by the layout, which is the half of the render that can see the
+   * request host, and passed down rather than re-derived in the browser.
+   */
+  serviceWorkerScope: string;
   permissions: PermissionMap;
   lexicon: Lexicon;
   branding: Branding;

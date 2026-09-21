@@ -29,6 +29,8 @@ import {
 import { deviceClass } from "@/lib/portal/device";
 import { PortalDeviceProvider } from "@/lib/portal/device-context";
 import { getTenantBranding } from "@/lib/tenant-branding";
+import { surfaceAtRoot } from "@/lib/pwa/host";
+import { serviceWorkerScope } from "@/lib/pwa/service-worker";
 import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { ensureMyOnboarding } from "@/lib/portal/onboarding";
 import { personDisplayName } from "@/lib/format";
@@ -288,6 +290,13 @@ export default async function PortalAppLayout({
   ]);
 
   const shellProps = {
+    // Decided here rather than in the registrar: the server is what knows the
+    // request host, and a client that re-derived it would be a second copy of
+    // the host rule the manifest's `scope` already follows (#1171).
+    serviceWorkerScope: serviceWorkerScope(
+      "portal",
+      surfaceAtRoot("portal", (await headers()).get("host") ?? ""),
+    ),
     permissions,
     lexicon,
     branding,

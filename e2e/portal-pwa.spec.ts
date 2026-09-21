@@ -1,6 +1,6 @@
 // Issue #1083: the portal installs as a PWA, and the thing it installs as is
 // the *tenant*, never the platform. The rule itself -- which name, colour and
-// icon a manifest carries -- is unit-tested over `portalManifest`; what this
+// icon a manifest carries -- is unit-tested over `appManifest`; what this
 // file covers is the wiring that a unit test cannot see: that the route is
 // served at all, that it is resolved per request rather than cached, that the
 // icon really comes back as a PNG, and that the service worker stays out of
@@ -14,10 +14,16 @@ test.describe("the installed portal", () => {
     const response = await page.request.get("/manifest.webmanifest");
     expect(response.status()).toBe(200);
 
+    expect(response.headers()["content-type"]).toContain(
+      "application/manifest+json",
+    );
+
     const manifest = await response.json();
     // seed.sql leaves exactly one tenant, `example-nonprofit`, and the
     // sole-active-tenant fallback resolves this host to it.
-    expect(manifest.name).toBe("Example Nonprofit");
+    // `<Name> Ops` since #1171: two apps on one home screen have to be told
+    // apart, and "Ops" is a role word rather than a product name.
+    expect(manifest.name).toBe("Example Nonprofit Ops");
     expect(manifest.display).toBe("standalone");
     // The marketing site is not what anyone installs.
     expect(manifest.start_url).toBe("/portal/home");
