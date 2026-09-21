@@ -64,8 +64,10 @@ const saveMock = mock(
     ({ success: true }) as const,
 );
 const publishMock = mock(
-  async (_keys: string[]): Promise<ActionResult> =>
-    ({ success: true }) as const,
+  async (
+    _keys: string[],
+    _approval?: { reference: string; notes: string } | null,
+  ): Promise<ActionResult> => ({ success: true }) as const,
 );
 const discardMock = mock(
   async (_keys: string[]): Promise<ActionResult> =>
@@ -148,6 +150,7 @@ function editorSlot(
   value: Json,
   overridden = false,
   hasDraft = false,
+  draftedByViewer = false,
 ): EditorSlot {
   return {
     slot,
@@ -159,6 +162,7 @@ function editorSlot(
     hasDraft,
     draftUpdatedAt: hasDraft ? "2026-09-07T10:00:00Z" : null,
     draftUpdatedBy: hasDraft ? "Robin" : null,
+    draftedByViewer: hasDraft && draftedByViewer,
     publishedAt: overridden ? "2026-09-01T10:00:00Z" : null,
     publishedBy: overridden ? "Alex" : null,
     starter:
@@ -202,7 +206,11 @@ function outlineFor(slots: EditorSlot[]): OutlineEntry[] {
   ];
 }
 
-function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
+function renderEditor(
+  slots: EditorSlot[],
+  hiddenPages: string[] = [],
+  approvalRequired = false,
+) {
   const props = (next: EditorSlot[]) => ({
     page: PAGES[0],
     device: "desktop" as const,
@@ -214,6 +222,7 @@ function renderEditor(slots: EditorSlot[], hiddenPages: string[] = []) {
     programsFromModule: false,
     teamFromPeople: false,
     canEdit: true,
+    approvalRequired,
   });
   const view = renderWithToaster(<ContentEditor {...props(slots)} />);
   return {
@@ -341,7 +350,7 @@ describe("saving and publishing are two steps", () => {
       within(dialog).getByRole("button", { name: "Publish" }),
     );
     await waitFor(() =>
-      expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"], null),
     );
   });
 
@@ -372,7 +381,7 @@ describe("saving and publishing are two steps", () => {
     // Staging and publishing are two round trips, so the second one is still
     // in front of us when the first is recorded.
     await waitFor(() =>
-      expect(publishMock).toHaveBeenCalledWith(["home.heading"]),
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"], null),
     );
   });
 
@@ -696,6 +705,7 @@ describe("publishing a photo", () => {
       hasDraft: true,
       draftUpdatedAt: "2026-09-07T10:00:00Z",
       draftUpdatedBy: "Robin",
+      draftedByViewer: false,
       publishedAt: "2026-09-01T10:00:00Z",
       publishedBy: "Alex",
       starter: null,
@@ -904,6 +914,149 @@ describe("legal documents", () => {
     expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("");
     expect(screen.queryAllByRole("textbox", { name: "Heading" })).toHaveLength(
       0,
+    );
+  });
+});
+
+// #600. An organization may ask for a second pair of eyes on its legal text.
+// The rule is enforced in `publish_site_content`, which is the only write path
+// onto the public site; what the dialog owes the reader is not making them
+// type an approval that was never going to be accepted.
+describe("publishing a legal document where a second approver is required", () => {
+  const PUBLISHED_PRIVACY = {
+    title: "Privacy Policy",
+    last_updated: "March 1, 2026",
+    summary: ["What we do with your details."],
+    sections: [
+      { id: "collect", title: "What we collect", paragraphs: ["Your name."] },
+    ],
+  };
+  const DRAFTED_PRIVACY = {
+    ...PUBLISHED_PRIVACY,
+    sections: [
+      {
+        id: "collect",
+        title: "What we collect",
+        paragraphs: ["Your name and your email address."],
+      },
+    ],
+  };
+
+  /** A legal slot with a pending draft, written by the reader or by somebody else. */
+  function pendingPrivacy(draftedByViewer: boolean): EditorSlot {
+    return {
+      ...editorSlot(
+        PRIVACY,
+        DRAFTED_PRIVACY as Json,
+        false,
+        true,
+        draftedByViewer,
+      ),
+      published: PUBLISHED_PRIVACY as Json,
+      overridden: true,
+    };
+  }
+
+  async function openPublishDialog(): Promise<HTMLElement> {
+    await userEvent.click(publishBar());
+    return screen.findByRole("dialog");
+  }
+
+  test("asks what approved the text, and publishes with it", async () => {
+    renderEditor([pendingPrivacy(false)], [], true);
+
+    const dialog = await openPublishDialog();
+    const publish = within(dialog).getByRole("button", { name: "Publish" });
+    // Nothing to send yet, so nothing to press: an approval with half of it
+    // missing is not an approval.
+    expect(publish).toBeDisabled();
+
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /What approved this text/ }),
+      "Board meeting, 4 March",
+    );
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /What you made of it/ }),
+      "Counsel read it first.",
+    );
+    await userEvent.click(publish);
+
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["legal.privacy"], {
+        reference: "Board meeting, 4 March",
+        notes: "Counsel read it first.",
+      }),
+    );
+  });
+
+  // Their own words cannot be their own second opinion.
+  test("refuses the reader's own draft rather than taking an approval for it", async () => {
+    renderEditor([pendingPrivacy(true)], [], true);
+
+    const dialog = await openPublishDialog();
+
+    expect(dialog).toHaveTextContent(/You wrote this text/);
+    expect(
+      within(dialog).queryByRole("textbox", {
+        name: /What approved this text/,
+      }),
+    ).toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    ).toBeDisabled();
+    expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  // Publishing stages what is on screen first, so an unsaved edit makes the
+  // reader the drafter whatever the saved row says.
+  test("an unsaved edit of somebody else's draft is still the reader's own words", async () => {
+    renderEditor([pendingPrivacy(false)], [], true);
+
+    await userEvent.type(
+      screen.getAllByRole("textbox", { name: "Text" })[0],
+      " And your postcode.",
+    );
+    const dialog = await openPublishDialog();
+
+    expect(dialog).toHaveTextContent(/You wrote this text/);
+  });
+
+  // The gate is about legal text alone: the other twelve pages publish as they
+  // always have.
+  test("ordinary copy is published without an approval", async () => {
+    renderEditor(
+      [editorSlot(HEADING, `${DEFAULT_HEADING}!`, false, true)],
+      [],
+      true,
+    );
+
+    const dialog = await openPublishDialog();
+    expect(
+      within(dialog).queryByRole("textbox", {
+        name: /What approved this text/,
+      }),
+    ).toBeNull();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    );
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["home.heading"], null),
+    );
+  });
+
+  // And where the organization has not asked for one, nothing changes at all.
+  test("asks for nothing where the gate is off", async () => {
+    renderEditor([pendingPrivacy(true)]);
+
+    const dialog = await openPublishDialog();
+
+    expect(dialog).not.toHaveTextContent(/You wrote this text/);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Publish" }),
+    );
+    await waitFor(() =>
+      expect(publishMock).toHaveBeenCalledWith(["legal.privacy"], null),
     );
   });
 });

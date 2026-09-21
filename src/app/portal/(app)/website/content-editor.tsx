@@ -19,6 +19,10 @@ import {
   type ContentSection,
 } from "@/lib/site-content";
 import type { DeviceClass } from "@/proxy";
+import {
+  isLegalSlotKey,
+  type LegalPublishApproval,
+} from "@/lib/legal-approval";
 import type { EditorSlot, OutlineEntry } from "./content-shared";
 import { draftValueFor, slotChanges } from "./content-diff";
 import { ContentOutline } from "./content-outline";
@@ -61,6 +65,7 @@ export function ContentEditor({
   programsFromModule,
   teamFromPeople,
   canEdit,
+  approvalRequired,
 }: {
   /** Which shape the rail takes, decided on the server (#1079, #1093). */
   device: DeviceClass;
@@ -84,6 +89,13 @@ export function ContentEditor({
    */
   teamFromPeople: boolean;
   canEdit: boolean;
+  /**
+   * Whether this organization requires a second approver before a legal
+   * document publishes (#600). It changes nothing anywhere else on the site:
+   * the publish dialog asks for an approval only when a `legal.*` slot is
+   * among the changes going live.
+   */
+  approvalRequired: boolean;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<Record<string, Json>>(() =>
@@ -183,7 +195,10 @@ export function ContentEditor({
     });
   }
 
-  function handlePublish(keys: string[]) {
+  function handlePublish(
+    keys: string[],
+    approval: LegalPublishApproval | null,
+  ) {
     setError(null);
     startTransition(async () => {
       // Publishing what is on screen, not what was last saved: an unsaved edit
@@ -196,7 +211,7 @@ export function ContentEditor({
         );
         if (!staged.ok) return;
       }
-      await runAction(() => publishSiteContentAction(keys), {
+      await runAction(() => publishSiteContentAction(keys, approval), {
         success:
           keys.length === 1
             ? "Published."
@@ -244,6 +259,24 @@ export function ContentEditor({
         published: entry.published,
       })),
   );
+
+  // What the publish dialog has to ask for, if anything (#600). Only the
+  // changes actually going live count: naming a legal slot that reads the same
+  // as what is published publishes nothing, and asking for an approval of
+  // nothing would stop the other twelve pages publishing beside it.
+  const legalChanges = publishChanges.filter((change) =>
+    isLegalSlotKey(change.slot.key),
+  );
+  const approvalNeeded = approvalRequired && legalChanges.length > 0;
+  // Their own draft is the one they cannot publish -- whether it is saved
+  // already or still on screen, since publishing stages what is on screen
+  // first. Said here rather than left to the refusal the database returns, so
+  // nobody writes an approval into a dialog that was never going to be
+  // accepted.
+  const draftedByViewer = legalChanges.some((change) => {
+    const entry = slots.find((slot) => slot.slot.key === change.slot.key);
+    return dirtyKeys.has(change.slot.key) || Boolean(entry?.draftedByViewer);
+  });
 
   const hidden = hiddenPages.includes(page.key);
 
@@ -391,11 +424,16 @@ export function ContentEditor({
       </div>
 
       <PublishChangesDialog
+        // Keyed on what is being published, so each opening starts from an
+        // empty approval rather than from whatever was typed the last time.
+        key={publishKeys.join(",")}
         open={publishing !== null}
         onOpenChange={(open) => setPublishing(open ? publishing : null)}
         changes={publishChanges}
         pending={isPending}
-        onConfirm={() => handlePublish(publishKeys)}
+        approvalNeeded={approvalNeeded}
+        draftedByViewer={draftedByViewer}
+        onConfirm={(approval) => handlePublish(publishKeys, approval)}
       />
 
       <DiscardChangesDialog

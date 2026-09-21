@@ -430,3 +430,213 @@ describe("discarding a draft", () => {
     expect(await currentRow()).toBeNull();
   });
 });
+
+// The second-approver gate (#600), where it is actually enforced. The Server
+// Action and the dialog above it both refuse the same publishes, but they are
+// courtesies: `site_content` is not writable by `authenticated` at all, so
+// this function is the only path onto the public site and the only place the
+// rule cannot be gone around.
+describe("a tenant that requires a second approver on legal documents", () => {
+  const LEGAL_KEY = "legal.privacy";
+  const DOCUMENT = {
+    title: "Privacy Policy",
+    last_updated: "March 1, 2026",
+    summary: ["What we do with your details."],
+    sections: [
+      { id: "collect", title: "What we collect", paragraphs: ["Your name."] },
+    ],
+  };
+  const APPROVAL = {
+    reference: "Board meeting, 4 March",
+    notes: "Counsel read it first.",
+  };
+
+  async function setGate(required: boolean) {
+    const { data: tenant } = await adminClient
+      .from("site_content")
+      .select("tenant_id")
+      .limit(1)
+      .single();
+    await service.from("app_settings").upsert(
+      {
+        tenant_id: tenant!.tenant_id,
+        key: "legal_approval.required",
+        value: required,
+      },
+      { onConflict: "tenant_id,key" },
+    );
+  }
+
+  /**
+   * Rewrites who drafted the pending row, which is the only way to stage
+   * "somebody else wrote this" here: the seed has one account holding
+   * `site_content:manage`, and `draft_updated_by` is stamped from the session
+   * by a trigger rather than sent, which is the property the gate rests on.
+   * The trigger restamps only when the draft itself changes, so this update
+   * leaves everything else exactly as the drafter left it.
+   */
+  async function draftedBySomebodyElse() {
+    const other = await signInAs(SEEDED_USERS.coordinator);
+    const { data: user } = await other.auth.getUser();
+    await service
+      .from("site_content")
+      .update({ draft_updated_by: user.user!.id })
+      .eq("key", LEGAL_KEY);
+  }
+
+  async function legalRow() {
+    const { data } = await adminClient
+      .from("site_content")
+      .select(
+        "value, has_draft, approved_by, approved_at, approval_reference, review_notes",
+      )
+      .eq("key", LEGAL_KEY)
+      .maybeSingle();
+    return data;
+  }
+
+  beforeEach(async () => {
+    await setGate(true);
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: LEGAL_KEY, value: DOCUMENT }],
+    });
+  });
+
+  afterEach(async () => {
+    await service.from("site_content").delete().eq("key", LEGAL_KEY);
+    await service
+      .from("app_settings")
+      .delete()
+      .eq("key", "legal_approval.required");
+  });
+
+  test("the drafter cannot publish their own text, approval or no approval", async () => {
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_approval: APPROVAL,
+    });
+
+    expect(error?.message).toContain("APPROVAL_SELF");
+    expect((await legalRow())?.value).toBeNull();
+  });
+
+  test("a second person still has to say what approved it", async () => {
+    await draftedBySomebodyElse();
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+    });
+
+    expect(error?.message).toContain("APPROVAL_REQUIRED");
+    expect((await legalRow())?.value).toBeNull();
+  });
+
+  test("blank answers are not answers", async () => {
+    await draftedBySomebodyElse();
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_approval: { reference: "  ", notes: "Fine by me." },
+    });
+
+    expect(error?.message).toContain("APPROVAL_REQUIRED");
+  });
+
+  // The approval lands on the row it approves, which `audit_log` snapshots on
+  // this same publish -- so the record sits beside the exact text it is about.
+  test("a second person publishes it, and the approval is recorded on the row", async () => {
+    await draftedBySomebodyElse();
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_approval: APPROVAL,
+    });
+    expect(error).toBeNull();
+
+    const row = await legalRow();
+    const { data: user } = await adminClient.auth.getUser();
+    expect(row?.value).toEqual(DOCUMENT);
+    expect(row?.approved_by).toBe(user.user!.id);
+    expect(row?.approved_at).not.toBeNull();
+    expect(row?.approval_reference).toBe(APPROVAL.reference);
+    expect(row?.review_notes).toBe(APPROVAL.notes);
+  });
+
+  // A draft written with no session behind it -- a service-role script -- has
+  // no second pair of eyes to be checked against.
+  test("a draft nobody is recorded as having written is refused", async () => {
+    await service
+      .from("site_content")
+      .update({ draft_updated_by: null })
+      .eq("key", LEGAL_KEY);
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_approval: APPROVAL,
+    });
+
+    expect(error?.message).toContain("APPROVAL_DRAFTER_UNKNOWN");
+  });
+
+  // The gate is about legal text alone. A page of ordinary copy publishing
+  // beside a legal slot with nothing pending must not be held up by it.
+  test("ordinary copy publishes untouched while the gate is on", async () => {
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: KEY, value: "An ordinary heading" }],
+    });
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [KEY],
+    });
+
+    expect(error).toBeNull();
+    expect((await currentRow())?.value).toBe("An ordinary heading");
+  });
+
+  // No approval may outlive the text it was given for: publishing the next
+  // draft with the gate off clears it rather than leaving it beside words
+  // nobody approved.
+  test("switching the gate off clears the approval on the next publish", async () => {
+    await draftedBySomebodyElse();
+    await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+      p_approval: APPROVAL,
+    });
+
+    await setGate(false);
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: LEGAL_KEY, value: { ...DOCUMENT, title: "Privacy" } }],
+    });
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [LEGAL_KEY],
+    });
+
+    expect(error).toBeNull();
+    const row = await legalRow();
+    expect(row?.approval_reference).toBeNull();
+    expect(row?.approved_by).toBeNull();
+    expect(row?.review_notes).toBeNull();
+  });
+});
+
+// The count behind the refusal that stops a single-administrator tenant
+// switching the gate on. It is a question about other people's roles, which is
+// why it is a definer function rather than a portal read.
+describe("counting who could be the second approver", () => {
+  test("counts this tenant's holders of site_content:manage", async () => {
+    const { data, error } = await adminClient.rpc(
+      "site_content_approver_count",
+    );
+
+    expect(error).toBeNull();
+    expect(data).toBeGreaterThanOrEqual(1);
+  });
+
+  test("answers nought to somebody who could not act on it", async () => {
+    const volunteer = await signInAs(SEEDED_USERS.volunteer);
+
+    const { data } = await volunteer.rpc("site_content_approver_count");
+
+    expect(data).toBe(0);
+  });
+});

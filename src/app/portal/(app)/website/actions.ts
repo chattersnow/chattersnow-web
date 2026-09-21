@@ -6,12 +6,38 @@ import { checkPermission } from "@/lib/auth/permissions";
 import { contentSlot, isValidSlotValue } from "@/lib/site-content";
 import { collectionSurface, surfaceKeys } from "@/lib/legal-surface";
 import {
+  APPROVAL_REFERENCE_MAX_LENGTH,
+  completeApproval,
+  isLegalSlotKey,
+  REVIEW_NOTES_MAX_LENGTH,
+  type LegalPublishApproval,
+} from "@/lib/legal-approval";
+import {
   getTenantModules,
   getTenantPageVisibility,
 } from "@/lib/page-visibility";
 import type { Json } from "@/lib/supabase/types";
 
 export type SiteContentActionResult = { error: string } | { success: true };
+
+/**
+ * What `publish_site_content` refuses a legal publish for when the tenant
+ * requires a second approver (#600), said in the words of the person it is
+ * being said to.
+ *
+ * All three are reachable through an ordinary race rather than only through a
+ * forged call: the gate can be switched on, or somebody else can save over the
+ * draft, between this page rendering and the publish landing. So each one
+ * explains what to do next rather than reporting that something went wrong.
+ */
+const PUBLISH_ERROR_MESSAGES: Record<string, string> = {
+  APPROVAL_REQUIRED:
+    "This organization requires a second approver on legal documents. Reopen the publish dialog and say what approved this text.",
+  APPROVAL_SELF:
+    "You saved this draft, so somebody else has to publish it. This organization requires a second approver on legal documents.",
+  APPROVAL_DRAFTER_UNKNOWN:
+    "Nobody is recorded as having written this draft, so a second approver cannot be confirmed. Save it again, then ask somebody else to publish it.",
+};
 
 /**
  * `value` is `Json` rather than `unknown` (#813 Phase 1): the slot's value is
@@ -103,15 +129,33 @@ export async function discardSiteContentDraftAction(
  * Publishes the named slots' drafts to the public site.
  *
  * The one call that changes what a visitor sees, which is why it is also where
- * the approval gate for the legal documents will sit.
+ * the legal documents' approval gate sits -- in the RPC below rather than in
+ * this action. `site_content` is not writable by `authenticated` at all, so
+ * `publish_site_content` is the only path onto the public site and therefore
+ * the only place a gate cannot be gone around (#600). What happens here is
+ * only the tidying: the approval is trimmed, capped and dropped when it is
+ * blank, so the database is asked to store what somebody actually typed.
  */
 export async function publishSiteContentAction(
   keys: string[],
+  approval?: LegalPublishApproval | null,
 ): Promise<SiteContentActionResult> {
   if (keys.length === 0) return { success: true };
 
   for (const key of keys) {
     if (!contentSlot(key)) return { error: `Unknown content slot: ${key}` };
+  }
+
+  const stated = completeApproval(approval);
+  if (stated && stated.reference.length > APPROVAL_REFERENCE_MAX_LENGTH) {
+    return {
+      error: `Say what approved this in ${APPROVAL_REFERENCE_MAX_LENGTH} characters or fewer; the detail belongs in the review notes.`,
+    };
+  }
+  if (stated && stated.notes.length > REVIEW_NOTES_MAX_LENGTH) {
+    return {
+      error: `Review notes have to be ${REVIEW_NOTES_MAX_LENGTH} characters or fewer.`,
+    };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -129,7 +173,7 @@ export async function publishSiteContentAction(
   // document on the editor observes -- and written by the RPC inside the
   // publish transaction, so the publish cannot succeed while the fingerprint
   // silently does not.
-  const legalSurface = keys.some((key) => key.startsWith("legal."))
+  const legalSurface = keys.some(isLegalSlotKey)
     ? {
         surfaces: surfaceKeys(
           collectionSurface(
@@ -145,9 +189,14 @@ export async function publishSiteContentAction(
   const { error } = await supabase.rpc("publish_site_content", {
     p_keys: keys,
     p_legal_surface: legalSurface,
+    p_approval: stated,
   });
   if (error) {
-    return { error: "Could not publish this content. Please try again." };
+    return {
+      error:
+        PUBLISH_ERROR_MESSAGES[error.message] ??
+        "Could not publish this content. Please try again.",
+    };
   }
 
   revalidatePath("/", "layout");
