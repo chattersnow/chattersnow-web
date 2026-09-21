@@ -688,6 +688,7 @@ export type Database = {
           artist_statement: string | null;
           call_id: string;
           consented_at: string | null;
+          consented_terms: string | null;
           created_at: string;
           credit_name: string | null;
           event_id: string | null;
@@ -709,6 +710,7 @@ export type Database = {
           artist_statement?: string | null;
           call_id: string;
           consented_at?: string | null;
+          consented_terms?: string | null;
           created_at?: string;
           credit_name?: string | null;
           event_id?: string | null;
@@ -730,6 +732,7 @@ export type Database = {
           artist_statement?: string | null;
           call_id?: string;
           consented_at?: string | null;
+          consented_terms?: string | null;
           created_at?: string;
           credit_name?: string | null;
           event_id?: string | null;
