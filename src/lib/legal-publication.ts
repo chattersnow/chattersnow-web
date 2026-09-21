@@ -8,6 +8,14 @@ import {
   type LegalDocument,
 } from "@/lib/legal-documents";
 import {
+  LEGAL_ACKNOWLEDGEMENT_PREFIX,
+  parseLegalAcknowledgement,
+  resolveLegalAcknowledgement,
+  type LegalAcknowledgement,
+  type LegalAcknowledgementRecord,
+} from "@/lib/legal-acknowledgement";
+import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
+import {
   collectionSurface,
   LEGAL_SURFACE_PREFIX,
   surfaceDrift,
@@ -232,6 +240,90 @@ export async function getLegalDocumentDrift(
       : { status: "unknown" };
   }
 
+  return state;
+}
+
+/**
+ * What each of this tenant's documents was last confirmed at (#1321), or
+ * `null` where nobody has confirmed it.
+ *
+ * Read from `app_settings` for the *selected* tenant rather than through a
+ * public view, for the same reason every read above it does: the write goes to
+ * the admin's own tenant, and the request host answers for a different
+ * organization. There is no public view to read anyway -- see
+ * `LEGAL_ACKNOWLEDGEMENT_PREFIX`.
+ */
+export const getTenantLegalAcknowledgements = cache(
+  async (
+    supabase: SupabaseClient,
+  ): Promise<Record<string, LegalAcknowledgementRecord | null>> => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .like("key", `${LEGAL_ACKNOWLEDGEMENT_PREFIX}%`);
+
+    // Quiet in the UI, loud in the log, exactly as the fingerprint read above
+    // is: an unreadable row lands on "nobody has confirmed this", which is the
+    // cautious answer and the only one that cannot claim a confirmation that
+    // did not happen -- but it is indistinguishable from the genuine article,
+    // so an organization being asked to re-read a document it read last week
+    // would have nothing to go on.
+    if (error) {
+      console.error(
+        "[legal-publication] could not read legal_acknowledged.* from app_settings; every document is showing as never confirmed",
+        error,
+      );
+    }
+
+    const acknowledgements: Record<string, LegalAcknowledgementRecord | null> =
+      {};
+    for (const document of LEGAL_DOCUMENTS)
+      acknowledgements[document.key] = null;
+
+    for (const row of data ?? []) {
+      const key = String(row.key).slice(LEGAL_ACKNOWLEDGEMENT_PREFIX.length);
+      if (!(key in acknowledgements)) continue;
+      acknowledgements[key] = parseLegalAcknowledgement(row.value);
+    }
+    return acknowledgements;
+  },
+);
+
+/**
+ * Whether somebody here has read the platform's text for each document this
+ * tenant is serving it for (#1321).
+ *
+ * The exact complement of `getLegalDocumentDrift` above, and deliberately so:
+ * a document in force is either the tenant's own text, which can go stale
+ * against the site and is that function's business, or the platform's, which
+ * cannot go stale but can go unread and is this one's. Every document in force
+ * is answered by exactly one of the two, so the panel and the portal shell's
+ * attention item never report the same document twice and never leave one
+ * unaccounted for.
+ *
+ * A document not in force is absent from both. The terms and the code of
+ * conduct serve nothing until an organization adopts them, and asking somebody
+ * to confirm they have read a page that 404s is asking for a signature on a
+ * blank sheet.
+ */
+export async function getLegalAcknowledgementState(
+  supabase: SupabaseClient,
+): Promise<Record<string, LegalAcknowledgement>> {
+  const [publication, ownDocuments, acknowledgements] = await Promise.all([
+    getTenantLegalPublication(supabase),
+    getTenantOwnLegalDocuments(supabase),
+    getTenantLegalAcknowledgements(supabase),
+  ]);
+
+  const state: Record<string, LegalAcknowledgement> = {};
+  for (const document of LEGAL_DOCUMENTS) {
+    if (!publication[document.key]) continue;
+    if (ownDocuments.has(document.slotKey)) continue;
+    state[document.key] = resolveLegalAcknowledgement(
+      acknowledgements[document.key],
+      PLATFORM_LEGAL_LAST_UPDATED,
+    );
+  }
   return state;
 }
 

@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isEventActiveToday, type EventWindow } from "@/lib/time";
-import { getLegalDocumentDrift } from "@/lib/legal-publication";
+import {
+  getLegalAcknowledgementState,
+  getLegalDocumentDrift,
+} from "@/lib/legal-publication";
+import { needsAcknowledgement } from "@/lib/legal-acknowledgement";
 import { hasDrifted } from "@/lib/legal-surface";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
 import { deriveEventPhaseTasks } from "@/app/portal/(app)/events/phase-status";
@@ -94,6 +98,16 @@ export async function getPendingApprovalsSummary(
  * Gated on `site_content:manage`, the same permission the editor checks, so
  * the reads behind it are skipped for the overwhelming majority of a tenant's
  * members -- this runs in the portal layout, on every portal page render.
+ *
+ * #1321 folded the other half of the same question in here rather than adding
+ * a second item beside it. A document in force is either the tenant's own text,
+ * which can stop describing the site, or the platform's, which cannot drift but
+ * can have gone unread or been rewritten underneath them; the administrator's
+ * job in both cases is to open the document and read it, and one item saying
+ * "two legal documents to review" is the honest count of that job. Two items,
+ * one per mechanism, would have made the portal's plumbing the organizing
+ * principle of its own nag list. The two sets cannot overlap -- see
+ * `getLegalAcknowledgementState` -- so the counts simply add.
  */
 export async function getLegalDriftSummary(
   supabase: SupabaseClient,
@@ -101,8 +115,13 @@ export async function getLegalDriftSummary(
 ): Promise<PendingApprovalsSummary> {
   if (!options.canManageSiteContent) return { items: [] };
 
-  const drift = await getLegalDocumentDrift(supabase);
-  const count = Object.values(drift).filter(hasDrifted).length;
+  const [drift, acknowledgement] = await Promise.all([
+    getLegalDocumentDrift(supabase),
+    getLegalAcknowledgementState(supabase),
+  ]);
+  const count =
+    Object.values(drift).filter(hasDrifted).length +
+    Object.values(acknowledgement).filter(needsAcknowledgement).length;
   if (count === 0) return { items: [] };
 
   return {

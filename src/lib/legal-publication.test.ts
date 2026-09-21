@@ -12,9 +12,13 @@ import {
 } from "./legal-documents";
 import {
   documentsInForce,
+  getLegalAcknowledgementState,
   getLegalPublication,
+  getTenantLegalAcknowledgements,
   getTenantLegalPublication,
 } from "./legal-publication";
+import { PLATFORM_LEGAL_LAST_UPDATED } from "./legal-defaults";
+import { legalAcknowledgementSettingKey } from "./legal-acknowledgement";
 
 type Row = { document: string; value: unknown };
 
@@ -299,5 +303,172 @@ describe("gatesHolding", () => {
         constituent_accounts: true,
       }),
     ).toEqual([]);
+  });
+});
+
+// #1321. A tenant serving the platform's own text has published nothing for
+// #1292 to call drift, so this row is the only record that anybody there ever
+// read the document -- and the only thing that notices when the platform
+// rewrites it underneath them.
+describe("what a tenant has confirmed reading", () => {
+  const CONFIRMED = {
+    person_id: "11111111-1111-1111-1111-111111111111",
+    person_name: "Dana Whitfield",
+    acknowledged_at: "2026-03-04T12:00:00Z",
+    platform_last_updated: PLATFORM_LEGAL_LAST_UPDATED,
+  };
+
+  /**
+   * Both tables the answer needs, from one stub: the confirmations and the
+   * publication switches out of `app_settings`, and whichever `legal.*` slots
+   * carry the tenant's own published text out of `site_content`.
+   *
+   * `getTenantOwnLegalDocuments` chains `.not()` after its `like()` and
+   * nothing else does, so the `like` result is a promise that also answers to
+   * `.not()` -- which is what a PostgREST builder is.
+   */
+  function tenantClient(tenant: {
+    settings?: { key: string; value: unknown }[];
+    ownSlots?: string[];
+  }): SupabaseClient {
+    const result = (data: unknown[]) => {
+      const rows = Promise.resolve({ data, error: null });
+      return Object.assign(rows, { not: () => rows });
+    };
+
+    return {
+      from: (table: string) => ({
+        select: () => ({
+          like: (_column: string, pattern: string) =>
+            table === "site_content"
+              ? result(
+                  (tenant.ownSlots ?? []).map((key) => ({
+                    key,
+                    value: "their own text",
+                  })),
+                )
+              : result(
+                  (tenant.settings ?? []).filter((row) =>
+                    row.key.startsWith(pattern.replace(/%$/, "")),
+                  ),
+                ),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+  }
+
+  describe("getTenantLegalAcknowledgements", () => {
+    test("reads the actor, the moment and the version read", async () => {
+      const acknowledgements = await getTenantLegalAcknowledgements(
+        tenantClient({
+          settings: [
+            {
+              key: legalAcknowledgementSettingKey("privacy"),
+              value: CONFIRMED,
+            },
+          ],
+        }),
+      );
+
+      expect(acknowledgements.privacy).toEqual({
+        personId: "11111111-1111-1111-1111-111111111111",
+        personName: "Dana Whitfield",
+        acknowledgedAt: "2026-03-04T12:00:00Z",
+        platformLastUpdated: PLATFORM_LEGAL_LAST_UPDATED,
+      });
+      expect(acknowledgements.terms).toBeNull();
+    });
+
+    // A key nobody registered is not a document, and a value somebody typed
+    // into the table by hand is not a confirmation.
+    test("ignores a row for no document, and one with nothing in it", async () => {
+      const acknowledgements = await getTenantLegalAcknowledgements(
+        tenantClient({
+          settings: [
+            { key: "legal_acknowledged.cookies", value: CONFIRMED },
+            { key: legalAcknowledgementSettingKey("terms"), value: "read it" },
+          ],
+        }),
+      );
+
+      expect(acknowledgements.terms).toBeNull();
+      expect("cookies" in acknowledgements).toBeFalse();
+    });
+  });
+
+  describe("getLegalAcknowledgementState", () => {
+    // The state a tenant is in the day it is provisioned: /privacy is live,
+    // because the forms are collecting, and nobody there has read it.
+    test("a freshly provisioned tenant has confirmed nothing", async () => {
+      expect(await getLegalAcknowledgementState(tenantClient({}))).toEqual({
+        privacy: { status: "never" },
+      });
+    });
+
+    test("a confirmation against the text being served is settled", async () => {
+      const state = await getLegalAcknowledgementState(
+        tenantClient({
+          settings: [
+            {
+              key: legalAcknowledgementSettingKey("privacy"),
+              value: CONFIRMED,
+            },
+          ],
+        }),
+      );
+
+      expect(state.privacy.status).toBe("confirmed");
+    });
+
+    // The failure the ticket is about: the constant moves, the prose moves
+    // with it, and the printed date changes on a document nobody re-read.
+    test("a confirmation against an earlier text goes stale by itself", async () => {
+      const state = await getLegalAcknowledgementState(
+        tenantClient({
+          settings: [
+            {
+              key: legalAcknowledgementSettingKey("privacy"),
+              value: { ...CONFIRMED, platform_last_updated: "March 1, 2026" },
+            },
+          ],
+        }),
+      );
+
+      expect(state.privacy).toMatchObject({
+        status: "stale",
+        updatedTo: PLATFORM_LEGAL_LAST_UPDATED,
+      });
+    });
+
+    // The exact complement of `getLegalDocumentDrift`: publishing your own
+    // text is the confirmation, and that text is what drift answers for. Every
+    // document in force is answered by one of the two, never both, which is
+    // what lets the attention item add the counts.
+    test("says nothing about a document the tenant wrote itself", async () => {
+      expect(
+        await getLegalAcknowledgementState(
+          tenantClient({ ownSlots: ["legal.privacy"] }),
+        ),
+      ).toEqual({});
+    });
+
+    // Asking somebody to confirm they have read a page that 404s is asking for
+    // a signature on a blank sheet.
+    test("says nothing about a document nobody is being served", async () => {
+      const state = await getLegalAcknowledgementState(tenantClient({}));
+
+      expect("terms" in state).toBeFalse();
+      expect("code_of_conduct" in state).toBeFalse();
+    });
+
+    test("an adopted document served from the platform's text is asked about", async () => {
+      const state = await getLegalAcknowledgementState(
+        tenantClient({
+          settings: [{ key: "legal_publication.terms", value: true }],
+        }),
+      );
+
+      expect(state.terms).toEqual({ status: "never" });
+    });
   });
 });
