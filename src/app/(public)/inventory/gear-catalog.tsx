@@ -24,6 +24,7 @@ import type {
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import type { AccountOffer } from "@/lib/constituent/account-offer";
 import type { ViewerContactPrefill } from "@/lib/constituent/viewer";
 
 const PAGE_SIZE = 12;
@@ -46,11 +47,18 @@ export type GearItem = NonNullColumns<
 
 const FILTER_ALL = "all";
 
+/** The request the cart has just submitted, as the receipt needs it (#1359). */
+export type SubmittedRequest = {
+  deliveryMethod: DeliveryMethod;
+  requestId: string;
+};
+
 export function GearCatalog({
   items,
   placeholderUrl,
   requestOptions,
   prefill,
+  accountOffer = null,
   lexicon = DEFAULT_LEXICON,
 }: {
   items: GearItem[];
@@ -62,6 +70,13 @@ export function GearCatalog({
    * handed to the checkout form so they do not retype it.
    */
   prefill?: ViewerContactPrefill;
+  /**
+   * Whether the receipt offers this reader an account, and which one (#1359).
+   * Decided on the server, since only the server sees the module and the
+   * session; null is "nothing to offer", which covers a linked reader and a
+   * tenant without the constituent area.
+   */
+  accountOffer?: AccountOffer | null;
   /**
    * This organization's words (#896), passed down to the checkout form's
    * privacy notice (#684), which names what was requested.
@@ -77,9 +92,10 @@ export function GearCatalog({
   const [detailOpen, setDetailOpen] = useState(false);
   const [cartIds, setCartIds] = useState<Set<string>>(new Set());
   const [cartOpen, setCartOpen] = useState(false);
-  // The delivery method of the request just submitted, so the receipt can
-  // say what happens next; null until then and again when the cart reopens.
-  const [cartSuccess, setCartSuccess] = useState<DeliveryMethod | null>(null);
+  // The request just submitted: its delivery method, so the receipt can say
+  // what happens next, and its id, which is what the offer to keep it is
+  // authorized by (#1359). Null until then and again when the cart reopens.
+  const [cartSuccess, setCartSuccess] = useState<SubmittedRequest | null>(null);
 
   const openCart = () => {
     setCartSuccess(null);
@@ -395,13 +411,14 @@ export function GearCatalog({
         onOpenChange={setCartOpen}
         onRemove={toggleCartItem}
         success={cartSuccess}
-        onSubmitted={(deliveryMethod) => {
-          setCartSuccess(deliveryMethod);
+        onSubmitted={(deliveryMethod, requestId) => {
+          setCartSuccess({ deliveryMethod, requestId });
           setCartIds(new Set());
         }}
         placeholderUrl={placeholderUrl}
         requestOptions={requestOptions}
         prefill={prefill}
+        accountOffer={accountOffer}
         lexicon={lexicon}
       />
     </div>

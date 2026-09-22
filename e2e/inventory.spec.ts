@@ -175,6 +175,20 @@ test.describe("public inventory pages", () => {
       await cart.getByRole("button", { name: "Request 2 items" }).click();
 
       await expect(cart.getByText("Request received!")).toBeVisible();
+
+      // #1359: the receipt offers to keep the request, and the offer carries
+      // it through whatever making an account costs. Never a gate -- the items
+      // are already held by the time this renders.
+      await expect(
+        cart.getByRole("heading", { name: "Keep this" }),
+      ).toBeVisible();
+      await expect(
+        cart.getByText(/once we've confirmed who you are/i),
+      ).toBeVisible();
+      await cart.getByRole("link", { name: "Make an account" }).click();
+      await expect(page).toHaveURL(
+        /\/my\/sign-in\?next=%2Fmy%2Fgear-request%2F[0-9a-f-]{36}$/,
+      );
     } finally {
       await gear.cleanup();
       await admin.from("people").delete().eq("email", requesterEmail);

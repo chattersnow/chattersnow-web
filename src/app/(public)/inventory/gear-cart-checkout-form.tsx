@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { requestGearItemsAction } from "./gear-cart-request-actions";
 import {
   EMPTY_SHIPPING_FIELDS,
-  GearRequesterFields,
+  GearDeliveryFields,
+  GearRequesterContactFields,
   type ShippingFields,
 } from "./gear-requester-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
-import type {
-  DeliveryMethod,
-  PublicGearRequestOptions,
+import {
+  shippingOffered,
+  type DeliveryMethod,
+  type PublicGearRequestOptions,
 } from "@/lib/gear-requests";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import {
   EMPTY_CONTACT_PREFILL,
   type ViewerContactPrefill,
@@ -31,7 +35,7 @@ export function GearCartCheckoutForm({
 }: {
   itemIds: string[];
   options: PublicGearRequestOptions;
-  onSuccess: (deliveryMethod: DeliveryMethod) => void;
+  onSuccess: (deliveryMethod: DeliveryMethod, requestId: string) => void;
   /**
    * What a signed-in reader's session already knows about them (#1357), so
    * they do not retype it -- and do not mint a second `people` row with a
@@ -63,17 +67,28 @@ export function GearCartCheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // A reader with a record of their own requests as that record (#1359):
+  // `request_gear_items_as_me()` takes the person from the session, so the
+  // contact fields decide nothing and asking for them would be asking for
+  // input the request throws away. They are shown instead, because somebody
+  // is entitled to see which name they are about to appear under, and
+  // changing either is a link to `/my/details` -- the one place a person is
+  // edited.
+  const requestingAsSelf = prefill.linked;
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
     const formData = new FormData();
-    formData.set("name", name);
-    formData.set("email", email);
-    formData.set("phone", phone);
-    formData.set("instagram_handle", instagramHandle);
+    if (!requestingAsSelf) {
+      formData.set("name", name);
+      formData.set("email", email);
+      formData.set("phone", phone);
+      formData.set("instagram_handle", instagramHandle);
+      formData.set("company", company);
+    }
     formData.set("notes", notes);
-    formData.set("company", company);
     formData.set("delivery_method", deliveryMethod);
     if (deliveryMethod === "shipping") {
       formData.set("ship_name", shipping.name);
@@ -92,32 +107,57 @@ export function GearCartCheckoutForm({
         setError(result.error);
         return;
       }
-      onSuccess(deliveryMethod);
+      onSuccess(deliveryMethod, result.requestId);
     });
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
-        {prefill.signedInAs && (
-          // One line, and no more than that (#1257). It says which session is
-          // filling the fields in, so a shared browser can correct them; it
-          // says nothing about what the organization knows.
-          <p className="app-muted text-sm">
-            Signed in as {prefill.signedInAs}.
+        {requestingAsSelf ? (
+          <p className="app-muted text-sm leading-relaxed">
+            Requesting as {name || "yourself"}
+            {email ? ` (${email})` : ""}.{" "}
+            <Link href={`${MY_PATH_PREFIX}/details`} className="underline">
+              Not you, or out of date?
+            </Link>
           </p>
+        ) : (
+          prefill.signedInAs && (
+            // One line, and no more than that (#1257). It says which session
+            // is filling the fields in, so a shared browser can correct them;
+            // it says nothing about what the organization knows.
+            <p className="app-muted text-sm">
+              Signed in as {prefill.signedInAs}.
+            </p>
+          )
         )}
-        <RequiredFieldsNote />
-        <GearRequesterFields
+
+        {/* Only where something on screen actually carries a `*`: the contact
+            fields, or a shipping address. A linked reader arranging a meetup
+            is asked for nothing at all, and a legend about required fields
+            with no required field is noise. */}
+        {(!requestingAsSelf ||
+          (deliveryMethod === "shipping" && shippingOffered(options))) && (
+          <RequiredFieldsNote />
+        )}
+
+        {!requestingAsSelf && (
+          <GearRequesterContactFields
+            idPrefix="cart-checkout"
+            name={name}
+            onNameChange={setName}
+            email={email}
+            onEmailChange={setEmail}
+            phone={phone}
+            onPhoneChange={setPhone}
+            instagramHandle={instagramHandle}
+            onInstagramHandleChange={setInstagramHandle}
+          />
+        )}
+
+        <GearDeliveryFields
           idPrefix="cart-checkout"
-          name={name}
-          onNameChange={setName}
-          email={email}
-          onEmailChange={setEmail}
-          phone={phone}
-          onPhoneChange={setPhone}
-          instagramHandle={instagramHandle}
-          onInstagramHandleChange={setInstagramHandle}
           notes={notes}
           onNotesChange={setNotes}
           options={options}
@@ -131,18 +171,22 @@ export function GearCartCheckoutForm({
 
         {/* Honeypot: hidden from sighted/keyboard users, but bots that
             autofill every field will fill this and get silently rejected
-            server-side. Not type="hidden" -- bots skip those. */}
-        <div className="sr-only" aria-hidden="true">
-          <label htmlFor="cart-checkout-company">Company</label>
-          <input
-            id="cart-checkout-company"
-            name="company"
-            tabIndex={-1}
-            autoComplete="off"
-            value={company}
-            onChange={(event) => setCompany(event.target.value)}
-          />
-        </div>
+            server-side. Not type="hidden" -- bots skip those. There is none on
+            the self-service path: it costs an account and an approved claim,
+            so a hidden input would only catch somebody already let in. */}
+        {!requestingAsSelf && (
+          <div className="sr-only" aria-hidden="true">
+            <label htmlFor="cart-checkout-company">Company</label>
+            <input
+              id="cart-checkout-company"
+              name="company"
+              tabIndex={-1}
+              autoComplete="off"
+              value={company}
+              onChange={(event) => setCompany(event.target.value)}
+            />
+          </div>
+        )}
 
         {error && (
           <Alert variant="destructive">

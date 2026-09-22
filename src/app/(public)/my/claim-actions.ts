@@ -158,3 +158,47 @@ export async function claimFromRegistrationAction(
   await announceClaim(supabase);
   return { submitted: true };
 }
+
+/**
+ * The same claim again, made from a public gear request (#1359).
+ *
+ * The twin of `claimFromRegistrationAction` above, and deliberately identical
+ * from out here: the RPC is silent in every branch -- no such request, a
+ * request from last month, the module off, already linked, a claim already
+ * open -- so there is nothing to translate but the rate limit, and the caller
+ * learns the same thing either way.
+ *
+ * What the reviewer sees differs, and only there: `gear_requests` stores no
+ * typed contact fields, so `submit_claim_from_gear_request()` takes the
+ * evidence off the `people` row the request attached to. That is a decision
+ * about the claim's contents, not about what this returns.
+ */
+export async function claimFromGearRequestAction(
+  requestId: string,
+): Promise<ClaimActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "Please sign in again." };
+  }
+
+  const { error } = await supabase.rpc("submit_claim_from_gear_request", {
+    p_request_id: requestId,
+    p_ip_address: await getClientIp(),
+  });
+
+  if (error) {
+    // The one thing the RPC says out loud, as above.
+    if (error.message.includes("RATE_LIMITED")) {
+      return {
+        error: "Too many requests just now. Try again in a little while.",
+      };
+    }
+    return { error: "We could not send that just now. Please try again." };
+  }
+
+  await announceClaim(supabase);
+  return { submitted: true };
+}

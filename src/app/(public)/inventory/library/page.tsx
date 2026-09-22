@@ -12,6 +12,7 @@ import {
   contactPrefill,
   loadConstituentViewer,
 } from "@/lib/constituent/viewer";
+import { loadAccountOffer } from "@/lib/constituent/account-offer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -56,6 +57,11 @@ export default async function GearLibraryPage() {
     loadConstituentViewer(supabase),
   ]);
 
+  // What to offer once a request is saved (#1359). Read after the viewer
+  // because it depends on it, and it costs no query of its own: the module map
+  // it reads is request-cached and the public layout has already issued it.
+  const accountOffer = await loadAccountOffer(viewer);
+
   return (
     <div>
       <div className="w-fit">
@@ -85,6 +91,7 @@ export default async function GearLibraryPage() {
           placeholderUrl={siteImages.gear_placeholder ?? null}
           requestOptions={requestOptions}
           prefill={contactPrefill(viewer)}
+          accountOffer={accountOffer}
           lexicon={lexicon}
         />
       </div>
