@@ -25,7 +25,7 @@ describe("parseGearRequestForm", () => {
     ).toEqual({ error: "A valid email is required." });
   });
 
-  test("normalizes empty phone and notes to null", () => {
+  test("normalizes empty phone, handle and notes to null", () => {
     const result = parseGearRequestForm(
       formData({ name: "Jane", email: "jane@example.com" }),
     );
@@ -34,6 +34,7 @@ describe("parseGearRequestForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: null,
+        instagramHandle: null,
         notes: null,
         deliveryMethod: "meetup",
         shipping: null,
@@ -56,11 +57,44 @@ describe("parseGearRequestForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: "555-1234",
+        instagramHandle: null,
         notes: "Need it by Friday",
         deliveryMethod: "meetup",
         shipping: null,
         paymentMethod: null,
       },
+    });
+  });
+
+  // #1357. The handle is the identifier most likely to be the only one that
+  // reaches a requester, and `people.instagram_handle` carries a check
+  // constraint -- so it is refused here rather than by Postgres, where it
+  // would take the whole request down with it.
+  test("takes an Instagram handle with or without the @", () => {
+    const parse = (instagram_handle: string) =>
+      parseGearRequestForm(
+        formData({ name: "Jane", email: "jane@example.com", instagram_handle }),
+      );
+    expect(parse(" @jane.doe ")).toMatchObject({
+      data: { instagramHandle: "jane.doe" },
+    });
+    expect(parse("jane_doe")).toMatchObject({
+      data: { instagramHandle: "jane_doe" },
+    });
+  });
+
+  test("rejects an Instagram handle the column would not take", () => {
+    expect(
+      parseGearRequestForm(
+        formData({
+          name: "Jane",
+          email: "jane@example.com",
+          instagram_handle: "not a handle!",
+        }),
+      ),
+    ).toEqual({
+      error:
+        "An Instagram handle can only contain letters, numbers, periods and underscores.",
     });
   });
 
@@ -149,6 +183,7 @@ describe("parseGearRequestForm", () => {
         name: "Jane",
         email: "jane@example.com",
         phone: null,
+        instagramHandle: null,
         notes: null,
         deliveryMethod: "shipping",
         shipping: {

@@ -8,6 +8,10 @@ import { GearCatalog, type GearItem } from "../gear-catalog";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
 import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
+import {
+  contactPrefill,
+  loadConstituentViewer,
+} from "@/lib/constituent/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -26,6 +30,7 @@ export default async function GearLibraryPage() {
     { content, lexicon },
     sizingVisible,
     requestOptions,
+    viewer,
   ] = await Promise.all([
     supabase
       .from("public_gear_catalog")
@@ -44,6 +49,11 @@ export default async function GearLibraryPage() {
     // What the cart may offer (#1032): a meetup always, shipping when the
     // organization has turned it on and named a way to pay the postage.
     getPublicGearRequestOptions(supabase),
+    // Who is asking (#1357). A signed-in reader starts from what the
+    // application already holds rather than retyping it -- and only from what
+    // their own session knows, never from whether the directory recognises a
+    // typed address (§5.23).
+    loadConstituentViewer(supabase),
   ]);
 
   return (
@@ -74,6 +84,7 @@ export default async function GearLibraryPage() {
           items={items ?? []}
           placeholderUrl={siteImages.gear_placeholder ?? null}
           requestOptions={requestOptions}
+          prefill={contactPrefill(viewer)}
           lexicon={lexicon}
         />
       </div>

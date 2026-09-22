@@ -27,6 +27,7 @@ import {
 } from "@/lib/outbound-messages";
 import { RequestMessagesCard } from "./request-messages-card";
 import { ViewerTime } from "@/components/viewer-time";
+import { instagramUrl } from "@/components/instagram-link";
 
 export type GearRequestDetailRow = {
   id: string;
@@ -53,6 +54,7 @@ export type GearRequestDetailRow = {
     preferred_name: string | null;
     email: string | null;
     phone: string | null;
+    instagram_handle: string | null;
   } | null;
   movements: {
     id: string;
@@ -250,6 +252,25 @@ export function GearRequestDetailView({
               </ReadOnlyField>
               <ReadOnlyField label="Phone" htmlFor="request-requester-phone">
                 {request.requester?.phone ?? "—"}
+              </ReadOnlyField>
+              {/* Often the only identifier that reaches a requester (#1357),
+                  so it is a link: staff read this page to get in touch. */}
+              <ReadOnlyField
+                label="Instagram"
+                htmlFor="request-requester-instagram"
+              >
+                {request.requester?.instagram_handle ? (
+                  <a
+                    href={instagramUrl(request.requester.instagram_handle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-2 hover:underline"
+                  >
+                    @{request.requester.instagram_handle}
+                  </a>
+                ) : (
+                  "—"
+                )}
               </ReadOnlyField>
               <ReadOnlyField label="Notes" htmlFor="request-notes">
                 {request.notes ? (

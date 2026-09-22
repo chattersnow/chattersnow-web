@@ -53,6 +53,8 @@ export function GearRequesterFields({
   onEmailChange,
   phone,
   onPhoneChange,
+  instagramHandle,
+  onInstagramHandleChange,
   notes,
   onNotesChange,
   options,
@@ -70,6 +72,8 @@ export function GearRequesterFields({
   onEmailChange: (value: string) => void;
   phone: string;
   onPhoneChange: (value: string) => void;
+  instagramHandle: string;
+  onInstagramHandleChange: (value: string) => void;
   notes: string;
   onNotesChange: (value: string) => void;
   options: PublicGearRequestOptions;
@@ -130,6 +134,21 @@ export function GearRequesterFields({
             onChange={(event) => onPhoneChange(event.target.value)}
           />
         </Field>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-instagram`}>Instagram</FieldLabel>
+        <Input
+          id={`${idPrefix}-instagram`}
+          // normalize_instagram_handle() strips a leading @, so the
+          // placeholder says so rather than asking for a form the code does
+          // not care about (#1182).
+          placeholder="handle, with or without the @"
+          value={instagramHandle}
+          onChange={(event) => onInstagramHandleChange(event.target.value)}
+        />
+        <FieldDescription>
+          Optional. Often the quickest way for us to reach you about a handover.
+        </FieldDescription>
       </Field>
 
       {/* One option is still a choice worth showing: it tells the requester

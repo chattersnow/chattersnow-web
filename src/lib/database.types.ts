@@ -9546,6 +9546,7 @@ export type Database = {
           p_delivery_method?: string;
           p_email: string;
           p_honeypot?: string;
+          p_instagram_handle?: string;
           p_inventory_item_ids: string[];
           p_ip_address?: unknown;
           p_name: string;

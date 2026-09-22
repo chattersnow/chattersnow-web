@@ -21,6 +21,7 @@ import type {
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
 import type { Lexicon } from "@/lib/lexicon";
+import type { ViewerContactPrefill } from "@/lib/constituent/viewer";
 
 export function GearCartSheet({
   items,
@@ -31,6 +32,7 @@ export function GearCartSheet({
   onSubmitted,
   placeholderUrl,
   requestOptions,
+  prefill,
   lexicon,
 }: {
   items: GearItem[];
@@ -42,6 +44,8 @@ export function GearCartSheet({
   onSubmitted: (deliveryMethod: DeliveryMethod) => void;
   placeholderUrl: string | null;
   requestOptions: PublicGearRequestOptions;
+  /** What the signed-in reader's session already knows about them (#1357). */
+  prefill?: ViewerContactPrefill;
   /** This organization's words (#896), for the checkout form's copy. */
   lexicon: Lexicon;
 }) {
@@ -125,6 +129,7 @@ export function GearCartSheet({
                   itemIds={items.map((item) => item.id)}
                   options={requestOptions}
                   onSuccess={onSubmitted}
+                  prefill={prefill}
                   lexicon={lexicon}
                 />
               </div>

@@ -7,6 +7,7 @@ import {
   adminClient,
   anonClient,
   createAvailableGearItems,
+  createPerson,
   getInventoryItemStatus,
   serviceRoleClient,
   uniqueEmail,
@@ -203,6 +204,65 @@ describe("requestGearItemsAction (integration)", () => {
       .single();
 
     expect(person!.notes).toBeNull();
+  });
+
+  // #1357: the handle reaches the requester's directory record, normalized as
+  // the database normalizes every other one (lowercased, @ stripped).
+  test("writes a new requester's Instagram handle onto their people row", async () => {
+    currentIp = uniqueIp();
+    const [item] = await gearItems(1);
+    const email = uniqueEmail("instagram-new");
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({
+        name: "Jamie Rivera",
+        email,
+        instagram_handle: "@Jamie.Rivera",
+      }),
+    );
+    expect(result).toEqual({ success: true });
+
+    const { data: person } = await adminClient
+      .from("people")
+      .select("instagram_handle")
+      .eq("email", email)
+      .single();
+
+    expect(person!.instagram_handle).toBe("jamie.rivera");
+  });
+
+  // The rule resolve_or_create_person_by_email() already applies to pronouns:
+  // a returning requester fills an empty column and never replaces one a
+  // staffer has corrected.
+  test("never overwrites a handle the directory already holds", async () => {
+    currentIp = uniqueIp();
+    const [item] = await gearItems(1);
+    const email = uniqueEmail("instagram-existing");
+    const existing = await createPerson({ name: "Jamie Rivera", email });
+    cleanups.push(existing.cleanup);
+    await adminClient
+      .from("people")
+      .update({ instagram_handle: "corrected.by.staff" })
+      .eq("id", existing.id);
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({
+        name: "Jamie Rivera",
+        email,
+        instagram_handle: "typo.handle",
+      }),
+    );
+    expect(result).toEqual({ success: true });
+
+    const { data: person } = await adminClient
+      .from("people")
+      .select("instagram_handle")
+      .eq("id", existing.id)
+      .single();
+
+    expect(person!.instagram_handle).toBe("corrected.by.staff");
   });
 
   test("reports an error for an empty cart", async () => {
