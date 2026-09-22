@@ -115,7 +115,10 @@ test.describe("portal governance minutes", () => {
       // two regardless of which agenda template is active locally.
       const noteBoxes = page.getByRole("textbox", { name: /^Notes for / });
       await expect(noteBoxes.first()).toBeVisible({ timeout: 15_000 });
-      expect(await noteBoxes.count()).toBeGreaterThan(1);
+      // Through the locator so the count retries (#1294). The first box being
+      // visible says nothing about the rest of the list having arrived, and
+      // `await noteBoxes.count()` made that first sample the verdict.
+      await expect(noteBoxes).not.toHaveCount(1);
 
       await noteBoxes.nth(0).fill(openingNote);
       await noteBoxes.nth(1).fill(secondNote);

@@ -111,8 +111,18 @@ describe("IdleTimeout", () => {
     seedExpired();
     render(<IdleTimeout />);
 
-    await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
-    const target = replaceMock.mock.calls[0]?.[0] ?? "";
+    /**
+     * Waits on the redirect, not the sign-out (#1294). `signOutAndRedirect`
+     * awaits `supabase.auth.signOut()` and only then calls `router.replace()`,
+     * so `signOutMock` records its call before the promise it returns has
+     * resolved -- and this read of `replaceMock.mock.calls[0]` used to run in
+     * between, with a `?? ""` fallback that turned the race into
+     * `expect("").toContain("/portal/login?")`. The last link of the chain
+     * arriving implies every earlier one; waiting on the first does not.
+     */
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledTimes(1));
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    const target = replaceMock.mock.calls[0][0];
     expect(target).toContain("/portal/login?");
     expect(target).toContain("reason=idle");
     // So signing back in lands where they left off rather than the dashboard.
@@ -166,9 +176,12 @@ describe("IdleTimeout", () => {
       }),
     );
 
-    await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
-    expect(replaceMock).toHaveBeenCalledTimes(1);
-    expect(replaceMock.mock.calls[0]?.[0]).toContain("reason=idle");
+    // Same ordering as above (#1294): the redirect is the end of the chain, and
+    // asserting "exactly one" on a counter that has not finished growing is
+    // what this test is about -- so it has to be read after the chain closes.
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledTimes(1));
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    expect(replaceMock.mock.calls[0][0]).toContain("reason=idle");
   });
 
   test("unsubscribes from auth changes on unmount", () => {

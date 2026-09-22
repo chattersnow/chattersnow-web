@@ -23,7 +23,10 @@ test.describe("the module tour", () => {
     // Eight modules ship (#998). The count is the page's own decision -- rows
     // are editable -- so this asserts that the tour is a tour rather than a
     // paragraph, and names the two that carry the argument.
-    expect(await sections.count()).toBeGreaterThan(5);
+    // Polled rather than counted once (#1294): this page streams, and the only
+    // thing anchoring the read was the `h1`, which lands well before the
+    // sections do. `expect.poll` retries; `expect(await ...count())` does not.
+    await expect.poll(() => sections.count()).toBeGreaterThan(5);
     await expect(
       page.getByRole("heading", { level: 2, name: "Governance" }),
     ).toBeVisible();

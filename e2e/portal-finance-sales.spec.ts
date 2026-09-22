@@ -97,10 +97,15 @@ test.describe("portal sales register and ledger", () => {
     const receiptNumber = (await recorded.innerText()).match(/#\d{6}/)![0];
 
     const link = page.getByRole("link", { name: "Receipt" });
-    const href = await link.getAttribute("href");
-    expect(href).toMatch(
+    // Asserted through the locator first, so the href is retried until it is
+    // the real one (#1294). A bare `getAttribute` reads whatever is on the
+    // element the first moment it is attached, which for a link whose target
+    // arrives with the server response can be a placeholder.
+    await expect(link).toHaveAttribute(
+      "href",
       /^\/portal\/finance\/sales\/[0-9a-f-]+\/receipt\?print=1$/,
     );
+    const href = await link.getAttribute("href");
 
     // Followed without `print=1`: the parameter's whole job is to call
     // window.print() on mount, and a print dialog is not something to hold a

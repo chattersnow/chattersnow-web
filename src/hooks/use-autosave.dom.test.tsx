@@ -106,19 +106,43 @@ function untilSaved() {
 }
 
 describe("useAutosave", () => {
-  test("coalesces a burst of keystrokes into one save of the last value", async () => {
+  /**
+   * Split in two (#1294), because one test cannot make both halves of this
+   * claim without racing itself. The burst asserted that `save` had not fired
+   * inside the 10ms debounce, across three `await act(async ...)` unwinds --
+   * and `queue()` restarts that timer on every keystroke, so there were three
+   * independent windows for React's scheduler to outlive. Reproduced at
+   * 3-in-20 with `DELAY_MS` at 0, failing on `not.toHaveBeenCalled()` with one
+   * call recorded, which is the shape CI would have shown eventually.
+   *
+   * So the quiet period is asserted with no timer scheduled during it, and the
+   * coalescing is asserted on the call log, which only accumulates: a debounce
+   * that let an intermediate value through leaves `[["a"], ["abc"]]` behind
+   * and still fails, rather than being a window the test has to win.
+   */
+  test("sends nothing while the keystrokes are still coming", async () => {
     const save = mock(async () => ({ success: true }));
+    render(<Harness save={save} delayMs={60_000} />);
+
+    await type("a");
+    await type("ab");
+    await type("abc");
+
+    expect(save).not.toHaveBeenCalled();
+    expect(dirty()).toBe("dirty: true");
+  });
+
+  test("coalesces a burst of keystrokes into one save of the last value", async () => {
+    // Typed parameter so `save.mock.calls` carries the values, not `[][]`.
+    const save = mock(async (_value: string) => ({ success: true }));
     render(<Harness save={save} />);
 
     await type("a");
     await type("ab");
     await type("abc");
-    expect(save).not.toHaveBeenCalled();
-    expect(dirty()).toBe("dirty: true");
 
     await untilSaved();
-    expect(save).toHaveBeenCalledTimes(1);
-    expect(save).toHaveBeenLastCalledWith("abc");
+    expect(save.mock.calls).toEqual([["abc"]]);
     expect(dirty()).toBe("dirty: false");
   });
 

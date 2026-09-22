@@ -33,15 +33,19 @@ const SETTLE = { timeout: 4_000 };
 function Harness({
   onExpire,
   enabled = true,
+  writeIntervalMs = WRITE_MS,
 }: {
   onExpire: () => void;
   enabled?: boolean;
+  /** Overridable so a test can assert inside the throttle window without
+   * racing it -- see "holds every write of a pointer storm" (#1294). */
+  writeIntervalMs?: number;
 }) {
   const { warning, msRemaining, extend } = useIdleTimeout({
     onExpire,
     idleMs: IDLE_MS,
     warningMs: WARNING_MS,
-    writeIntervalMs: WRITE_MS,
+    writeIntervalMs,
     enabled,
   });
   return (
@@ -137,9 +141,16 @@ describe("useIdleTimeout", () => {
     });
     expect(phase()).toBe("quiet");
 
-    // Past the deadline the original window would have had, proving the clock
-    // actually restarted rather than the warning merely being hidden.
-    await sleep(WARNING_MS + 150);
+    /**
+     * The warning coming back is what proves the clock restarted, and it is a
+     * fact the reset produces rather than a window the test has to survive
+     * (#1294). This used to sleep to just short of the deadline the original
+     * window would have had and assert `onExpire` had not fired -- a negative
+     * assertion 300ms from a deadline something else was counting down to.
+     * A clock that had not restarted would expire here instead of warning
+     * again, so the wait below fails in exactly the case the sleep was for.
+     */
+    await untilWarning();
     expect(onExpire).not.toHaveBeenCalled();
   });
 
@@ -153,13 +164,24 @@ describe("useIdleTimeout", () => {
     });
     expect(phase()).toBe("quiet");
 
-    await sleep(WARNING_MS + 150);
+    // The returning warning, for the reason given above (#1294).
+    await untilWarning();
     expect(onExpire).not.toHaveBeenCalled();
   });
 
-  test("throttles storage writes during a pointer storm", async () => {
+  /**
+   * Split in two (#1294). The throttle half used to assert inside the real
+   * 100ms window, which started at render and had to cover mount, a
+   * `localStorage` read and 50 synthetic `pointerMove` dispatches through
+   * happy-dom's capture-phase listeners. Reproduced at 12-in-20 with
+   * `WRITE_MS` at 1: the stamp had advanced by a millisecond and the storm was
+   * blamed for a write the clock had earned. The window is now long enough
+   * that nothing can close it, so the assertion is about the throttle rather
+   * than about how fast the runner is.
+   */
+  test("holds every write of a pointer storm", async () => {
     const onExpire = mock(() => {});
-    render(<Harness onExpire={onExpire} />);
+    render(<Harness onExpire={onExpire} writeIntervalMs={60_000} />);
     const seeded = stored();
 
     await act(async () => {
@@ -167,13 +189,22 @@ describe("useIdleTimeout", () => {
         fireEvent.pointerMove(window, { clientX: i });
       }
     });
-    expect(stored()).toBe(seeded);
 
-    // Once the window has passed, the next movement does write through.
+    expect(stored()).toBe(seeded);
+  });
+
+  test("writes through once the throttle window has passed", async () => {
+    const onExpire = mock(() => {});
+    render(<Harness onExpire={onExpire} />);
+    const seeded = stored();
+
+    // Sleeping *past* a threshold and asserting the write happened is the safe
+    // direction: an overrun cannot turn this green when the code is wrong.
     await sleep(WRITE_MS + 50);
     await act(async () => {
       fireEvent.pointerMove(window, { clientX: 99 });
     });
+
     expect(stored()).not.toBe(seeded);
   });
 
@@ -208,7 +239,8 @@ describe("useIdleTimeout", () => {
     });
 
     expect(phase()).toBe("quiet");
-    await sleep(WARNING_MS + 150);
+    // The returning warning, for the reason given above (#1294).
+    await untilWarning();
     expect(onExpire).not.toHaveBeenCalled();
   });
 
