@@ -42,6 +42,23 @@ export function myRegistrationSignInPath(registrationId: string): string {
 }
 
 /**
+ * Where a public gear request is turned into a claim (#1359).
+ *
+ * The registration pair above, for the other public write that tells the
+ * organization who somebody is. A route for the same reason: the hand-off has
+ * to survive a password, a Google round trip or a confirmation email opened
+ * tomorrow, and `safeMyDestination` only carries a `next` inside `/my`.
+ */
+export function myGearRequestClaimPath(requestId: string): string {
+  return `${MY_PATH_PREFIX}/gear-request/${requestId}`;
+}
+
+/** `/my/sign-in`, returning to the claim offer for one gear request. */
+export function myGearRequestSignInPath(requestId: string): string {
+  return `${MY_SIGN_IN_PATH}?next=${encodeURIComponent(myGearRequestClaimPath(requestId))}`;
+}
+
+/**
  * Sanitizes a `next` destination for the constituent sign-in.
  *
  * The twin of `safePortalDestination`, and narrow for the same reason: the

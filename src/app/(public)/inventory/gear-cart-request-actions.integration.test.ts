@@ -2,21 +2,36 @@
 // real local Supabase stack (request_gear_items RPC, row locking, rate
 // limiting). Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
-import { afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   adminClient,
   anonClient,
   createAvailableGearItems,
   createPerson,
+  enableModule,
   getInventoryItemStatus,
+  seededTenantId,
   serviceRoleClient,
+  signIn,
   uniqueEmail,
   uniqueIp,
+  withModule,
 } from "../../../../test/integration-setup";
 import {
   PAYMENT_METHODS_SETTING_KEY,
   SHIPPING_ENABLED_SETTING_KEY,
 } from "@/lib/gear-requests";
+import { gearAsIsText } from "@/lib/gear-as-is";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -26,8 +41,12 @@ mock.module("@/lib/get-client-ip", () => ({
   getClientIp: async () => currentIp,
 }));
 
+// The session the action sees. Null is a visitor, which is what all but the
+// last describe block below is about; a signed-in client is how the
+// self-service branch (#1359) gets exercised through the real action.
+let currentClient: SupabaseClient | null = null;
 mock.module("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => anonClient(),
+  createSupabaseServerClient: async () => currentClient ?? anonClient(),
 }));
 
 // The action schedules its two sends with after() (#1032). This file imports
@@ -48,8 +67,11 @@ mock.module("next/server", () => ({
 
 const { requestGearItemsAction } = await import("./gear-cart-request-actions");
 
+// The as-is box is ticked unless a case says otherwise (#1367), so every test
+// below still exercises the rule it was written for rather than the gate.
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("as_is_acknowledged", "true");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -60,6 +82,7 @@ afterEach(async () => {
   // RESEND_API_KEY is unset here, so nothing leaves the building; the
   // requester's confirmation row cascades away with their people row.
   await Promise.all(afterTasks.splice(0));
+  currentClient = null;
   while (cleanups.length) {
     const cleanup = cleanups.pop()!;
     await cleanup();
@@ -92,7 +115,7 @@ describe("requestGearItemsAction (integration)", () => {
       formData({ name: "Jamie Rivera", email }),
     );
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
     expect(await getInventoryItemStatus(first)).toBe("reserved");
     expect(await getInventoryItemStatus(second)).toBe("reserved");
     expect(await getInventoryItemStatus(third)).toBe("reserved");
@@ -120,6 +143,26 @@ describe("requestGearItemsAction (integration)", () => {
     expect(await getInventoryItemStatus(giveawayItem)).toBe("available");
   });
 
+  // #1206, and a regression of it: 20260921073000 rebuilt the RPC from a body
+  // that predated the guard and dropped it, so a blank name came back as a
+  // bare 23514 from the people check constraint. The Server Action refuses one
+  // first, which is exactly why this asks the RPC directly -- a hand-crafted
+  // anon call is the caller #1206 was written for.
+  test("tells a direct caller that a name is required, rather than raising a constraint", async () => {
+    const [item] = await gearItems(1);
+
+    const { error } = await anonClient().rpc("request_gear_items", {
+      p_inventory_item_ids: [item],
+      p_name: "   ",
+      p_email: uniqueEmail("blank-name"),
+      p_phone: null,
+      p_ip_address: uniqueIp(),
+    });
+
+    expect(error?.message).toContain("NAME_REQUIRED");
+    expect(await getInventoryItemStatus(item)).toBe("available");
+  });
+
   test("keeps items that are not gear-library stock out of the public catalog", async () => {
     const [giveawayItem] = await giveawayItems(1);
 
@@ -140,7 +183,10 @@ describe("requestGearItemsAction (integration)", () => {
       [alreadyTaken],
       formData({ name: "First Taker", email: uniqueEmail("first-taker") }),
     );
-    expect(firstTaker).toEqual({ success: true });
+    expect(firstTaker).toEqual({
+      success: true,
+      requestId: expect.any(String),
+    });
 
     const result = await requestGearItemsAction(
       [available, alreadyTaken],
@@ -169,7 +215,7 @@ describe("requestGearItemsAction (integration)", () => {
       [first, second],
       formData({ name: "Jamie Rivera", email, notes }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
 
     const { data: movements } = await adminClient
       .from("inventory_movements")
@@ -221,7 +267,7 @@ describe("requestGearItemsAction (integration)", () => {
         instagram_handle: "@Jamie.Rivera",
       }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
 
     const { data: person } = await adminClient
       .from("people")
@@ -254,7 +300,7 @@ describe("requestGearItemsAction (integration)", () => {
         instagram_handle: "typo.handle",
       }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
 
     const { data: person } = await adminClient
       .from("people")
@@ -305,7 +351,7 @@ describe("requestGearItemsAction (integration)", () => {
 
     // The RPC reports fake success to avoid tipping off bots, but no row is
     // actually mutated -- only a DB check can catch a regression here.
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
     expect(await getInventoryItemStatus(item)).toBe("available");
   });
 
@@ -318,7 +364,7 @@ describe("requestGearItemsAction (integration)", () => {
         [items[i]],
         formData({ name: "Repeat Requester", email: uniqueEmail(`rate-${i}`) }),
       );
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, requestId: expect.any(String) });
     }
 
     const limited = await requestGearItemsAction(
@@ -405,7 +451,7 @@ describe("requestGearItemsAction with shipping", () => {
         ...shippingFields,
       }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
 
     const { data: movement } = await adminClient
       .from("inventory_movements")
@@ -450,6 +496,76 @@ describe("requestGearItemsAction with shipping", () => {
     expect(await getInventoryItemStatus(item)).toBe("available");
   });
 
+  // #1367. The gate is unconditional, on every path, and the wording stored
+  // is the platform's rather than anything a caller sent.
+  describe("the as-is acknowledgement", () => {
+    test("records when it was given and the words that were shown", async () => {
+      currentIp = uniqueIp();
+      const [item] = await gearItems(1);
+      const email = uniqueEmail("as-is");
+
+      const result = await requestGearItemsAction(
+        [item],
+        formData({ name: "Jamie Rivera", email }),
+      );
+      expect(result).toEqual({
+        success: true,
+        requestId: expect.any(String),
+      });
+
+      const { data: request } = await adminClient
+        .from("gear_requests")
+        .select("as_is_acknowledged_at, as_is_text")
+        .eq("id", (result as { requestId: string }).requestId)
+        .single();
+
+      expect(request!.as_is_acknowledged_at).not.toBeNull();
+      // Resolved server-side from `src/lib/gear-as-is.ts` against this
+      // tenant's lexicon, so it is the platform's claim and not the
+      // browser's report of one.
+      expect(request!.as_is_text).toBe(gearAsIsText(DEFAULT_LEXICON));
+    });
+
+    test("the RPC refuses a request that did not acknowledge it", async () => {
+      const [item] = await gearItems(1);
+
+      const { error } = await anonClient().rpc("request_gear_items", {
+        p_inventory_item_ids: [item],
+        p_name: "Jamie Rivera",
+        p_email: uniqueEmail("rpc-no-ack"),
+        p_phone: null,
+        p_ip_address: uniqueIp(),
+        p_as_is_acknowledged: false,
+        p_as_is_text: "Given as-is.",
+      });
+
+      expect(error?.message).toContain("AS_IS_REQUIRED");
+      // Refused before the item locks, so nothing was held for a request
+      // that was never written.
+      expect(await getInventoryItemStatus(item)).toBe("available");
+    });
+
+    // An acknowledgement pointing at nothing is the state the snapshot exists
+    // to prevent -- "understood something, at 14:02". Not reachable from this
+    // application, since both entry points supply the words themselves.
+    test("the RPC refuses an acknowledgement with no wording behind it", async () => {
+      const [item] = await gearItems(1);
+
+      const { error } = await anonClient().rpc("request_gear_items", {
+        p_inventory_item_ids: [item],
+        p_name: "Jamie Rivera",
+        p_email: uniqueEmail("rpc-no-text"),
+        p_phone: null,
+        p_ip_address: uniqueIp(),
+        p_as_is_acknowledged: true,
+        p_as_is_text: "   ",
+      });
+
+      expect(error?.message).toContain("AS_IS_TEXT_REQUIRED");
+      expect(await getInventoryItemStatus(item)).toBe("available");
+    });
+  });
+
   // The RPC's own check, bypassing the action's parser: an address the form
   // would have refused must be refused again underneath it.
   test("the RPC refuses a shipping request with no address", async () => {
@@ -462,6 +578,8 @@ describe("requestGearItemsAction with shipping", () => {
       p_email: uniqueEmail("rpc-no-address"),
       p_phone: null,
       p_ip_address: uniqueIp(),
+      p_as_is_acknowledged: true,
+      p_as_is_text: "Given as-is.",
       p_delivery_method: "shipping",
       p_shipping: { name: "Jamie" },
       p_payment_method: "venmo",
@@ -480,6 +598,8 @@ describe("requestGearItemsAction with shipping", () => {
       p_email: uniqueEmail("rpc-bad-method"),
       p_phone: null,
       p_ip_address: uniqueIp(),
+      p_as_is_acknowledged: true,
+      p_as_is_text: "Given as-is.",
       p_delivery_method: "shipping",
       p_shipping: { line1: "12 Ridge Rd", city: "Bend", postal_code: "97701" },
       p_payment_method: "cash",
@@ -567,7 +687,10 @@ describe("requestGearItemsAction under concurrency", () => {
       error:
         "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
     });
-    expect(winnerIsA ? first : second).toEqual({ success: true });
+    expect(winnerIsA ? first : second).toEqual({
+      success: true,
+      requestId: expect.any(String),
+    });
 
     expect(await getInventoryItemStatus(contested)).toBe("reserved");
     expect(await getInventoryItemStatus(winnerIsA ? onlyA : onlyB)).toBe(
@@ -581,5 +704,202 @@ describe("requestGearItemsAction under concurrency", () => {
     const movements = await reservedMovements([onlyA, contested, onlyB]);
     expect(movements).toHaveLength(2);
     expect(new Set(movements.map((m) => m.recipient_person_id)).size).toBe(1);
+  });
+});
+
+// #1359: the half prefill could not close. A linked requester's request has to
+// land on their own record whatever the email field says, which means the
+// action has to pick `request_gear_items_as_me()` off the session rather than
+// trusting anything the browser sent.
+describe("requesting gear as yourself (integration)", () => {
+  const service = serviceRoleClient();
+  const run = crypto.randomUUID().slice(0, 8);
+  let tenantId: string;
+  let restoreModule: () => Promise<void>;
+  const createdUsers: string[] = [];
+  const createdPeople: string[] = [];
+
+  /** An account linked to a `people` row, as an approved claim leaves one. */
+  async function linkedConstituent(name: string) {
+    const email = uniqueEmail(`as-me-${run}`);
+    const { data, error } = await service.auth.admin.createUser({
+      email,
+      password: "password123",
+      email_confirm: true,
+    });
+    if (error) throw error;
+    createdUsers.push(data.user!.id);
+
+    const { data: person, error: personError } = await service
+      .from("people")
+      .insert({
+        tenant_id: tenantId,
+        source_type: "other",
+        name,
+        email,
+        auth_user_id: data.user!.id,
+      })
+      .select("id")
+      .single();
+    if (personError) throw new Error(`person: ${personError.message}`);
+    createdPeople.push(person.id as string);
+
+    return {
+      client: await signIn(email),
+      personId: person.id as string,
+      email,
+    };
+  }
+
+  async function peopleCount() {
+    const { count } = await service
+      .from("people")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+    return count ?? 0;
+  }
+
+  beforeAll(async () => {
+    tenantId = await seededTenantId();
+    restoreModule = await enableModule(tenantId, "constituent_accounts");
+  });
+
+  afterAll(async () => {
+    await service.from("gear_requests").delete().in("person_id", createdPeople);
+    await service.from("people").delete().in("id", createdPeople);
+    await restoreModule();
+  });
+
+  test("lands on your own record however the email field is filled in", async () => {
+    currentIp = uniqueIp();
+    const { client, personId } = await linkedConstituent("Robin Ashford");
+    currentClient = client;
+    const [item] = await gearItems(1);
+    const before = await peopleCount();
+
+    const result = await requestGearItemsAction(
+      [item],
+      // Everything a browser could send about who is asking, all of it wrong,
+      // and none of it read: the person comes from auth.uid().
+      formData({
+        name: "Somebody Else",
+        email: uniqueEmail(`decoy-${run}`),
+        phone: "555-9999",
+        instagram_handle: "somebody.else",
+        notes: "A 9.5 works too.",
+      }),
+    );
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
+
+    const { data: request } = await service
+      .from("gear_requests")
+      .select("person_id, notes, as_is_acknowledged_at, as_is_text")
+      .eq("id", (result as { requestId: string }).requestId)
+      .single();
+    expect(request!.person_id).toBe(personId);
+    expect(request!.notes).toBe("A 9.5 works too.");
+    // #1367: asked on this path too, and recorded the same way. Holding an
+    // account is not agreement to anything.
+    expect(request!.as_is_acknowledged_at).not.toBeNull();
+    expect(request!.as_is_text).toBe(gearAsIsText(DEFAULT_LEXICON));
+
+    // The whole point: the decoy address minted nothing.
+    expect(await peopleCount()).toBe(before);
+    expect(await getInventoryItemStatus(item)).toBe("reserved");
+  });
+
+  test("leaves the record alone: a request is not an edit of a person", async () => {
+    currentIp = uniqueIp();
+    const { client, personId, email } =
+      await linkedConstituent("Robin Ashford");
+    currentClient = client;
+    const [item] = await gearItems(1);
+
+    await requestGearItemsAction(
+      [item],
+      formData({
+        name: "Renamed",
+        email: uniqueEmail(`decoy2-${run}`),
+        phone: "555-9999",
+        instagram_handle: "renamed",
+      }),
+    );
+
+    const { data: person } = await service
+      .from("people")
+      .select("name, email, phone, instagram_handle")
+      .eq("id", personId)
+      .single();
+    expect(person).toEqual({
+      name: "Robin Ashford",
+      email,
+      phone: null,
+      instagram_handle: null,
+    });
+  });
+
+  test("an account with no record still goes down the anonymous path", async () => {
+    currentIp = uniqueIp();
+    const email = uniqueEmail(`unlinked-${run}`);
+    const { data, error } = await service.auth.admin.createUser({
+      email,
+      password: "password123",
+      email_confirm: true,
+    });
+    if (error) throw error;
+    createdUsers.push(data.user!.id);
+    currentClient = await signIn(email);
+    const [item] = await gearItems(1);
+    const typed = uniqueEmail(`unlinked-typed-${run}`);
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({ name: "Not Yet Linked", email: typed }),
+    );
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
+
+    // A claim that has not been approved is not a link (§5.23), so the request
+    // is matched or minted from the typed address exactly as a visitor's is.
+    const { data: person } = await service
+      .from("people")
+      .select("id, auth_user_id")
+      .eq("tenant_id", tenantId)
+      .eq("email", typed)
+      .single();
+    expect(person!.auth_user_id).toBeNull();
+    createdPeople.push(person!.id as string);
+  });
+
+  test("refuses when the tenant has inventory off, without matching anybody", async () => {
+    currentIp = uniqueIp();
+    const { client } = await linkedConstituent("Module Off");
+    const [item] = await gearItems(1);
+
+    let error: unknown = null;
+    await withModule(tenantId, "inventory", false, async () => {
+      ({ error } = await client.rpc("request_gear_items_as_me", {
+        p_inventory_item_ids: [item],
+        p_ip_address: uniqueIp(),
+      }));
+    });
+
+    // `my_constituent_person_id('inventory')` is the one gate: no module, no
+    // person, and the write never reaches the items (#902).
+    expect((error as { message: string } | null)?.message).toContain(
+      "NO_RECORD",
+    );
+    expect(await getInventoryItemStatus(item)).toBe("available");
+  });
+
+  test("is not granted to anon at all", async () => {
+    const [item] = await gearItems(1);
+
+    const { error } = await anonClient().rpc("request_gear_items_as_me", {
+      p_inventory_item_ids: [item],
+      p_ip_address: uniqueIp(),
+    });
+
+    expect(error).not.toBeNull();
+    expect(await getInventoryItemStatus(item)).toBe("available");
   });
 });

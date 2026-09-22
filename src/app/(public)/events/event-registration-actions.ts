@@ -7,6 +7,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
+import {
+  MINOR_CONTACTS_REQUIRED_CODE,
+  MINOR_CONTACTS_REQUIRED_ERROR,
+} from "@/lib/minors";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventPath } from "./event-path";
@@ -24,6 +28,19 @@ const ERROR_MESSAGES: Record<string, string> = {
   NAME_REQUIRED: "Name is required.",
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
   PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
+  // #685. The form asks for these four the moment somebody answers yes, so
+  // reaching this means a client that did not -- the public API, or a browser
+  // that let a half-filled form through. Worth a sentence either way.
+  [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
+  // #686. Three ways a waiver can stop a registration, and they are three
+  // different things to say. The first is the reader's to fix; the second is
+  // nobody's fault and asks them to read again; the third is the
+  // organization's and is a state its own portal refuses to create.
+  WAIVER_REQUIRED: "Please read the agreement and tick the box to register.",
+  WAIVER_CHANGED:
+    "The agreement was updated while you were filling this in. Reload the page, read it again, and register.",
+  WAIVER_UNAVAILABLE:
+    "This organization's participant agreement could not be loaded, so we can't take your registration right now. Please try again shortly.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
@@ -62,6 +79,21 @@ export async function registerForEventAction(
     // is what lands rather than an explicit null; the row is the same either
     // way, and PostgREST prefers the argument omitted.
     p_attended_before: parsed.data.attended_before ?? undefined,
+    // #686. Sent unconditionally, like the question above: the form does not
+    // know whether this tenant has a waiver in force, and the RPC refuses or
+    // records accordingly. `undefined` rather than null for the version, so an
+    // unshown waiver leaves the RPC's own default in place.
+    p_waiver_accepted: parsed.data.waiver_accepted,
+    p_waiver_version: parsed.data.waiver_version ?? undefined,
+    // #685. Sent as answered. The column is three-state and the RPC accepts a
+    // null, but this form requires the question, so a null here would mean
+    // the parser let something through.
+    p_party_includes_minor: parsed.data.party_includes_minor,
+    p_accompanying_adult_name: parsed.data.accompanying_adult_name ?? undefined,
+    p_accompanying_adult_phone:
+      parsed.data.accompanying_adult_phone ?? undefined,
+    p_emergency_contact_name: parsed.data.emergency_contact_name ?? undefined,
+    p_emergency_contact_phone: parsed.data.emergency_contact_phone ?? undefined,
   });
 
   if (error) {

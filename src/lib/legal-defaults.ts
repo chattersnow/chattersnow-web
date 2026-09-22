@@ -1,3 +1,5 @@
+import { GEAR_AS_IS_SUMMARY } from "@/lib/gear-as-is";
+import { applyLexicon, applyLexiconAll, type Lexicon } from "@/lib/lexicon";
 import type { CollectionSurface } from "@/lib/legal-surface";
 import { RETENTION_POLICIES } from "@/lib/retention";
 import {
@@ -61,13 +63,24 @@ export type LegalOrgContext = {
    * bullets, retention rows and whole sections the documents below carry.
    */
   surfaces: CollectionSurface;
+  /**
+   * This organization's own words for what it lends (#896, #1367).
+   *
+   * Only the `items-we-give-away` section needs it today, and it is resolved
+   * over the whole document rather than in that one block: a placeholder that
+   * reaches a published legal page is a brace on screen an administrator has
+   * to report, and `applyLexicon` leaves text with no placeholder in it
+   * untouched. `lexicon.test.ts` sweeps every section of every document for a
+   * surviving one, the same way it sweeps the nav registries.
+   */
+  lexicon: Lexicon;
 };
 
 /**
  * Printed on every document here. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 22, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 23, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -108,14 +121,25 @@ const PRIVACY: DocumentProse = {
     // every form in the software, followed by a sentence saying some of them
     // might not exist -- an honest dodge rather than an accurate policy.
     "what-we-collect": ({ surfaces }) => [
-      "Everything below is information you type into a form yourself. We don't buy personal information about you from anyone else.",
+      // "Yourself" stopped being the whole truth when registration began
+      // asking for an emergency contact (#685): that person never came to the
+      // site and cannot be told anything at the point of collection, so the
+      // sentence names them rather than glossing them. We still buy nothing.
+      "Everything below is information you type into a form yourself — including, in one place, somebody else's name and number that you give us. We don't buy personal information about you from anyone else.",
       bullets([
         surfaces.contact &&
           "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you, and we email you back to confirm it arrived — that confirmation names the topic and the date, never what you wrote.",
         surfaces.volunteerApplications &&
           "**Volunteer application** — your name, email address, and, if you choose to give them, your phone number, the roles you're interested in, and your availability. We use it to review your application, follow up with you, and let you check its status with the reference code we give you.",
         surfaces.eventRegistrations &&
-          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details.",
+          // The closing sentence is deliberately conditional in its own
+          // wording rather than gated on a collection surface (#686). "Where
+          // we ask you to accept" is a true claim about this software on every
+          // tenant, including the ones that ask nobody; a surface key for
+          // "this organization has adopted a waiver" would have to feed
+          // `legal_surface.*`, and every tenant with its own published
+          // documents would be told they had drifted the day they adopted one.
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts.",
         surfaces.gearRequests &&
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&
@@ -136,6 +160,21 @@ const PRIVACY: DocumentProse = {
         surfaces.volunteerHours &&
           "**Hours you log yourself** — if you volunteer with us and log your own hours: how many, the date, which event and which role they were for, and any note you add. They stay pending until somebody here confirms them.",
       ]),
+      // Not a bullet, because the list above is introduced by "information you
+      // type into a form yourself" and nobody types this: it is recorded by
+      // the organization about a volunteer. A trailing paragraph is where that
+      // already goes — the IP-address sentence below has the same shape and
+      // the same reason (#1360).
+      //
+      // The last sentence is the one that matters, and it is a claim about the
+      // software rather than about anyone's process, so it is true on every
+      // tenant: `person_screenings` has columns for a level and two dates and
+      // no column any result could be written into.
+      ...(surfaces.volunteerScreening
+        ? [
+            "If you volunteer with us in a role our policy says needs screening — references, a conversation, or a background check — we record only the outcome: which level you were cleared for, the date of the decision, and, where the clearance is time-limited, the date it runs to. That is all this site stores. It holds no reference, no interview, no check, no result of one, and nothing a screening provider sends back.",
+          ]
+        : []),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",
     ],
     "what-we-dont-do": () => [
@@ -163,6 +202,11 @@ const PRIVACY: DocumentProse = {
     "who-can-see-it": (org) =>
       paragraphs([
         `Inside ${org.name}, what you submit is visible to the people whose role covers it — the people running events see event registrations, whoever coordinates volunteers sees volunteer applications, and so on. Access is enforced in the database by the permissions attached to each role, not just hidden in the interface.`,
+        // True of this software rather than of any organization's practice:
+        // `person_screenings` is gated on its own permission and never on the
+        // one that covers the rest of the volunteers module (#1360).
+        org.surfaces.volunteerScreening &&
+          "A screening outcome is held more narrowly still. It is visible only to the people whose role carries the screening permission, which is a separate grant from the one that covers volunteer roles, applications and participation — so coordinating volunteers does not by itself show you who has been screened.",
         // Both halves of this paragraph have to be true for it to be: it is
         // about volunteers seeing registrations.
         org.surfaces.eventRegistrations &&
@@ -270,6 +314,22 @@ const TERMS: DocumentProse = {
     ],
     volunteering: (org) => [
       `Applying to volunteer doesn't create a job, an employment relationship, or a promise of a role, and volunteering with ${org.name} is unpaid. Some roles may require screening before you can take them on. Volunteers act on our behalf only within the role they've been given.`,
+    ],
+    // #1367. The platform can write this one, unlike the participant waiver:
+    // every claim in it is about what the software and the organization
+    // running it do *not* do, which is rule 1 of `docs/legal-basis.md`. An
+    // organization that catalogs donated equipment and passes it on has not,
+    // by doing so, inspected or certified anything, and saying so asserts
+    // nothing on its behalf.
+    //
+    // The first paragraphs are `GEAR_AS_IS_SUMMARY` verbatim, because they are
+    // also what somebody reads above the box they tick when they ask for
+    // something. Two places saying nearly the same thing about liability is
+    // the failure mode worth spending a test on, so there is one constant and
+    // `legal-defaults.test.ts` holds this section to it.
+    "items-we-give-away": () => [
+      ...GEAR_AS_IS_SUMMARY,
+      "Where you ask us for something through this site, we show you this before you ask, and we keep a record that you saw it alongside the request.",
     ],
     "accessibility-and-inclusion": () => [
       "We want our programs, events, and communications to be welcoming and usable. If you need an accommodation to take part in something — at an event, on this site, or in how we contact you — tell us and we'll work with you to find a reasonable way to make it happen. If something here is inaccessible, we'd rather hear about it than not.",
@@ -493,10 +553,15 @@ export function platformLegalDocument(
 ): LegalDocumentContent {
   const outline = LEGAL_DOCUMENT_OUTLINES[slotKey];
   const { sections } = prose(slotKey);
+  // Over the whole document rather than the one section that needs it
+  // (#1367): a `{item_plural}` that survived into a published legal page is a
+  // brace on screen, and `applyLexicon` is a no-op on a string with no
+  // placeholder in it.
+  const named = (text: string) => applyLexicon(text, org.lexicon);
   return {
-    title: outline.title,
+    title: named(outline.title),
     last_updated: PLATFORM_LEGAL_LAST_UPDATED,
-    summary: prose(slotKey).summary(org),
+    summary: applyLexiconAll(prose(slotKey).summary(org), org.lexicon),
     sections: outline.sections
       .filter(
         (section) =>
@@ -511,8 +576,8 @@ export function platformLegalDocument(
         // carries an id, a title and prose and nothing else.
         return {
           id: section.id,
-          title: section.title,
-          paragraphs: write(org),
+          title: named(section.title),
+          paragraphs: applyLexiconAll(write(org), org.lexicon),
         };
       }),
   };
@@ -523,5 +588,5 @@ export function platformLegalDescription(
   slotKey: string,
   org: LegalOrgContext,
 ): string {
-  return prose(slotKey).description(org);
+  return applyLexicon(prose(slotKey).description(org), org.lexicon);
 }

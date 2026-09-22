@@ -179,6 +179,12 @@ const RPC_ERRORS: Record<
     message: "Party size must be at least 1.",
     field: "party_size",
   },
+  MINOR_CONTACTS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "A party that includes anyone under 18 needs an accompanying adult and an emergency contact.",
+    field: "accompanying_adult_name",
+  },
   INVALID_RIDER_PROFILE: {
     code: "invalid_request",
     message: "The riding discipline and experience levels do not agree.",
@@ -187,6 +193,16 @@ const RPC_ERRORS: Record<
     code: "invalid_request",
     message: "Name at least one item.",
     field: "item_ids",
+  },
+  // Unreachable through the handler, whose schema will not parse a body
+  // without it (#1367). Mapped anyway, because the alternative for a refusal
+  // this endpoint can make is a 500 that says "something went wrong on our
+  // side" about something that went wrong on the caller's.
+  AS_IS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "The requester must be shown, and acknowledge, that these items are given as-is.",
+    field: "as_is_acknowledged",
   },
 };
 

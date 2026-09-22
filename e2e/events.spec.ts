@@ -2,6 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { modal } from "./helpers/dialog";
 import { clickNavLink } from "./helpers/nav";
+import { sayNoMinors } from "./helpers/registration";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 const EVENT_NAME = "Winter Gear Swap";
@@ -31,6 +32,9 @@ async function registerFromSheet(dialog: Locator, name: string, email: string) {
 
   await dialog.getByLabel("Name").fill(name);
   await dialog.getByLabel("Email").fill(email);
+  // Required since #685, and answered "no" so this helper stays about
+  // registering rather than about who is in the party.
+  await sayNoMinors(dialog);
   await dialog.getByRole("button", { name: "Complete registration" }).click();
 }
 

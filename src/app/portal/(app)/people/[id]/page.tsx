@@ -26,6 +26,7 @@ import { getPortalVocabulary } from "@/lib/tenant-person-roles";
 import { ContactFor } from "./contact-for";
 import { PartnershipsCard } from "./partnerships-card";
 import { PersonActivity, type ActivitySection } from "./person-activity";
+import { PersonScreeningCard } from "./screening-card";
 import {
   PersonAccountCard,
   PersonOrganizationsCard,
@@ -98,6 +99,19 @@ export default async function PersonDetailPage({
   const canUnlinkAccount = hasPermission(
     permissions,
     "constituent_claims",
+    "manage",
+  );
+  // Screening outcomes are their own resource rather than part of Volunteers
+  // (#1360): whether somebody was cleared is a narrower question than whether
+  // a coordinator may work the application queue.
+  const canViewScreening = hasPermission(
+    permissions,
+    "volunteer_screening",
+    "view",
+  );
+  const canRecordScreening = hasPermission(
+    permissions,
+    "volunteer_screening",
     "manage",
   );
 
@@ -200,6 +214,17 @@ export default async function PersonDetailPage({
             <PartnershipsCard
               personId={personRow.id}
               showPipeline={!personRow.is_partner}
+            />
+          </Suspense>
+
+          {/* Beside the registry rather than in it (#1360): an aspect card
+              renders for every holder of people:view and takes no permissions
+              prop, and this is the one card on the page that must not. */}
+          <Suspense fallback={<FieldCardSkeleton rows={2} />}>
+            <PersonScreeningCard
+              personId={personRow.id}
+              canView={canViewScreening}
+              canManage={canRecordScreening}
             />
           </Suspense>
         </div>

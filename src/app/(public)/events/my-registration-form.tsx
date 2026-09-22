@@ -4,6 +4,7 @@ import { FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -14,6 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
 import { AttendedBeforeField } from "@/components/attended-before-field";
+import {
+  EMPTY_MINOR_CONTACTS,
+  MinorAccompanimentFields,
+  type MinorContactValues,
+} from "@/components/minor-accompaniment-fields";
+import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
@@ -37,9 +44,26 @@ import { registerMyselfForEventAction } from "./my-registration-actions";
 export function MyEventRegistrationForm({
   eventId,
   person,
+  waiver = null,
+  waiverBlock = null,
+  minorAccompaniment = [],
 }: {
   eventId: string;
   person: MyContactDetails;
+  /**
+   * The participant agreement's version, when this organization takes one
+   * (#686). Asked of a signed-in caller exactly as it is of an anonymous one:
+   * holding an account is not agreement to anything, and a path that skipped
+   * it would be the shortest way to a registration with nothing behind it.
+   */
+  waiver?: { version: number } | null;
+  /** The agreement itself, rendered on the server. */
+  waiverBlock?: React.ReactNode;
+  /**
+   * This organization's rule for a party that includes anyone under 18
+   * (#685). Empty on a tenant that has written none.
+   */
+  minorAccompaniment?: string[];
 }) {
   const [phone, setPhone] = useState(person.phone ?? "");
   const [pronouns, setPronouns] = useState(person.pronouns ?? "");
@@ -53,7 +77,14 @@ export function MyEventRegistrationForm({
   // would blur the one self-reported answer into the derived figure it exists
   // to sit beside.
   const [attendedBefore, setAttendedBefore] = useState("");
+  // #685. Required here as on the anonymous form, and starting empty for the
+  // same reason: holding an account says nothing about who is coming with you.
+  const [partyIncludesMinor, setPartyIncludesMinor] = useState("");
+  const [minorContacts, setMinorContacts] =
+    useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
+  // Unticked, always (#686).
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -72,6 +103,16 @@ export function MyEventRegistrationForm({
     formData.set("pronouns", pronouns);
     formData.set("instagramHandle", instagramHandle);
     formData.set("attendedBefore", attendedBefore);
+    formData.set("partyIncludesMinor", partyIncludesMinor);
+    if (partyIncludesMinor === "yes") {
+      for (const [key, value] of Object.entries(minorContacts)) {
+        formData.set(key, value);
+      }
+    }
+    if (waiver) {
+      formData.set("waiverAccepted", waiverAccepted ? "on" : "");
+      formData.set("waiverVersion", String(waiver.version));
+    }
 
     startTransition(async () => {
       const result = await registerMyselfForEventAction(eventId, formData);
@@ -175,6 +216,26 @@ export function MyEventRegistrationForm({
           onChange={setAttendedBefore}
         />
 
+        {/* The same question the anonymous form asks, in the same words, from
+            the same component (#685). A signed-in caller is not exempt: an
+            account says who is registering and nothing about who is coming
+            with them. */}
+        <PartyIncludesMinorField
+          id="my-registration-party-includes-minor"
+          value={partyIncludesMinor}
+          onChange={setPartyIncludesMinor}
+          disabled={isPending}
+        />
+        {partyIncludesMinor === "yes" && (
+          <MinorAccompanimentFields
+            idPrefix="my-registration"
+            paragraphs={minorAccompaniment}
+            values={minorContacts}
+            onChange={setMinorContacts}
+            disabled={isPending}
+          />
+        )}
+
         <Field>
           <FieldLabel htmlFor="my-registration-notes">
             Anything we should know?
@@ -186,6 +247,30 @@ export function MyEventRegistrationForm({
             onChange={(event) => setNotes(event.target.value)}
           />
         </Field>
+
+        {/* Immediately above the button that acts on it, the same placement
+            the anonymous form uses. This form carries no privacy notice --
+            that is #684's territory and a signed-in caller has already been
+            told -- so the agreement is the last thing read before submitting.
+            The server refuses an unticked box independently of the `required`
+            here; see `accepted_waiver_version()`. */}
+        {waiver && (
+          <>
+            {waiverBlock}
+            <Field orientation="horizontal">
+              <Checkbox
+                id="my-registration-waiver"
+                checked={waiverAccepted}
+                onCheckedChange={(next) => setWaiverAccepted(next === true)}
+                disabled={isPending}
+                required
+              />
+              <FieldLabel htmlFor="my-registration-waiver" required>
+                I have read the agreement above and I accept it
+              </FieldLabel>
+            </Field>
+          </>
+        )}
 
         <Field orientation="horizontal">
           {/* Named apart from the disclosure's "Register" trigger above it

@@ -1,8 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { parseGearRequestForm } from "./gear-request-form";
+import {
+  parseGearRequestDelivery,
+  parseGearRequestForm,
+} from "./gear-request-form";
 
+/**
+ * The box is ticked unless a case says otherwise (#1367), so every test below
+ * still exercises the rule it was written for rather than the gate.
+ */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("as_is_acknowledged", "true");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -39,6 +47,7 @@ describe("parseGearRequestForm", () => {
         deliveryMethod: "meetup",
         shipping: null,
         paymentMethod: null,
+        asIsAcknowledged: true,
       },
     });
   });
@@ -62,6 +71,7 @@ describe("parseGearRequestForm", () => {
         deliveryMethod: "meetup",
         shipping: null,
         paymentMethod: null,
+        asIsAcknowledged: true,
       },
     });
   });
@@ -196,7 +206,103 @@ describe("parseGearRequestForm", () => {
           country: null,
         },
         paymentMethod: "venmo",
+        asIsAcknowledged: true,
       },
     });
+  });
+});
+
+// #1367. The one field on this form that is a gate rather than a detail: a
+// request without it does not parse, on either path. `acknowledged_as_is()`
+// refuses it again in the database, because a client-side `required` is a
+// convenience and never the gate.
+describe("the as-is acknowledgement", () => {
+  const AS_IS_ERROR =
+    "Please tick the box to confirm you understand these items are given as-is.";
+
+  test("refuses a request that did not tick the box", () => {
+    const fd = formData({ name: "Jane", email: "jane@example.com" });
+    fd.set("as_is_acknowledged", "false");
+
+    expect(parseGearRequestForm(fd)).toEqual({ error: AS_IS_ERROR });
+  });
+
+  test("refuses a request that omits the field entirely", () => {
+    const fd = formData({ name: "Jane", email: "jane@example.com" });
+    fd.delete("as_is_acknowledged");
+
+    expect(parseGearRequestForm(fd)).toEqual({ error: AS_IS_ERROR });
+  });
+
+  // Holding an account is not agreement to anything (#686's argument, applied
+  // here): the signed-in path is asked for this exactly as a visitor is.
+  test("refuses the signed-in path on the same terms", () => {
+    const fd = formData({ notes: "A 9.5 works." });
+    fd.delete("as_is_acknowledged");
+
+    expect(parseGearRequestDelivery(fd)).toEqual({ error: AS_IS_ERROR });
+  });
+
+  // Before the delivery fields, so somebody who left the box unticked hears
+  // about that rather than about their postal code.
+  test("is refused ahead of the shipping fields", () => {
+    const fd = formData({
+      name: "Jane",
+      email: "jane@example.com",
+      delivery_method: "shipping",
+    });
+    fd.delete("as_is_acknowledged");
+
+    expect(
+      parseGearRequestForm(fd, {
+        shippingEnabled: true,
+        paymentMethods: [{ key: "venmo", label: "Venmo" }],
+      }),
+    ).toEqual({ error: AS_IS_ERROR });
+  });
+});
+
+// The half a signed-in reader with a record submits (#1359): the person comes
+// from the session, so there is nothing about them in the form to check.
+describe("parseGearRequestDelivery", () => {
+  test("accepts a request with no contact fields at all", () => {
+    expect(
+      parseGearRequestDelivery(formData({ notes: "A 9.5 works." })),
+    ).toEqual({
+      data: {
+        notes: "A 9.5 works.",
+        deliveryMethod: "meetup",
+        shipping: null,
+        paymentMethod: null,
+        asIsAcknowledged: true,
+      },
+    });
+  });
+
+  test("still holds the shipping rules the whole form does", () => {
+    const options = {
+      shippingEnabled: true,
+      paymentMethods: [{ key: "venmo", label: "Venmo" }],
+    };
+
+    expect(
+      parseGearRequestDelivery(
+        formData({ delivery_method: "shipping", ship_city: "Bend" }),
+        options,
+      ),
+    ).toEqual({ error: "A street address is required for shipping." });
+
+    expect(
+      parseGearRequestDelivery(
+        formData({
+          delivery_method: "shipping",
+          ship_line1: "12 Ridge Rd",
+          ship_city: "Bend",
+          ship_postal_code: "97701",
+          payment_method: "cheque",
+        }),
+        options,
+      ),
+    ).toEqual({ error: "Choose how you'll pay for the postage." });
   });
 });

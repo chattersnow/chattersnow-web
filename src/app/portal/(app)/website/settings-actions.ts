@@ -123,6 +123,28 @@ export async function updateLegalPublicationAction(
     if (held.length > 0) return { error: held[0].refuseWithdrawing };
   }
 
+  // And the document with no platform text cannot be put in force before that
+  // text exists (#686). The other three fall back to a neutral starting
+  // document, so adopting one always serves something; adopting this one with
+  // nothing written would put an organization's name on an empty page and,
+  // worse, start refusing every event registration -- the registration flow
+  // asks for the waiver the moment it is in force.
+  //
+  // Refused here for the same reason the withdrawal gate above is: this is
+  // where the decision is made, and `service_role` writes from seeding, the
+  // demo reset and the e2e fixtures stay free to set whatever state they are
+  // testing. `publish_site_content()` holds the other direction, which is the
+  // one that would empty a waiver already in force.
+  if (inForce && !document.hasPlatformDefault) {
+    const supabase = await createSupabaseServerClient();
+    const own = await getTenantOwnLegalDocuments(supabase);
+    if (!own.has(document.slotKey)) {
+      return {
+        error: `Write and publish your ${document.label.toLowerCase()} first. There is no starting text for it, so putting it in force would serve nothing.`,
+      };
+    }
+  }
+
   return writeAppSetting(
     legalPublicationSettingKey(document.key),
     inForce,

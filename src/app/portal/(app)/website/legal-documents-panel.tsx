@@ -379,7 +379,13 @@ function ServingLine({
         footer omits it.
         {ownDocument
           ? " Your own text is written and waiting."
-          : " Nothing of your own is written yet, so putting it in force would serve the platform's starting document."}
+          : document.hasPlatformDefault
+            ? " Nothing of your own is written yet, so putting it in force would serve the platform's starting document."
+            : // The one document with nothing behind it (#686). "Putting it in
+              // force would serve the platform's starting document" is not
+              // merely wrong here, it is the opposite of what happens, and the
+              // switch beside this line is disabled for exactly that reason.
+              " There is no starting text for this one, so it cannot be put in force until you have written and published your own."}
       </>
     );
   }
@@ -433,6 +439,13 @@ function LegalDocumentRow({
     (status.drift.status === "unknown" || hasDrifted(status.drift))
       ? status.drift
       : undefined;
+  // A document with no platform text cannot be adopted before it is written
+  // (#686): there would be nothing at its route and nothing at the point it is
+  // meant to be accepted. `updateLegalPublicationAction` refuses this too --
+  // the switch is disabled so nobody has to discover the refusal by tripping
+  // it, and `ServingLine` above says why.
+  const needsOwnText =
+    !document.hasPlatformDefault && !status.ownDocument && !status.inForce;
 
   function handleConfirm() {
     onError(null);
@@ -543,7 +556,7 @@ function LegalDocumentRow({
             // missing one: this is a state the organization can get out of by
             // asking, so the control stays where it was and says why it is
             // stuck (#1295).
-            disabled={isPending || Boolean(held)}
+            disabled={isPending || Boolean(held) || needsOwnText}
             aria-labelledby={labelId}
           />
         )}

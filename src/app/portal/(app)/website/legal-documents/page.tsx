@@ -99,8 +99,10 @@ export default async function WebsiteLegalDocumentsPage() {
           has adopted stays off rather than being published under your name. The
           privacy policy is always served &mdash; the site collects personal
           information through its public forms, and a policy saying what happens
-          to it has to be reachable while it does. Write or replace the text
-          itself in{" "}
+          to it has to be reachable while it does. The participant waiver is the
+          other end of that: there is no starting text for it, so it cannot be
+          put in force until you have written and published your own. Write or
+          replace the text itself in{" "}
           <Link
             href="/portal/website?page=legal"
             className="underline underline-offset-4"

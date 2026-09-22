@@ -48,7 +48,10 @@ async function registration() {
   const email = uniqueEmail("rider-profile");
   const result = await registerForEventAction(
     fixture.id,
-    formData({ name: "Rider Fixture", email }),
+    // `partyIncludesMinor` is required on the form since #685, and this
+    // fixture is only here to produce a registration to hang a rider profile
+    // off. "No" leaves everything else as it was.
+    formData({ name: "Rider Fixture", email, partyIncludesMinor: "no" }),
   );
   if (!("success" in result)) throw new Error(result.error);
 

@@ -21,6 +21,22 @@ mock.module("./event-registration-actions", () => ({
 const { EventRegistrationForm } =
   await import("./event-registration-form-fields");
 
+/**
+ * #685: the minors question is required, so every case that expects a
+ * submission has to answer it. "No" is the answer that leaves the rest of the
+ * form exactly as it was.
+ */
+// Structural rather than `typeof userEvent`: the default export and what
+// `userEvent.setup()` returns are different types, and both are passed here.
+async function sayNoMinors(
+  user: { click: (element: Element) => Promise<unknown> } = userEvent,
+) {
+  await user.click(screen.getByLabelText(/under 18/i));
+  await user.click(
+    screen.getByRole("option", { name: /everyone is 18 or over/i }),
+  );
+}
+
 /** The (eventId, FormData) the action was last called with, as plain fields. */
 function lastSubmission() {
   const call = registerForEventActionMock.mock.calls.at(-1);
@@ -31,6 +47,94 @@ function lastSubmission() {
 describe("EventRegistrationForm", () => {
   beforeEach(() => {
     registerForEventActionMock.mockClear();
+  });
+
+  // #686. The whole of the degraded path: a tenant that has adopted no
+  // participant agreement sees the form exactly as it was before this shipped,
+  // and posts nothing about one.
+  test("says nothing about an agreement when the tenant takes none", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+
+    await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+    await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await sayNoMinors();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    const submission = lastSubmission();
+    expect(submission.waiverAccepted).toBeUndefined();
+    expect(submission.waiverVersion).toBeUndefined();
+  });
+
+  test("the agreement's box starts unticked", () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        waiver={{ version: 3 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    expect(screen.getByText("The agreement itself")).toBeVisible();
+    const box = screen.getByRole("checkbox", { name: /I have read the/ });
+    expect(box).not.toBeChecked();
+    // A pre-ticked box is not an acceptance, and `required` is what makes the
+    // browser say which control is missing rather than silently refusing.
+    expect(box).toBeRequired();
+  });
+
+  test("posts the acceptance and the version it was shown", async () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        waiver={{ version: 3 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+    await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /I have read the/ }),
+    );
+    await sayNoMinors();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission()).toMatchObject({
+      waiverAccepted: "on",
+      // Sent so the server can refuse a submission made against text that has
+      // been republished since it was rendered.
+      waiverVersion: "3",
+    });
+  });
+
+  // An untouched box does not submit at all: `required` blocks it in the
+  // browser, which is why the label says so rather than the button going grey.
+  // That is a convenience and never the gate -- `accepted_waiver_version()`
+  // refuses the same submission server-side, which is what an integration test
+  // covers and this cannot.
+  test("an untouched box does not submit", async () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        waiver={{ version: 3 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+    await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await sayNoMinors();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(registerForEventActionMock).not.toHaveBeenCalled();
   });
 
   test("a visitor with no session gets the blank form it always had", () => {
@@ -79,6 +183,7 @@ describe("EventRegistrationForm", () => {
       />,
     );
 
+    await sayNoMinors(user);
     await user.click(
       screen.getByRole("button", { name: "Complete registration" }),
     );
@@ -104,6 +209,7 @@ describe("EventRegistrationForm", () => {
 
     await user.clear(screen.getByLabelText(/^Email/));
     await user.type(screen.getByLabelText(/^Email/), "sam@example.com");
+    await sayNoMinors(user);
     await user.click(
       screen.getByRole("button", { name: "Complete registration" }),
     );
@@ -139,6 +245,7 @@ describe("EventRegistrationForm", () => {
 
     await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
     await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await sayNoMinors(user);
     await user.click(
       screen.getByRole("button", { name: "Complete registration" }),
     );
@@ -159,10 +266,123 @@ describe("EventRegistrationForm", () => {
     await user.click(
       screen.getByRole("option", { name: "No, this would be my first" }),
     );
+    await sayNoMinors(user);
     await user.click(
       screen.getByRole("button", { name: "Complete registration" }),
     );
 
     expect(lastSubmission().attendedBefore).toBe("no");
+  });
+});
+
+// #685. The three things the block has to get right: it is asked of everybody
+// identically, it is required, and what it reveals is the organization's own
+// rule rather than one the platform wrote.
+describe("EventRegistrationForm and the minors question", () => {
+  beforeEach(() => {
+    registerForEventActionMock.mockClear();
+  });
+
+  test("asks everyone, in the same words", () => {
+    const { unmount } = render(<EventRegistrationForm eventId="event-1" />);
+    expect(
+      screen.getByLabelText(/Is anyone in your party under 18\?/),
+    ).toBeVisible();
+    unmount();
+
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        account={{ email: "jane@example.com", name: "Jane Rivers" }}
+      />,
+    );
+    expect(
+      screen.getByLabelText(/Is anyone in your party under 18\?/),
+    ).toBeVisible();
+  });
+
+  test("nothing about an accompanying adult until the answer is yes", async () => {
+    const user = userEvent.setup();
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        minorAccompaniment={["An adult has to be with them for the whole day."]}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/Accompanying adult/i)).toBeNull();
+    expect(
+      screen.queryByText("An adult has to be with them for the whole day."),
+    ).toBeNull();
+
+    await user.click(screen.getByLabelText(/under 18/i));
+    await user.click(screen.getByRole("option", { name: "Yes" }));
+
+    expect(
+      screen.getByText("An adult has to be with them for the whole day."),
+    ).toBeVisible();
+    expect(screen.getByLabelText(/Accompanying adult's name/i)).toBeVisible();
+  });
+
+  test("a yes posts the four contacts with it", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.click(screen.getByLabelText(/under 18/i));
+    await user.click(screen.getByRole("option", { name: "Yes" }));
+    await user.type(
+      screen.getByLabelText(/Accompanying adult's name/i),
+      "Jane Rivers",
+    );
+    await user.type(
+      screen.getByLabelText(/Accompanying adult's mobile/i),
+      "555-0101",
+    );
+    await user.type(
+      screen.getByLabelText(/Emergency contact's name/i),
+      "Robin Rivers",
+    );
+    await user.type(
+      screen.getByLabelText(/Emergency contact's phone/i),
+      "555-0102",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission()).toMatchObject({
+      partyIncludesMinor: "yes",
+      accompanyingAdultName: "Jane Rivers",
+      accompanyingAdultPhone: "555-0101",
+      emergencyContactName: "Robin Rivers",
+      emergencyContactPhone: "555-0102",
+    });
+  });
+
+  // Changed their mind. Nobody agreed to give a guardian's number for a party
+  // that has none, so the form stops sending them.
+  test("going back to no sends no contacts", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.click(screen.getByLabelText(/under 18/i));
+    await user.click(screen.getByRole("option", { name: "Yes" }));
+    await user.type(
+      screen.getByLabelText(/Accompanying adult's name/i),
+      "Jane Rivers",
+    );
+    await sayNoMinors(user);
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    const submission = lastSubmission();
+    expect(submission.partyIncludesMinor).toBe("no");
+    expect(submission.accompanyingAdultName).toBeUndefined();
+    expect(submission.emergencyContactPhone).toBeUndefined();
   });
 });

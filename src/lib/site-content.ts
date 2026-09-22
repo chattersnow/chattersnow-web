@@ -305,6 +305,7 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   { key: "about_team:team", page: "about_team", label: "The team" },
 
   { key: "events:listing", page: "events", label: "Events listing" },
+  { key: "events:registration", page: "events", label: "Registration" },
   {
     key: "events:community",
     page: "events",
@@ -416,7 +417,7 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     page: "legal",
     label: "Documents",
     description:
-      "The text of each document. Whether it is served at all is a separate decision, in Website > Legal documents: the terms, the code of conduct and the accessibility statement are published once your organization has adopted them, and the privacy policy always is (#859).",
+      "The text of each document. Whether it is served at all is a separate decision, in Website > Legal documents: the terms, the code of conduct and the accessibility statement are published once your organization has adopted them, the participant waiver once you have written one, and the privacy policy always is (#859).",
   },
 ] as const;
 
@@ -571,6 +572,16 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
         title: "Volunteering",
         requires: "volunteerApplications",
       },
+      // Named through the lexicon (#896), like the nav group above the gear
+      // library: "gear" is one organization's word for what these tables call
+      // inventory, and a heading about what an organization gives away has to
+      // be in that organization's noun. `platformLegalDocument()` resolves it,
+      // so nothing downstream sees the placeholder.
+      {
+        id: "items-we-give-away",
+        title: "{item_plural} we give away",
+        requires: "gearRequests",
+      },
       {
         id: "accessibility-and-inclusion",
         title: "Accessibility and inclusion",
@@ -596,6 +607,28 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
       { id: "reporting-a-problem", title: "Reporting a problem" },
       { id: "how-we-handle-a-report", title: "How we handle a report" },
       { id: "if-you-disagree", title: "If you disagree with a decision" },
+      { id: "questions", title: "Questions" },
+    ],
+  },
+  // Headings with nothing under them, and that is the whole entry (#686). The
+  // platform ships no waiver prose -- a release of legal rights cannot be
+  // written for an organization that has not written it -- so this outline is
+  // the starting point the document editor offers and the only thing the
+  // platform says about the shape of a participant agreement.
+  //
+  // A heading list is scaffolding: it makes no factual claim, commits the
+  // organization to nothing, and every line of it can be deleted. The prose
+  // would be neither, which is why there is none. No `requires` keys either --
+  // that field filters the platform's own document against the collection
+  // surface (#1291), and there is no document here to filter.
+  "legal.waiver": {
+    title: "Participant Waiver",
+    sections: [
+      { id: "who-this-covers", title: "Who this covers" },
+      { id: "what-youre-agreeing-to", title: "What you’re agreeing to" },
+      { id: "risks", title: "Risks of taking part" },
+      { id: "your-responsibilities", title: "Your responsibilities" },
+      { id: "if-something-happens", title: "If something happens" },
       { id: "questions", title: "Questions" },
     ],
   },
@@ -1929,6 +1962,27 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default: "Browse upcoming and past events.",
   },
   {
+    key: "events.minor_accompaniment",
+    page: "events",
+    section: "events:registration",
+    label: "If the party includes someone under 18",
+    description:
+      "Your rule for a party that includes anyone under 18, shown on the registration form as soon as somebody answers yes: who has to come with them, whether that adult registers too and counts in the number attending, and whether you set a minimum age at all. Blank renders nothing here but the line saying what the form asks for and that it never asks a date of birth.",
+    type: "paragraphs",
+    // Blank, like `get_involved.volunteer_screening` and `org.security_note`,
+    // and for the same reason (#685). That the form collects an accompanying
+    // adult and an emergency contact is a fact about this software, so the
+    // component says it on every tenant. "A parent or guardian must be present
+    // for the whole event" is one organization's rule -- `docs/legal-basis.md`
+    // rule 2 puts it out of reach of a default, and a tenant that has adopted
+    // no safeguarding policy would otherwise be publishing one it never wrote.
+    //
+    // Nothing is collected by the paragraphs either way. #1318 decided that
+    // submitting a public form accepts nothing, so this is notice rather than
+    // consent: no checkbox, no column, no stored pointer to a version.
+    default: [],
+  },
+  {
     key: "events.community_heading",
     page: "events",
     section: "events:community",
@@ -2317,6 +2371,28 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "text",
     default:
       "We run on volunteers. Here are some of the ways you can get involved.",
+  },
+  {
+    key: "get_involved.volunteer_screening",
+    page: "get_involved",
+    section: "get_involved:volunteer",
+    label: "What happens after you apply",
+    description:
+      "What happens between an application arriving and a role starting — references, a conversation, a background check where the role calls for one, who sees the result, and whether a record is a bar. Write it before any screening begins: a check disclosed afterwards means going back to everyone already in the pipeline for consent. Blank renders nothing here but the line saying this form does not ask for a date of birth, a home address, or a Social Security number.",
+    type: "paragraphs",
+    // Blank, like `org.security_note`, and for a related reason (#690). The
+    // platform can say what the application *asks for* -- that is a fact about
+    // this software, checkable against `parseVolunteerApplicationForm`, and the
+    // component says it on every tenant. "We ask for references and may run a
+    // check" is a claim about an organization's own process, and
+    // `docs/legal-basis.md` rule 2 puts that out of reach of a default: a
+    // tenant that has adopted no screening policy would be publishing a hint
+    // that it screens. A tenant that has decided nothing describes nothing.
+    //
+    // Nothing is collected either way. #1318 decided that submitting a public
+    // form accepts nothing, so this is notice rather than consent: no checkbox,
+    // no column, no stored pointer to a version.
+    default: [],
   },
   {
     key: "get_involved.volunteer_empty",
@@ -2756,6 +2832,20 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "document",
     default: null,
     route: "/code-of-conduct",
+  },
+  {
+    key: "legal.waiver",
+    page: "legal",
+    section: "legal:documents",
+    label: "Participant waiver",
+    // Deliberately not the "leave unset to serve the platform's starting
+    // document" sentence the three above carry: there is no starting document,
+    // and saying so is the point (#686).
+    description:
+      "Shown in full when somebody registers for an event, and accepted with a tick box. There is no starting text for this one -- a release of legal rights is your organization's to write with its own counsel. Until you publish one and put it in force, /waiver is not served and registration asks nothing.",
+    type: "document",
+    default: null,
+    route: "/waiver",
   },
   {
     key: "legal.accessibility",

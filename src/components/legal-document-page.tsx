@@ -65,11 +65,18 @@ export async function legalDocumentMetadata({
   const supabase = await createSupabaseServerClient();
   const site = await getPublicSite(supabase);
   const doc = site.content.document(slotKey);
+  // A document with no platform prose (#686) has no description to fall back
+  // on either. Without this guard `platformLegalDescription` throws here and
+  // `generateMetadata` 500s the request, on a route whose page is correctly
+  // about to 404.
+  const hasPlatformDefault =
+    legalDocumentBySlot(slotKey)?.hasPlatformDefault ?? true;
   return {
     title: publicTitle(site, doc?.title ?? fallbackTitle),
-    description: doc
-      ? undefined
-      : platformLegalDescription(slotKey, await legalOrg(supabase, site)),
+    description:
+      doc || !hasPlatformDefault
+        ? undefined
+        : platformLegalDescription(slotKey, await legalOrg(supabase, site)),
     robots: requestedVersion ? { index: false, follow: true } : undefined,
   };
 }
@@ -84,6 +91,14 @@ export async function LegalDocumentPage({
   const supabase = await createSupabaseServerClient();
   const site = await getPublicSite(supabase);
   const own = site.content.document(slotKey);
+
+  // In force, and nothing to serve. The adoption toggle and
+  // `publish_site_content()` both refuse to create this state (#686), so
+  // reaching it means somebody wrote `site_content` directly -- and an empty
+  // document under an organization's name is worse than a 404, because it
+  // reads as a document they adopted.
+  if (!own && !registered.hasPlatformDefault) notFound();
+
   const versions = await getPublishedLegalVersions(supabase, registered.key);
 
   // What the tenant is serving right now, which is what a version is measured
@@ -132,7 +147,7 @@ export async function LegalDocumentPage({
             showing={chosen}
             inForce={inForce}
             organization={site.name}
-            servingPlatformDefault={!own}
+            servingPlatformDefault={!own && registered.hasPlatformDefault}
           />
         }
       />
@@ -151,7 +166,7 @@ export async function LegalDocumentPage({
           showing={inForce}
           inForce={inForce}
           organization={site.name}
-          servingPlatformDefault={!own}
+          servingPlatformDefault={!own && registered.hasPlatformDefault}
         />
       }
     />

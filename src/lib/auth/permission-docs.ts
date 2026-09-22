@@ -57,9 +57,9 @@ export type PermissionDoc = {
 export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   // ---------------------------------------------------------------- Events
   events: {
-    view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups. Also what the Calendar reads to show events alongside calendar items.",
+    view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18. Also what the Calendar reads to show events alongside calendar items.",
     manage:
-      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, discount codes, sponsors, giveaway tiers and logistics.",
+      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen.",
     excludes: [
       {
         key: "event_expenses",
@@ -385,7 +385,32 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
         key: "event_volunteer_hours",
         covers: "hours as they are logged against an event",
       },
+      {
+        key: "volunteer_screening",
+        covers:
+          "whether somebody has been cleared for a screening level, which is granted separately and deliberately narrower",
+      },
       { key: "people", covers: "the underlying contact records" },
+    ],
+  },
+  volunteer_screening: {
+    view: "Open Volunteers > Screening levels, and see the screening outcomes recorded against a person on their profile and on a volunteer application.",
+    manage:
+      "Name the screening levels this organization recognises, and record or remove the outcome of a screening against a person.",
+    excludes: [
+      {
+        key: "volunteers",
+        covers:
+          "role types, applications and everyone's participation -- none of which this one grants",
+      },
+      {
+        key: "people",
+        covers: "the contact record an outcome is filed against",
+      },
+    ],
+    notes: [
+      "Seeded to Administrator alone, and deliberately not mirroring Volunteers: a coordinator or a volunteer holds Volunteers at View and has no reason to see who has been screened.",
+      "The portal stores the outcome and nothing else -- a level and a date. It has nowhere to put a check, a result, a reference or a note, by design rather than by policy.",
     ],
   },
   volunteer_hours_logging: {

@@ -108,6 +108,31 @@ export const eventRegistrationSchema = z
     instagram_handle: optionalText(30).meta({
       description: "Without the @; letters, numbers, dots and underscores.",
     }),
+    // #685, and every one of them optional on purpose. This contract predates
+    // the question, so a caller that says nothing is recorded as never having
+    // been asked rather than as a "no" -- the same three-state reading the
+    // column carries. Send `true` and the four contacts become required, which
+    // is the one rule the organization's own policy rests on.
+    party_includes_minor: z.boolean().optional().meta({
+      description:
+        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no.",
+    }),
+    accompanying_adult_name: optionalText(200).meta({
+      description:
+        "The adult attending with them. Required when party_includes_minor is true.",
+    }),
+    accompanying_adult_phone: optionalText(50).meta({
+      description:
+        "A number that reaches that adult on the day. Required when party_includes_minor is true.",
+    }),
+    emergency_contact_name: optionalText(200).meta({
+      description:
+        "Who to call in an emergency. Required when party_includes_minor is true.",
+    }),
+    emergency_contact_phone: optionalText(50).meta({
+      description:
+        "That contact's number. Required when party_includes_minor is true.",
+    }),
   })
   .meta({ id: "EventRegistration" });
 
@@ -149,6 +174,18 @@ export const gearRequestSchema = z
     payment_method: optionalText(60).meta({
       description:
         "One of the keys from `/gear-request-settings`, when shipping.",
+    }),
+    // Required, and `true` is the only value that parses (#1367). Unlike the
+    // participant waiver it is not conditional on anything a tenant has
+    // adopted: these items are given as-is on every organization running this
+    // software, so every request records that the person asking was told so.
+    // A consumer that will not say it on the requester's behalf should not be
+    // making the request. The wording is the platform's own and is snapshotted
+    // onto the row by this endpoint, not sent -- read it from `/legal`'s terms
+    // of use, under "we give away".
+    as_is_acknowledged: z.literal(true).meta({
+      description:
+        "Confirms the person asking was shown, and understood, that these items are given as-is — not inspected, tested, serviced or certified. Must be `true`; there is no way to request without it. Show them the wording first: it is the `items-we-give-away` section of this organization's terms of use.",
     }),
   })
   .meta({ id: "GearRequest" });

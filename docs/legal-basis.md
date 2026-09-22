@@ -2,7 +2,10 @@
 
 The four documents in `src/lib/legal-defaults.ts` — a privacy policy, terms of
 use, a code of conduct and an accessibility statement — are what a tenant is
-served when it has published none of its own. Since #859 `/privacy` is served **unconditionally**, so from
+served when it has published none of its own. They are four of the five in
+`src/lib/legal-documents.ts`; the fifth, the participant waiver, is the one the
+platform does not write. See rule 5. Since #859 `/privacy` is served
+**unconditionally**, so from
 the moment a tenant is provisioned this text is that organization's published
 privacy policy, under its own name and its own brand.
 
@@ -44,6 +47,16 @@ in any edit:
 4. **Only what _this tenant's_ software does.** A bullet, a retention row or a
    section that belongs to a collection surface drops out when that surface is
    off.
+5. **A document the platform cannot write, it does not write.** Rule 2 taken to
+   its end. The participant waiver (#686) is a release of legal rights, which
+   cannot be asserted for an organization that has not asserted it, so there is
+   no `legal.waiver` entry in `PLATFORM_LEGAL_PROSE` and no neutral draft to
+   fall back on. A tenant that has written none has nothing: `/waiver` 404s,
+   the footer omits it, and its registration form asks about no agreement. The
+   registry records this as `hasPlatformDefault: false`, and it is the only
+   entry that carries it — `legal-defaults.test.ts` asserts that the flag and
+   the prose cannot drift apart, and that a document which is always in force
+   must have something to serve.
 
 It is a starting point for an organization's own counsel to rewrite, not legal
 advice, and the Site Content editor says so where the slot is edited.
@@ -97,10 +110,14 @@ longer applies to is still a change.
 
 ## Approval log
 
-| Date       | Version approved   | Approver                | Scope and notes                                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------- | ------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-21 | September 21, 2026 | Rickie (platform owner) | First recorded approval of all three documents. Covers the text as rendered by `bun run docs:legal` at this version, which is the first to name Sentry in the privacy policy's subprocessor list (#1340). The prior state was not an approval: the documents had been served since #858 and #1291 with no reviewer and no record.                                                                 |
-| 2026-09-22 | September 22, 2026 | Rickie (platform owner) | Adds a fourth document, the accessibility statement (#1368), and supersedes the row above for the other three, whose text is unchanged. Covers the text as rendered by `bun run docs:legal` at this version. The claim approved here is deliberately a **partial** one: full automated coverage, incomplete manual coverage, no full screen-reader pass, scoped to the public site and saying so. |
+| Date       | Version approved   | Approver                | Scope and notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-23 | September 23, 2026 | Rickie (platform owner) | Adds a fifth legal document and the platform's fourth piece of prose, the accessibility statement (#1368). It says what is tested and how, that an automated check finds a minority of the barriers that exist, that **no full manual screen-reader pass has been done**, and that the conformance claim is therefore **partial rather than complete**; it is scoped to the public website explicitly rather than by silence, because every entry in `e2e/a11y-baseline.json` today is a portal route. Both sentences that depend on that are held against the baseline file by `legal-defaults.test.ts`, so a public route joining it fails a test rather than leaving a false statement published under an organization's name. The three things only an organization can answer — who to contact, what it commits to when told, and whether its own events and venues are accessible — carry no numbers here and are named as the parts to replace in the Site Content slot description. Shares its version string with the row below, which moved the prose under the same constant first; being last, this approval covers the text as it now renders and supersedes it. Approval requested in the pull request that adds it. |
+| 2026-09-23 | September 23, 2026 | Rickie (platform owner) | Adds a section to the terms of use, `items-we-give-away`, carried only by a tenant whose site takes item requests (#1367): what the organization gives away is given as-is, nothing is inspected, tested, serviced, repaired or certified, no safety-critical work is done on it, and having it checked is the recipient's to arrange. Every claim is about what the software and the organization running it do _not_ do, which is rule 1 — cataloguing donated equipment and passing it on is not an inspection, and saying so commits nobody to anything. The snow-sports specifics a first tenant needs (binding mounting, DIN setting, boot fitting) are deliberately absent: they are that tenant's own text. Its heading and its nouns resolve through the lexicon, so an organization that lends tools reads "tools" and has agreed to no different claim. The same paragraphs are what a requester reads above the box they tick on the public cart — one constant, `GEAR_AS_IS_SUMMARY`, held to the document by `legal-defaults.test.ts`. Approval requested in the pull request that adds it.                                                                                                                          |
+| 2026-09-22 | September 22, 2026 | Rickie (platform owner) | Adds to the privacy policy's event-registration bullet what registration now asks about anyone under 18 (#685): the question itself, the accompanying adult and emergency contact a "yes" collects, that no date of birth or age is ever asked, and that the two contacts are readable only by the people who run the organization. The section's opening sentence gains a clause naming the one field where somebody supplies **another person's** details — the emergency contact never visits the site and cannot be given notice at the point of collection, so the document says so instead. The third change to land on this calendar day and therefore the third row against the same `PLATFORM_LEGAL_LAST_UPDATED` value: the constant is a date, and #686, #1360 and this one all moved the prose under it. Being last, this approval covers the text as it now renders and supersedes the two below rather than sitting beside them.                                                                                                                                                                                                                                                                                     |
+| 2026-09-22 | September 22, 2026 | Rickie (platform owner) | Adds the volunteer-screening disclosure (#1360): a paragraph in "What we collect" saying the portal records only the outcome of a screening — which level, the date, and when the clearance runs to — and never the check, its result or anything a provider returns, plus a sentence in "Who can see it" that the outcome sits behind a separate permission from the rest of the volunteers module. Both are claims about the software rather than about any organization's process, checkable against `person_screenings`, which has no column a result could be written into. Adds the matching retention row. Shares its version string with the #686 row below: the constant is a date and both changes landed on it. Approval requested in the pull request that adds it.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2026-09-22 | September 22, 2026 | Rickie (platform owner) | Adds one sentence to the privacy policy's event-registration bullet: where the organization asks somebody to accept a participant agreement before registering, the record of that acceptance — that it happened, when, and which version was shown — is kept with the registration (#686). Conditional in its own wording rather than gated on a collection surface, for the reason given in the code comment beside it. No other prose changed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-09-21 | September 21, 2026 | Rickie (platform owner) | First recorded approval of all three documents. Covers the text as rendered by `bun run docs:legal` at this version, which is the first to name Sentry in the privacy policy's subprocessor list (#1340). The prior state was not an approval: the documents had been served since #858 and #1291 with no reviewer and no record.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## What submitting a public form means
 
@@ -127,21 +144,58 @@ submitted and worded by the organization for that purpose:
 - **Artwork submissions** — an unticked box confirming the work is the artist's
   own, and agreeing to the call's own `rights_note` (#876, #877) where it has
   one. The timestamp is stored on the submission.
-- **Photo and media consent** (#599) and **the participant waiver** (#686) are
-  the same shape when they land: a real choice, and a box that can be left
-  unticked.
+- **The participant waiver** (#686) — an unticked box beneath the organization's
+  own agreement, shown in full at the point of registration rather than behind a
+  link. `event_registrations.waiver_accepted_at` and `waiver_version` record
+  when, and which version, both resolved server-side. Taken on the signed-in
+  registration path too: holding an account is not agreement to anything.
+- **Items given as-is** (#1367) — an unticked box on the public request form,
+  beneath a summary in the platform's own words of what taking a donated item
+  means. Declining it is declining the item, which is what makes it a gate
+  rather than a notice. `gear_requests.as_is_acknowledged_at` records when, and
+  `as_is_text` snapshots the wording that was on screen — resolved on the
+  server from `src/lib/gear-as-is.ts`, never sent by the browser. Taken on the
+  signed-in request path too, for the reason the waiver is: holding an account
+  is not agreement to anything.
+- **Photo and media consent** (#599) is the same shape when it lands: a real
+  choice, and a box that can be left unticked.
 
 What follows from this:
 
 - No consent checkbox for the privacy policy on any public form. A box that
   cannot be declined dilutes the ones that can.
-- No stored pointer to a legal document version on a public submission. Such a
-  column would assert an acceptance the interface never obtained.
-  `legal_document_versions` (#601) stays evidence-driven; this is not the
-  evidence for it.
+- No stored pointer to a legal document version on a submission **that did not
+  obtain one**. Such a column would assert an acceptance the interface never
+  made. `event_registrations.waiver_version` is the single exception and the
+  only one this shape permits, because the waiver is shown in full where it is
+  accepted and its box can be left unticked. Nothing stores a pointer to the
+  privacy policy, the terms or the code of conduct, and nothing may.
+  A **snapshot** is a different thing and is allowed where an acceptance was
+  genuinely obtained: `artwork_submissions.consented_terms` (#1319) and
+  `gear_requests.as_is_text` (#1367) each hold the words the person was shown,
+  because those words live in a call row or a component constant with no
+  version identity and no permalink to point at. The test is #1319's — a
+  pointer where the text has an address, a snapshot where it does not, and
+  neither where nothing was accepted.
 - Reopening this needs a legal reason rather than a design one — a tenant whose
   terms of use genuinely bind a registrant, say. It would be that tenant's claim
   to make, in that tenant's wording, and conditional on what it has adopted.
+
+**Reopened once, on those terms, 2026-09-22 by the platform owner (#686).** The
+participant waiver meets all three conditions: it is per tenant, it is in that
+tenant's own words, and it exists only where that tenant has adopted one. It
+takes a real acceptance and stores a version pointer, and the bullet above is
+written to say so. It is not a precedent for the site-wide notices, which take
+no acceptance and still store no pointer.
+
+One thing it does not resolve, recorded here because it is a retention decision
+rather than an engineering one: `purge_expired_records()` anonymizes a
+registration three years after its event, and the acceptance survives while the
+name and email do not — so the row ends up reading "Removed accepted waiver
+v2". Three years is short against the limitation periods that make a waiver
+worth holding. The honest answers are a separate acceptances table with its own
+clock, or exempting waiver-bearing registrations from the name and email strip.
+Carried to #1320 group E.
 
 ## What this does not cover
 
@@ -157,6 +211,10 @@ What follows from this:
   row below is also a decision to ask every such tenant to read the document
   again; that is the intended cost of a prose change, not a reason to avoid
   one.
-- **A citable version identity.** `PLATFORM_LEGAL_LAST_UPDATED` is the version
-  key in all but name, but there is no archive of superseded text and no
-  permalink to one.
+- **A citable version identity for _this_ text.** `PLATFORM_LEGAL_LAST_UPDATED`
+  is the version key in all but name, and there is still no archive of
+  superseded platform text and no permalink to one: the default is regenerated
+  from the live configuration on every request, so there is no snapshot to
+  keep. A **tenant's own** documents have had both since #601 —
+  `legal_document_versions` and `/<document>?version=N` — which is what
+  `event_registrations.waiver_version` points at.

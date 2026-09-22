@@ -202,6 +202,8 @@ declare
   v_recurring_local_date date;
   v_meeting_id constant uuid := 'abababab-0000-4000-8000-000000000001';
   v_role_type_id uuid;
+  v_screening_tier_1 uuid;
+  v_screening_tier_2 uuid;
   v_agenda_template_id uuid;
   v_agenda_template_version_id uuid;
   v_former_id uuid;
@@ -472,6 +474,46 @@ begin
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
   values (v_person_applicant, 'Taylor Kim', 'taylor.kim@example.test', '555-0106', 'Event Setup Crew', 'Weekday evenings', 'being reviewed', 'TYLRKIM2');
 
+  -- Screening levels and two outcomes (#1360).
+  --
+  -- The migration seeds no levels on any tenant, because what the levels are
+  -- is an organization decision. This is the worked case for local, CI and
+  -- e2e: three levels in the vocabulary Chatter Snow's own policy draft uses,
+  -- with descriptions at the length a real one runs to rather than a tidy
+  -- one-liner, so the table and the sheet are laid out against the text they
+  -- will actually hold.
+  insert into public.volunteer_screening_tiers (name, description, sort_order, is_active, created_by)
+  values (
+    'Tier 0 — general volunteer',
+    'Event setup, gear sorting, day-of logistics and social content. Always working alongside others, with no unsupervised contact with participants, no access to the operations portal and no handling of money. Identity confirmed, two references for anyone taking a recurring role, and agreement to the code of conduct.',
+    0, true, v_admin_id
+  );
+
+  insert into public.volunteer_screening_tiers (name, description, sort_order, is_active, created_by)
+  values (
+    'Tier 1 — trusted volunteer',
+    'Ride Buddy and any role pairing a volunteer one-to-one with a participant, gear library pickups, and anyone holding portal access to personal data. Everything Tier 0 asks for, plus an application interview, plus a background check where the board has decided one applies to the role.',
+    10, true, v_admin_id
+  )
+  returning id into v_screening_tier_1;
+
+  insert into public.volunteer_screening_tiers (name, description, sort_order, is_active, created_by)
+  values (
+    'Tier 2 — officers and anyone handling money',
+    'Board members, anyone holding finance access, and anyone who can approve a reimbursement or hold a donation. Everything Tier 1 asks for, plus a conflict-of-interest disclosure, plus a check appropriate to fiduciary responsibility.',
+    20, true, v_admin_id
+  )
+  returning id into v_screening_tier_2;
+
+  -- One live clearance and one that has lapsed, so the expired rendering path
+  -- is exercised by default rather than only by a test that remembers to set
+  -- it up.
+  insert into public.person_screenings (person_id, tier_id, cleared_on, expires_on, created_by)
+  values (v_person_volunteer, v_screening_tier_1, current_date - 200, current_date + 895, v_admin_id);
+
+  insert into public.person_screenings (person_id, tier_id, cleared_on, expires_on, created_by)
+  values (v_person_volunteer, v_screening_tier_2, current_date - 1200, current_date - 105, v_admin_id);
+
   -- Public contact-form submissions, exercising the ops inbox (issue #173):
   -- one unread so the notification bell/dashboard card have something to
   -- show out of the box, one already resolved to demonstrate the workflow.
@@ -481,8 +523,21 @@ begin
   insert into public.contact_messages (name, email, topic, message, status)
   values ('Casey Nolan', 'casey.nolan@example.test', 'general', 'Do you have gear available in kids sizes right now?', 'resolved');
 
-  insert into public.event_registrations (event_id, name, email, phone, party_size, notes, person_id, checked_in_at)
-  values (v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2, 'Needs one adult medium jacket.', v_person_donor1, null)
+  -- #685: the one seeded party with a minor in it, so the registrant list has
+  -- a badge to render, `event_registration_minor_contacts` has a row to gate,
+  -- and the retention purge has something to clear. Every other seeded
+  -- registration leaves the column null -- which is what a walk-in and a row
+  -- written before the question existed look like, and never a "no".
+  insert into public.event_registrations (
+    event_id, name, email, phone, party_size, notes, person_id, checked_in_at,
+    party_includes_minor, accompanying_adult_name, accompanying_adult_phone,
+    emergency_contact_name, emergency_contact_phone
+  )
+  values (
+    v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2,
+    'Needs one adult medium jacket.', v_person_donor1, null,
+    true, 'Jamie Rivera', '555-0101', 'Robin Rivera', '555-0102'
+  )
   returning id into v_registration_id;
 
   insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
@@ -1581,9 +1636,20 @@ insert into public.site_content (key, value, published_at) values
   ('programs.intro', '"Sample programs, seeded locally so the Programs page has something to lay out."', now()),
   ('programs.pillars', '[{"label":"Access","description":"Removing what stops people taking part."},{"label":"Community","description":"Bringing people who would not otherwise meet into the same room."}]', now()),
   ('programs.items', '[{"pillar":"Access","emoji":"\u2744\ufe0f","name":"Sample access program","description":"Copy-driven program card, rendered when the Programs page reads Site Content."},{"pillar":"Community","emoji":"\ud83e\udd1d","name":"Sample community program","description":"The second copy-driven card, so both pillars have something under them."}]', now()),
+  -- Blank by default, like get_involved.volunteer_screening below: the
+  -- platform does not write a safeguarding rule on a tenant's behalf (#685).
+  -- Seeded so local and CI have a tenant that has written one; the unwritten
+  -- case is what every other tenant has and what the unit tests cover.
+  ('events.minor_accompaniment', '["Anyone under 18 is welcome with a parent or legal guardian, and that adult needs to be with them for the whole event. Example Nonprofit is not staffed to supervise anyone.","The accompanying adult registers too, so please count them in the number attending. None of this is real: this is a development environment for a fictional organization."]', now()),
   ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
   ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
   ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),
+  -- Blank by default, like org.security_note above: the platform does not
+  -- describe a screening process on a tenant's behalf (#690). Seeded so local
+  -- and CI have a tenant that has written one, which is what e2e/legal.spec.ts
+  -- asserts; the unwritten case is covered by the unit tests, since a seeded
+  -- row is exactly what it is not.
+  ('get_involved.volunteer_screening', '["Example Nonprofit reads every application and emails you about next steps, usually within a week — expect a conversation about what you would like to do and when you are free.","For roles working one-to-one with a participant, Example Nonprofit asks for two references and talks it through with you before anything is agreed. Nobody is screened without being told first, and none of this is real: this is a development environment for a fictional organization."]', now()),
   ('support.intro', '"Sample support copy. No donation on this site goes anywhere -- it is a development environment."', now()),
   ('support.donations_intro', '"Explaining what donations would pay for, if Example Nonprofit were real."', now()),
   ('support.monetary_body', '"Online giving is not wired up in local development."', now()),

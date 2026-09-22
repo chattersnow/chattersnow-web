@@ -159,6 +159,23 @@ test.describe("notice at the point of collection", () => {
 
     const sheet = page.getByRole("dialog", { name: "Apply to volunteer" });
     await expectPrivacyNotice(sheet, /check your status with the reference/);
+
+    // The application carries a second block the other forms do not (#690):
+    // what happens after you apply, in the organization's own words, and what
+    // the form does not ask for, in the platform's. The seeded tenant has
+    // written the first; a tenant that has not gets only the second, which the
+    // component's own test covers.
+    await expect(
+      sheet.getByRole("heading", { name: "What happens after you apply" }),
+    ).toBeVisible();
+    await expect(sheet.getByText(/asks for two references/)).toBeVisible();
+
+    const asksFor = sheet.getByText(/It does not ask for your date of birth/);
+    await expect(asksFor).toBeVisible();
+    // Notice, not consent, and nothing to click: the sentence that says the
+    // form does not want an SSN must not itself be a link or a box (#1318).
+    await expect(asksFor.getByRole("link")).toHaveCount(0);
+    await expect(asksFor.getByRole("checkbox")).toHaveCount(0);
   });
 
   test("the event registration form", async ({ page }) => {
@@ -182,6 +199,23 @@ test.describe("notice at the point of collection", () => {
     // "items" rather than "gear": the noun is this tenant's own word (#896),
     // and the seeded tenant has not renamed it.
     await expectPrivacyNotice(cart, /match you with the items you asked for/);
+
+    // #1367. Beside the notice and unlike it: a real choice, in an unticked
+    // box, which is the difference `docs/legal-basis.md` draws. The seeded
+    // tenant has adopted no terms of use, so the summary is shown in full and
+    // nothing links `/terms` -- a notice may only link a document that is
+    // served (#859).
+    const asIs = cart.getByRole("checkbox", {
+      name: /I understand the items are given as-is/,
+    });
+    await expect(asIs).toBeVisible();
+    await expect(asIs).not.toBeChecked();
+    await expect(
+      cart.getByText(/We give away items exactly as they reach us/),
+    ).toBeVisible();
+    await expect(cart.getByRole("link", { name: /Terms of Use/ })).toHaveCount(
+      0,
+    );
   });
 
   // The fifth form, and the one #684 missed (#1344). It is reached by its code

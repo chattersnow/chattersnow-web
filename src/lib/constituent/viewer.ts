@@ -101,6 +101,17 @@ export type ViewerContactPrefill = {
    * browser it is what tells somebody the form is not about them.
    */
   signedInAs: string | null;
+  /**
+   * Whether this reader has a `people` row of their own (#1359).
+   *
+   * A form with a self-service write behind it shows a linked reader their
+   * own name and address rather than asking for them, because the write
+   * attaches to that record whatever is typed. This is a fact about the
+   * caller's own session and nothing else, which is the §5.23 line: a visitor
+   * and an account with a claim still pending both read `false`, so nothing
+   * here answers "do you have a record of this person?".
+   */
+  linked: boolean;
 };
 
 export const EMPTY_CONTACT_PREFILL: ViewerContactPrefill = {
@@ -109,6 +120,7 @@ export const EMPTY_CONTACT_PREFILL: ViewerContactPrefill = {
   phone: "",
   instagramHandle: "",
   signedInAs: null,
+  linked: false,
 };
 
 /**
@@ -135,5 +147,6 @@ export function contactPrefill(
     phone: person.phone ?? "",
     instagramHandle: person.instagram_handle ?? "",
     signedInAs: viewer.account.email,
+    linked: true,
   };
 }

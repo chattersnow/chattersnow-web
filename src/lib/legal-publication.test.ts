@@ -176,6 +176,7 @@ describe("getLegalPublication", () => {
       privacy: true,
       terms: false,
       code_of_conduct: false,
+      waiver: false,
       accessibility: false,
     });
   });
@@ -200,6 +201,7 @@ describe("getLegalPublication", () => {
         privacy: true,
         terms: false,
         code_of_conduct: false,
+        waiver: false,
         accessibility: false,
       });
       expect(error).toHaveBeenCalled();
@@ -216,6 +218,7 @@ describe("documentsInForce", () => {
         privacy: true,
         terms: false,
         code_of_conduct: true,
+        waiver: false,
         accessibility: true,
       }).map((document) => document.route),
     ).toEqual(["/privacy", "/code-of-conduct", "/accessibility"]);
@@ -235,6 +238,7 @@ describe("getTenantLegalPublication", () => {
       privacy: true,
       terms: true,
       code_of_conduct: true,
+      waiver: false,
       accessibility: false,
     });
   });
@@ -246,6 +250,7 @@ describe("getTenantLegalPublication", () => {
       privacy: true,
       terms: false,
       code_of_conduct: false,
+      waiver: false,
       accessibility: false,
     });
   });

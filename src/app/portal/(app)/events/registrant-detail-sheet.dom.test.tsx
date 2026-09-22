@@ -20,7 +20,11 @@ const REGISTRANT: EventRegistrant = {
   person_id: "33333333-3333-4333-8333-333333333333",
   checked_in_at: null,
   attended_before: false,
+  waiver_accepted_at: null,
+  waiver_version: null,
+  party_includes_minor: null,
   rider: null,
+  minorContacts: null,
 };
 
 function renderSheet(
@@ -28,6 +32,7 @@ function renderSheet(
     registrant?: Partial<EventRegistrant>;
     canManage?: boolean;
     orgEmailEnabled?: boolean;
+    waiverInForce?: boolean;
   } = {},
 ) {
   render(
@@ -40,6 +45,7 @@ function renderSheet(
       replyTo="hello@chattersnow.org"
       orgEmailEnabled={overrides.orgEmailEnabled ?? true}
       canManage={overrides.canManage ?? true}
+      waiverInForce={overrides.waiverInForce ?? false}
       onClosed={() => {}}
     />,
   );
@@ -133,5 +139,96 @@ describe("RegistrantDetailSheet", () => {
     });
     expect(screen.getAllByText("Rides").length).toBeGreaterThan(0);
     expect(screen.getByText("Prefers Hunter")).toBeInTheDocument();
+  });
+
+  // #686. Three states, and the difference between the last two is the whole
+  // reason `waiverInForce` is read at all.
+  test("says nothing about an agreement on a tenant that takes none", () => {
+    renderSheet();
+
+    expect(screen.queryByText("Agreement")).toBeNull();
+  });
+
+  test("shows the accepted version, linking that exact one", () => {
+    renderSheet({
+      registrant: {
+        waiver_accepted_at: "2026-09-01T12:00:00Z",
+        waiver_version: 4,
+      },
+      waiverInForce: true,
+    });
+
+    expect(screen.getAllByText("Agreement").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Accepted version 4 on/)).toBeInTheDocument();
+    // The permalink is why the column stores a version rather than a copy of
+    // the text: somebody reading this during a dispute reaches the exact
+    // words without asking anybody.
+    expect(
+      screen.getByRole("link", { name: "Read that version" }),
+    ).toHaveAttribute("href", "/waiver?version=4");
+  });
+
+  // Not an em dash, and not "declined": declining is not submitting, so a
+  // refusal leaves no registration for this sheet to open.
+  test("an older registration says no agreement was in force, not that they refused", () => {
+    renderSheet({ waiverInForce: true });
+
+    expect(
+      screen.getByText(/no agreement was in force when they registered/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/declin/i)).toBeNull();
+  });
+
+  // Withdrawing the agreement must not erase the record of who accepted it.
+  test("keeps the row for a registration that carries one after it is withdrawn", () => {
+    renderSheet({
+      registrant: {
+        waiver_accepted_at: "2026-09-01T12:00:00Z",
+        waiver_version: 4,
+      },
+      waiverInForce: false,
+    });
+
+    expect(screen.getByText(/Accepted version 4 on/)).toBeInTheDocument();
+  });
+
+  // #685. The split the ticket is about: the fact is for everybody who can
+  // open the sheet, the two contacts are not — and they are absent because the
+  // database refused them, not because this component declined to ask.
+  test("says nothing about minors for a party that has none", () => {
+    renderSheet({ registrant: { party_includes_minor: false } });
+    expect(screen.queryByText("Under 18 in the party")).toBeNull();
+
+    renderSheet({ registrant: { party_includes_minor: null } });
+    expect(screen.queryByText("Under 18 in the party")).toBeNull();
+  });
+
+  test("an organizer sees the accompanying adult and the emergency contact", () => {
+    renderSheet({
+      registrant: {
+        party_includes_minor: true,
+        minorContacts: {
+          accompanying_adult_name: "Robin Rivera",
+          accompanying_adult_phone: "555-0101",
+          emergency_contact_name: "Sam Rivera",
+          emergency_contact_phone: "555-0102",
+        },
+      },
+    });
+
+    expect(screen.getByText("Under 18 in the party")).toBeInTheDocument();
+    expect(screen.getByText(/Robin Rivera · 555-0101/)).toBeInTheDocument();
+    expect(screen.getByText(/Sam Rivera · 555-0102/)).toBeInTheDocument();
+  });
+
+  test("a door shift sees the flag and neither contact", () => {
+    renderSheet({
+      canManage: false,
+      registrant: { party_includes_minor: true, minorContacts: null },
+    });
+
+    expect(screen.getByText("Under 18 in the party")).toBeInTheDocument();
+    expect(screen.queryByText("Accompanying adult")).toBeNull();
+    expect(screen.queryByText("Emergency contact")).toBeNull();
   });
 });
