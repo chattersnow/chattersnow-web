@@ -12,6 +12,7 @@
 // `applies` reports that so the run can distinguish "scanned, clean" from
 // "never opened", which is the distinction this whole ticket exists to make.
 import type { Page } from "@playwright/test";
+import { modal } from "./helpers/dialog";
 
 export type Surface = {
   name: string;
@@ -33,9 +34,6 @@ export type Surface = {
    */
   viewports?: readonly ("desktop" | "mobile")[];
 };
-
-const modal = (page: Page) =>
-  page.getByRole("dialog").and(page.locator(':not([data-slot="toast"])'));
 
 /** Any overlay a surface can leave behind, toasts excepted. */
 export const OVERLAY_SELECTOR =

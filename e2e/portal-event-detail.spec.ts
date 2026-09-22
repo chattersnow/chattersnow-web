@@ -140,9 +140,9 @@ function railRow(page: import("@playwright/test").Page, title: string) {
  * above it, where the rail is a column that is always up.
  */
 function railSheet(page: import("@playwright/test").Page) {
-  return page
-    .getByRole("dialog")
-    .filter({ has: page.getByRole("navigation", { name: "Event sections" }) });
+  return modal(page).filter({
+    has: page.getByRole("navigation", { name: "Event sections" }),
+  });
 }
 
 /**
