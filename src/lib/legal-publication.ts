@@ -307,6 +307,10 @@ export const getTenantLegalAcknowledgements = cache(
  * attention item never report the same document twice and never leave one
  * unaccounted for.
  *
+ * A document the platform has no text for is absent from this one whatever
+ * happens, because there is nothing for anybody here to have read: the waiver
+ * (#686) is answered by drift alone.
+ *
  * A document not in force is absent from both. The terms and the code of
  * conduct serve nothing until an organization adopts them, and asking somebody
  * to confirm they have read a page that 404s is asking for a signature on a
@@ -324,6 +328,12 @@ export async function getLegalAcknowledgementState(
   const state: Record<string, LegalAcknowledgement> = {};
   for (const document of LEGAL_DOCUMENTS) {
     if (!publication[document.key]) continue;
+    // Nothing to have read. A document with no platform prose (#686) is always
+    // the tenant's own words, so the line below would already skip it -- but
+    // only while the text exists. Saying it here means the in-force-with-no-
+    // text state cannot produce a request to confirm somebody read a document
+    // the platform never wrote.
+    if (!document.hasPlatformDefault) continue;
     if (ownDocuments.has(document.slotKey)) continue;
     state[document.key] = resolveLegalAcknowledgement(
       acknowledgements[document.key],

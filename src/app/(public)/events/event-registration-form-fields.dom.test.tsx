@@ -33,6 +33,91 @@ describe("EventRegistrationForm", () => {
     registerForEventActionMock.mockClear();
   });
 
+  // #686. The whole of the degraded path: a tenant that has adopted no
+  // participant agreement sees the form exactly as it was before this shipped,
+  // and posts nothing about one.
+  test("says nothing about an agreement when the tenant takes none", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+
+    await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+    await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    const submission = lastSubmission();
+    expect(submission.waiverAccepted).toBeUndefined();
+    expect(submission.waiverVersion).toBeUndefined();
+  });
+
+  test("the agreement's box starts unticked", () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        waiver={{ version: 3 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    expect(screen.getByText("The agreement itself")).toBeVisible();
+    const box = screen.getByRole("checkbox", { name: /I have read the/ });
+    expect(box).not.toBeChecked();
+    // A pre-ticked box is not an acceptance, and `required` is what makes the
+    // browser say which control is missing rather than silently refusing.
+    expect(box).toBeRequired();
+  });
+
+  test("posts the acceptance and the version it was shown", async () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        waiver={{ version: 3 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+    await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /I have read the/ }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission()).toMatchObject({
+      waiverAccepted: "on",
+      // Sent so the server can refuse a submission made against text that has
+      // been republished since it was rendered.
+      waiverVersion: "3",
+    });
+  });
+
+  // An untouched box does not submit at all: `required` blocks it in the
+  // browser, which is why the label says so rather than the button going grey.
+  // That is a convenience and never the gate -- `accepted_waiver_version()`
+  // refuses the same submission server-side, which is what an integration test
+  // covers and this cannot.
+  test("an untouched box does not submit", async () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        waiver={{ version: 3 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+    await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(registerForEventActionMock).not.toHaveBeenCalled();
+  });
+
   test("a visitor with no session gets the blank form it always had", () => {
     render(<EventRegistrationForm eventId="event-1" />);
 

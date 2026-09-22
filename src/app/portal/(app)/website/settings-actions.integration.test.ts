@@ -174,6 +174,66 @@ describe("website settings actions (integration)", () => {
     });
   });
 
+  // #686. The waiver is the one document with no platform text, so adopting it
+  // before writing it would serve an empty page under the organization's name
+  // and start refusing every event registration. The panel disables the switch
+  // for the same reason; this is the refusal behind it.
+  describe("the participant waiver cannot be adopted before it is written", () => {
+    const PUBLICATION = "legal_publication.waiver";
+    const SLOT = "legal.waiver";
+
+    afterEach(async () => {
+      const admin = createSupabaseAdminClient();
+      await admin.from("app_settings").delete().eq("key", PUBLICATION);
+      await admin.from("site_content").delete().eq("key", SLOT);
+    });
+
+    test("refuses while the tenant has published none", async () => {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+      expect(await updateLegalPublicationAction("waiver", true)).toEqual({
+        error:
+          "Write and publish your participant waiver first. There is no starting text for it, so putting it in force would serve nothing.",
+      });
+
+      const admin = createSupabaseAdminClient();
+      const { data } = await admin
+        .from("app_settings")
+        .select("value")
+        .eq("key", PUBLICATION)
+        .maybeSingle();
+      expect(data).toBeNull();
+    });
+
+    test("allows it once the text is published", async () => {
+      const admin = createSupabaseAdminClient();
+      await admin.from("site_content").upsert(
+        {
+          key: SLOT,
+          value: {
+            title: "Participant Waiver",
+            last_updated: "September 22, 2026",
+            summary: [],
+            sections: [
+              {
+                id: "risks",
+                title: "Risks",
+                paragraphs: ["Snow is slippery."],
+              },
+            ],
+          },
+          published_at: new Date().toISOString(),
+        },
+        { onConflict: "tenant_id,key" },
+      );
+
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      expect(await updateLegalPublicationAction("waiver", true)).toEqual({
+        success: true,
+      });
+    });
+  });
+
   // #1321. A tenant serving the platform's text has published nothing for #600
   // to gate, no version row for #601 to hold and nothing #1292 can call drift,
   // so this row is the only record that anybody there ever read the document.

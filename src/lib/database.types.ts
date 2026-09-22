@@ -2518,6 +2518,8 @@ export type Database = {
           ski_experience_level_at_event: string | null;
           snowboard_experience_level_at_event: string | null;
           tenant_id: string;
+          waiver_accepted_at: string | null;
+          waiver_version: number | null;
         };
         Insert: {
           attended_before?: boolean | null;
@@ -2537,6 +2539,8 @@ export type Database = {
           ski_experience_level_at_event?: string | null;
           snowboard_experience_level_at_event?: string | null;
           tenant_id?: string;
+          waiver_accepted_at?: string | null;
+          waiver_version?: number | null;
         };
         Update: {
           attended_before?: boolean | null;
@@ -2556,6 +2560,8 @@ export type Database = {
           ski_experience_level_at_event?: string | null;
           snowboard_experience_level_at_event?: string | null;
           tenant_id?: string;
+          waiver_accepted_at?: string | null;
+          waiver_version?: number | null;
         };
         Relationships: [
           {
@@ -8455,6 +8461,14 @@ export type Database = {
       };
     };
     Functions: {
+      accepted_waiver_version: {
+        Args: {
+          p_accepted: boolean;
+          p_claimed_version: number;
+          p_tenant_id: string;
+        };
+        Returns: number;
+      };
       account_email: {
         Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
         Returns: {
@@ -9407,6 +9421,8 @@ export type Database = {
           p_party_size: number;
           p_phone: string;
           p_pronouns?: string;
+          p_waiver_accepted?: boolean;
+          p_waiver_version?: number;
         };
         Returns: string;
       };
@@ -9420,6 +9436,8 @@ export type Database = {
           p_party_size: number;
           p_phone?: string;
           p_pronouns?: string;
+          p_waiver_accepted?: boolean;
+          p_waiver_version?: number;
         };
         Returns: string;
       };

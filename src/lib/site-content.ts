@@ -599,6 +599,28 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
       { id: "questions", title: "Questions" },
     ],
   },
+  // Headings with nothing under them, and that is the whole entry (#686). The
+  // platform ships no waiver prose -- a release of legal rights cannot be
+  // written for an organization that has not written it -- so this outline is
+  // the starting point the document editor offers and the only thing the
+  // platform says about the shape of a participant agreement.
+  //
+  // A heading list is scaffolding: it makes no factual claim, commits the
+  // organization to nothing, and every line of it can be deleted. The prose
+  // would be neither, which is why there is none. No `requires` keys either --
+  // that field filters the platform's own document against the collection
+  // surface (#1291), and there is no document here to filter.
+  "legal.waiver": {
+    title: "Participant Waiver",
+    sections: [
+      { id: "who-this-covers", title: "Who this covers" },
+      { id: "what-youre-agreeing-to", title: "What you’re agreeing to" },
+      { id: "risks", title: "Risks of taking part" },
+      { id: "your-responsibilities", title: "Your responsibilities" },
+      { id: "if-something-happens", title: "If something happens" },
+      { id: "questions", title: "Questions" },
+    ],
+  },
 };
 
 type SlotBase = {
@@ -2757,6 +2779,20 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "document",
     default: null,
     route: "/code-of-conduct",
+  },
+  {
+    key: "legal.waiver",
+    page: "legal",
+    section: "legal:documents",
+    label: "Participant waiver",
+    // Deliberately not the "leave unset to serve the platform's starting
+    // document" sentence the three above carry: there is no starting document,
+    // and saying so is the point (#686).
+    description:
+      "Shown in full when somebody registers for an event, and accepted with a tick box. There is no starting text for this one -- a release of legal rights is your organization's to write with its own counsel. Until you publish one and put it in force, /waiver is not served and registration asks nothing.",
+    type: "document",
+    default: null,
+    route: "/waiver",
   },
 ] as const;
 

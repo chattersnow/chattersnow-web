@@ -25,6 +25,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
   PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   NO_RECORD: "We could not find your record. Please sign in again.",
+  // #686. Three ways a waiver can stop a registration, and they are three
+  // different things to say. The first is the reader's to fix; the second is
+  // nobody's fault and asks them to read again; the third is the
+  // organization's and is a state its own portal refuses to create.
+  WAIVER_REQUIRED: "Please read the agreement and tick the box to register.",
+  WAIVER_CHANGED:
+    "The agreement was updated while you were filling this in. Reload the page, read it again, and register.",
+  WAIVER_UNAVAILABLE:
+    "This organization's participant agreement could not be loaded, so we can't take your registration right now. Please try again shortly.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
@@ -68,6 +77,17 @@ export async function registerMyselfForEventAction(
     // derived figure.
     p_attended_before:
       parseAttendedBefore(formData.get("attendedBefore")) ?? undefined,
+    // #686, and the same on this path as on the anonymous one. Holding an
+    // account is not agreement to anything: a signed-in route that skipped the
+    // waiver would be the shortest way to a registration with no acceptance
+    // behind it. Read straight off the FormData, since this action has no
+    // parser of its own -- the RPC is what validates either way.
+    p_waiver_accepted: formData.get("waiverAccepted") === "on",
+    p_waiver_version: /^[1-9]\d*$/.test(
+      String(formData.get("waiverVersion") ?? "").trim(),
+    )
+      ? Number(formData.get("waiverVersion"))
+      : undefined,
     p_ip_address: await getClientIp(),
   });
 

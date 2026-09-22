@@ -18,6 +18,22 @@ export type EventRegistrationFormData = {
    * the form did not offer means the question was not answered.
    */
   attended_before: boolean | null;
+  /**
+   * Whether the participant waiver's box was ticked (#686).
+   *
+   * Not validated here, and that is deliberate: this parser cannot know
+   * whether the tenant has a waiver in force, and a guess would be a second
+   * gate able to disagree with the one that actually binds. The RPC decides,
+   * because it is the thing that reads the publication state and writes the
+   * row.
+   */
+  waiver_accepted: boolean;
+  /**
+   * The version the form rendered, for the RPC to compare against the one in
+   * force. Null when no waiver was shown. Never stored from this value -- the
+   * RPC writes the version it read itself.
+   */
+  waiver_version: number | null;
 };
 
 export function parseEventRegistrationForm(
@@ -33,6 +49,16 @@ export function parseEventRegistrationForm(
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
   const attended_before = parseAttendedBefore(formData.get("attendedBefore"));
+  const waiver_accepted = formData.get("waiverAccepted") === "on";
+  // Digits only, and no leading zero, the same discipline `selectLegalVersion`
+  // applies to `?version=`. Anything else is treated as "not sent" rather than
+  // rejected: a malformed value cannot match the version in force, and the RPC
+  // refuses on the mismatch with a message about the document rather than
+  // about a number the reader never saw.
+  const waiverVersionRaw = String(formData.get("waiverVersion") ?? "").trim();
+  const waiver_version = /^[1-9]\d*$/.test(waiverVersionRaw)
+    ? Number(waiverVersionRaw)
+    : null;
 
   if (!name) return { error: "Name is required." };
   if (!email || !email.includes("@"))
@@ -60,6 +86,8 @@ export function parseEventRegistrationForm(
       party_size,
       notes: notes || null,
       attended_before,
+      waiver_accepted,
+      waiver_version,
     },
   };
 }

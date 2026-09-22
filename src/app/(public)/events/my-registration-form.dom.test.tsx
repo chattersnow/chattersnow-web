@@ -54,6 +54,46 @@ function lastSubmission() {
 // the check-in ledger only knows the events this tenant ran on this platform,
 // so "have you been before?" is still a fact only the person holds. It is
 // asked in the same words the anonymous form uses, from the same component.
+// #686. The signed-in path takes the same agreement the anonymous one does:
+// holding an account is not agreement to anything, and a route around the box
+// would be the shortest way to a registration with nothing behind it.
+describe("MyEventRegistrationForm and the participant agreement", () => {
+  beforeEach(() => {
+    registerMyselfForEventActionMock.mockClear();
+  });
+
+  test("shows nothing when the tenant takes no agreement", () => {
+    render(<MyEventRegistrationForm eventId="event-1" person={person} />);
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  test("starts unticked and posts the version it was shown", async () => {
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={person}
+        waiver={{ version: 7 }}
+        waiverBlock={<p>The agreement itself</p>}
+      />,
+    );
+
+    expect(screen.getByText("The agreement itself")).toBeVisible();
+    const box = screen.getByRole("checkbox", { name: /I have read the/ });
+    expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission()).toMatchObject({
+      waiverAccepted: "on",
+      waiverVersion: "7",
+    });
+  });
+});
+
 describe("MyEventRegistrationForm and the been-before question", () => {
   beforeEach(() => {
     registerMyselfForEventActionMock.mockClear();

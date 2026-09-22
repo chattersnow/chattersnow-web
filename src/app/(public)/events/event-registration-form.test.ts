@@ -54,6 +54,44 @@ describe("parseEventRegistrationForm", () => {
     ).toEqual({ error: "Party size must be at least 1." });
   });
 
+  test("reads a ticked waiver box and the version it was shown with", () => {
+    const result = parseEventRegistrationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        waiverAccepted: "on",
+        waiverVersion: "4",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      data: { waiver_accepted: true, waiver_version: 4 },
+    });
+  });
+
+  // The parser deliberately refuses nothing here: it cannot know whether this
+  // tenant has a waiver in force, and a second opinion would be one able to
+  // disagree with the RPC's, which is the one that binds.
+  test("an unticked box parses, and is not an error", () => {
+    const result = parseEventRegistrationForm(
+      formData({ name: "Jane", email: "jane@example.com", waiverVersion: "4" }),
+    );
+
+    expect(result).toMatchObject({
+      data: { waiver_accepted: false, waiver_version: 4 },
+    });
+  });
+
+  test("a version that is not a plain positive integer reads as absent", () => {
+    for (const waiverVersion of ["0", "-1", "1.5", "02", "two", ""]) {
+      expect(
+        parseEventRegistrationForm(
+          formData({ name: "Jane", email: "jane@example.com", waiverVersion }),
+        ),
+      ).toMatchObject({ data: { waiver_version: null } });
+    }
+  });
+
   test("parses valid input", () => {
     const result = parseEventRegistrationForm(
       formData({
@@ -77,6 +115,10 @@ describe("parseEventRegistrationForm", () => {
         party_size: 3,
         notes: "Bringing kids",
         attended_before: true,
+        // Nothing was shown, so nothing was ticked. The parser reports what
+        // the form sent and leaves the deciding to the RPC (#686).
+        waiver_accepted: false,
+        waiver_version: null,
       },
     });
   });

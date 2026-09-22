@@ -9,6 +9,8 @@ import { formatDateTimeInZone } from "@/lib/time";
 import { publicGiveawayRulesPath } from "@/lib/giveaway-rules-path";
 import { getEventGiveawayRulesLink } from "@/lib/giveaway-rules-publication";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { loadEventWaiver } from "./event-waiver-data";
+import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
@@ -93,6 +95,8 @@ function EventDetailBody({
   viewer,
   accountOffer,
   giveawayRulesId,
+  waiver,
+  waiverBlock,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
@@ -100,6 +104,14 @@ function EventDetailBody({
   accountOffer: AccountOffer | null;
   /** The promotion whose official rules this event serves, if any (#1322). */
   giveawayRulesId: string | null;
+  /**
+   * The version of the participant agreement being shown, which the form
+   * posts back so the RPC can refuse a submission made against text that has
+   * since been republished (#686). Null where the tenant takes no waiver.
+   */
+  waiver: { version: number } | null;
+  /** That agreement, already rendered on the server. Null with `waiver`. */
+  waiverBlock: React.ReactNode;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -190,6 +202,8 @@ function EventDetailBody({
                 <MyEventRegistrationForm
                   eventId={event.id}
                   person={viewer.person}
+                  waiver={waiver}
+                  waiverBlock={waiverBlock}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -200,6 +214,8 @@ function EventDetailBody({
                   eventId={event.id}
                   account={viewer?.kind === "account" ? viewer.account : null}
                   accountOffer={accountOffer}
+                  waiver={waiver}
+                  waiverBlock={waiverBlock}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -239,10 +255,21 @@ export async function EventDetailContent({
   // Whether this event's promotion has published rules to point at. Loaded
   // here for the same reason the viewer is: the page and the sheet must not
   // drift into two different answers.
-  const giveawayRules = await getEventGiveawayRulesLink(
-    await createSupabaseServerClient(),
-    event.id,
-  );
+  const supabase = await createSupabaseServerClient();
+  const giveawayRules = await getEventGiveawayRulesLink(supabase, event.id);
+  // The participant agreement, if this organization takes one (#686). Rendered
+  // here on the server and handed down as an element, so a whole legal
+  // document and the markup parser stay out of the client bundle -- and, for
+  // the tenants that have adopted none, so does everything: `loadEventWaiver`
+  // returns null off a read the footer already made.
+  const waiver = await loadEventWaiver(supabase);
+  const waiverBlock = waiver ? (
+    <EventWaiver
+      doc={waiver.content}
+      version={waiver.version}
+      headingId="event-waiver-title"
+    />
+  ) : null;
 
   if (variant === "sheet") {
     return (
@@ -261,6 +288,8 @@ export async function EventDetailContent({
             viewer={viewer}
             accountOffer={accountOffer}
             giveawayRulesId={giveawayRules?.giveawayId ?? null}
+            waiver={waiver ? { version: waiver.version } : null}
+            waiverBlock={waiverBlock}
           />
         </div>
       </>
@@ -285,6 +314,8 @@ export async function EventDetailContent({
         viewer={viewer}
         accountOffer={accountOffer}
         giveawayRulesId={giveawayRules?.giveawayId ?? null}
+        waiver={waiver ? { version: waiver.version } : null}
+        waiverBlock={waiverBlock}
       />
     </>
   );

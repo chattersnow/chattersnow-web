@@ -67,7 +67,7 @@ export type LegalOrgContext = {
  * Printed on all three documents. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 21, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 22, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -115,7 +115,14 @@ const PRIVACY: DocumentProse = {
         surfaces.volunteerApplications &&
           "**Volunteer application** — your name, email address, and, if you choose to give them, your phone number, the roles you're interested in, and your availability. We use it to review your application, follow up with you, and let you check its status with the reference code we give you.",
         surfaces.eventRegistrations &&
-          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details.",
+          // The closing sentence is deliberately conditional in its own
+          // wording rather than gated on a collection surface (#686). "Where
+          // we ask you to accept" is a true claim about this software on every
+          // tenant, including the ones that ask nobody; a surface key for
+          // "this organization has adopted a waiver" would have to feed
+          // `legal_surface.*`, and every tenant with its own published
+          // documents would be told they had drifted the day they adopted one.
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown.",
         surfaces.gearRequests &&
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&

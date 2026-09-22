@@ -49,19 +49,58 @@ export function LegalDocument({
       sections={doc.sections}
       summary={<Blocks paragraphs={doc.summary} />}
     >
-      {doc.sections.map((section) => (
-        <section key={section.id} id={section.id}>
-          <h2 className="brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-            {section.title}
-          </h2>
-          <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
-            <Blocks paragraphs={section.paragraphs} />
-          </div>
-        </section>
-      ))}
+      <LegalDocumentSections doc={doc} />
       {appendix}
     </LegalPageShell>
   );
+}
+
+/**
+ * The sections of a legal document, without the page around them.
+ *
+ * Split out for the participant waiver (#686), which is rendered inside the
+ * event registration form as well as at its own address: the agreement has to
+ * be readable where it is being accepted, not only behind a link. The page
+ * keeps its own `h1`, rail and print layout; this is the same prose in a
+ * frame the size of a form.
+ *
+ * `headingLevel` and `anchors` both exist because a form is not a page. A
+ * document embedded under a form's own heading must not jump a level, and two
+ * copies of the same document in one DOM -- or a section id colliding with a
+ * control's -- would be a real duplicate-id bug rather than a cosmetic one.
+ */
+export function LegalDocumentSections({
+  doc,
+  headingLevel = 2,
+  anchors = true,
+}: {
+  doc: LegalDocumentContent;
+  headingLevel?: 2 | 4;
+  anchors?: boolean;
+}) {
+  const Heading = headingLevel === 2 ? "h2" : "h4";
+  const headingClass =
+    headingLevel === 2
+      ? "brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl"
+      : "text-sm font-medium text-foreground";
+
+  return doc.sections.map((section) => (
+    <section key={section.id} id={anchors ? section.id : undefined}>
+      <Heading className={headingClass}>{section.title}</Heading>
+      <div className="app-muted mt-4 space-y-4 text-sm leading-relaxed sm:text-base">
+        <Blocks paragraphs={section.paragraphs} />
+      </div>
+    </section>
+  ));
+}
+
+/** A document's summary paragraphs, for the same embedded case. */
+export function LegalDocumentSummary({
+  paragraphs,
+}: {
+  paragraphs: readonly string[];
+}) {
+  return <Blocks paragraphs={paragraphs} />;
 }
 
 function Blocks({ paragraphs }: { paragraphs: readonly string[] }) {

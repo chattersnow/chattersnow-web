@@ -5,6 +5,7 @@ import { registerForEventAction } from "./event-registration-actions";
 import { RiderProfileForm } from "./rider-profile-form-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +40,8 @@ export function EventRegistrationForm({
   eventId,
   account = null,
   accountOffer = null,
+  waiver = null,
+  waiverBlock = null,
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -48,6 +51,16 @@ export function EventRegistrationForm({
    * that nothing offers what it cannot deliver by accident.
    */
   accountOffer?: AccountOffer | null;
+  /**
+   * The participant agreement's version, when this organization takes one
+   * (#686). Posted back so the RPC can refuse a submission made against text
+   * that has been republished since it was rendered. Null, and the block
+   * below with it, on a tenant that has adopted no waiver -- which is most of
+   * them, and leaves this form exactly as it was.
+   */
+  waiver?: { version: number } | null;
+  /** The agreement itself, rendered on the server. */
+  waiverBlock?: React.ReactNode;
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -60,6 +73,9 @@ export function EventRegistrationForm({
   const [partySize, setPartySize] = useState("1");
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
+  // Starts unticked, always. A pre-ticked box is not an acceptance, and this
+  // is the one control on the form where that matters (#686).
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Holds the new registration's id once saved -- both the "did it work?"
   // flag and the token the rider-profile follow-up needs to authorize itself.
@@ -80,6 +96,10 @@ export function EventRegistrationForm({
     formData.set("partySize", partySize);
     formData.set("notes", notes);
     formData.set("company", company);
+    if (waiver) {
+      formData.set("waiverAccepted", waiverAccepted ? "on" : "");
+      formData.set("waiverVersion", String(waiver.version));
+    }
 
     startTransition(async () => {
       const result = await registerForEventAction(eventId, formData);
@@ -246,6 +266,33 @@ export function EventRegistrationForm({
         )}
 
         <PrivacyNotice surface="eventRegistration" />
+
+        {/* After the notice and beside the button, which is the order the
+            artwork submission form argues for and for the same reason: the
+            notice is the thing to read first, and the box that carries a real
+            choice belongs next to the button that acts on it.
+
+            Unticked, and `required` rather than a disabled submit, so the
+            browser says which control is missing. The server refuses it
+            independently -- see `accepted_waiver_version()` -- because a
+            client-side `required` is a convenience and never the gate. */}
+        {waiver && (
+          <>
+            {waiverBlock}
+            <Field orientation="horizontal">
+              <Checkbox
+                id="registration-waiver"
+                checked={waiverAccepted}
+                onCheckedChange={(next) => setWaiverAccepted(next === true)}
+                disabled={isPending}
+                required
+              />
+              <FieldLabel htmlFor="registration-waiver" required>
+                I have read the agreement above and I accept it
+              </FieldLabel>
+            </Field>
+          </>
+        )}
 
         {/* Not "Register": that is the disclosure's trigger above the form
             (#1256), and two buttons of the same name in one section are one

@@ -187,6 +187,81 @@ describe("registering as yourself", () => {
     expect(person!.phone).toBeNull();
   });
 
+  // #686. The signed-in path is the one that could quietly become a way
+  // around the waiver: it has its own RPC, its own grant and its own form, and
+  // nothing about holding an account is agreement to anything.
+  test("takes the same waiver the anonymous path does", async () => {
+    const event = await createPublishedEvent();
+    cleanups.push(event.cleanup);
+
+    const { data: tenant } = await service
+      .from("tenants")
+      .select("id")
+      .eq("slug", "example-nonprofit")
+      .single();
+    const tenantId = tenant!.id as string;
+
+    await service.from("legal_document_versions").insert({
+      tenant_id: tenantId,
+      document: "waiver",
+      version: 5,
+      content: {
+        title: "Participant Waiver",
+        last_updated: "x",
+        summary: [],
+        sections: [],
+      },
+      effective_at: new Date().toISOString(),
+      time_zone: "UTC",
+    });
+    await service
+      .from("app_settings")
+      .upsert(
+        { tenant_id: tenantId, key: "legal_publication.waiver", value: true },
+        { onConflict: "tenant_id,key" },
+      );
+
+    // Taken back inside the test rather than through `cleanups`, which this
+    // file drains in afterAll: an adopted waiver left standing would refuse
+    // every registration in the cases below.
+    try {
+      const refused = await alice.client.rpc("register_myself_for_event", {
+        p_event_id: event.id,
+        p_party_size: 1,
+        p_ip_address: uniqueIp(),
+      });
+      expect(refused.error?.message).toContain("WAIVER_REQUIRED");
+
+      const accepted = await alice.client.rpc("register_myself_for_event", {
+        p_event_id: event.id,
+        p_party_size: 1,
+        p_ip_address: uniqueIp(),
+        p_waiver_accepted: true,
+        p_waiver_version: 5,
+      });
+      expect(accepted.error).toBeNull();
+
+      const { data: registration } = await service
+        .from("event_registrations")
+        .select("waiver_version, waiver_accepted_at")
+        .eq("id", accepted.data as string)
+        .single();
+      expect(registration!.waiver_version).toBe(5);
+      expect(registration!.waiver_accepted_at).not.toBeNull();
+    } finally {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal_publication.waiver");
+      await service
+        .from("legal_document_versions")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("document", "waiver");
+    }
+  });
+
   test("shows you your own registration and nobody else's", async () => {
     const event = await createPublishedEvent();
     cleanups.push(event.cleanup);

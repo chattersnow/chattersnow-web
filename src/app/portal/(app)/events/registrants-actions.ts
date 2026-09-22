@@ -24,6 +24,7 @@ import {
 } from "@/lib/portal/action-result";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { getTenantContext } from "@/lib/portal/tenants";
+import { getTenantLegalPublication } from "@/lib/legal-publication";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import { loadRecordMessages } from "@/lib/portal/record-messages";
 import { sendStaffMessage } from "@/lib/notifications/staff-message";
@@ -102,6 +103,18 @@ export type EventRegistrant = {
    * staff who work an `events: view` shift are exactly who it is for.
    */
   attended_before: boolean | null;
+  /**
+   * When this person accepted the organization's participant waiver, and which
+   * version (#686). Both null means nothing was asked -- no waiver was in
+   * force at the time -- and never that they declined: declining is not
+   * submitting, so a refusal produces no registrant row to read this off.
+   *
+   * Like `attended_before`, not gated on `events: manage`. Whether somebody
+   * signed the agreement is exactly what the person on the door needs to know
+   * before letting them on the hill.
+   */
+  waiver_accepted_at: string | null;
+  waiver_version: number | null;
   rider: RegistrantRiderProfile | null;
 };
 
@@ -135,6 +148,16 @@ export type EventRegistrantsData = {
   registrants: EventRegistrant[];
   messages: RecordMessages;
   messaging: RegistrantMessagingContext | null;
+  /**
+   * Whether this organization currently takes a participant waiver (#686).
+   *
+   * What it buys is the difference between "we never asked" and "we ask, and
+   * this row has no answer" -- the second being an older registration taken
+   * before the waiver was adopted. Without it every empty cell reads the same,
+   * and the same distinction `submission-review-sheet.tsx` makes for artwork
+   * consent would be unavailable here.
+   */
+  waiverInForce: boolean;
 };
 
 export async function listEventRegistrantsAction(
@@ -162,9 +185,19 @@ export async function listEventRegistrantsAction(
   }
 
   const registrants = (data ?? []).map((row) => toRegistrant(row, canSeeRider));
+  // Read for both readers, including the `events: view` door shift: whether
+  // the organization takes a waiver at all is what turns an empty cell from
+  // ambiguous into "nobody was asked" (#686).
+  const waiverInForce = (await getTenantLegalPublication(supabase)).waiver;
+
   if (!canSeeRider) {
     return {
-      data: { registrants, messages: NO_RECORD_MESSAGES, messaging: null },
+      data: {
+        registrants,
+        messages: NO_RECORD_MESSAGES,
+        messaging: null,
+        waiverInForce,
+      },
     };
   }
 
@@ -200,12 +233,13 @@ export async function listEventRegistrantsAction(
         replyTo: (orgMail.data?.reply_to as string | null) ?? null,
         orgEmailEnabled,
       },
+      waiverInForce,
     },
   };
 }
 
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";

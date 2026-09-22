@@ -1,5 +1,5 @@
 /**
- * The three public legal documents, and which of them a tenant has put in
+ * The public legal documents, and which of them a tenant has put in
  * force (#859).
  *
  * This replaces `LEGAL_PAGES_PUBLISHED`, one boolean compiled into the
@@ -10,7 +10,7 @@
  * board approved, all three documents went live for every tenant at once,
  * whether or not anybody had read them.
  *
- * The three divide two ways, and only one of them is a decision:
+ * The first three divide two ways, and only one of them is a decision:
  *
  *   * **The privacy policy is always served.** It has to stay reachable
  *     whenever the site is collecting personal data, which is from the first
@@ -22,6 +22,10 @@
  *     organization that has adopted neither should not have empty or borrowed
  *     ones served under its name, so they 404 and drop out of the footer until
  *     that tenant says the text is theirs and in force.
+ *
+ * The participant waiver (#686) is the fourth, and it is adopted the same way
+ * with one difference that runs through every consumer of this registry: there
+ * is no platform text behind it. See `hasPlatformDefault`.
  *
  * That second thing is deliberately *not* page visibility. `PUBLIC_PAGE_SLOTS`
  * is about whether a section of the marketing site exists; this is a statement
@@ -53,6 +57,22 @@ export type LegalDocument = {
    * alone; see the note above.
    */
   alwaysInForce: boolean;
+  /**
+   * Whether `@/lib/legal-defaults.ts` has prose to serve for this document when
+   * the tenant has written none.
+   *
+   * True for the first three. False for the participant waiver alone (#686),
+   * and that is the first time a document's default is *absence* rather than a
+   * neutral starting draft. `docs/legal-basis.md` rule 2 says the platform
+   * makes no commitments on a tenant's behalf; a release of legal rights is the
+   * purest case of that, so there is no neutral version to write. A tenant that
+   * has published none has nothing served, nothing linked, and nothing at its
+   * registration form.
+   *
+   * `alwaysInForce` implies this: a document served whatever happens must have
+   * something to serve. `legal-publication.test.ts` holds that.
+   */
+  hasPlatformDefault: boolean;
   /** What adopting it means, for the admin deciding. */
   description: string;
   /**
@@ -101,6 +121,7 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
     route: "/privacy",
     label: "Privacy Policy",
     alwaysInForce: true,
+    hasPlatformDefault: true,
     description:
       "Always served, and not something to switch off: the site collects personal information through its public forms, and a policy that says what happens to it has to be reachable while it does.",
     gates: [],
@@ -111,6 +132,7 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
     route: "/terms",
     label: "Terms of Use",
     alwaysInForce: false,
+    hasPlatformDefault: true,
     description:
       "The terms someone agrees to by using the site and signing up for things. Put them in force once your organization has adopted them.",
     gates: [
@@ -129,8 +151,30 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
     route: "/code-of-conduct",
     label: "Code of Conduct",
     alwaysInForce: false,
+    hasPlatformDefault: true,
     description:
       "What your organization expects of people at its events and in its spaces, and how someone reports a problem. Put it in force once your organization has adopted it.",
+    gates: [],
+  },
+  {
+    key: "waiver",
+    slotKey: "legal.waiver",
+    route: "/waiver",
+    label: "Participant Waiver",
+    alwaysInForce: false,
+    // The platform writes no waiver, and this is the one place in the registry
+    // where that is the whole point rather than a gap. See `hasPlatformDefault`.
+    //
+    // `gates: []` deliberately: gating the `events` module on this document
+    // would force a waiver on every organization that runs an event, which is
+    // the reversal #859 refused and #1295 argued against in the other
+    // direction. The dependency that does exist runs the other way -- the
+    // document cannot be put in force until the tenant has published text --
+    // and it lives in `updateLegalPublicationAction` and
+    // `publish_site_content()`, not here.
+    hasPlatformDefault: false,
+    description:
+      "What someone agrees to by taking part in your events, shown in full when they register. There is no starting text for this one: a release of legal rights is yours to write with your own counsel. Put it in force once your organization has adopted it, and every registration from that moment records which version was accepted.",
     gates: [],
   },
 ] as const;

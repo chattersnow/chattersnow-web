@@ -28,6 +28,8 @@ const registrants: EventRegistrant[] = [
     person_id: "person-1",
     attended_before: false,
     checked_in_at: null,
+    waiver_accepted_at: null,
+    waiver_version: null,
     rider: {
       riding_discipline_at_event: null,
       ski_experience_level_at_event: null,
@@ -54,6 +56,8 @@ const registrants: EventRegistrant[] = [
     // one up alongside Jamie's "no".
     attended_before: null,
     checked_in_at: "2026-08-28T09:00:00Z",
+    waiver_accepted_at: null,
+    waiver_version: null,
     rider: {
       riding_discipline_at_event: "snowboard",
       ski_experience_level_at_event: null,
@@ -131,6 +135,7 @@ function payload(
     registrants,
     messages: NO_RECORD_MESSAGES,
     messaging: null,
+    waiverInForce: false,
     ...overrides,
   };
 }
