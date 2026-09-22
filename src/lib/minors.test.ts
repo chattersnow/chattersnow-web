@@ -2,7 +2,7 @@
 // cases below are about what this module refuses to do -- read an unanswered
 // question as a "no", and keep a guardian's number for a party that has none.
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   MINOR_CONTACTS_REQUIRED_ERROR,
@@ -104,9 +104,10 @@ describe("the promise that no age is collected", () => {
     const offenders: string[] = [];
     for (const file of readdirSync(migrations)) {
       if (!file.endsWith(".sql")) continue;
-      const path = join(migrations, file);
-      if (!statSync(path).isFile()) continue;
-      const sql = readFileSync(path, "utf8");
+      // Read straight through rather than stat-then-read: the directory holds
+      // nothing but migrations, and checking the path before opening it is the
+      // time-of-check/time-of-use shape CodeQL flags.
+      const sql = readFileSync(join(migrations, file), "utf8");
       // Column definitions only. The words appear in prose and in policy text
       // all over these files, and a comment saying "we never ask a date of
       // birth" must not fail the test that checks we never ask one.
