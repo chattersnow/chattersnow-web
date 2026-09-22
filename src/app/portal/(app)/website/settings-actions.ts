@@ -21,6 +21,7 @@ import {
   MINIMUM_APPROVERS,
 } from "@/lib/legal-approval";
 import { legalAcknowledgementSettingKey } from "@/lib/legal-acknowledgement";
+import { conductProcessSetting, conductProcessSettingKey } from "@/lib/conduct";
 import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
 import {
   getSiteContentApproverCount,
@@ -332,4 +333,57 @@ export async function updateGiveawayRulesAnswerAction(
     cleaned,
     GIVEAWAY_RULES_PATHS,
   );
+}
+
+/**
+ * One of the four numbers a tenant's own code of conduct commits it to (#687).
+ *
+ * Edited here, beside the document whose words it restates, rather than in the
+ * Conduct section: keeping the promise and the number that measures it on one
+ * screen is what stops the two drifting, which they would the first time
+ * somebody rewrote the text alone.
+ *
+ * `null` clears the setting, and clearing is a real answer rather than a reset
+ * to a default -- there is no default. A tenant that has cleared all four gets
+ * a case tracker with no deadline anywhere on it, which is the correct state
+ * for the majority of tenants and the one that must never break.
+ *
+ * Cleared is stored as `0`, not as a missing row: `app_settings.value` is
+ * `not null` and `authenticated` holds no delete on that table, both of which
+ * are worth more than a tidier encoding here. `org_conduct_process` reads
+ * anything that is not a positive integer as null, so 0 means "no commitment"
+ * end to end -- and the row that stays behind is what carries the audit entry
+ * for somebody having cleared it.
+ *
+ * Validated against the registry, like the layout setting and the giveaway
+ * answers: without it the `conduct.` prefix would be a way to write arbitrary
+ * `app_settings` rows from the browser.
+ */
+export async function updateConductProcessAction(
+  key: string,
+  value: number | boolean | null,
+): Promise<SettingActionResult> {
+  const setting = conductProcessSetting(key);
+  if (!setting) {
+    return { error: "That is not one of the conduct process settings." };
+  }
+
+  if (value !== null) {
+    if (setting.kind === "boolean" && typeof value !== "boolean") {
+      return { error: "That isn't one of the options for this setting." };
+    }
+    if (
+      setting.kind === "number" &&
+      (typeof value !== "number" || !Number.isInteger(value) || value < 1)
+    ) {
+      return {
+        error: "Enter a whole number of at least 1, or leave it blank.",
+      };
+    }
+  }
+
+  return writeAppSetting(conductProcessSettingKey(key), value ?? 0, [
+    "/portal/website/legal-documents",
+    "/portal/conduct",
+  ]);
 }

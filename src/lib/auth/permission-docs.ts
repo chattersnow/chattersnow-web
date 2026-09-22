@@ -440,6 +440,44 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
     notes: [
       "The section's own gate asks for Manage, so View is the reader's grant for agendas and approved minutes rather than a way into the section.",
+      "Does not reach conduct reports. Administering board records and reading a report that may name a board member are deliberately different grants.",
+    ],
+  },
+
+  // --------------------------------------------------------------------- Conduct
+  //
+  // The one resource in the catalog whose two levels are not the same job at
+  // two widths. View is a reviewer's ticket and shows nothing on its own; the
+  // rows it reaches are decided by assignment, in the database.
+  conduct_reports: {
+    view: "Open Conduct and read the reports you have been assigned to review or hear an appeal on, and step back from one with a reason. On its own it shows nothing: a person holding View and no assignment sees an empty queue, which is the intended state rather than a fault.",
+    manage:
+      "Hold intake. Record a report however it arrived, read every report in the organization, assign and unassign reviewers for the review and the appeal, record the acknowledgement, interim and final actions, the decision, the outcome and the appeal, and close or reopen a case.",
+    excludes: [
+      {
+        key: "governance",
+        covers:
+          "board records, meetings and policies -- including the code of conduct's own text, which is edited in Website",
+      },
+      {
+        key: "event_incidents",
+        covers:
+          "what went wrong at an event, which is a different record from a report about somebody's behaviour",
+      },
+      {
+        key: "people",
+        covers: "the contact records a report may name",
+      },
+      {
+        key: "administration",
+        covers:
+          "the audit log, which lists changes to conduct records without their narrative -- every line of one is stripped before it is written",
+      },
+    ],
+    notes: [
+      "Seeded to Administrator alone, including for Board. Whose job it is to review a report is a decision each organization makes, and a report may name the person it would otherwise be granted to by default.",
+      "Assignment is the access grant, so granting View is what makes somebody assignable: the database refuses an assignment to anybody who does not hold it, rather than accepting one that would show them nothing.",
+      "Recusal removes the case from the reviewer's view, not just their vote. A recused reviewer keeps neither.",
     ],
   },
 

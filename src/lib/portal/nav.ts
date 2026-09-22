@@ -608,6 +608,28 @@ export const NAV_ITEMS: readonly NavItem[] = [
       },
     ],
   },
+  // A section of its own rather than a page under Governance (#687), and the
+  // nav follows the permission rather than the other way round: `governance`
+  // is what a board administers and `conduct_reports` is deliberately not part
+  // of it, so a board member holding governance:manage sees no Conduct link
+  // until somebody grants them the resource.
+  //
+  // `view` rather than `manage` on the access check, because a reviewer holding
+  // view and nothing else has real work here -- the cases they are assigned to.
+  // Their queue is empty until they are assigned one, which is the intended
+  // shape rather than a dead end: the page says so.
+  //
+  // No `alsoRequires`: the resource carries module_key = 'conduct', so
+  // has_permission() already answers false for a tenant without the module
+  // (20260910010000).
+  {
+    value: "conduct",
+    label: "Conduct",
+    group: "Organization",
+    href: "/portal/conduct",
+    basePath: "/portal/conduct",
+    access: [{ resource: "conduct_reports", level: "view" }],
+  },
   {
     value: "governance",
     label: "Governance",

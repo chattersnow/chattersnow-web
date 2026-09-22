@@ -1466,6 +1466,332 @@ export type Database = {
           },
         ];
       };
+      conduct_report_actions: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          id: string;
+          kind: string;
+          lifted_on: string | null;
+          report_id: string;
+          taken_on: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description: string;
+          id?: string;
+          kind: string;
+          lifted_on?: string | null;
+          report_id: string;
+          taken_on: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          id?: string;
+          kind?: string;
+          lifted_on?: string | null;
+          report_id?: string;
+          taken_on?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conduct_report_actions_report_in_tenant";
+            columns: ["tenant_id", "report_id"];
+            isOneToOne: false;
+            referencedRelation: "conduct_reports";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_report_actions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conduct_report_actions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conduct_report_appeals: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          decided_on: string | null;
+          filed_on: string;
+          grounds: string | null;
+          id: string;
+          outcome: string | null;
+          report_id: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          decided_on?: string | null;
+          filed_on: string;
+          grounds?: string | null;
+          id?: string;
+          outcome?: string | null;
+          report_id: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          decided_on?: string | null;
+          filed_on?: string;
+          grounds?: string | null;
+          id?: string;
+          outcome?: string | null;
+          report_id?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conduct_report_appeals_report_in_tenant";
+            columns: ["tenant_id", "report_id"];
+            isOneToOne: true;
+            referencedRelation: "conduct_reports";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_report_appeals_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conduct_report_appeals_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conduct_report_reviewers: {
+        Row: {
+          assigned_by: string | null;
+          assigned_on: string;
+          created_at: string;
+          id: string;
+          recusal_reason: string | null;
+          recused_on: string | null;
+          report_id: string;
+          stage: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          assigned_by?: string | null;
+          assigned_on?: string;
+          created_at?: string;
+          id?: string;
+          recusal_reason?: string | null;
+          recused_on?: string | null;
+          report_id: string;
+          stage: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          user_id: string;
+        };
+        Update: {
+          assigned_by?: string | null;
+          assigned_on?: string;
+          created_at?: string;
+          id?: string;
+          recusal_reason?: string | null;
+          recused_on?: string | null;
+          report_id?: string;
+          stage?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conduct_report_reviewers_report_in_tenant";
+            columns: ["tenant_id", "report_id"];
+            isOneToOne: false;
+            referencedRelation: "conduct_reports";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_report_reviewers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conduct_report_reviewers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conduct_reports: {
+        Row: {
+          acknowledged_on: string | null;
+          channel: string;
+          closed_on: string | null;
+          context: string | null;
+          created_at: string;
+          created_by: string | null;
+          decided_on: string | null;
+          event_id: string | null;
+          id: string;
+          outcome: string | null;
+          received_on: string;
+          reference: string;
+          reporter_contact: string | null;
+          reporter_kind: string;
+          reporter_name: string | null;
+          reporter_person_id: string | null;
+          severity: string;
+          status: string;
+          subject_description: string | null;
+          subject_person_id: string | null;
+          summary: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          acknowledged_on?: string | null;
+          channel: string;
+          closed_on?: string | null;
+          context?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          decided_on?: string | null;
+          event_id?: string | null;
+          id?: string;
+          outcome?: string | null;
+          received_on: string;
+          reference: string;
+          reporter_contact?: string | null;
+          reporter_kind: string;
+          reporter_name?: string | null;
+          reporter_person_id?: string | null;
+          severity?: string;
+          status?: string;
+          subject_description?: string | null;
+          subject_person_id?: string | null;
+          summary: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          acknowledged_on?: string | null;
+          channel?: string;
+          closed_on?: string | null;
+          context?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          decided_on?: string | null;
+          event_id?: string | null;
+          id?: string;
+          outcome?: string | null;
+          received_on?: string;
+          reference?: string;
+          reporter_contact?: string | null;
+          reporter_kind?: string;
+          reporter_name?: string | null;
+          reporter_person_id?: string | null;
+          severity?: string;
+          status?: string;
+          subject_description?: string | null;
+          subject_person_id?: string | null;
+          summary?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conduct_reports_event_in_tenant";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_reports_reporter_in_tenant";
+            columns: ["tenant_id", "reporter_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_reports_reporter_in_tenant";
+            columns: ["tenant_id", "reporter_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_reports_subject_in_tenant";
+            columns: ["tenant_id", "subject_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_reports_subject_in_tenant";
+            columns: ["tenant_id", "subject_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "conduct_reports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conduct_reports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conflict_of_interest_disclosures: {
         Row: {
           body_text: string | null;
@@ -8062,6 +8388,15 @@ export type Database = {
         };
         Relationships: [];
       };
+      org_conduct_process: {
+        Row: {
+          acknowledgement_days: number | null;
+          appeal_days: number | null;
+          appeal_excludes_original_reviewers: boolean | null;
+          reviewer_minimum: number | null;
+        };
+        Relationships: [];
+      };
       org_fiscal_year: {
         Row: {
           start_month: number | null;
@@ -8745,6 +9080,10 @@ export type Database = {
           name: string;
         }[];
       };
+      can_see_conduct_report: {
+        Args: { p_report_id: string };
+        Returns: boolean;
+      };
       check_rate_limit: {
         Args: {
           p_ip_address: unknown;
@@ -8926,6 +9265,10 @@ export type Database = {
         Args: { p_tenant_id?: string };
         Returns: string;
       };
+      generate_conduct_report_reference: {
+        Args: { p_tenant_id: string };
+        Returns: string;
+      };
       generate_volunteer_reference_code: {
         Args: { p_tenant_id?: string };
         Returns: string;
@@ -9035,6 +9378,22 @@ export type Database = {
           name: string;
           person_id: string;
           preferred_name: string;
+        }[];
+      };
+      list_conduct_actors: {
+        Args: { p_user_ids: string[] };
+        Returns: {
+          email: string;
+          full_name: string;
+          user_id: string;
+        }[];
+      };
+      list_conduct_reviewer_candidates: {
+        Args: never;
+        Returns: {
+          email: string;
+          full_name: string;
+          user_id: string;
         }[];
       };
       list_event_sponsor_items: { Args: { p_event_id: string }; Returns: Json };
@@ -9608,6 +9967,10 @@ export type Database = {
           tax: number;
           total: number;
         }[];
+      };
+      recuse_from_conduct_report: {
+        Args: { p_reason: string; p_report_id: string };
+        Returns: undefined;
       };
       register_for_event: {
         Args: {
@@ -10245,6 +10608,10 @@ export type Database = {
           p_winner_name: string;
         };
         Returns: string;
+      };
+      user_can_review_conduct: {
+        Args: { p_tenant_id: string; p_user_id: string };
+        Returns: boolean;
       };
       user_is_only_in_current_tenant: {
         Args: { p_user_id: string };

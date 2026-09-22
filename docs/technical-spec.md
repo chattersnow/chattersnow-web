@@ -22,6 +22,7 @@ which file it now lives in.
 | §5.3, §6 identity and access                               | [`spec/access-control.md`](spec/access-control.md)             |
 | §5.11, §6 audit log                                        | [`spec/audit.md`](spec/audit.md)                               |
 | §5.23, §6 constituent accounts                             | [`spec/constituent-accounts.md`](spec/constituent-accounts.md) |
+| §5.24, §6 conduct reports                                  | [`spec/conduct.md`](spec/conduct.md)                           |
 | §5.20, §6 content and community calendar                   | [`spec/content-calendar.md`](spec/content-calendar.md)         |
 | §5.2, §5.5, §6 public and events                           | [`spec/events.md`](spec/events.md)                             |
 | §5.6, §5.16, §5.18, §5.21, §5.22, §6 finance and giveaways | [`spec/finance.md`](spec/finance.md)                           |
