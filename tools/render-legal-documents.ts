@@ -30,12 +30,20 @@
 import {
   platformLegalDocument,
   PLATFORM_LEGAL_LAST_UPDATED,
+  PLATFORM_LEGAL_SLOT_KEYS,
   type LegalOrgContext,
 } from "@/lib/legal-defaults";
 import type { CollectionSurface } from "@/lib/legal-surface";
 
-/** The slots, in the order the footer's legal bar lists them. */
-const SLOTS = ["legal.privacy", "legal.terms", "legal.code_of_conduct"];
+/**
+ * Every slot the platform has prose for, which is not every legal document
+ * any more: the participant waiver (#686) is a tenant's own words or nothing,
+ * so there is nothing here to render for it.
+ *
+ * Derived rather than listed, so this can neither miss a document the platform
+ * starts writing nor invent one it does not.
+ */
+const SLOTS = PLATFORM_LEGAL_SLOT_KEYS;
 
 /**
  * Deliberately obvious placeholders rather than a plausible organization.

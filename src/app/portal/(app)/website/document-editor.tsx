@@ -23,6 +23,7 @@ import {
   slugify,
   textToParagraphs,
 } from "./content-values";
+import { legalDocumentBySlot } from "@/lib/legal-documents";
 import { useKeyedRows } from "./use-keyed-rows";
 
 const EMPTY_DOCUMENT: LegalDocumentContent = {
@@ -194,12 +195,31 @@ export function DocumentEditor({
   starter: LegalDocumentContent | null;
   onChange: (doc: LegalDocumentContent | null) => void;
 }) {
+  // The waiver has no platform text behind it (#686), so every sentence in the
+  // empty state below is false for it: nothing is published, nothing would be
+  // replaced, and there is no platform document to start from. What it gets
+  // instead is the outline -- headings with nothing under them, which is the
+  // whole of what the platform is willing to say about the shape of a release
+  // of legal rights.
+  const hasPlatformDefault =
+    legalDocumentBySlot(slot.key)?.hasPlatformDefault ?? true;
+
   if (!doc) {
     return (
       <div className="space-y-3">
         <p className="app-muted text-sm">
-          The platform&apos;s own document is published. Writing your own
-          replaces it entirely.
+          {hasPlatformDefault ? (
+            <>
+              The platform&apos;s own document is published. Writing your own
+              replaces it entirely.
+            </>
+          ) : (
+            <>
+              Nothing is published for this one, and there is no starting text
+              to offer you. The page stays unavailable, and nothing is asked at
+              registration, until you write and publish your own.
+            </>
+          )}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -214,7 +234,9 @@ export function DocumentEditor({
               )
             }
           >
-            Start from the platform document
+            {hasPlatformDefault
+              ? "Start from the platform document"
+              : "Start from an outline"}
           </Button>
           <Button
             type="button"
@@ -228,10 +250,21 @@ export function DocumentEditor({
           </Button>
         </div>
         <p className="app-muted text-xs">
-          The platform document is a neutral starting point, not legal advice:
-          it describes what this site does with the information people give it,
-          and leaves everything only your organization can answer to you. Have
-          your own legal counsel review whatever you publish here.
+          {hasPlatformDefault ? (
+            <>
+              The platform document is a neutral starting point, not legal
+              advice: it describes what this site does with the information
+              people give it, and leaves everything only your organization can
+              answer to you. Have your own legal counsel review whatever you
+              publish here.
+            </>
+          ) : (
+            <>
+              The outline is headings and nothing else. What goes under them is
+              a release of legal rights, which only your organization can make
+              and only its own legal counsel should write.
+            </>
+          )}
         </p>
       </div>
     );

@@ -600,7 +600,24 @@ Both are the tenant admin's, not the operator's:
   is declared in `src/lib/legal-documents.ts` (`LegalDocument.gates`) and
   enforced in the two Server Actions the two switches call, so seeding, the
   demo reset and the e2e fixtures — all of which write these rows as
-  `service_role` — are free to set whatever state they need. **Publishing a
+  `service_role` — are free to set whatever state they need. **The participant
+  waiver is the fourth legal document and the one with no platform text**
+  (#686): a release of legal rights cannot be written for an organization that
+  has not written it, so `legal.waiver` has no entry in `PLATFORM_LEGAL_PROSE`
+  and its default is absence — `/waiver` 404s, the footer omits it and the
+  registration form asks about no agreement until that tenant publishes its
+  own. The registry records this as `hasPlatformDefault: false`, and the
+  adoption gate runs both ways: the Legal documents switch refuses to put it in
+  force while nothing is published (and is disabled, with the reason beside
+  it), and `publish_site_content()` refuses a publish that would empty a waiver
+  already in force. Where one _is_ adopted, both registration paths show it in
+  full, take an unticked box, and record
+  `event_registrations.waiver_accepted_at` and `waiver_version` — a pointer
+  into `legal_document_versions`, readable by anybody at
+  `/waiver?version=N`. **Anything that writes `legal.waiver` text directly must
+  write a version row with it**: versions come only from
+  `publish_site_content()`, and text with no version leaves the waiver in force
+  with nothing to cite, which refuses every registration. **Publishing a
   `legal.*` slot records what the site was collecting at that moment** (#1292):
   one `app_settings` row per document, `legal_surface.<key>`, holding the
   sorted keys of `collectionSurface()` (`src/lib/legal-surface.ts`) — the same

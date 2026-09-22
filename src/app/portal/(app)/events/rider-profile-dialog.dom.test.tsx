@@ -37,6 +37,8 @@ function registrant(
     person_id: "person-1",
     attended_before: null,
     checked_in_at: null,
+    waiver_accepted_at: null,
+    waiver_version: null,
     rider: {
       riding_discipline_at_event: null,
       ski_experience_level_at_event: null,

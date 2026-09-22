@@ -5,6 +5,7 @@ import {
   PLATFORM_LEGAL_SLOT_KEYS,
   type LegalOrgContext,
 } from "@/lib/legal-defaults";
+import { LEGAL_DOCUMENTS } from "@/lib/legal-documents";
 import {
   legalPlainText,
   parseLegalBlocks,
@@ -91,12 +92,45 @@ function hrefs(doc: {
 }
 
 describe("the platform's legal documents", () => {
-  test("there is one for each legal.* slot", () => {
+  test("there is one for each legal.* slot the platform writes", () => {
     expect([...PLATFORM_LEGAL_SLOT_KEYS].sort()).toEqual([
       "legal.code_of_conduct",
       "legal.privacy",
       "legal.terms",
     ]);
+  });
+
+  // The registry and this module have to agree about which documents have
+  // text, or the waiver (#686) either loses its "there is nothing to serve"
+  // property or something calls `platformLegalDocument()` on a slot that
+  // throws. Asserted as an equality rather than a containment so it fails in
+  // both directions: prose added without the flag, and a flag set without
+  // prose.
+  test("hasPlatformDefault names exactly the slots with prose", () => {
+    expect(
+      LEGAL_DOCUMENTS.filter((document) => document.hasPlatformDefault)
+        .map((document) => document.slotKey)
+        .sort(),
+    ).toEqual([...PLATFORM_LEGAL_SLOT_KEYS].sort());
+  });
+
+  // A document served whatever happens must have something to serve, which is
+  // why the privacy policy could never be the one without prose.
+  test("a document that is always in force has prose behind it", () => {
+    for (const document of LEGAL_DOCUMENTS) {
+      if (document.alwaysInForce)
+        expect(document.hasPlatformDefault).toBe(true);
+    }
+  });
+
+  test("the waiver is the one document the platform writes nothing for", () => {
+    expect(
+      LEGAL_DOCUMENTS.filter((document) => !document.hasPlatformDefault).map(
+        (document) => document.key,
+      ),
+    ).toEqual(["waiver"]);
+    expect(PLATFORM_LEGAL_SLOT_KEYS).not.toContain("legal.waiver");
+    expect(() => platformLegalDocument("legal.waiver", ORG)).toThrow();
   });
 
   for (const key of PLATFORM_LEGAL_SLOT_KEYS) {

@@ -127,6 +127,9 @@ export function RegistrantsTab({
   const registrants = data?.registrants;
   const messages = data?.messages ?? NO_RECORD_MESSAGES;
   const messaging = data?.messaging ?? null;
+  // False while the tab is still loading, which is the right default: it only
+  // suppresses a row, and the row reappears with the data behind it (#686).
+  const waiverInForce = data?.waiverInForce ?? false;
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -522,6 +525,7 @@ export function RegistrantsTab({
           orgName={messaging?.orgName ?? ""}
           replyTo={messaging?.replyTo ?? null}
           orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          waiverInForce={waiverInForce}
           onClosed={() => setDetailId(null)}
           onSent={refreshRegistrants}
         />

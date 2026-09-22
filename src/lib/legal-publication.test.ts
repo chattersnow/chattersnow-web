@@ -146,6 +146,7 @@ describe("getLegalPublication", () => {
       privacy: true,
       terms: false,
       code_of_conduct: false,
+      waiver: false,
     });
   });
 
@@ -169,6 +170,7 @@ describe("getLegalPublication", () => {
         privacy: true,
         terms: false,
         code_of_conduct: false,
+        waiver: false,
       });
       expect(error).toHaveBeenCalled();
     } finally {
@@ -202,6 +204,7 @@ describe("getTenantLegalPublication", () => {
       privacy: true,
       terms: true,
       code_of_conduct: true,
+      waiver: false,
     });
   });
 
@@ -212,6 +215,7 @@ describe("getTenantLegalPublication", () => {
       privacy: true,
       terms: false,
       code_of_conduct: false,
+      waiver: false,
     });
   });
 

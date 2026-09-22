@@ -101,7 +101,9 @@ async function assignedRegistrationIds(eventId: string) {
 async function registrationFor(eventId: string, email: string) {
   const { data, error } = await adminClient
     .from("event_registrations")
-    .select("id, person_id, pronouns, attended_before")
+    .select(
+      "id, person_id, pronouns, attended_before, waiver_accepted_at, waiver_version",
+    )
     .eq("event_id", eventId)
     .ilike("email", email)
     .single();
@@ -198,6 +200,193 @@ describe("registerForEventAction (integration)", () => {
     expect(await personPronouns(person.id)).toBe("she/her");
     // The registration still snapshots what was submitted on the day.
     expect((await registrationFor(second.id, email)).pronouns).toBe("he/him");
+  });
+
+  // #686 --------------------------------------------------------------------
+  //
+  // A waiver is adopted by two rows that only publish_site_content() writes
+  // together: the text in site_content, and a version in
+  // legal_document_versions. Written by hand here for the same reason the
+  // legal-publication specs do it -- publishing through the portal needs a
+  // signed-in admin and a draft, and what is under test is what the
+  // registration RPC does with the result.
+
+  async function adoptWaiver(version = 1) {
+    const tenantId = await defaultTenantId();
+    await service.from("site_content").upsert(
+      {
+        tenant_id: tenantId,
+        key: "legal.waiver",
+        value: {
+          title: "Participant Waiver",
+          last_updated: "September 22, 2026",
+          summary: [],
+          sections: [
+            { id: "risks", title: "Risks", paragraphs: ["Snow is slippery."] },
+          ],
+        },
+        published_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id,key" },
+    );
+    await service.from("legal_document_versions").insert({
+      tenant_id: tenantId,
+      document: "waiver",
+      version,
+      content: {
+        title: "Participant Waiver",
+        last_updated: "x",
+        summary: [],
+        sections: [],
+      },
+      effective_at: new Date().toISOString(),
+      time_zone: "UTC",
+    });
+    await service
+      .from("app_settings")
+      .upsert(
+        { tenant_id: tenantId, key: "legal_publication.waiver", value: true },
+        { onConflict: "tenant_id,key" },
+      );
+
+    cleanups.push(async () => {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal_publication.waiver");
+      await service
+        .from("legal_document_versions")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("document", "waiver");
+      await service
+        .from("site_content")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal.waiver");
+    });
+  }
+
+  async function defaultTenantId() {
+    const { data, error } = await service
+      .from("tenants")
+      .select("id")
+      .eq("slug", "example-nonprofit")
+      .single();
+    if (error) throw error;
+    return data.id as string;
+  }
+
+  test("records nothing about a waiver when the tenant has adopted none", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("waiver-none");
+
+    expect(
+      await registerForEventAction(id, formData({ name: "Jamie", email })),
+    ).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    // Both null, and that means "nothing was asked" -- never "they declined".
+    expect(registration.waiver_accepted_at).toBeNull();
+    expect(registration.waiver_version).toBeNull();
+  });
+
+  test("refuses a registration that did not accept an adopted waiver", async () => {
+    currentIp = uniqueIp();
+    await adoptWaiver();
+    const { id } = await event();
+    const email = uniqueEmail("waiver-refused");
+
+    expect(
+      await registerForEventAction(id, formData({ name: "Jamie", email })),
+    ).toMatchObject({ error: expect.stringContaining("tick the box") });
+
+    // And the refusal writes nothing: a declined waiver leaves no row to read
+    // a decline off, which is why null can only mean "not asked".
+    expect(await countEventRegistrations(id, email)).toBe(0);
+  });
+
+  test("stores the version accepted", async () => {
+    currentIp = uniqueIp();
+    await adoptWaiver(3);
+    const { id } = await event();
+    const email = uniqueEmail("waiver-accepted");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({
+          name: "Jamie",
+          email,
+          waiverAccepted: "on",
+          waiverVersion: "3",
+        }),
+      ),
+    ).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    expect(registration.waiver_version).toBe(3);
+    expect(registration.waiver_accepted_at).not.toBeNull();
+  });
+
+  // The version the reader was shown is compared, never stored. A republish
+  // between render and submit is a different document, and recording
+  // acceptance of text nobody read is the failure the pointer exists to
+  // prevent.
+  test("refuses a submission made against a version no longer in force", async () => {
+    currentIp = uniqueIp();
+    await adoptWaiver(2);
+    const { id } = await event();
+    const email = uniqueEmail("waiver-stale");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({
+          name: "Jamie",
+          email,
+          waiverAccepted: "on",
+          waiverVersion: "1",
+        }),
+      ),
+    ).toMatchObject({ error: expect.stringContaining("was updated") });
+
+    expect(await countEventRegistrations(id, email)).toBe(0);
+  });
+
+  // In force with nothing to point at. The portal refuses to create this, so
+  // reaching it means a direct write -- and taking a registration without the
+  // waiver the organization said governs taking part is the wrong way to fail.
+  test("refuses when a waiver is in force but no version exists", async () => {
+    currentIp = uniqueIp();
+    const tenantId = await defaultTenantId();
+    await service
+      .from("app_settings")
+      .upsert(
+        { tenant_id: tenantId, key: "legal_publication.waiver", value: true },
+        { onConflict: "tenant_id,key" },
+      );
+    cleanups.push(async () => {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal_publication.waiver");
+    });
+
+    const { id } = await event();
+    const email = uniqueEmail("waiver-unavailable");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({ name: "Jamie", email, waiverAccepted: "on" }),
+      ),
+    ).toMatchObject({ error: expect.stringContaining("could not be loaded") });
+
+    expect(await countEventRegistrations(id, email)).toBe(0);
   });
 
   // #1259 -------------------------------------------------------------------

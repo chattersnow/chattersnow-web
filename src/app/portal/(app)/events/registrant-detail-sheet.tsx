@@ -65,6 +65,7 @@ export function RegistrantDetailSheet({
   replyTo,
   orgEmailEnabled,
   canManage,
+  waiverInForce,
   onClosed,
   onSent,
 }: {
@@ -79,6 +80,13 @@ export function RegistrantDetailSheet({
   replyTo: string | null;
   orgEmailEnabled: boolean;
   canManage: boolean;
+  /**
+   * Whether this organization takes a participant waiver today (#686), which
+   * is what separates "we never asked" from "this registration predates the
+   * agreement". Nothing here ever means "they declined": declining is not
+   * submitting, so a refusal leaves no registration to open.
+   */
+  waiverInForce: boolean;
   /** The sheet is mounted per target, so closing it unmounts it. */
   onClosed: () => void;
   onSent?: () => void;
@@ -169,6 +177,39 @@ export function RegistrantDetailSheet({
                 ? formatDateTime(registrant.checked_in_at)
                 : "Not yet"}
             </ReadOnlyField>
+            {/* Hidden entirely on a tenant that has never taken a waiver and
+                has none now: a row saying "not recorded" on every registrant
+                of every event would be noise about a document that does not
+                exist. It appears the moment one is adopted, and stays for any
+                registration that carries an acceptance even if the agreement
+                is later withdrawn. */}
+            {(waiverInForce || registrant.waiver_accepted_at) && (
+              <ReadOnlyField label="Agreement" htmlFor="registrant-waiver">
+                {registrant.waiver_accepted_at ? (
+                  <>
+                    Accepted version {registrant.waiver_version} on{" "}
+                    {formatDateTime(registrant.waiver_accepted_at)}.{" "}
+                    {/* The permalink is the whole reason the column stores a
+                        version rather than a copy of the text: somebody
+                        reading this during a dispute reaches the exact words
+                        without asking anybody. */}
+                    <a
+                      href={`/waiver?version=${registrant.waiver_version}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-4"
+                    >
+                      Read that version
+                    </a>
+                  </>
+                ) : (
+                  // Not an em dash. "We had no agreement in force when they
+                  // registered" and "they declined" are different facts, and
+                  // only the first one can produce a row to read this on.
+                  "Not recorded — no agreement was in force when they registered"
+                )}
+              </ReadOnlyField>
+            )}
             <ReadOnlyField label="Notes" htmlFor="registrant-notes">
               {registrant.notes || "—"}
             </ReadOnlyField>

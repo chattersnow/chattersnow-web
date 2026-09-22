@@ -4,6 +4,7 @@ import { FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -37,9 +38,20 @@ import { registerMyselfForEventAction } from "./my-registration-actions";
 export function MyEventRegistrationForm({
   eventId,
   person,
+  waiver = null,
+  waiverBlock = null,
 }: {
   eventId: string;
   person: MyContactDetails;
+  /**
+   * The participant agreement's version, when this organization takes one
+   * (#686). Asked of a signed-in caller exactly as it is of an anonymous one:
+   * holding an account is not agreement to anything, and a path that skipped
+   * it would be the shortest way to a registration with nothing behind it.
+   */
+  waiver?: { version: number } | null;
+  /** The agreement itself, rendered on the server. */
+  waiverBlock?: React.ReactNode;
 }) {
   const [phone, setPhone] = useState(person.phone ?? "");
   const [pronouns, setPronouns] = useState(person.pronouns ?? "");
@@ -54,6 +66,8 @@ export function MyEventRegistrationForm({
   // to sit beside.
   const [attendedBefore, setAttendedBefore] = useState("");
   const [notes, setNotes] = useState("");
+  // Unticked, always (#686).
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -72,6 +86,10 @@ export function MyEventRegistrationForm({
     formData.set("pronouns", pronouns);
     formData.set("instagramHandle", instagramHandle);
     formData.set("attendedBefore", attendedBefore);
+    if (waiver) {
+      formData.set("waiverAccepted", waiverAccepted ? "on" : "");
+      formData.set("waiverVersion", String(waiver.version));
+    }
 
     startTransition(async () => {
       const result = await registerMyselfForEventAction(eventId, formData);
@@ -186,6 +204,30 @@ export function MyEventRegistrationForm({
             onChange={(event) => setNotes(event.target.value)}
           />
         </Field>
+
+        {/* Immediately above the button that acts on it, the same placement
+            the anonymous form uses. This form carries no privacy notice --
+            that is #684's territory and a signed-in caller has already been
+            told -- so the agreement is the last thing read before submitting.
+            The server refuses an unticked box independently of the `required`
+            here; see `accepted_waiver_version()`. */}
+        {waiver && (
+          <>
+            {waiverBlock}
+            <Field orientation="horizontal">
+              <Checkbox
+                id="my-registration-waiver"
+                checked={waiverAccepted}
+                onCheckedChange={(next) => setWaiverAccepted(next === true)}
+                disabled={isPending}
+                required
+              />
+              <FieldLabel htmlFor="my-registration-waiver" required>
+                I have read the agreement above and I accept it
+              </FieldLabel>
+            </Field>
+          </>
+        )}
 
         <Field orientation="horizontal">
           {/* Named apart from the disclosure's "Register" trigger above it

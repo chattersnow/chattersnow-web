@@ -408,6 +408,99 @@ describe("the legal-document surface fingerprint", () => {
   });
 });
 
+// #686. The participant waiver is the only document with no platform text, so
+// it is the only one where publishing a revert leaves the site with nothing to
+// serve -- and, worse, with a registration flow that refuses everybody because
+// the waiver it must show does not exist. `updateLegalPublicationAction`
+// refuses the adoption half; this is the other half, and it has to live in the
+// database because that is where publishing happens.
+describe("a waiver in force cannot have its text published away", () => {
+  const KEY = "legal.waiver";
+  const PUBLICATION = "legal_publication.waiver";
+
+  afterEach(async () => {
+    await service.from("app_settings").delete().eq("key", PUBLICATION);
+    await service
+      .from("legal_document_versions")
+      .delete()
+      .eq("document", "waiver");
+    await service.from("site_content").delete().eq("key", KEY);
+  });
+
+  async function adopt() {
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [
+        {
+          key: KEY,
+          value: {
+            title: "Participant Waiver",
+            last_updated: "September 22, 2026",
+            summary: [],
+            sections: [
+              {
+                id: "risks",
+                title: "Risks",
+                paragraphs: ["Snow is slippery."],
+              },
+            ],
+          },
+        },
+      ],
+    });
+    await adminClient.rpc("publish_site_content", { p_keys: [KEY] });
+    await service
+      .from("app_settings")
+      .upsert(
+        { key: PUBLICATION, value: true },
+        { onConflict: "tenant_id,key" },
+      );
+  }
+
+  test("refuses the publish and leaves the text where it was", async () => {
+    await adopt();
+
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: KEY, value: null }],
+    });
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [KEY],
+    });
+    expect(error?.message).toContain("LEGAL_TEXT_REQUIRED");
+
+    // Still serving, and the draft is still pending rather than silently
+    // discarded -- the refusal is about publishing, not about drafting.
+    const { data } = await adminClient
+      .from("site_content")
+      .select("value, has_draft")
+      .eq("key", KEY)
+      .single();
+    expect(data!.value).not.toBeNull();
+    expect(data!.has_draft).toBe(true);
+  });
+
+  test("allows the same publish once the waiver is out of force", async () => {
+    await adopt();
+    await service.from("app_settings").delete().eq("key", PUBLICATION);
+
+    await adminClient.rpc("save_site_content_drafts", {
+      p_entries: [{ key: KEY, value: null }],
+    });
+
+    const { error } = await adminClient.rpc("publish_site_content", {
+      p_keys: [KEY],
+    });
+    expect(error).toBeNull();
+
+    const { data } = await adminClient
+      .from("site_content")
+      .select("value")
+      .eq("key", KEY)
+      .single();
+    expect(data!.value).toBeNull();
+  });
+});
+
 describe("discarding a draft", () => {
   test("leaves the published copy in place", async () => {
     await adminClient.rpc("save_site_content_drafts", {

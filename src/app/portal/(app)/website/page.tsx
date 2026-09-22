@@ -31,6 +31,7 @@ import {
 import { deviceClass } from "@/lib/portal/device";
 import { siteContentActorNames } from "@/lib/site-content-actors";
 import { getTenantLegalApproval } from "@/lib/legal-publication";
+import { legalDocumentBySlot } from "@/lib/legal-documents";
 import { ContentEditor } from "./content-editor";
 import {
   buildOutline,
@@ -145,8 +146,16 @@ export default async function SiteContentPage({
       publishedBy: row?.published_by
         ? (actors.get(row.published_by) ?? null)
         : null,
+      // Only for a document the platform has prose for. The participant
+      // waiver has none (#686), and `platformLegalDocument()` throws on a slot
+      // whose outline sections have no text behind them -- which would 500
+      // this page for every tenant rather than leaving one starter empty. The
+      // editor offers its outline instead.
       starter:
-        slot.type === "document" ? platformLegalDocument(slot.key, org) : null,
+        slot.type === "document" &&
+        legalDocumentBySlot(slot.key)?.hasPlatformDefault
+          ? platformLegalDocument(slot.key, org)
+          : null,
     };
   });
 

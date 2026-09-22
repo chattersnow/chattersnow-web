@@ -39,6 +39,14 @@ const SKIP: Record<string, string> = {
   // skip that no longer describes anything.
   "/terms": "not in force for the seeded tenant (#859)",
   "/code-of-conduct": "not in force for the seeded tenant (#859)",
+  // The participant waiver (#686) is skipped for a stronger reason than those
+  // two: the platform has no text for it at all, so it 404s for every tenant
+  // that has not written and published its own, and no seed can change that
+  // without writing somebody's release of legal rights. The agreement is still
+  // scanned where it is read -- inside the registration form -- by
+  // e2e/event-waiver.spec.ts, which publishes one and takes it away again.
+  "/waiver":
+    "the platform ships no waiver text, so it 404s until a tenant writes one (#686)",
   // The whole constituent area used to be skipped here, on both sides: five
   // `/my` routes and the staff claims queue, because `constituent_accounts` is
   // the one module in the catalog that defaults to off and the seed had not

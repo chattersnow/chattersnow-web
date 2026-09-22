@@ -20,6 +20,8 @@ const REGISTRANT: EventRegistrant = {
   person_id: "33333333-3333-4333-8333-333333333333",
   checked_in_at: null,
   attended_before: false,
+  waiver_accepted_at: null,
+  waiver_version: null,
   rider: null,
 };
 
@@ -28,6 +30,7 @@ function renderSheet(
     registrant?: Partial<EventRegistrant>;
     canManage?: boolean;
     orgEmailEnabled?: boolean;
+    waiverInForce?: boolean;
   } = {},
 ) {
   render(
@@ -40,6 +43,7 @@ function renderSheet(
       replyTo="hello@chattersnow.org"
       orgEmailEnabled={overrides.orgEmailEnabled ?? true}
       canManage={overrides.canManage ?? true}
+      waiverInForce={overrides.waiverInForce ?? false}
       onClosed={() => {}}
     />,
   );
@@ -133,5 +137,56 @@ describe("RegistrantDetailSheet", () => {
     });
     expect(screen.getAllByText("Rides").length).toBeGreaterThan(0);
     expect(screen.getByText("Prefers Hunter")).toBeInTheDocument();
+  });
+
+  // #686. Three states, and the difference between the last two is the whole
+  // reason `waiverInForce` is read at all.
+  test("says nothing about an agreement on a tenant that takes none", () => {
+    renderSheet();
+
+    expect(screen.queryByText("Agreement")).toBeNull();
+  });
+
+  test("shows the accepted version, linking that exact one", () => {
+    renderSheet({
+      registrant: {
+        waiver_accepted_at: "2026-09-01T12:00:00Z",
+        waiver_version: 4,
+      },
+      waiverInForce: true,
+    });
+
+    expect(screen.getAllByText("Agreement").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Accepted version 4 on/)).toBeInTheDocument();
+    // The permalink is why the column stores a version rather than a copy of
+    // the text: somebody reading this during a dispute reaches the exact
+    // words without asking anybody.
+    expect(
+      screen.getByRole("link", { name: "Read that version" }),
+    ).toHaveAttribute("href", "/waiver?version=4");
+  });
+
+  // Not an em dash, and not "declined": declining is not submitting, so a
+  // refusal leaves no registration for this sheet to open.
+  test("an older registration says no agreement was in force, not that they refused", () => {
+    renderSheet({ waiverInForce: true });
+
+    expect(
+      screen.getByText(/no agreement was in force when they registered/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/declin/i)).toBeNull();
+  });
+
+  // Withdrawing the agreement must not erase the record of who accepted it.
+  test("keeps the row for a registration that carries one after it is withdrawn", () => {
+    renderSheet({
+      registrant: {
+        waiver_accepted_at: "2026-09-01T12:00:00Z",
+        waiver_version: 4,
+      },
+      waiverInForce: false,
+    });
+
+    expect(screen.getByText(/Accepted version 4 on/)).toBeInTheDocument();
   });
 });
