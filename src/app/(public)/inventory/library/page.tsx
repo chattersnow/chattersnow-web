@@ -13,6 +13,7 @@ import {
   loadConstituentViewer,
 } from "@/lib/constituent/viewer";
 import { loadAccountOffer } from "@/lib/constituent/account-offer";
+import { getLegalPublication } from "@/lib/legal-publication";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -32,6 +33,7 @@ export default async function GearLibraryPage() {
     sizingVisible,
     requestOptions,
     viewer,
+    publication,
   ] = await Promise.all([
     supabase
       .from("public_gear_catalog")
@@ -55,6 +57,10 @@ export default async function GearLibraryPage() {
     // their own session knows, never from whether the directory recognises a
     // typed address (§5.23).
     loadConstituentViewer(supabase),
+    // Whether the as-is notice may point at `/terms` (#1367). Free: the public
+    // layout already reads this on every request for the footer's legal bar,
+    // and it is `cache()`d.
+    getLegalPublication(supabase),
   ]);
 
   // What to offer once a request is saved (#1359). Read after the viewer
@@ -93,6 +99,7 @@ export default async function GearLibraryPage() {
           prefill={contactPrefill(viewer)}
           accountOffer={accountOffer}
           lexicon={lexicon}
+          termsInForce={publication.terms}
         />
       </div>
     </div>

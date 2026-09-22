@@ -48,6 +48,8 @@ export type GearRequestDetailRow = {
   fulfilled_at: string | null;
   cancelled_at: string | null;
   created_at: string;
+  as_is_acknowledged_at: string | null;
+  as_is_text: string | null;
   requester: {
     id: string;
     name: string | null;
@@ -223,6 +225,41 @@ export function GearRequestDetailView({
                   <ViewerTime iso={request.cancelled_at} fallbackZone="UTC" />
                 </ReadOnlyField>
               )}
+              {/* What the requester was told, and when they said they
+                  understood it (#1367). Read-only and gating nothing: the
+                  request carries the record, so recording a distribution
+                  against it needs no second capture.
+
+                  **Distribution outside a request is deliberately untouched.**
+                  `inventory_movements.gear_request_id` is nullable -- gear
+                  handed out at an event never passed through the public form
+                  -- and making that path capture something would mean a
+                  staffer attesting on a recipient's behalf, which is the shape
+                  this was built to avoid. Null here is a request from before
+                  this shipped, or gear that never came through the cart. */}
+              <ReadOnlyField label="Given as-is" htmlFor="request-as-is">
+                {request.as_is_acknowledged_at ? (
+                  <>
+                    {"Acknowledged "}
+                    <ViewerTime
+                      iso={request.as_is_acknowledged_at}
+                      fallbackZone="UTC"
+                    />
+                    {request.as_is_text && (
+                      // The wording as it stood that day, not as it reads now.
+                      // It is the whole point of the snapshot, so it is shown
+                      // rather than hidden behind a disclosure: a staffer
+                      // answering "what were they told" should not have to
+                      // click for it.
+                      <p className="app-muted mt-2 text-sm whitespace-pre-line">
+                        {request.as_is_text}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  "Not recorded — this request predates the acknowledgement"
+                )}
+              </ReadOnlyField>
             </FieldGroup>
           </CardContent>
         </Card>

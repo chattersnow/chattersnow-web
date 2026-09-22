@@ -12,11 +12,18 @@ import {
   type InlineRun,
 } from "@/lib/legal-markup";
 import { collectionSurface, type CollectionSurface } from "@/lib/legal-surface";
+import { DEFAULT_LEXICON, lexiconFromRows } from "@/lib/lexicon";
+import {
+  GEAR_AS_IS_SUMMARY,
+  gearAsIsSummary,
+  gearAsIsText,
+} from "@/lib/gear-as-is";
 import { RETENTION_POLICIES } from "@/lib/retention";
 import {
   isValidSlotValue,
   contentSlot,
   LEGAL_DOCUMENT_OUTLINES,
+  type LegalDocumentSection,
 } from "@/lib/site-content";
 
 /** A tenant that runs everything: what every site used to be told it was. */
@@ -41,6 +48,7 @@ const ORG: LegalOrgContext = {
   emailPrivacy: "privacy@riverside.example",
   emailConduct: "conduct@riverside.example",
   surfaces: EVERYTHING,
+  lexicon: DEFAULT_LEXICON,
 };
 
 const withSurfaces = (surfaces: CollectionSurface): LegalOrgContext => ({
@@ -503,5 +511,65 @@ describe("the terms and the constituent area", () => {
     expect(
       platformLegalDescription("legal.terms", withSurfaces(NOTHING)),
     ).not.toContain("hold an account with us");
+  });
+});
+
+// #1367. Two places say what taking a donated item means: the summary above
+// the box somebody ticks when they ask for one, and the section of the terms
+// of use that governs it. Two places saying *nearly* the same thing about
+// liability is the failure mode worth spending a test on, so there is one
+// constant and this holds the document to it.
+describe("the items we give away", () => {
+  const GEAR: CollectionSurface = { ...NOTHING, gearRequests: true };
+
+  const section = (
+    surfaces: CollectionSurface,
+    lexicon = DEFAULT_LEXICON,
+  ): LegalDocumentSection | undefined =>
+    platformLegalDocument("legal.terms", {
+      ...withSurfaces(surfaces),
+      lexicon,
+    }).sections.find((entry) => entry.id === "items-we-give-away");
+
+  test("appears only where this tenant takes requests", () => {
+    expect(section(GEAR)).toBeDefined();
+    expect(section(NOTHING)).toBeUndefined();
+  });
+
+  // Where the ticket's argument lives: the section opens with the component's
+  // own words, verbatim and in order. Anything else drifts.
+  test("opens with exactly the summary the requester was shown", () => {
+    const paragraphs = section(GEAR)!.paragraphs;
+
+    expect(paragraphs.slice(0, GEAR_AS_IS_SUMMARY.length)).toEqual(
+      gearAsIsSummary(DEFAULT_LEXICON),
+    );
+    expect(paragraphs.length).toBeGreaterThan(GEAR_AS_IS_SUMMARY.length);
+  });
+
+  // The snapshot stored on the row and the document a reader can go and read
+  // are resolved from one constant against one lexicon, so a tenant that
+  // renames what it lends cannot end up with two different claims.
+  test("is named in this organization's own noun", () => {
+    const tools = lexiconFromRows([
+      { term: "item_plural", value: "Tools" },
+      { term: "collection_public", value: "Tool Library" },
+    ]);
+    const named = section(GEAR, tools)!;
+
+    expect(named.title).toBe("Tools we give away");
+    expect(named.paragraphs[0]).toContain("We give away tools exactly as");
+    expect(gearAsIsText(tools)).toContain("We give away tools exactly as");
+  });
+
+  // Rule 1 of docs/legal-basis.md, and the reason the platform may write this
+  // section at all: every claim is about what is *not* done. The snow-sports
+  // vocabulary a first tenant needs belongs to that tenant's own text.
+  test("says nothing a snow-sports tenant would have to own", () => {
+    const text = legalPlainText(section(GEAR)!.paragraphs).toLowerCase();
+
+    for (const word of ["din", "binding", "boot fitting", "mount"]) {
+      expect(text, word).not.toContain(word);
+    }
   });
 });

@@ -317,6 +317,8 @@ describe("the public write paths refuse a module that is off", () => {
         p_email: uniqueEmail("mg-cart"),
         p_phone: null,
         p_ip_address: uniqueIp(),
+        p_as_is_acknowledged: true,
+        p_as_is_text: "Given as-is.",
       });
       expect(cart.error?.message).toContain("ITEM_NOT_FOUND");
 
@@ -338,6 +340,8 @@ describe("the public write paths refuse a module that is off", () => {
       p_email: uniqueEmail("mg-cart-on"),
       p_phone: null,
       p_ip_address: uniqueIp(),
+      p_as_is_acknowledged: true,
+      p_as_is_text: "Given as-is.",
     });
     expect(allowed.error).toBeNull();
   });

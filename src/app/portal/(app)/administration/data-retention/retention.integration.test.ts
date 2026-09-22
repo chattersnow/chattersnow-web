@@ -578,6 +578,7 @@ describe("run_retention_purge", () => {
     const REQUEST_NOTES = "Size 10 boots if you have them.";
     let oldMovementId: string;
     let recentMovementId: string;
+    let requesterId: string;
 
     beforeAll(async () => {
       const gear = await createAvailableGearItems(2);
@@ -585,6 +586,7 @@ describe("run_retention_purge", () => {
         name: "Retention Requester",
         email: uniqueEmail("retention-requester"),
       });
+      requesterId = requester.id;
 
       async function reservationAt(occurredAt: number, itemId: string) {
         const { data, error } = await adminClient
@@ -655,6 +657,54 @@ describe("run_retention_purge", () => {
 
       expect(data!.recipient_person_id).not.toBeNull();
       expect(data!.notes).toBe(REQUEST_NOTES);
+    });
+
+    // #1367. The header's requester link, address, payment preference and
+    // notes go on the gear clock; the as-is acknowledgement does not. It is a
+    // fact about an act and about the organization's own published words, not
+    // personal data about the requester -- the same call #686 and #1319 made,
+    // and the reason `purge_expired_records()` names the columns it clears
+    // rather than nulling the row.
+    test("the header loses its personal fields and keeps the as-is record", async () => {
+      const acknowledgedAt = new Date(Date.now() - 7 * DAY).toISOString();
+      const { data: inserted, error } = await serviceClient
+        .from("gear_requests")
+        .insert({
+          tenant_id: await tenantId(),
+          person_id: requesterId,
+          delivery_method: "meetup",
+          notes: REQUEST_NOTES,
+          as_is_acknowledged_at: acknowledgedAt,
+          as_is_text: "We give away items exactly as they reach us.",
+          created_at: acknowledgedAt,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const requestId = inserted.id as string;
+      cleanups.push(async () => {
+        await serviceClient.from("gear_requests").delete().eq("id", requestId);
+      });
+
+      await setMode("gear_requests", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data } = await serviceClient
+        .from("gear_requests")
+        .select("person_id, notes, as_is_acknowledged_at, as_is_text")
+        .eq("id", requestId)
+        .single();
+
+      expect(data!.person_id).toBeNull();
+      expect(data!.notes).toBeNull();
+      // Compared as an instant: Postgres answers `+00:00` where the insert
+      // sent `Z`, and the fact under test is that the value survived.
+      expect(new Date(data!.as_is_acknowledged_at!).toISOString()).toBe(
+        acknowledgedAt,
+      );
+      expect(data!.as_is_text).toBe(
+        "We give away items exactly as they reach us.",
+      );
     });
   });
 

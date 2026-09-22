@@ -172,6 +172,13 @@ test.describe("public inventory pages", () => {
 
       await cart.getByLabel(exactLabel("Name")).fill("E2E Gear Requester");
       await cart.getByLabel("Email").fill(requesterEmail);
+      // #1367: the one box on this form that is a gate. The request does not
+      // go through without it, in the browser or in the database.
+      await cart
+        .getByRole("checkbox", {
+          name: /I understand the items are given as-is/,
+        })
+        .click();
       await cart.getByRole("button", { name: "Request 2 items" }).click();
 
       await expect(cart.getByText("Request received!")).toBeVisible();

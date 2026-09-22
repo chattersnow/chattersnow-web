@@ -11,15 +11,17 @@ import {
 } from "./gear-requester-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { FieldGroup } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { GearAsIsNotice } from "@/components/gear-as-is-notice";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
-  shippingOffered,
   type DeliveryMethod,
   type PublicGearRequestOptions,
 } from "@/lib/gear-requests";
-import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import { GEAR_AS_IS_CONSENT_LABEL } from "@/lib/gear-as-is";
+import { applyLexicon, DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import {
   EMPTY_CONTACT_PREFILL,
@@ -32,6 +34,7 @@ export function GearCartCheckoutForm({
   onSuccess,
   prefill = EMPTY_CONTACT_PREFILL,
   lexicon = DEFAULT_LEXICON,
+  termsInForce = false,
 }: {
   itemIds: string[];
   options: PublicGearRequestOptions;
@@ -49,6 +52,12 @@ export function GearCartCheckoutForm({
    * was requested, and "gear" is one tenant's word for it.
    */
   lexicon?: Lexicon;
+  /**
+   * Whether this tenant serves `/terms` (#859). Decides only whether the as-is
+   * notice offers the full wording: a notice may link a document only where
+   * that document is served, and the summary itself is unconditional.
+   */
+  termsInForce?: boolean;
 }) {
   const [name, setName] = useState(prefill.name);
   const [email, setEmail] = useState(prefill.email);
@@ -64,6 +73,7 @@ export function GearCartCheckoutForm({
   );
   const [paymentMethod, setPaymentMethod] = useState("");
   const [company, setCompany] = useState("");
+  const [asIsAcknowledged, setAsIsAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -89,6 +99,7 @@ export function GearCartCheckoutForm({
       formData.set("company", company);
     }
     formData.set("notes", notes);
+    formData.set("as_is_acknowledged", String(asIsAcknowledged));
     formData.set("delivery_method", deliveryMethod);
     if (deliveryMethod === "shipping") {
       formData.set("ship_name", shipping.name);
@@ -133,14 +144,13 @@ export function GearCartCheckoutForm({
           )
         )}
 
-        {/* Only where something on screen actually carries a `*`: the contact
-            fields, or a shipping address. A linked reader arranging a meetup
-            is asked for nothing at all, and a legend about required fields
-            with no required field is noise. */}
-        {(!requestingAsSelf ||
-          (deliveryMethod === "shipping" && shippingOffered(options))) && (
-          <RequiredFieldsNote />
-        )}
+        {/* Unconditional since #1367. It used to render only where something
+            on screen actually carried a `*` -- the contact fields, or a
+            shipping address -- because a linked reader arranging a meetup was
+            asked for nothing at all and a legend about required fields with no
+            required field is noise. The as-is box is required on every path,
+            so there is now always one. */}
+        <RequiredFieldsNote />
 
         {!requestingAsSelf && (
           <GearRequesterContactFields
@@ -195,6 +205,29 @@ export function GearCartCheckoutForm({
         )}
 
         <PrivacyNotice surface="gearRequest" lexicon={lexicon} />
+
+        {/* After the privacy notice and beside the button, the order the
+            artwork submission form and the registration waiver both argue
+            for: the notice is the thing to read first, and the box that
+            carries a real choice belongs next to the button that acts on it.
+
+            Unticked, and `required` rather than a disabled submit, so the
+            browser says which control is missing. `acknowledged_as_is()`
+            refuses it independently -- a client-side `required` is a
+            convenience and never the gate. */}
+        <GearAsIsNotice lexicon={lexicon} termsInForce={termsInForce} />
+        <Field orientation="horizontal">
+          <Checkbox
+            id="cart-checkout-as-is"
+            checked={asIsAcknowledged}
+            onCheckedChange={(next) => setAsIsAcknowledged(next === true)}
+            disabled={isPending}
+            required
+          />
+          <FieldLabel htmlFor="cart-checkout-as-is" required>
+            {applyLexicon(GEAR_AS_IS_CONSENT_LABEL, lexicon)}
+          </FieldLabel>
+        </Field>
 
         <Button
           type="submit"

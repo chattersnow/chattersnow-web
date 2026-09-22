@@ -3176,6 +3176,8 @@ export type Database = {
       };
       gear_requests: {
         Row: {
+          as_is_acknowledged_at: string | null;
+          as_is_text: string | null;
           cancelled_at: string | null;
           created_at: string;
           delivery_method: string;
@@ -3200,6 +3202,8 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          as_is_acknowledged_at?: string | null;
+          as_is_text?: string | null;
           cancelled_at?: string | null;
           created_at?: string;
           delivery_method: string;
@@ -3224,6 +3228,8 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          as_is_acknowledged_at?: string | null;
+          as_is_text?: string | null;
           cancelled_at?: string | null;
           created_at?: string;
           delivery_method?: string;
@@ -8646,6 +8652,10 @@ export type Database = {
           error: true;
         } & "the function public.account_email with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
+      acknowledged_as_is: {
+        Args: { p_acknowledged: boolean; p_text: string };
+        Returns: string;
+      };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
       approve_event_expense: {
         Args: { p_id: string };
@@ -8811,6 +8821,8 @@ export type Database = {
       };
       create_gear_request: {
         Args: {
+          p_as_is_acknowledged?: boolean;
+          p_as_is_text?: string;
           p_delivery_method?: string;
           p_inventory_item_ids: string[];
           p_notes?: string;
@@ -9754,6 +9766,8 @@ export type Database = {
       };
       request_gear_items: {
         Args: {
+          p_as_is_acknowledged?: boolean;
+          p_as_is_text?: string;
           p_delivery_method?: string;
           p_email: string;
           p_honeypot?: string;
@@ -9770,6 +9784,8 @@ export type Database = {
       };
       request_gear_items_as_me: {
         Args: {
+          p_as_is_acknowledged?: boolean;
+          p_as_is_text?: string;
           p_delivery_method?: string;
           p_inventory_item_ids: string[];
           p_ip_address?: unknown;
