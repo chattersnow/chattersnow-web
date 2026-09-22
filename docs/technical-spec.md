@@ -17,22 +17,23 @@ touches — not the set.** Section numbers are stable and unchanged, so a `§5.1
 migration comment or an issue still means what it always did; the index below says
 which file it now lives in.
 
-| Sections                                                   | File                                                           |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| §5.3, §6 identity and access                               | [`spec/access-control.md`](spec/access-control.md)             |
-| §5.11, §6 audit log                                        | [`spec/audit.md`](spec/audit.md)                               |
-| §5.23, §6 constituent accounts                             | [`spec/constituent-accounts.md`](spec/constituent-accounts.md) |
-| §5.20, §6 content and community calendar                   | [`spec/content-calendar.md`](spec/content-calendar.md)         |
-| §5.2, §5.5, §6 public and events                           | [`spec/events.md`](spec/events.md)                             |
-| §5.6, §5.16, §5.18, §5.21, §5.22, §6 finance and giveaways | [`spec/finance.md`](spec/finance.md)                           |
-| §5.8                                                       | [`spec/giveaways.md`](spec/giveaways.md)                       |
-| §5.12, §6 governance                                       | [`spec/governance.md`](spec/governance.md)                     |
-| §5.4, §5.7, §5.13, §5.19, §6 inventory and donations       | [`spec/inventory.md`](spec/inventory.md)                       |
-| §6 multi-tenancy                                           | [`spec/multi-tenancy.md`](spec/multi-tenancy.md)               |
-| §5.9                                                       | [`spec/people.md`](spec/people.md)                             |
-| §5.14, §5.15, §6 programs and impact                       | [`spec/programs.md`](spec/programs.md)                         |
-| §5.17, §6 volunteers                                       | [`spec/volunteers.md`](spec/volunteers.md)                     |
-| §16, §17 (review addenda)                                  | [`spec/addenda.md`](spec/addenda.md)                           |
+| Sections                                                                 | File                                                           |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| §5.3, §6 identity and access                                             | [`spec/access-control.md`](spec/access-control.md)             |
+| §5.11, §6 audit log                                                      | [`spec/audit.md`](spec/audit.md)                               |
+| §5.23, §6 constituent accounts                                           | [`spec/constituent-accounts.md`](spec/constituent-accounts.md) |
+| §5.24, §6 conduct reports                                                | [`spec/conduct.md`](spec/conduct.md)                           |
+| §5.20, §6 content and community calendar                                 | [`spec/content-calendar.md`](spec/content-calendar.md)         |
+| §5.2, §5.5, §6 public and events                                         | [`spec/events.md`](spec/events.md)                             |
+| §5.6, §5.16, §5.18, §5.21, §5.22, §5.25, §5.26, §6 finance and giveaways | [`spec/finance.md`](spec/finance.md)                           |
+| §5.8                                                                     | [`spec/giveaways.md`](spec/giveaways.md)                       |
+| §5.12, §6 governance                                                     | [`spec/governance.md`](spec/governance.md)                     |
+| §5.4, §5.7, §5.13, §5.19, §6 inventory and donations                     | [`spec/inventory.md`](spec/inventory.md)                       |
+| §6 multi-tenancy                                                         | [`spec/multi-tenancy.md`](spec/multi-tenancy.md)               |
+| §5.9                                                                     | [`spec/people.md`](spec/people.md)                             |
+| §5.14, §5.15, §6 programs and impact                                     | [`spec/programs.md`](spec/programs.md)                         |
+| §5.17, §6 volunteers                                                     | [`spec/volunteers.md`](spec/volunteers.md)                     |
+| §16, §17 (review addenda)                                                | [`spec/addenda.md`](spec/addenda.md)                           |
 
 §5.1 and §5.10 are cross-cutting rather than per-module and stay in this file, along
 with everything else: purpose, goals, technology, system boundaries, security, the route
@@ -149,7 +150,7 @@ Public routes may expose approved content and explicitly public records. The pub
 - **Events** (`/events`): upcoming and past events with detail pages, plus `/events/community` — the public Community Calendar ([§5.20](spec/content-calendar.md#520-content-and-community-calendar)). Initial release renders events as a list; a calendar view is a possible future enhancement pending further research.
 - **Gear** (`/inventory/library`, `/inventory/donate`): the curated, read-only gear availability catalog with a request flow, and a donate-gear informational page.
 - **Get Involved** (`/get-involved/attend`, `/get-involved/volunteer`, `/get-involved/partner`): attending events, volunteering (opportunities plus an application form), and partnering.
-- **Support** (`/support/donations`, `/support/sponsorship`): monetary giving (placeholder) and sponsorship information, the latter closing with a wall of the organization's past sponsors ([§5.5](spec/events.md#55-event-management)). Since issue #1013 a tenant chooses how that wall is presented: **Cards** (the default, and what every tenant that has said nothing keeps) or **Band** — one quiet centred row of logos at a single height, for a short wall or one that should support the donate call to action below it — set in Website › Layout as `layout.sponsor_wall_layout`.
+- **Support** (`/support/donations`, `/support/donate`, `/support/sponsorship`): monetary giving — a per-tenant link to wherever that organization actually collects, plus the stable `/support/donate` redirect ([§5.25](spec/finance.md#525-online-giving)) — and sponsorship information, the latter closing with a wall of the organization's past sponsors ([§5.5](spec/events.md#55-event-management)). Since issue #1013 a tenant chooses how that wall is presented: **Cards** (the default, and what every tenant that has said nothing keeps) or **Band** — one quiet centred row of logos at a single height, for a short wall or one that should support the donate call to action below it — set in Website › Layout as `layout.sponsor_wall_layout`.
 - **Contact Us** (`/contact`): a rate-limited contact form that persists inquiries for staff follow-up, plus the organization's published email address and social media links.
 
 A `/programs` page also exists (the pillar/program content originally under `/about/programs`). It is in the nav, and its cards come either from Site Content or from the Programs module — see [§5.14](spec/programs.md#514-program-management).
@@ -162,7 +163,7 @@ Public routes must not expose donor contact details, private event data, interna
 
 **A public host is not the same thing as a public route**, and the restriction above is about the second. It says what an _unauthenticated visitor_ may read — which is what [§7.4](#74-no-sensitive-data-for-the-anonymous-role) states precisely, for the `anon` role. The distinction exists for **`/my`**, the constituent area (§5.23, [`spec/constituent-accounts.md`](spec/constituent-accounts.md)): it is served from the tenant's public host, it is not in the nav, and it shows a signed-in person their own donations, their own gear and their own volunteering. Every route under it has a session and an approved claim behind it, every function behind it is revoked from `anon`, and the tenant has to have turned the `constituent_accounts` module on for the area to exist at all. Nothing there is readable by an anonymous visitor, so nothing there is an exception to the sentence above.
 
-**Implemented:** all seven sections above are built. Gear (`/inventory/library`) includes a request flow ([§5.4](spec/inventory.md#54-inventory-and-donation-management)); Get Involved > Volunteer is fed live from `volunteer_role_types` plus a public application form ([§5.17](spec/volunteers.md#517-volunteer-management)); Events includes public registration, check-in-eligible listings, public sponsor display, and the Community Calendar ([§5.2](spec/events.md#52-public-events), [§5.20](spec/content-calendar.md#520-content-and-community-calendar)); Contact and the volunteer-application/event-registration paths are rate-limited (§7). About Us (`/about`) has real mission/story copy and a team roster (bios still "coming soon"). Support > Donations remains a monetary-giving placeholder (in-kind donation info only).
+**Implemented:** all seven sections above are built. Gear (`/inventory/library`) includes a request flow ([§5.4](spec/inventory.md#54-inventory-and-donation-management)); Get Involved > Volunteer is fed live from `volunteer_role_types` plus a public application form ([§5.17](spec/volunteers.md#517-volunteer-management)); Events includes public registration, check-in-eligible listings, public sponsor display, and the Community Calendar ([§5.2](spec/events.md#52-public-events), [§5.20](spec/content-calendar.md#520-content-and-community-calendar)); Contact and the volunteer-application/event-registration paths are rate-limited (§7). About Us (`/about`) has real mission/story copy and a team roster (bios still "coming soon"). Support > Donations carries in-kind donation information and, for a tenant that has configured one, a Give card pointing at the giving page its own provider hosts ([§5.25](spec/finance.md#525-online-giving)); no payment processor is integrated and none is planned.
 
 **What's next:** Replace the monetary-donations placeholder with a real giving path. Write real team bios and an explicit values section.
 
@@ -325,7 +326,9 @@ src/app/
       volunteer/                # opportunities (from volunteer_role_types) + application form — implemented
       partner/
     support/
-      donations/                # monetary giving — placeholder
+      donations/                # in-kind info + the per-tenant Give card (§5.25) — implemented
+      donate/                   # route handler: 302 to the tenant's giving page, 404 when
+                                # giving is off. The address a printed card carries (§5.25)
       sponsorship/              # implemented
     contact/                    # form + published email/social — implemented
     my/                         # the constituent area (§5.23) — a signed-in person's own

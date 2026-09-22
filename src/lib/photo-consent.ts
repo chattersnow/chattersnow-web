@@ -1,146 +1,123 @@
 /**
- * "Are you happy for us to photograph you?" — asked at registration (#599).
+ * Photos at events: a notice at registration, and a standing right to object
+ * (#1376).
  *
- * `/terms` and `/code-of-conduct` have said since they were written that where
- * an organization photographs participants for its own communications it
- * relies on "the consent process described at registration or at the event
- * itself". There was no consent process at registration. The promise survived
- * on its second half alone — an organizer remembering to ask, with no record
- * of the answer. This makes the first half true for any tenant that wants it.
+ * #599 shipped this as a question — the organization's own scope above an
+ * unticked box, with three columns recording the answer. The platform owner
+ * has reversed that. **Registering for an event is itself the agreement to
+ * being photographed, and the remedy is removal**: any photo can be taken down
+ * on request, at any time. There is no box. Offered a decline box as an
+ * opt-out instead, the answer was still "no box".
  *
- * **The mechanism is the platform's; the scope is the organization's, and the
- * platform writes none of it.** What an organization does with a photo — its
- * own site and social accounts, press, sponsors, grant reports — is
- * off-platform and unknowable from this codebase, and a scope invented here
- * would be a commitment made on a tenant's behalf (`docs/legal-basis.md`
- * rule 2). So it is the `events.photo_consent` content slot, blank until
- * somebody writes it, and **a tenant that has written nothing asks nothing**:
- * the registration form is byte-identical to what it was before this shipped
- * and every column stays null. Almost every tenant is in that state, and it is
- * the one that must never break.
+ * **So the word "consent" leaves every surface a human reads, and the column
+ * names stay.** Agreement implied by submitting a form is not an unambiguous
+ * affirmative act, so a privacy policy that kept calling it consent would make
+ * a false statement about the lawful basis. The honest framing, and the
+ * intended one, is notice plus a standing right to object. Renaming the
+ * columns to `photo_objection` would mean retyping two RPCs, the grant list,
+ * the published API field, the generated types and every test, for a name — so
+ * `20260923020000` flips their meaning in `comment on` statements and touches
+ * no row.
  *
- * **Three states, and the third is the valuable one.** A waiver has two,
- * because declining is not submitting: you accept, or you do not register, and
- * no row exists to hold a refusal. Photo consent has three.
+ * **Three states, and only one of them has an operational job.**
  *
- * - `null` — not asked. This tenant had written no scope when this person
- *   registered, or the answer came from a caller of the public API that did not
- *   ask. Every row that predates this ticket, every walk-in and every
- *   staff-added registrant is here.
- * - `false` — asked and **declined**. This is a record with an operational job:
- *   it is the list somebody checks before pointing a camera.
- * - `true` — asked and granted.
+ * - `null` — **no objection on record.** Agreement is implied by registering.
+ *   Every row that predates #599, every walk-in, every staff-added registrant,
+ *   every caller of the public API, and — since this ticket — every
+ *   registration taken through this platform's own forms.
+ * - `false` — **objected. Do not photograph.** This is the list somebody
+ *   checks before pointing a camera, and it means exactly what it meant under
+ *   #599, which is why no row needed backfilling.
+ * - `true` — the objection was withdrawn, or somebody confirmed explicitly
+ *   through the public API.
  *
- * Nothing may read `null` as either answer, and nothing may read a missing row
- * as consent.
+ * Nothing may read `null` as an objection, and nothing may write `true` at
+ * registration: a form with no affirmative control cannot produce an
+ * affirmative record.
  *
- * **Not a fifth legal document.** #686 made the participant waiver one because
- * a release of legal rights *is* one: sections, a version history, an address
- * somebody can be sent to. This is one question with a yes/no answer and a
- * scope. A `/photo-consent` route in the footer's Legal bar would publish a
- * policy at the one place nobody reads it.
+ * **The implication is the tenant's to assert, not the platform's.** What an
+ * organization does with a photo of somebody's face is off-platform and
+ * unknowable from this codebase, and "registering means you agree" is a claim
+ * about that organization's own arrangements — `docs/legal-basis.md` rule 2.
+ * So `events.photo_consent` stays a blank tenant slot, **a tenant that has
+ * written nothing says nothing at all**, and the platform's own sentence below
+ * describes only the mechanism and the remedy, both of which are facts about
+ * this software. Almost every tenant is in the blank state and it is the one
+ * that must never break.
  *
- * **A snapshot, not a version pointer.** #1319's test: the version-table shape
- * earns its cost only when the text has to be citable from outside the row that
- * accepted it. `/waiver?version=N` is a permalink; a content slot has no
- * version table, no address and no permalink, so the words somebody answered
- * are citable only from the row holding them. `photo_consent_text` copies them,
- * read from the tenant's own row inside the RPC and never from the client —
- * exactly as `artwork_submissions.consented_terms` is.
+ * **The snapshot survives, and still matters.** `photo_consent_text` copies the
+ * tenant's paragraphs onto the row when an objection is recorded, read inside
+ * the RPC and never from the client — #1319's shape, because a content slot has
+ * no version table and no permalink, so the words are citable only from the row
+ * holding them. It is now a copy of what somebody was *told* at the moment they
+ * objected rather than what they were asked, which is why nothing writes it at
+ * registration time any more.
  */
 
-/** The heading over the organization's own scope. */
+/** The heading over the organization's own paragraphs. */
 export const PHOTO_CONSENT_HEADING = "Photos and video";
 
 /**
- * The question, and it is deliberately narrow: it names **this registrant**
- * and not the party.
- *
- * `party_size` can be more than one, and one adult cannot consent for another
- * adult. The copy says "you", and nothing may read the record as covering
- * anybody else in the party.
- *
- * The minors branch is the one exception, and it branches **the label, not the
- * record**. `/terms` and `/code-of-conduct` already claim that consent for
- * anyone under 18 comes from a parent or guardian, so where
- * `party_includes_minor` is true (#685) the label says the adult registering is
- * answering for the minors in their party in that capacity. One column, one
- * answer. A second question with a second column would be two things to keep in
- * step and two things for an organizer to reconcile at the moment they are
- * holding a camera.
- */
-export function photoConsentLabel(partyIncludesMinor: boolean): string {
-  if (partyIncludesMinor) {
-    return "I'm happy to be photographed or recorded, and — as their parent or guardian — for the under-18s in my party to be";
-  }
-  return "I'm happy to be photographed or recorded";
-}
-
-/**
- * What the platform can say about the record on every tenant, written scope or
+ * What the platform can say beneath a tenant's paragraphs, written scope or
  * not.
  *
- * A fact about this software rather than about any organization: the answer is
- * stored, a no is stored as a no, and it can be changed afterwards. The last
- * clause is not decoration — `/terms` promises a takedown route by email, and
- * this is the one that does not depend on somebody reading a mailbox. **A
- * consent that cannot be withdrawn is not consent**, which is the substantive
- * difference from a waiver, accepted once and standing.
+ * Every clause is checkable in this repository, and **nothing here asserts
+ * what the organization does with a photo** — that is the tenant's own text
+ * above it (rule 2). It names all three remedies, because the self-service one
+ * is the narrowest: `set_my_photo_consent()` resolves through
+ * `my_constituent_person_id('events')`, so the registration-page control
+ * reaches only somebody who has claimed an account, which most registrants
+ * have not. Under #599 that route was a bonus on top of a box already ticked;
+ * here it is one of three, and the only one that does not depend on a person
+ * at the other end.
+ *
+ * It opens by saying there is no box, because the absence is the surprising
+ * part and a reader who scans for a control should be told why they will not
+ * find one.
  */
-export const PHOTO_CONSENT_FORM_NOTE =
-  "Either answer is fine, and we keep whichever you give — including a no, so the people running the event know. You can change your mind later from your registration page, or by emailing us.";
-
-/** The form field name, so the component and the parser cannot drift. */
-export const PHOTO_CONSENT_FIELD = "photoConsent";
+export const PHOTO_CONSENT_NOTICE =
+  "There is no box to tick here. If you'd rather not be photographed, tell any organizer at the event, email us, or — if you have an account here — say so on your registration page at any time, before or after. We keep that on the record so the people running the event know.";
 
 /**
- * What the RPC raises when somebody tries to change an answer to a question
- * the organization has stopped asking, and what the Server Action turns it
- * back into.
+ * What the RPC raises when somebody tries to record an objection against an
+ * organization that publishes no photo notice, and what the Server Action
+ * turns it back into.
  *
- * There is deliberately **no** equivalent on the way in. Declining is a valid
- * submission and must never block one, so `resolved_photo_consent()` raises
- * nothing: where the slot was emptied between render and submit it records
- * `null` rather than a stale snapshot.
+ * There is deliberately **no** equivalent on the way in: nothing is collected
+ * at registration any more, so there is nothing a blank slot could refuse.
  */
 export const PHOTO_CONSENT_UNAVAILABLE_CODE = "PHOTO_CONSENT_UNAVAILABLE";
 
 export const PHOTO_CONSENT_UNAVAILABLE_ERROR =
-  "This organization is no longer asking about photos, so there is nothing to change here. Email them if you need a photo taken down.";
+  "This organization does not publish a photo notice, so there is nothing to record against here. Email them if you'd rather not be photographed, or to have a photo taken down.";
 
 /**
- * A raw form value as the column stores it.
+ * The three sentences describing what is on the record, said plainly.
  *
- * An absent field is `null`, not `false`. The component renders nothing at all
- * on a tenant with no scope written, so an absent field means the question was
- * never put — and reading that as a decline would invent a refusal, just as
- * reading it as consent would invent permission. An unticked box that *was*
- * rendered submits `"off"`, which is a real `false`.
+ * Somebody checking whether their objection actually stuck is the main reason
+ * to open the registration page, so the stored state is stated before the
+ * control that changes it — and the `null` sentence says what is *not* on the
+ * record rather than reporting an absence, because "nothing here yet" reads as
+ * a gap somebody should fill.
  */
-export function parsePhotoConsent(
-  raw: FormDataEntryValue | null,
-): boolean | null {
-  const value = String(raw ?? "").trim();
-  if (value === "on") return true;
-  if (value === "off") return false;
-  return null;
-}
+export const PHOTO_OBJECTION_NONE =
+  "You haven't asked us not to photograph you.";
 
-/** What the component submits for a rendered box in either state. */
-export function photoConsentValue(checked: boolean): "on" | "off" {
-  return checked ? "on" : "off";
-}
+export const PHOTO_OBJECTION_RECORDED =
+  "You've asked us not to photograph or record you, and the people running the event can see that.";
+
+export const PHOTO_OBJECTION_WITHDRAWN = "You've told us photos are fine.";
 
 /**
- * How the portal names the answer.
+ * The control, in the first person and in the direction that has an
+ * operational job.
  *
- * Null returns null rather than a sentence: "not asked" is the caller's to
- * word, because the registrants table and the detail sheet say it differently
- * — one shows nothing at all, the other explains why there is nothing.
+ * The primary action records an objection; withdrawing one is offered only
+ * once there is something to withdraw. A pair of buttons rather than a
+ * checkbox and a Save: a box that starts unticked next to "photos are fine"
+ * would be a consent control again, and this is not consent.
  */
-export function photoConsentLabelForStaff(
-  consent: boolean | null,
-): string | null {
-  if (consent === null) return null;
-  return consent ? "Photos OK" : "No photos";
-}
+export const PHOTO_OBJECTION_ACTION = "Please don't photograph or record me";
+
+export const PHOTO_OBJECTION_WITHDRAW_ACTION =
+  "I've changed my mind — photos are fine";

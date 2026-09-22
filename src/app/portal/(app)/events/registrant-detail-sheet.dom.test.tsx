@@ -237,15 +237,16 @@ describe("RegistrantDetailSheet", () => {
     expect(screen.queryByText("Emergency contact")).toBeNull();
   });
 
-  // #599, and the contrast with the waiver block above is the point: that one
-  // can never say "they declined", and this one has to.
-  describe("photo and media consent", () => {
-    test("says nothing on an organization that has never asked", () => {
+  // #599, reversed by #1376: the columns hold an objection now. The contrast
+  // with the waiver block above is still the point -- that one can never say
+  // "they said no", and this one has to.
+  describe("photos and video", () => {
+    test("says nothing on an organization that publishes no photo notice", () => {
       renderSheet();
       expect(screen.queryByText("Photos")).toBeNull();
     });
 
-    test("a decline is stated as an instruction, not as an absence", () => {
+    test("an objection is stated as an instruction, not as an absence", () => {
       renderSheet({
         photoConsentInForce: true,
         registrant: {
@@ -256,11 +257,12 @@ describe("RegistrantDetailSheet", () => {
       });
 
       expect(screen.getByText("Photos")).toBeInTheDocument();
-      expect(screen.getByText(/Declined/)).toBeInTheDocument();
-      expect(screen.getByText(/do not photograph/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Asked not to be photographed or recorded/),
+      ).toBeInTheDocument();
     });
 
-    test("a grant says so, and neither state is an em dash", () => {
+    test("a withdrawal says so, and neither state is an em dash", () => {
       renderSheet({
         photoConsentInForce: true,
         registrant: {
@@ -270,28 +272,30 @@ describe("RegistrantDetailSheet", () => {
         },
       });
 
-      expect(screen.getByText(/Agreed to be photographed/)).toBeInTheDocument();
-      expect(screen.queryByText(/Declined/)).toBeNull();
+      expect(
+        screen.getByText(/Confirmed they are happy to be photographed/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Asked not to be/)).toBeNull();
     });
 
-    // The distinction `photoConsentInForce` exists for: an organization that
-    // asks now, and a registration taken before it started. Nothing here may
-    // read as "no objection".
-    test("an older registration says it was not asked, not that it agreed", () => {
+    // The resting state of every registration this platform takes (#1376).
+    // It is a fact about the record, said plainly, and it may never read as
+    // an objection -- nor as a gap in the organization's configuration.
+    test("no objection on record is stated as that, not as an absence", () => {
       renderSheet({
         photoConsentInForce: true,
         registrant: { photo_consent: null },
       });
 
       expect(screen.getByText("Photos")).toBeInTheDocument();
-      expect(screen.getByText(/were not asked/)).toBeInTheDocument();
-      expect(screen.queryByText(/Declined/)).toBeNull();
-      expect(screen.queryByText(/Agreed/)).toBeNull();
+      expect(screen.getByText("No objection recorded")).toBeInTheDocument();
+      expect(screen.queryByText(/Asked not to be/)).toBeNull();
+      expect(screen.queryByText(/Confirmed/)).toBeNull();
     });
 
-    // Kept for a row that carries an answer even after the organization stops
-    // asking, the same way the agreement row is.
-    test("an answer survives the organization withdrawing the question", () => {
+    // Kept for a row that carries an objection even after the organization
+    // takes its notice down, the same way the agreement row is.
+    test("an objection survives the organization withdrawing its notice", () => {
       renderSheet({
         photoConsentInForce: false,
         registrant: {
@@ -301,12 +305,14 @@ describe("RegistrantDetailSheet", () => {
         },
       });
 
-      expect(screen.getByText(/Declined/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Asked not to be photographed or recorded/),
+      ).toBeInTheDocument();
     });
 
     // The snapshot is the only place the words can be reached: a content slot
     // has no version table and no permalink, unlike the waiver.
-    test("the scope they answered against is reachable, and there is no permalink", () => {
+    test("the paragraphs on the row are reachable, and there is no permalink", () => {
       renderSheet({
         photoConsentInForce: true,
         registrant: {

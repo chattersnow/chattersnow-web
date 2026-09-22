@@ -16,7 +16,7 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
-import { PhotoConsentField } from "@/components/photo-consent-field";
+import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -24,7 +24,6 @@ import {
   RecordAccountOffer,
   type AccountOffer,
 } from "@/components/record-account-offer";
-import { PHOTO_CONSENT_FIELD, photoConsentValue } from "@/lib/photo-consent";
 import type { EventViewerAccount } from "./my-registration";
 
 /**
@@ -79,13 +78,16 @@ export function EventRegistrationForm({
    */
   minorAccompaniment?: string[];
   /**
-   * This organization's photo and media consent scope (#599), from
-   * `events.photo_consent`. Empty on a tenant that has written none — which
-   * is almost all of them — and empty means the question is not asked at all:
-   * the block renders nothing, there is no box, and all three columns stay
-   * null. The platform writes no scope of its own, because what an
-   * organization does with a photo is off-platform and a default here would
-   * be a commitment a registrant then consented to on its behalf.
+   * This organization's photos-and-video paragraphs (#599, #1376), from
+   * `events.photo_consent`. Empty on a tenant that has written none — which is
+   * almost all of them — and empty means the form says nothing at all: no
+   * heading, no notice, byte-identical to the form before #599 shipped.
+   *
+   * Nothing on this form is collected against them any more. They are what
+   * makes registering carry the agreement, which is a claim only the
+   * organization can make, so the platform writes none of it; the objection
+   * that answers them is recorded elsewhere, by an organizer, by email, or
+   * from the registrant's own registration page.
    */
   photoConsent?: string[];
 }) {
@@ -110,10 +112,6 @@ export function EventRegistrationForm({
   // Starts unticked, always. A pre-ticked box is not an acceptance, and this
   // is the one control on the form where that matters (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  // Starts unticked too, and for the same reason (#599) — but unlike the
-  // waiver's, leaving this one alone is a valid answer that gets stored as a
-  // decline rather than a refused submission.
-  const [photoConsentGiven, setPhotoConsentGiven] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Holds the new registration's id once saved -- both the "did it work?"
   // flag and the token the rider-profile follow-up needs to authorize itself.
@@ -143,12 +141,6 @@ export function EventRegistrationForm({
     }
     formData.set("notes", notes);
     formData.set("company", company);
-    // Only when a scope was rendered, so an absent field means the question
-    // was never put and the row records "not asked". An unticked box that was
-    // on screen submits a real `"off"` and is stored as a decline (#599).
-    if (photoConsent.some((paragraph) => paragraph.trim())) {
-      formData.set(PHOTO_CONSENT_FIELD, photoConsentValue(photoConsentGiven));
-    }
     if (waiver) {
       formData.set("waiverAccepted", waiverAccepted ? "on" : "");
       formData.set("waiverVersion", String(waiver.version));
@@ -342,27 +334,16 @@ export function EventRegistrationForm({
 
         <PrivacyNotice surface="eventRegistration" />
 
-        {/* #789's order of accumulation: the notice, then the box that can be
-            declined, then the one that cannot. Photo consent sits between them
-            on purpose. It is a real choice, so it belongs after the notice
-            that explains what is collected; and it goes above the agreement
-            because an unticked box next to "I accept" reads as part of the
-            acceptance, which is exactly the confusion the two shapes have to
-            avoid.
-
-            The minors question is not part of this group -- it sits higher,
-            beside the head count it qualifies -- but its answer reaches here,
-            because where a party includes someone under 18 the label says the
-            adult is answering as their parent or guardian. One column, one
-            answer (#685, #599). */}
-        <PhotoConsentField
-          idPrefix="registration"
-          paragraphs={photoConsent}
-          partyIncludesMinor={partyIncludesMinor === "yes"}
-          checked={photoConsentGiven}
-          onChange={setPhotoConsentGiven}
-          disabled={isPending}
-        />
+        {/* #789's order of accumulation, and since #1376 it is two notices
+            and then the one agreement the form actually takes. A notice
+            belongs with the other notice: both say what happens to what you
+            give us, neither asks for anything back, and putting them together
+            leaves the box beneath them as the only control on the form
+            carrying a real choice. Above the agreement rather than below it,
+            because prose sitting under "I accept" reads as part of what is
+            being accepted -- which is exactly the confusion the two shapes
+            have to avoid (#686). */}
+        <PhotoConsentNotice paragraphs={photoConsent} />
 
         {/* After the notice and beside the button, which is the order the
             artwork submission form argues for and for the same reason: the
@@ -376,6 +357,14 @@ export function EventRegistrationForm({
         {waiver && (
           <>
             {waiverBlock}
+            {/* No `scroll-mb-*` against the pinned submit below (#1375). The
+                thought was that the browser scrolls an unticked required box
+                into view and anchors its bubble there, so the button could
+                cover it -- but `Checkbox` is base-ui, whose real input is a
+                1px `position: fixed` element parked at the viewport corner.
+                That is what constraint validation sees, so nothing scrolls
+                and the bubble never comes near this row. Verified in Chrome:
+                submitting unticked leaves `scrollY` untouched. */}
             <Field orientation="horizontal">
               <Checkbox
                 id="registration-waiver"
@@ -394,12 +383,23 @@ export function EventRegistrationForm({
         {/* Not "Register": that is the disclosure's trigger above the form
             (#1256), and two buttons of the same name in one section are one
             for the reader to disambiguate and one for a test to pick the
-            wrong one of. */}
+            wrong one of.
+
+            Sticky on the button itself, not on a wrapper bar (#1375). A
+            sticky element is bounded by its containing block, so this only
+            travels because its containing block is the tall `FieldGroup`
+            spanning the whole form -- putting it inside any wrapper of its
+            own shrinks that box to the button and it stops pinning. It is
+            also the last child, so nothing in flow sits below it and it
+            settles back into place, `gap-5` above it, at full scroll. The
+            `rainbow` background is opaque, so it needs no bar, border or
+            blur to keep text from reading through it. The `env()` resolves
+            to 0 until a layout exports `viewport-fit=cover`. */}
         <Button
           type="submit"
           variant="rainbow"
           disabled={isPending}
-          className="w-full sm:w-fit"
+          className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-10 w-full shadow-lg sm:w-fit"
         >
           {isPending ? "Registering..." : "Complete registration"}
         </Button>

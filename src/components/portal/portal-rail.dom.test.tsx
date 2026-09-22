@@ -1,5 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PortalRail, PortalRailResults } from "./portal-rail";
 import type { DeviceClass } from "@/proxy";
@@ -127,7 +133,14 @@ describe("PortalRail on a phone", () => {
     const sheet = await screen.findByRole("dialog");
     await user.click(within(sheet).getByRole("button", { name: "Sponsors" }));
 
-    expect(screen.queryByRole("dialog")).toBeNull();
+    // Retried rather than sampled (#1294). This read the absence on the line
+    // after the click, which holds only while the close is synchronous with
+    // React's flush -- Base UI unmounts the sheet behind
+    // `useAnimationsFinished`, so what makes it pass today is happy-dom having
+    // no real animations rather than anything this test is asserting.
+    // (`waitForElementToBeRemoved` is the wrong tool here: it refuses an
+    // element that has already gone, which under happy-dom is every run.)
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(order).toEqual(["picked Sponsors"]);
   });
 });

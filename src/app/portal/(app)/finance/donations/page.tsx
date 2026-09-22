@@ -38,6 +38,7 @@ import { NewDonationDialog } from "./new-donation-dialog";
 import {
   DONATION_COLUMNS,
   PAYMENT_METHODS,
+  donationSourceLabel,
   donorLabel,
   isPaymentMethod,
   paymentMethodLabel,
@@ -45,6 +46,12 @@ import {
   type MonetaryDonationRow,
 } from "./donations-shared";
 import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { parseGivingSettings } from "@/lib/giving";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import { GivingSettingsPanel } from "./giving-settings-panel";
 import { EmptyState } from "@/components/portal/empty-state";
 
 type DonationsPageProps = {
@@ -123,20 +130,34 @@ export default async function FinanceDonationsPage({
   }
 
   const { offset, to } = pageRange(page, perPage);
-  const [{ data: donations, count }, { data: events }, { data: people }] =
-    await Promise.all([
-      query.range(offset, to),
-      supabase
-        .from("events")
-        .select("id, name")
-        .order("name", { ascending: true }),
-      supabase
-        .from("people")
-        .select(
-          "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
-        )
-        .order("name", { ascending: true }),
-    ]);
+  const [
+    { data: donations, count },
+    { data: events },
+    { data: people },
+    permissions,
+  ] = await Promise.all([
+    query.range(offset, to),
+    supabase
+      .from("events")
+      .select("id, name")
+      .order("name", { ascending: true }),
+    supabase
+      .from("people")
+      .select(
+        "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
+      )
+      .order("name", { ascending: true }),
+    getCurrentUserPermissions(supabase),
+  ]);
+
+  // The giving path (#1389) is configured here rather than in Administration
+  // because it shapes exactly one feature (docs/portal-navigation.md), and it
+  // is read only for somebody who could change it -- get_giving_settings()
+  // returns null without finance:view either way.
+  const canManageGiving = hasPermission(permissions, "finance", "manage");
+  const givingResult = canManageGiving
+    ? await supabase.rpc("get_giving_settings")
+    : null;
 
   const donationRows = (donations ?? []) as unknown as MonetaryDonationRow[];
   const eventOptions = (events ?? []) as EventOption[];
@@ -390,6 +411,19 @@ export default async function FinanceDonationsPage({
             </form>
           </FiltersSheet>
 
+          {/* The import's only way in (docs/portal-navigation.md): it is the
+              same job as this page -- getting gifts into the ledger -- done
+              from a file rather than by hand, so it sits beside New donation
+              rather than taking a ninth slot in the Finance sidebar. The
+              breadcrumb on the page itself carries the trail back. */}
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href="/portal/finance/donations/import" />}
+          >
+            <LinkPendingPulse>Import</LinkPendingPulse>
+          </Button>
+
           <NewDonationDialog events={eventOptions} people={peopleOptions} />
         </div>
 
@@ -439,6 +473,10 @@ export default async function FinanceDonationsPage({
                       </TableHead>
                     ))}
                     <TableHead hideBelow="md">Event</TableHead>
+                    {/* Which figures were transcribed and which arrived from a
+                        provider (#1390). Last and `lg`-only: it matters when
+                        reconciling and nowhere else. */}
+                    <TableHead hideBelow="lg">Source</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -459,6 +497,10 @@ export default async function FinanceDonationsPage({
                       </TableCell>
                       <TableCell hideBelow="md" className="app-muted">
                         {donation.events?.name ?? "—"}
+                      </TableCell>
+                      <TableCell hideBelow="lg" className="app-muted">
+                        {donation.processor_label ||
+                          donationSourceLabel(donation.source)}
                       </TableCell>
                       <TableCell>
                         <EditDonationModal
@@ -485,6 +527,12 @@ export default async function FinanceDonationsPage({
             perPageHrefFor={perPageHref}
           />
         )}
+
+        {canManageGiving && givingResult && !givingResult.error ? (
+          <GivingSettingsPanel
+            settings={parseGivingSettings(givingResult.data)}
+          />
+        ) : null}
       </div>
     </>
   );

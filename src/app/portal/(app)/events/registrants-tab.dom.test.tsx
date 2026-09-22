@@ -511,8 +511,19 @@ describe("RegistrantsTab", () => {
   });
 
   // #599, and the condition is the inverse of the minors flag above: the state
-  // a camera has to know about is the decline. This is also the check-in
+  // a camera has to know about is the `false`. This is also the check-in
   // surface, because `check-in-modal.tsx` renders this same table.
+  //
+  // **This block is deliberately unchanged by #1376 and is the regression
+  // guard for the operational point.** The semantics of the column flipped
+  // around it -- `false` stopped meaning "asked and declined" and started
+  // meaning "objected" -- and nothing here had to move, because `false` has
+  // always meant the one thing a door shift acts on. This badge is also why
+  // the columns survived the reversal at all: dropping them would have
+  // deleted the list somebody checks before pointing a camera, and "photos
+  // can be deleted" is a remedy after the fact rather than that list. If a
+  // future change makes these assertions need editing, the operational
+  // meaning of `false` has moved and that is the thing to question first.
   test("flags the registrant who declined photos, and only that one", async () => {
     render(<RegistrantsTab capacity={10} mode="view" {...slices()} />);
 

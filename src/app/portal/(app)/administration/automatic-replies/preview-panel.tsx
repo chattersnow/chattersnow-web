@@ -77,6 +77,7 @@ export function AutoReplyPreviewPanel({
   slots,
   enabled,
   emailEnabled,
+  debounceMs = DEBOUNCE_MS,
 }: {
   kind: string;
   label: string;
@@ -86,6 +87,16 @@ export function AutoReplyPreviewPanel({
   enabled: boolean;
   /** The org-wide kill switch, which outranks it. */
   emailEnabled: boolean;
+  /**
+   * How long typing has to stop before the pane re-renders.
+   *
+   * A prop rather than a constant the tests cannot reach, for the reason
+   * #1294 gives: a test that waits out a real 400ms delay inside a 1s budget
+   * is racing, and widening the budget only moves the race. A test that wants
+   * the render to land passes 0; one that wants to assert none went out
+   * passes something longer than the whole test.
+   */
+  debounceMs?: number;
 }) {
   const [part, setPart] = useUrlTabState<PreviewPart>({
     param: "part",
@@ -118,13 +129,13 @@ export function AutoReplyPreviewPanel({
       }
       setError(null);
       setPreview(result.preview);
-    }, DEBOUNCE_MS);
+    }, debounceMs);
 
     return () => {
       current = false;
       clearTimeout(timer);
     };
-  }, [kind, draft]);
+  }, [kind, draft, debounceMs]);
 
   function sendTest() {
     startSending(async () => {

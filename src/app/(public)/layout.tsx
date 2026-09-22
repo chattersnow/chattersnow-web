@@ -243,89 +243,86 @@ export default async function PublicLayout({
               </nav>
             </div>
 
-            <div className="flex flex-col gap-2 sm:items-end">
-              <span className="app-eyebrow">
-                {content.text("org.footer_contact_eyebrow")}
-              </span>
-              <div className="app-muted flex flex-col gap-1 text-sm sm:items-end">
-                <a
-                  href={`mailto:${contactEmail}`}
-                  className="hover:text-foreground underline-offset-4 hover:underline"
-                >
-                  {contactEmail}
-                </a>
-                <InstagramLink
-                  handle={content.text("org.instagram_handle")}
-                  orgName={name ?? "this organization"}
-                />
+            {/* Resources and contact are two columns of one right-hand
+                cluster, so the top zone stays two sides of a `justify-between`
+                rather than three children with an orphaned middle. */}
+            <div className="flex flex-wrap gap-x-16 gap-y-8 sm:shrink-0 sm:flex-nowrap">
+              {/* The account link and the brand guide are utilities, not
+                  sections of the website -- `NAV_GROUPS` is the list of
+                  sections -- so neither is a SectionLinks entry. They used to
+                  sit in the legal bar, where "Your account" read as fine print
+                  between the brand guide and the privacy policy; up here they
+                  get a column and a heading of their own.
+
+                  The account link is the header control's quiet twin: a
+                  returning visitor who has scrolled to the bottom of a page
+                  should not have to scroll back up to find their way in
+                  (#1175). The brand guide's whole value is its URL -- it is
+                  pasted into an email to a sponsor or a print shop, not browsed
+                  to -- so it stays out of the header. The guard covers both, so
+                  the landmark is never announced empty. */}
+              {(isSlotVisible(hidden, "brand") || account.enabled) && (
+                <div className="flex flex-col gap-2">
+                  <span className="app-eyebrow" aria-hidden="true">
+                    Resources
+                  </span>
+                  <nav aria-label="Resources" className="flex flex-col gap-1">
+                    {account.enabled && (
+                      <FooterLink
+                        href={
+                          account.signedIn ? MY_PATH_PREFIX : MY_SIGN_IN_PATH
+                        }
+                        label={account.signedIn ? "Your account" : "Sign in"}
+                      />
+                    )}
+                    {isSlotVisible(hidden, "brand") && (
+                      <FooterLink href="/brand" label="Brand & Design" />
+                    )}
+                  </nav>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <span className="app-eyebrow">
+                  {content.text("org.footer_contact_eyebrow")}
+                </span>
+                <div className="app-muted flex flex-col gap-1 text-sm">
+                  <a
+                    href={`mailto:${contactEmail}`}
+                    className="hover:text-foreground underline-offset-4 hover:underline"
+                  >
+                    {contactEmail}
+                  </a>
+                  <InstagramLink
+                    handle={content.text("org.instagram_handle")}
+                    orgName={name ?? "this organization"}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-col gap-3 border-t border-[var(--line)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 flex flex-col gap-3 border-t border-[var(--line)] pt-6 lg:flex-row lg:items-center lg:justify-between">
             <p className="app-muted text-sm">
               &copy; {new Date().getFullYear()}
               {name ? ` ${name}.` : ""} All rights reserved.
             </p>
-            {/* Both link groups sit in one right-hand cluster, so the bar is
-                two zones rather than three. Left as three children of
-                `justify-between`, the middle one lands wherever the widths of
-                the other two leave it -- not centred on anything, and reading
-                as an orphan rather than as a sibling of the link beside it.
-                They stay two landmarks inside it: a brand guide and the terms
-                of using the site are different things to a screen reader,
-                whatever they look like on the page. */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              {/* Not a SectionLinks entry, and deliberately not in the header.
-                The brand guide's whole value is its URL -- it is pasted into
-                an email to a sponsor or a print shop, not browsed to -- so it
-                sits with the utility links rather than competing with Events
-                and Programs. Its own landmark rather than joining the Legal
-                one, which is a nav about the terms of using the site. */}
-              {/* The account link joins the brand guide here, and for the same
-                  reason it is not a SectionLinks entry: these are utilities,
-                  not sections of the website, and `NAV_GROUPS` is the list of
-                  sections. It is the header control's quiet twin -- a returning
-                  visitor who has scrolled to the bottom of a page should not
-                  have to scroll back up to find their way in (#1175). The
-                  guard covers both, so the landmark is never announced empty.
-               */}
-              {(isSlotVisible(hidden, "brand") || account.enabled) && (
-                <nav
-                  aria-label="Resources"
-                  className="flex flex-wrap gap-x-6 gap-y-2"
-                >
-                  {isSlotVisible(hidden, "brand") && (
-                    <FooterLink href="/brand" label="Brand & Design" />
-                  )}
-                  {account.enabled && (
-                    <FooterLink
-                      href={account.signedIn ? MY_PATH_PREFIX : MY_SIGN_IN_PATH}
-                      label={account.signedIn ? "Your account" : "Sign in"}
-                    />
-                  )}
-                </nav>
-              )}
-              {/* Only the documents this tenant serves (#859). The privacy
+            {/* Only the documents this tenant serves (#859). The privacy
                 policy is always one of them, so this landmark is never empty --
                 an empty <nav aria-label="Legal"> would be announced by screen
                 readers as a landmark with nothing in it. A document that is not
                 in force drops out of here and 404s at its URL together;
                 dropping only the link would leave text nobody adopted at a
                 guessable address. */}
-              <nav
-                aria-label="Legal"
-                className="flex flex-wrap gap-x-6 gap-y-2"
-              >
-                {documentsInForce(publication).map((document) => (
-                  <FooterLink
-                    key={document.route}
-                    href={document.route}
-                    label={document.label}
-                  />
-                ))}
-              </nav>
-            </div>
+            <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
+              {documentsInForce(publication).map((document) => (
+                <FooterLink
+                  key={document.route}
+                  href={document.route}
+                  label={document.label}
+                />
+              ))}
+            </nav>
           </div>
         </div>
       </footer>

@@ -3,6 +3,10 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { getPublicGivingSettings } from "@/lib/public-giving";
+import { givingIsPublished } from "@/lib/giving";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -12,7 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SupportPage() {
   const supabase = await createSupabaseServerClient();
-  const { content } = await getPublicSite(supabase);
+  const [{ content }, giving] = await Promise.all([
+    getPublicSite(supabase),
+    getPublicGivingSettings(supabase),
+  ]);
 
   return (
     <div className="space-y-12">
@@ -41,6 +48,17 @@ export default async function SupportPage() {
             <p className="app-muted text-sm leading-relaxed">
               {content.text("support.donations_card")}
             </p>
+            {/* The card's own copy is unchanged whether giving is on or off
+                (#1389) -- what changes is that there is somewhere to go. A
+                tenant that has configured no giving path gets today's card. */}
+            {givingIsPublished(giving) ? (
+              <Link
+                href="/support/donate"
+                className={cn(buttonVariants(), "mt-4")}
+              >
+                {content.text("support.giving_title")}
+              </Link>
+            ) : null}
           </CardContent>
         </Card>
         <Card>

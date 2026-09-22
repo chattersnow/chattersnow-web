@@ -21,9 +21,8 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
-import { PhotoConsentField } from "@/components/photo-consent-field";
+import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
-import { PHOTO_CONSENT_FIELD, photoConsentValue } from "@/lib/photo-consent";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
 
@@ -68,10 +67,11 @@ export function MyEventRegistrationForm({
    */
   minorAccompaniment?: string[];
   /**
-   * This organization's photo and media consent scope (#599). Empty on a
-   * tenant that has written none, and empty means the question is not asked
-   * at all. Put to a signed-in caller exactly as it is to an anonymous one:
-   * holding an account is not permission to photograph anybody.
+   * This organization's photos-and-video paragraphs (#599, #1376). Empty on a
+   * tenant that has written none, and empty means the form says nothing at
+   * all. Shown to a signed-in caller exactly as to an anonymous one: holding
+   * an account is not permission to photograph anybody, and it is not a reason
+   * to tell somebody less.
    */
   photoConsent?: string[];
 }) {
@@ -95,9 +95,6 @@ export function MyEventRegistrationForm({
   const [notes, setNotes] = useState("");
   // Unticked, always (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  // Unticked too (#599), but leaving this one alone is a stored decline rather
-  // than a refused submission.
-  const [photoConsentGiven, setPhotoConsentGiven] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -121,11 +118,6 @@ export function MyEventRegistrationForm({
       for (const [key, value] of Object.entries(minorContacts)) {
         formData.set(key, value);
       }
-    }
-    // Only when a scope was rendered: an absent field records "not asked",
-    // and an unticked box that was on screen records a decline (#599).
-    if (photoConsent.some((paragraph) => paragraph.trim())) {
-      formData.set(PHOTO_CONSENT_FIELD, photoConsentValue(photoConsentGiven));
     }
     if (waiver) {
       formData.set("waiverAccepted", waiverAccepted ? "on" : "");
@@ -267,18 +259,12 @@ export function MyEventRegistrationForm({
         </Field>
 
         {/* Above the agreement, the same order the anonymous form uses and for
-            the same reason: an unticked box sitting beside "I accept" reads as
-            part of the acceptance. The minors answer reaches it, because where
-            the party includes someone under 18 the label says the adult is
-            answering as their parent or guardian (#685, #599). */}
-        <PhotoConsentField
-          idPrefix="my-registration"
-          paragraphs={photoConsent}
-          partyIncludesMinor={partyIncludesMinor === "yes"}
-          checked={photoConsentGiven}
-          onChange={setPhotoConsentGiven}
-          disabled={isPending}
-        />
+            the same reason: prose sitting beneath "I accept" reads as part of
+            what is being accepted. This form carries no privacy notice of its
+            own -- that is #684's territory and a signed-in caller has already
+            been told -- so this is the only notice here, and the waiver's box
+            below it is the only control taking anything (#1376). */}
+        <PhotoConsentNotice paragraphs={photoConsent} />
 
         {/* Immediately above the button that acts on it, the same placement
             the anonymous form uses. This form carries no privacy notice --
@@ -289,6 +275,14 @@ export function MyEventRegistrationForm({
         {waiver && (
           <>
             {waiverBlock}
+            {/* No `scroll-mb-*` against the pinned submit below (#1375). The
+                thought was that the browser scrolls an unticked required box
+                into view and anchors its bubble there, so the button could
+                cover it -- but `Checkbox` is base-ui, whose real input is a
+                1px `position: fixed` element parked at the viewport corner.
+                That is what constraint validation sees, so nothing scrolls
+                and the bubble never comes near this row. Verified in Chrome:
+                submitting unticked leaves `scrollY` untouched. */}
             <Field orientation="horizontal">
               <Checkbox
                 id="my-registration-waiver"
@@ -304,13 +298,26 @@ export function MyEventRegistrationForm({
           </>
         )}
 
-        <Field orientation="horizontal">
-          {/* Named apart from the disclosure's "Register" trigger above it
-              (#1256), the same way the anonymous form's submit is. */}
-          <Button type="submit" disabled={isPending}>
-            {isPending ? "Registering…" : "Complete registration"}
-          </Button>
-        </Field>
+        {/* Named apart from the disclosure's "Register" trigger above it
+            (#1256), the same way the anonymous form's submit is.
+
+            Sticky on the button itself, with no wrapper (#1375). A sticky
+            element is bounded by its containing block, so this only travels
+            because its containing block is the tall `FieldGroup` spanning
+            the whole form -- the `Field` that used to wrap it would have
+            shrunk that box to the button and stopped it pinning. It is also
+            the last child, so nothing in flow sits below it and it settles
+            back into place, `gap-5` above it, at full scroll. `bg-primary`
+            is opaque, so it needs no bar, border or blur to keep text from
+            reading through it. The `env()` resolves to 0 until a layout
+            exports `viewport-fit=cover`. */}
+        <Button
+          type="submit"
+          disabled={isPending}
+          className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-10 w-full shadow-lg sm:w-fit"
+        >
+          {isPending ? "Registering…" : "Complete registration"}
+        </Button>
       </FieldGroup>
     </form>
   );

@@ -255,14 +255,21 @@ export function RegistrantsTab({
             )}
             {/* Same place, same argument, and the condition is inverted (#599).
                 For the minors flag the notable state is `true`; here it is
-                `false` -- somebody who declined being photographed is the one
-                registrant a camera has to know about, and "agreed" is the
-                ordinary case that would only add noise. Null renders nothing
-                because nobody asked, and a badge saying so would put a gap in
-                the organization's own configuration in front of the door shift.
+                `false` -- somebody who has asked not to be photographed is the
+                one registrant a camera has to know about, and the ordinary
+                case would only add noise. Null renders nothing: it is the
+                resting state of every registration (#1376), and a badge on
+                every row is a badge nobody reads.
 
                 This is also the check-in surface: `check-in-modal.tsx` renders
-                this same table, so the badge is there without a second copy. */}
+                this same table, so the badge is there without a second copy.
+
+                **The badge is the reason #1376 kept the column.** Dropping the
+                three columns and the machinery would have deleted this, and
+                "photos can be deleted" is a remedy after the fact rather than
+                a list the door shift checks before pointing a camera. Nothing
+                about this condition changed when the semantics flipped, and
+                nothing about it should. */}
             {registrant.photo_consent === false && (
               <StatusBadge tone="warning" className="mt-1 font-normal">
                 No photos

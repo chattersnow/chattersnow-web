@@ -2,7 +2,7 @@ import { test, expect } from "./helpers/test";
 import { signIn, reloadStayingSignedIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { pickPerson, seedPerson } from "./helpers/people";
-import { modal } from "./helpers/dialog";
+import { modal, toastsCleared } from "./helpers/dialog";
 import { exactLabel } from "./helpers/labels";
 
 // The document-shaped governance routes (#442): bylaws, policies, conflict
@@ -55,6 +55,13 @@ test.describe("portal governance records", () => {
         .last();
       await expect(entry).toBeVisible({ timeout: 15_000 });
 
+      // The confirmation has to be off the screen first (#1294). Below `sm`
+      // the toast viewport is nearly the full width at `bottom-4`, so on
+      // `mobile-chromium` it covers the bottom of this table -- and Base UI
+      // pauses each toast's dismissal timer while the pointer is over it, so a
+      // cursor parked there by the previous click freezes the stack rather
+      // than waiting it out. Same cause as #1283's `nonprofit-status` failure.
+      await toastsCleared(page);
       await entry.getByRole("button", { name: "View bylaws version" }).click();
       const sheet = modal(page);
       await expect(sheet.getByText(version)).toBeVisible();
@@ -116,6 +123,7 @@ test.describe("portal governance records", () => {
       await search.fill(policyName);
       await expect(row).toBeVisible();
 
+      await toastsCleared(page);
       await row.getByRole("button", { name: "View policy" }).click();
       const sheet = modal(page);
       await expect(sheet.getByText(policyName)).toBeVisible();
@@ -177,6 +185,7 @@ test.describe("portal governance records", () => {
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row).toContainText(notes);
 
+      await toastsCleared(page);
       await row.getByRole("button", { name: "View disclosure" }).click();
       const sheet = modal(page);
       // Exact, because the picker also announces the choice to screen
@@ -247,6 +256,8 @@ test.describe("portal governance records", () => {
         .click();
       await expect(row).toContainText("Done", { timeout: 15_000 });
 
+      // Two writes above this one, so two toasts stacked over the table (#1294).
+      await toastsCleared(page);
       await row.getByRole("button", { name: "View requirement" }).click();
       const sheet = modal(page);
       await expect(sheet.getByText(requirementName)).toBeVisible();

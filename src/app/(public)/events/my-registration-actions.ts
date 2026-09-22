@@ -16,7 +16,6 @@ import {
   parseMinorContacts,
   parsePartyIncludesMinor,
 } from "@/lib/minors";
-import { PHOTO_CONSENT_FIELD, parsePhotoConsent } from "@/lib/photo-consent";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
 
@@ -122,13 +121,13 @@ export async function registerMyselfForEventAction(
       minorContacts.data.emergency_contact_name ?? undefined,
     p_emergency_contact_phone:
       minorContacts.data.emergency_contact_phone ?? undefined,
-    // #599, read straight off the FormData like the waiver above and for the
-    // same reason: this action has no parser of its own. `undefined` is how
-    // "this tenant asks nothing" reaches the RPC, which is the branch almost
-    // every registration takes; `false` is a box that was on screen and left
-    // unticked, and it never refuses the submission.
-    p_photo_consent:
-      parsePhotoConsent(formData.get(PHOTO_CONSENT_FIELD)) ?? undefined,
+    // No `p_photo_consent` (#1376). The parameter is still there, declared
+    // `default null`, and the RPC is unchanged -- but this form has no box, so
+    // there is no answer to send and `null` is the correct resting state: no
+    // objection on record, agreement implied by registering. Writing `true`
+    // here would record an affirmative consent produced by a form with no
+    // affirmative control. An API caller that genuinely asked can still send
+    // one.
     p_ip_address: await getClientIp(),
   });
 

@@ -67,14 +67,23 @@ test.describe("volunteer screening outcomes", () => {
       ).toBeVisible();
 
       // An application, so the sheet has somewhere to show the outcome.
+      const applicationId8 = crypto.randomUUID().slice(0, 8);
       const { data: application, error } = await admin
         .from("volunteer_applications")
         .insert({
           person_id: person.id,
           name: person.name,
-          email: `${crypto.randomUUID().slice(0, 8)}@example.test`,
+          email: `${applicationId8}@example.test`,
           role_interest: "Ride Buddy",
           status: "being reviewed",
+          // `reference_code` is NOT NULL and nothing supplies a default: the
+          // column is filled by submit_volunteer_application(), so a direct
+          // insert has to bring its own (#1372). The column only requires
+          // uniqueness -- the public intake path's friendlier generator
+          // (generate_volunteer_reference_code) is not granted to the service
+          // role -- so a uuid slice stands in, exactly as
+          // volunteer-applications.spec.ts already does.
+          reference_code: applicationId8.toUpperCase(),
         })
         .select("id")
         .single();

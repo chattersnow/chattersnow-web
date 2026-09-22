@@ -140,9 +140,9 @@ function railRow(page: import("@playwright/test").Page, title: string) {
  * above it, where the rail is a column that is always up.
  */
 function railSheet(page: import("@playwright/test").Page) {
-  return page
-    .getByRole("dialog")
-    .filter({ has: page.getByRole("navigation", { name: "Event sections" }) });
+  return modal(page).filter({
+    has: page.getByRole("navigation", { name: "Event sections" }),
+  });
 }
 
 /**
@@ -161,8 +161,18 @@ function railSheet(page: import("@playwright/test").Page) {
  */
 async function showRail(page: import("@playwright/test").Page) {
   const toggle = page.getByRole("button", { name: /^Sections · / });
-  if (!(await toggle.isVisible())) return;
   const rail = page.getByRole("navigation", { name: "Event sections" });
+  // This guard used to sit un-retried in front of the very `toPass` below that
+  // exists because the toggle is server-rendered before React attaches
+  // (#1294). It therefore sampled inside the window the retry was written to
+  // absorb, and a "no" returned silently, leaving the rail shut for the rest
+  // of the test. Waiting until the page has settled into one shape or the
+  // other closes it: above `lg` the rail is already the column beside the
+  // card, below `lg` the toggle is there.
+  await expect
+    .poll(async () => (await toggle.isVisible()) || (await rail.isVisible()))
+    .toBe(true);
+  if (!(await toggle.isVisible())) return;
   await expect(async () => {
     if (!(await rail.isVisible())) await toggle.click();
     await expect(rail).toBeVisible({ timeout: 2_000 });

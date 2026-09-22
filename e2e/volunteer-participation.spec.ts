@@ -12,7 +12,7 @@ import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { seedUserWithRole } from "./helpers/rbac";
-import { modal } from "./helpers/dialog";
+import { modal, toastsCleared } from "./helpers/dialog";
 import { pickPerson } from "./helpers/people";
 import { exactLabel } from "./helpers/labels";
 
@@ -125,6 +125,11 @@ test.describe("portal volunteer participation", () => {
       await expect(sheet).not.toBeVisible();
       await expect(row).toContainText("4.5");
 
+      // Two writes (log, then save) have each left a confirmation, and below
+      // `sm` the toast viewport covers the bottom of this table -- where Base
+      // UI holds the dismissal timers for as long as the cursor the last click
+      // parked there stays over them (#1294, same cause as #1283).
+      await toastsCleared(page);
       await row.getByRole("button", { name: "Remove hours entry" }).click();
       // Logged hours feed grant reporting and there's no undo, so the delete
       // confirms first.

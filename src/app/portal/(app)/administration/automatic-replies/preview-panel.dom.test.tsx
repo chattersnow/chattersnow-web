@@ -11,6 +11,19 @@ import type { AutoReplyPreview } from "./preview-actions";
  * asks for a reply and a wording and never for an address.
  */
 
+/**
+ * The pane's debounce, switched off.
+ *
+ * Every test here wants the debounced render to land, so waiting out a real
+ * 400ms delay would spend most of a wait's budget before the thing under test
+ * had even been asked for (#1381). The component takes the delay as a prop so
+ * the test can remove the wait rather than widen the window around it.
+ */
+const NO_DEBOUNCE = 0;
+
+/** Comfortably past every transition here, so a loaded runner isn't a failure. */
+const SETTLE = { timeout: 4_000 };
+
 const PREVIEW: AutoReplyPreview = {
   subject: "You're registered for Spring Tune-Up Day",
   html: "<div><p>Hi Alexandra,</p><p>Tea &amp; biscuits</p></div>",
@@ -60,14 +73,17 @@ function renderPanel(
       slots={props.slots ?? {}}
       enabled={props.enabled ?? true}
       emailEnabled={props.emailEnabled ?? true}
+      debounceMs={NO_DEBOUNCE}
     />,
   );
 }
 
-/** The pane debounces, so nothing is on screen until the action has answered. */
+/** The pane renders nothing until the action has answered. */
 async function paneReady(): Promise<HTMLIFrameElement> {
   return (await screen.findByTitle(
     "Event registration confirmation, as it would be received",
+    {},
+    SETTLE,
   )) as HTMLIFrameElement;
 }
 
@@ -95,7 +111,7 @@ describe("the email", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Plain text" }));
 
     // Unescaped, which is what a text client reads: `&amp;` here is the bug.
-    expect(await screen.findByText(/Tea & biscuits/)).toBeTruthy();
+    expect(await screen.findByText(/Tea & biscuits/, {}, SETTLE)).toBeTruthy();
   });
 
   test("the headers say where a reply would go", async () => {
@@ -123,10 +139,11 @@ describe("the email", () => {
         slots={{ subject: "A new subject" }}
         enabled
         emailEnabled
+        debounceMs={NO_DEBOUNCE}
       />,
     );
 
-    await waitFor(() => expect(renderMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(renderMock).toHaveBeenCalledTimes(2), SETTLE);
     expect(renderMock.mock.calls[1][1]).toEqual({ subject: "A new subject" });
   });
 
@@ -134,7 +151,9 @@ describe("the email", () => {
     previewResult = { error: "Nothing to preview against." };
     renderPanel();
 
-    expect(await screen.findByText("Nothing to preview against.")).toBeTruthy();
+    expect(
+      await screen.findByText("Nothing to preview against.", {}, SETTLE),
+    ).toBeTruthy();
   });
 });
 
@@ -169,7 +188,7 @@ describe("the test send", () => {
       screen.getByRole("button", { name: /Send myself a test/ }),
     );
 
-    await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1), SETTLE);
     // Two arguments and neither is an address: the recipient is resolved on
     // the server from the caller's own record.
     expect(sendMock.mock.calls[0]).toEqual([

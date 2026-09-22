@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 // The public site nav renders two different DOM shapes depending on
 // viewport: a desktop NavigationMenu (grouped items sit behind a trigger
@@ -19,6 +19,23 @@ export async function clickNavLink(
 ) {
   const mainNav = page.getByRole("navigation", { name: "Main" });
   const menuTrigger = page.getByRole("button", { name: "Open menu" });
+
+  // The shape is read only once one of the two is actually on screen (#1294).
+  // `isVisible()` does not retry, and this runs straight after a navigation:
+  // sampled before the header paints, it answers "no" for the mobile trigger
+  // on a mobile run, and the desktop branch below then clicks a group trigger
+  // this viewport does not have.
+  //
+  // Polled on the predicate rather than `menuTrigger.or(mainNav)`: the shape
+  // this viewport is not using is `display:none`, not absent, so an `.or()`
+  // can resolve to the hidden one and assert visibility of the wrong shell.
+  await expect
+    .poll(
+      async () =>
+        (await menuTrigger.isVisible()) || (await mainNav.isVisible()),
+    )
+    .toBe(true);
+
   if (await menuTrigger.isVisible()) {
     await menuTrigger.click();
   } else if (opts?.group) {

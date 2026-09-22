@@ -6,6 +6,13 @@ import {
 } from "@/lib/legal-publication";
 import { needsAcknowledgement } from "@/lib/legal-acknowledgement";
 import { hasDrifted } from "@/lib/legal-surface";
+import {
+  acknowledgementState,
+  awaitingAcknowledgement,
+  getConductProcess,
+} from "@/lib/conduct";
+import { getOrgTimeZone } from "@/lib/org-timezone";
+import { todayInZone } from "@/lib/time";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
 import { deriveEventPhaseTasks } from "@/app/portal/(app)/events/phase-status";
 import type { EventTaskKind } from "@/app/portal/(app)/events/phase-status";
@@ -132,6 +139,79 @@ export async function getLegalDriftSummary(
         count,
         href: "/portal/website/legal-documents",
         severity: "attention",
+      },
+    ],
+  };
+}
+
+/**
+ * Conduct reports past, or about to pass, the organization's own
+ * acknowledgement commitment (#687).
+ *
+ * The one thing in this feature that had to reach outside its own section.
+ * "The 5-day clock is the kind of thing that is missed quietly, over a
+ * holiday, with nobody realizing", and a clock that is only visible on a page
+ * nobody opens unprompted is not a clock.
+ *
+ * Gated on `conduct_reports:manage` -- the intake role, not the reviewers.
+ * That is narrower than it needs to be for the count to be correct, and
+ * deliberately so: an item in the sidebar saying how many reports are
+ * outstanding is a fact about the organization that the people holding intake
+ * are the right ones to carry. The label is a count and nothing else; nothing
+ * about any case reaches a surface its own row-level policy would not admit.
+ *
+ * Returns nothing at all for a tenant that publishes no acknowledgement
+ * commitment, which is most of them. The platform has no deadline to be late
+ * against.
+ *
+ * `urgent` once something is genuinely overdue and `attention` while the
+ * window is open: unlike a drifting privacy policy, this one is a missed
+ * promise to a person who reported something.
+ */
+export async function getConductAcknowledgementSummary(
+  supabase: SupabaseClient,
+  options: { canManageConductReports: boolean },
+): Promise<PendingApprovalsSummary> {
+  if (!options.canManageConductReports) return { items: [] };
+
+  const process = await getConductProcess(supabase);
+  if (process.acknowledgementDays === null) return { items: [] };
+
+  const { data } = await supabase
+    .from("conduct_reports")
+    .select("received_on, acknowledged_on")
+    .is("acknowledged_on", null)
+    .neq("status", "closed");
+
+  const zone = await getOrgTimeZone(supabase);
+  const today = todayInZone(zone);
+  const states = (data ?? [])
+    .map((row) =>
+      acknowledgementState(
+        {
+          received_on: String(row.received_on),
+          acknowledged_on: null,
+        },
+        process,
+        today,
+      ),
+    )
+    .filter(awaitingAcknowledgement);
+
+  if (states.length === 0) return { items: [] };
+  const overdue = states.filter((state) => state.state === "overdue").length;
+
+  return {
+    items: [
+      {
+        key: "conduct_acknowledgements",
+        label:
+          overdue > 0
+            ? `${overdue} conduct report${overdue === 1 ? "" : "s"} past acknowledgement`
+            : `${states.length} conduct report${states.length === 1 ? "" : "s"} to acknowledge`,
+        count: overdue > 0 ? overdue : states.length,
+        href: "/portal/conduct",
+        severity: overdue > 0 ? "urgent" : "attention",
       },
     ],
   };

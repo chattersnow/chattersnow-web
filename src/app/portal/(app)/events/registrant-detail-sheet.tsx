@@ -89,11 +89,14 @@ export function RegistrantDetailSheet({
    */
   waiverInForce: boolean;
   /**
-   * Whether this organization asks about photos today (#599) — the same
-   * "we never asked" / "this row predates the question" distinction.
+   * Whether this organization publishes a photo notice today (#599, #1376).
    *
-   * Unlike the waiver, the field below *can* say "they declined", and that is
-   * the state the whole ticket exists for.
+   * It no longer means "asks", because nothing asks: registering carries the
+   * agreement and the record below holds an objection. It still decides
+   * whether the field appears on a registrant with nothing on their row —
+   * "no objection on record" is worth showing where there is something to
+   * object to, and means nothing where the organization says nothing about
+   * photos at all.
    */
   photoConsentInForce: boolean;
   /** The sheet is mounted per target, so closing it unmounts it. */
@@ -263,37 +266,39 @@ export function RegistrantDetailSheet({
                 )}
               </ReadOnlyField>
             )}
-            {/* Photo consent, and the one field here that has to be able to say
-                "they declined" (#599). The waiver's two-state rendering above
+            {/* Photos, and the one field here that has to be able to say "do
+                not" (#599, #1376). The waiver's two-state rendering above
                 deliberately cannot -- its own comment says so -- because
                 declining a waiver is declining to register, and no row
-                survives it. This answer has three states and all three are
+                survives it. This record has three states and all three are
                 real:
 
-                  granted  -- the date, and the scope they agreed to
-                  declined -- the date, and an instruction, because this is the
-                              record somebody acts on
-                  not asked -- said plainly, because a blank here would read as
-                              "no objection"
+                  objected  -- the date, and an instruction, because this is
+                               the record somebody acts on
+                  none      -- said plainly rather than left blank: "no
+                               objection recorded" is a fact about the record,
+                               and an empty cell reads as a gap in it
+                  withdrawn -- the date, and the words they were shown
 
                 Unlike the agreement it is shown on every registrant whose row
-                carries an answer AND on those whose row does not, whenever the
-                organization is asking now: "nobody asked this person" is worth
-                knowing when the person beside them was asked. */}
+                carries something AND on those whose row does not, whenever the
+                organization publishes a notice: an organizer scanning for
+                objections needs to see that this row has none rather than that
+                this field is missing. */}
             {(photoConsentInForce || registrant.photo_consent !== null) && (
               <ReadOnlyField label="Photos" htmlFor="registrant-photo-consent">
                 {registrant.photo_consent === null ? (
-                  "Not recorded — they were not asked about photos when they registered"
+                  "No objection recorded"
                 ) : (
                   <>
                     {registrant.photo_consent
-                      ? "Agreed to be photographed or recorded"
-                      : "Declined — do not photograph or record this person"}
+                      ? "Confirmed they are happy to be photographed or recorded"
+                      : "Asked not to be photographed or recorded"}
                     {registrant.photo_consent_at
                       ? `, ${formatDateTime(registrant.photo_consent_at)}.`
                       : "."}
-                    {/* The words they answered, not a link to the words as
-                        they read today. A content slot has no version table
+                    {/* The words snapshotted onto this row, not a link to the
+                        words as they read today. A content slot has no version table
                         and no permalink -- which is why the column is a
                         snapshot (#1319's shape) -- so this disclosure is the
                         only place the actual text can be reached, and a

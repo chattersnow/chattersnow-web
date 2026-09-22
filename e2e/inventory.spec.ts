@@ -141,6 +141,12 @@ test.describe("public inventory pages", () => {
     await expect(page.getByText(/\bmembers\b/i)).toHaveCount(0);
 
     await page.goto("/inventory/donate");
+    // Anchored the same way as the library page above: both absences below
+    // are satisfied by a page that has not streamed in, so without a positive
+    // assertion first neither of them could go red.
+    await expect(
+      page.getByRole("heading", { level: 1, name: "How the library works" }),
+    ).toBeVisible();
     await expect(page.getByText(/community members/i)).toHaveCount(0);
     await expect(page.getByText(/where members can/i)).toHaveCount(0);
   });
@@ -221,10 +227,17 @@ test.describe("public inventory pages", () => {
         .click();
 
       const detail = page.getByRole("dialog", { name: gear.descriptions[0] });
+      const addToCart = detail.getByRole("button", { name: "Add to cart" });
       const viewCart = detail.getByRole("button", { name: "View cart" });
+      // The sheet's own controls first: `toBeHidden` is true of an element
+      // that does not exist, so asserting it against a sheet that is still
+      // mounting says nothing about whether "View cart" is suppressed on an
+      // empty cart. Waiting for a sibling control proves the contents are
+      // there before the absence is read.
+      await expect(addToCart).toBeVisible();
       await expect(viewCart).toBeHidden();
 
-      await detail.getByRole("button", { name: "Add to cart" }).click();
+      await addToCart.click();
       await expect(viewCart).toContainText("1");
       await viewCart.click();
 

@@ -14,6 +14,7 @@ import {
   getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
   getLegalDriftSummary,
+  getConductAcknowledgementSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
@@ -205,6 +206,14 @@ export default async function PortalAppLayout({
     "manage",
   );
 
+  // The intake role, not the reviewers (#687). Almost nobody in a tenant holds
+  // it, so the conduct reads below are skipped for almost every render.
+  const canManageConductReports = hasPermission(
+    permissions,
+    "conduct_reports",
+    "manage",
+  );
+
   // These reads are independent of each other, and this layout re-runs on
   // every portal navigation -- including every filter submit, which is a full
   // document navigation. Awaiting them one at a time put seven round trips on
@@ -224,6 +233,7 @@ export default async function PortalAppLayout({
     calendarCoverageReminder,
     accessManagementAlerts,
     legalDrift,
+    conductAcknowledgements,
   ] = await Promise.all([
     currentPersonPromise,
     // Records this account's first arrival and tells us what it has already
@@ -255,6 +265,7 @@ export default async function PortalAppLayout({
     getCalendarCoverageReminderSummary(supabase, { canManageContentCalendar }),
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
     getLegalDriftSummary(supabase, { canManageSiteContent }),
+    getConductAcknowledgementSummary(supabase, { canManageConductReports }),
   ]);
 
   const welcomeOwed =
@@ -275,6 +286,7 @@ export default async function PortalAppLayout({
     ...calendarCoverageReminder.items,
     ...accessManagementAlerts.items,
     ...legalDrift.items,
+    ...conductAcknowledgements.items,
   ];
 
   // Same display rule as every other person in the portal, so a preferred

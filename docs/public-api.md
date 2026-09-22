@@ -121,14 +121,25 @@ Where no waiver is in force — which is almost every organization — omit both
 and nothing changes.
 
 `photo_consent` is the other field that depends on configuration, and it is
-never a gate (#599). Where `GET /content` returns a non-empty
-`events.photo_consent`, that organization asks its registrants whether they are
-happy to be photographed: show those paragraphs and send `true` or `false`.
-**A `false` is recorded as a decline and the registration is still taken** —
-declining is a valid answer, and the record exists so that whoever is holding a
-camera can check. Omitting the field records that nobody was asked, which is
-never read as a no. The text the answer is filed against is read from the
-organization's own row, so sending `true` asserts that the person saw it.
+never a gate (#599, #1376). Its type and its optionality have not changed; what
+it records has. Where `GET /content` returns a non-empty
+`events.photo_consent`, that organization **publishes a photo notice at
+registration** — show those paragraphs, because registering carries agreement
+to what they say.
+
+Send `false` to record that somebody asked not to be photographed or recorded.
+**The registration is still taken** — an objection is never a refusal — and the
+record exists so that whoever is holding a camera can check it. Send `true`
+only where somebody told you explicitly that photos are fine; the paragraphs it
+is filed against are read from the organization's own row, so a `true` asserts
+that the person saw them. Omitting the field records nothing, and nothing is
+never read as an objection.
+
+**Omitting it is what this organization's own registration form now does.**
+There is no control on it: registering is the agreement, and objecting happens
+afterwards, by telling an organizer, by email, or from the registrant's own
+registration page. So a caller that has not genuinely asked should omit the
+field rather than send `true`.
 
 ## Caching
 

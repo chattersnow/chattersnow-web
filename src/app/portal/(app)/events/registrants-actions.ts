@@ -218,9 +218,9 @@ export type EventRegistrantsData = {
    * Whether this organization currently asks about photos at registration
    * (#599) — that is, whether `events.photo_consent` holds any text.
    *
-   * The same thing `waiverInForce` buys above: it separates "we never asked"
-   * from "we ask, and this row has no answer", the second being a registration
-   * taken before the scope was written. Read through
+   * The same thing `waiverInForce` buys above, reinterpreted by #1376: it
+   * separates "this organization says nothing about photos" from "there is
+   * something to object to here, and this person has not". Read through
    * `tenant_asks_photo_consent()` rather than off `site_content`, because that
    * table needs `site_content: view` and the reader here is a door shift.
    */
@@ -257,9 +257,11 @@ export async function listEventRegistrantsAction(
   // ambiguous into "nobody was asked" (#686).
   const waiverInForce = (await getTenantLegalPublication(supabase)).waiver;
   // Read for both readers too, and for the same reason (#599). A failure lands
-  // on "not asking", which makes the sheet hide the row for registrants who
-  // have no answer rather than claim they were never asked -- the quiet
-  // direction, and the honest one when the flag itself could not be read.
+  // on "no notice published", which makes the sheet hide the row for
+  // registrants with nothing on theirs rather than assert something about a
+  // record it could not check -- the quiet direction, and the honest one when
+  // the flag itself could not be read. A row carrying an objection still
+  // shows, because that condition does not depend on this flag.
   const photoConsentInForce =
     (await supabase.rpc("tenant_asks_photo_consent")).data === true;
 

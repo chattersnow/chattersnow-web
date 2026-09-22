@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MyContactDetails } from "@/lib/constituent/contact";
+import {
+  PHOTO_CONSENT_HEADING,
+  PHOTO_CONSENT_NOTICE,
+} from "@/lib/photo-consent";
 
 // The action module reaches the admin client, which is `server-only`-guarded
 // and throws outside Next's bundler. Neutralising the guard lets it load so
@@ -222,30 +226,39 @@ describe("MyEventRegistrationForm and the minors question", () => {
   });
 });
 
-// #599. Put to a signed-in caller exactly as it is to an anonymous one:
-// holding an account is not permission to photograph anybody.
-describe("MyEventRegistrationForm and photo consent", () => {
+// #599, reversed by #1376. Shown to a signed-in caller exactly as to an
+// anonymous one: holding an account is not permission to photograph anybody,
+// and it is not a reason to tell somebody less.
+describe("MyEventRegistrationForm and the photo notice (#1376)", () => {
   const SCOPE = [
     "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
+    "Registering for one of our events means you are happy for us to do that. Tell any organizer if you would rather we did not.",
   ];
 
   beforeEach(() => {
     registerMyselfForEventActionMock.mockClear();
   });
 
-  test("asks nothing, and posts nothing, when the tenant has written no scope", async () => {
-    render(<MyEventRegistrationForm eventId="event-1" person={person} />);
-
-    expect(screen.queryByRole("checkbox")).toBeNull();
+  async function submit() {
     await sayNoMinors();
     await userEvent.click(
       screen.getByRole("button", { name: "Complete registration" }),
     );
+  }
+
+  test("says nothing, and posts nothing, when the tenant has written none", async () => {
+    render(<MyEventRegistrationForm eventId="event-1" person={person} />);
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: PHOTO_CONSENT_HEADING }),
+    ).toBeNull();
+    await submit();
 
     expect(lastSubmission().photoConsent).toBeUndefined();
   });
 
-  test("an unticked box that was on screen posts a decline, and still registers", async () => {
+  test("renders the paragraphs and the notice, with no box of its own", () => {
     render(
       <MyEventRegistrationForm
         eventId="event-1"
@@ -254,22 +267,19 @@ describe("MyEventRegistrationForm and photo consent", () => {
       />,
     );
 
-    const box = screen.getByRole("checkbox", {
-      name: /happy to be photographed/i,
-    });
-    expect(box).not.toBeChecked();
-
-    await sayNoMinors();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
-
-    expect(lastSubmission().photoConsent).toBe("off");
-    expect(registerMyselfForEventActionMock).toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: PHOTO_CONSENT_HEADING }),
+    ).toBeInTheDocument();
+    for (const paragraph of SCOPE) {
+      expect(screen.getByText(paragraph)).toBeInTheDocument();
+    }
+    expect(screen.getByText(PHOTO_CONSENT_NOTICE)).toBeInTheDocument();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 
-  test("a ticked box posts consent", async () => {
-    const user = userEvent.setup();
+  // The wire guard: a registration taken through this form records nothing
+  // about photos, so the row rests at null.
+  test("posts no photoConsent field even with paragraphs written, and still registers", async () => {
     render(
       <MyEventRegistrationForm
         eventId="event-1"
@@ -278,14 +288,12 @@ describe("MyEventRegistrationForm and photo consent", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("checkbox", { name: /happy to be photographed/i }),
-    );
-    await sayNoMinors(user);
-    await user.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submit();
 
-    expect(lastSubmission().photoConsent).toBe("on");
+    expect(registerMyselfForEventActionMock).toHaveBeenCalled();
+    expect(lastSubmission().photoConsent).toBeUndefined();
+    for (const key of Object.keys(lastSubmission())) {
+      expect(key).not.toMatch(/photo/i);
+    }
   });
 });
