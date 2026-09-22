@@ -7,13 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { toast } from "@/components/ui/toast";
@@ -31,6 +24,19 @@ import {
   type ConductReviewerCandidate,
 } from "../actions";
 import type { ConductReviewerRow } from "../conduct-shared";
+
+/**
+ * A native `<select>`, not the shadcn one, and the reason is worth keeping:
+ * Base UI's Select portals its popup and traps focus with `aria-hidden`
+ * sentinel spans that carry `tabindex="0"`, which axe reports as
+ * `aria-hidden-focus`. Inside a dialog nothing opens that popup during the
+ * accessibility scan; on a page, the scan's `select-open` surface does, and
+ * this was the first portal page to render one outside a dialog. The portal's
+ * other in-page selects are native for the same class of reason, and this is
+ * the string they all use.
+ */
+const selectClassName =
+  "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 /**
  * Who is on the case, at each stage, and who stepped back.
@@ -228,24 +234,19 @@ export function ReviewersCard({
               <FieldLabel htmlFor="conduct-assign-user">
                 Assign somebody
               </FieldLabel>
-              <Select
+              <select
+                id="conduct-assign-user"
+                className={selectClassName}
                 value={userId}
-                onValueChange={(value) => setUserId(value ?? "")}
+                onChange={(event) => setUserId(event.target.value)}
               >
-                <SelectTrigger id="conduct-assign-user" className="w-full">
-                  <SelectValue placeholder="Choose a reviewer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {candidates.map((candidate) => (
-                    <SelectItem
-                      key={candidate.user_id}
-                      value={candidate.user_id}
-                    >
-                      {candidate.full_name || candidate.email || "Someone"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Choose a reviewer</option>
+                {candidates.map((candidate) => (
+                  <option key={candidate.user_id} value={candidate.user_id}>
+                    {candidate.full_name || candidate.email || "Someone"}
+                  </option>
+                ))}
+              </select>
               <p className="app-muted text-xs">
                 Only people whose role carries Conduct reports appear here,
                 because assignment is what lets somebody read the case. Grant it
@@ -254,20 +255,19 @@ export function ReviewersCard({
             </Field>
             <Field>
               <FieldLabel htmlFor="conduct-assign-stage">For</FieldLabel>
-              <Select
+              <select
+                id="conduct-assign-stage"
+                className={selectClassName}
                 value={stage}
-                onValueChange={(value) =>
-                  setStage(value === "appeal" ? "appeal" : "review")
+                onChange={(event) =>
+                  setStage(
+                    event.target.value === "appeal" ? "appeal" : "review",
+                  )
                 }
               >
-                <SelectTrigger id="conduct-assign-stage" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="review">The review</SelectItem>
-                  <SelectItem value="appeal">The appeal</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="review">The review</option>
+                <option value="appeal">The appeal</option>
+              </select>
             </Field>
             <Button type="submit" disabled={isPending || !userId}>
               {isPending ? (

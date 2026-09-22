@@ -60,8 +60,9 @@ test.describe("conduct reports", () => {
       // Only accounts that hold the resource are offered, which is what makes
       // an assignment mean something: the database refuses one to anybody who
       // could not then read the case.
-      await page.getByLabel("Assign somebody").click();
-      await page.getByRole("option", { name: "Taylor Brooks" }).click();
+      await page
+        .getByLabel("Assign somebody")
+        .selectOption({ label: "Taylor Brooks" });
       await page.getByRole("button", { name: "Assign", exact: true }).click();
 
       // The count against the organization's own minimum is what moves, and

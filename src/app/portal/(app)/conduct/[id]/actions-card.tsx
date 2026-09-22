@@ -8,19 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { toast } from "@/components/ui/toast";
 import { CONDUCT_ACTION_KINDS, conductLabel } from "@/lib/conduct";
 import { liftConductActionAction, recordConductActionAction } from "../actions";
 import type { ConductActionRow } from "../conduct-shared";
+
+/** Native, for the reason `reviewers-card.tsx` gives at length. */
+const selectClassName =
+  "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 /**
  * What was done about the report, held apart from how it ended.
@@ -137,21 +134,18 @@ export function CaseActionsCard({
           >
             <Field>
               <FieldLabel htmlFor="conduct-action-kind">Kind</FieldLabel>
-              <Select
+              <select
+                id="conduct-action-kind"
+                className={selectClassName}
                 value={kind}
-                onValueChange={(value) => setKind(value ?? "interim")}
+                onChange={(event) => setKind(event.target.value)}
               >
-                <SelectTrigger id="conduct-action-kind" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONDUCT_ACTION_KINDS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {CONDUCT_ACTION_KINDS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
               <p className="app-muted text-xs">
                 Interim is something in place while you look into it, and it
                 stands until you lift it — including while an appeal is open.
