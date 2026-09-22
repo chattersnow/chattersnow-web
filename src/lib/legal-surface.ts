@@ -60,6 +60,19 @@ export type CollectionSurface = {
    */
   volunteerHours: boolean;
   /**
+   * Whether the portal records volunteer screening outcomes (#1360).
+   *
+   * Its own key rather than a reuse, for the reason `volunteerHours` is:
+   * `volunteerApplications` carries the public volunteer *page* slot, so a
+   * tenant that hides the form while still recruiting volunteers by hand would
+   * lose both the disclosure and the retention row for rows it is still
+   * writing. Screening answers to the Volunteers module alone, like
+   * self-logged hours, and unlike either of those it is not a public form at
+   * all -- nothing is collected from the person, so the bullet it feeds sits
+   * outside the "information you type into a form yourself" list.
+   */
+  volunteerScreening: boolean;
+  /**
    * Whether the portal offers "Continue with Google", which is the only reason
    * Google appears in the subprocessor list.
    *
@@ -93,6 +106,7 @@ export const SURFACE_GATES: Readonly<
   artworkSubmissions: { slot: null, module: "artwork" },
   constituentAccounts: { slot: null, module: "constituent_accounts" },
   volunteerHours: { slot: null, module: "volunteers" },
+  volunteerScreening: { slot: null, module: "volunteers" },
 };
 
 /**
@@ -134,6 +148,7 @@ export function collectionSurface(
     artworkSubmissions: live("artworkSubmissions", visibility, modules),
     constituentAccounts: live("constituentAccounts", visibility, modules),
     volunteerHours: live("volunteerHours", visibility, modules),
+    volunteerScreening: live("volunteerScreening", visibility, modules),
     googleSignIn: true,
   };
 }
@@ -179,6 +194,10 @@ export const SURFACE_LABELS: Readonly<
   volunteerHours: {
     subject: "Volunteers",
     collects: "hours volunteers log for themselves",
+  },
+  volunteerScreening: {
+    subject: "Volunteers",
+    collects: "volunteer screening outcomes",
   },
   googleSignIn: {
     subject: "Google sign-in",

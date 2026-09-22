@@ -5,6 +5,12 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import {
+  loadPersonScreenings,
+  NO_PERSON_SCREENINGS,
+} from "@/lib/portal/person-screenings";
+import { getOrgTimeZone } from "@/lib/org-timezone";
+import { todayInZone } from "@/lib/time";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import { getTenantContext } from "@/lib/portal/tenants";
 import {
@@ -100,6 +106,14 @@ export default async function VolunteerApplicationsPage({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "volunteers", "manage");
+  // Screening is its own resource (#1360), so a volunteers manager does not
+  // see this section and a screening holder who is not a volunteers manager
+  // does. The two are read independently rather than one implying the other.
+  const canViewScreening = hasPermission(
+    permissions,
+    "volunteer_screening",
+    "view",
+  );
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -122,7 +136,7 @@ export default async function VolunteerApplicationsPage({
   let query = supabase
     .from("volunteer_applications")
     .select(
-      "id, name, email, phone, pronouns, role_interest, availability, status, created_at",
+      "id, person_id, name, email, phone, pronouns, role_interest, availability, status, created_at",
       { count: "exact" },
     )
     .order(sort, { ascending: dir === "asc" })
@@ -158,7 +172,7 @@ export default async function VolunteerApplicationsPage({
     const { data: linked } = await supabase
       .from("volunteer_applications")
       .select(
-        "id, name, email, phone, pronouns, role_interest, availability, status, created_at",
+        "id, person_id, name, email, phone, pronouns, role_interest, availability, status, created_at",
       )
       .eq("id", linkedApplicationId)
       .maybeSingle();
@@ -173,19 +187,31 @@ export default async function VolunteerApplicationsPage({
     ...applicationRows.map((row) => row.id),
     ...(linkedApplication ? [linkedApplication.id] : []),
   ];
-  const [recordMessages, orgEmailEnabled, tenantContext] = await Promise.all([
-    canManage
-      ? loadRecordMessages(
-          supabase,
-          VOLUNTEER_APPLICATION_RECORD_TYPE,
-          applicationIds,
-        )
-      : NO_RECORD_MESSAGES,
-    canManage ? getOrgEmailEnabled(supabase) : false,
-    // Only for what the composer calls the organization in its default
-    // subject. Memoized per request, so the shell has already paid for it.
-    getTenantContext(supabase),
-  ]);
+  // Screening outcomes are keyed by person rather than by application, and
+  // are loaded the same way and for the same reason (#1360).
+  const personIds = [
+    ...applicationRows.map((row) => row.person_id),
+    ...(linkedApplication ? [linkedApplication.person_id] : []),
+  ].filter((id): id is string => Boolean(id));
+  const [recordMessages, orgEmailEnabled, tenantContext, screenings, zone] =
+    await Promise.all([
+      canManage
+        ? loadRecordMessages(
+            supabase,
+            VOLUNTEER_APPLICATION_RECORD_TYPE,
+            applicationIds,
+          )
+        : NO_RECORD_MESSAGES,
+      canManage ? getOrgEmailEnabled(supabase) : false,
+      // Only for what the composer calls the organization in its default
+      // subject. Memoized per request, so the shell has already paid for it.
+      getTenantContext(supabase),
+      canViewScreening
+        ? loadPersonScreenings(supabase, personIds)
+        : NO_PERSON_SCREENINGS,
+      getOrgTimeZone(supabase),
+    ]);
+  const screeningToday = todayInZone(zone);
   const orgName =
     tenantContext.tenants.find(
       (tenant) => tenant.id === tenantContext.currentTenantId,
@@ -206,6 +232,12 @@ export default async function VolunteerApplicationsPage({
     orgName,
     replyTo,
     orgEmailEnabled,
+  });
+
+  const screeningProps = (personId: string | null) => ({
+    canViewScreening,
+    screenings: personId ? (screenings.byPerson[personId] ?? []) : [],
+    screeningToday,
   });
 
   const filterParams = new URLSearchParams();
@@ -397,6 +429,7 @@ export default async function VolunteerApplicationsPage({
                               application={application}
                               canManage={canManage}
                               {...messageProps(application.id)}
+                              {...screeningProps(application.person_id)}
                               defaultOpen={
                                 application.id === linkedApplicationId
                               }
@@ -415,6 +448,7 @@ export default async function VolunteerApplicationsPage({
                 application={linkedApplication}
                 canManage={canManage}
                 {...messageProps(linkedApplication.id)}
+                {...screeningProps(linkedApplication.person_id)}
                 defaultOpen
                 withTrigger={false}
               />

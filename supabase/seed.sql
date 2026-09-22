@@ -202,6 +202,8 @@ declare
   v_recurring_local_date date;
   v_meeting_id constant uuid := 'abababab-0000-4000-8000-000000000001';
   v_role_type_id uuid;
+  v_screening_tier_1 uuid;
+  v_screening_tier_2 uuid;
   v_agenda_template_id uuid;
   v_agenda_template_version_id uuid;
   v_former_id uuid;
@@ -471,6 +473,46 @@ begin
 
   insert into public.volunteer_applications (person_id, name, email, phone, role_interest, availability, status, reference_code)
   values (v_person_applicant, 'Taylor Kim', 'taylor.kim@example.test', '555-0106', 'Event Setup Crew', 'Weekday evenings', 'being reviewed', 'TYLRKIM2');
+
+  -- Screening levels and two outcomes (#1360).
+  --
+  -- The migration seeds no levels on any tenant, because what the levels are
+  -- is an organization decision. This is the worked case for local, CI and
+  -- e2e: three levels in the vocabulary Chatter Snow's own policy draft uses,
+  -- with descriptions at the length a real one runs to rather than a tidy
+  -- one-liner, so the table and the sheet are laid out against the text they
+  -- will actually hold.
+  insert into public.volunteer_screening_tiers (name, description, sort_order, is_active, created_by)
+  values (
+    'Tier 0 — general volunteer',
+    'Event setup, gear sorting, day-of logistics and social content. Always working alongside others, with no unsupervised contact with participants, no access to the operations portal and no handling of money. Identity confirmed, two references for anyone taking a recurring role, and agreement to the code of conduct.',
+    0, true, v_admin_id
+  );
+
+  insert into public.volunteer_screening_tiers (name, description, sort_order, is_active, created_by)
+  values (
+    'Tier 1 — trusted volunteer',
+    'Ride Buddy and any role pairing a volunteer one-to-one with a participant, gear library pickups, and anyone holding portal access to personal data. Everything Tier 0 asks for, plus an application interview, plus a background check where the board has decided one applies to the role.',
+    10, true, v_admin_id
+  )
+  returning id into v_screening_tier_1;
+
+  insert into public.volunteer_screening_tiers (name, description, sort_order, is_active, created_by)
+  values (
+    'Tier 2 — officers and anyone handling money',
+    'Board members, anyone holding finance access, and anyone who can approve a reimbursement or hold a donation. Everything Tier 1 asks for, plus a conflict-of-interest disclosure, plus a check appropriate to fiduciary responsibility.',
+    20, true, v_admin_id
+  )
+  returning id into v_screening_tier_2;
+
+  -- One live clearance and one that has lapsed, so the expired rendering path
+  -- is exercised by default rather than only by a test that remembers to set
+  -- it up.
+  insert into public.person_screenings (person_id, tier_id, cleared_on, expires_on, created_by)
+  values (v_person_volunteer, v_screening_tier_1, current_date - 200, current_date + 895, v_admin_id);
+
+  insert into public.person_screenings (person_id, tier_id, cleared_on, expires_on, created_by)
+  values (v_person_volunteer, v_screening_tier_2, current_date - 1200, current_date - 105, v_admin_id);
 
   -- Public contact-form submissions, exercising the ops inbox (issue #173):
   -- one unread so the notification bell/dashboard card have something to

@@ -31,6 +31,7 @@ const NOTHING: CollectionSurface = {
   artworkSubmissions: false,
   constituentAccounts: false,
   volunteerHours: false,
+  volunteerScreening: false,
   googleSignIn: false,
 };
 

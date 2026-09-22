@@ -129,6 +129,22 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     surface: "volunteerHours",
   },
   {
+    key: "person_screenings",
+    what: "Volunteer screening outcomes",
+    // Measured from the end of the clearance rather than from the decision: a
+    // clearance that runs to 2032 is live until 2032, and a clock starting at
+    // the decision would delete a current one. Where there is no end date the
+    // decision is the only date there is.
+    //
+    // There is nothing else to promise a period for, because there is nothing
+    // else stored: the outcome is a level and two dates, and the check itself
+    // never reaches this deployment.
+    howLong:
+      "3 years after the clearance runs out, or 3 years after the decision where it has no end date.",
+    period: "3 years",
+    surface: "volunteerScreening",
+  },
+  {
     key: "constituent_accounts",
     // #1296. Until epic #1160 every account belonged to somebody who ran the
     // organization, so `portal_accounts` below was the only account clock and

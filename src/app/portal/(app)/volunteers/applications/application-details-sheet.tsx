@@ -47,6 +47,13 @@ import {
   type RecordMessageRow,
 } from "@/lib/outbound-messages";
 import { VolunteerApplicationMessageActions } from "./application-message-actions";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { formatCalendarDate } from "@/lib/format";
+import {
+  isExpired,
+  type PersonScreeningRow,
+} from "@/lib/portal/person-screenings";
 
 // Base UI's Select.Value shows the raw value unless Root is told the labels,
 // so the trigger reads "Placed" like the option (and the badge) rather than
@@ -63,6 +70,9 @@ export function VolunteerApplicationDetailsSheet({
   orgName,
   replyTo,
   orgEmailEnabled,
+  canViewScreening,
+  screenings,
+  screeningToday,
   defaultOpen = false,
   withTrigger = true,
 }: {
@@ -76,6 +86,15 @@ export function VolunteerApplicationDetailsSheet({
   /** The tenant's Reply-To, so the composer can say where a reply lands. */
   replyTo: string | null;
   orgEmailEnabled: boolean;
+  /**
+   * Screening (#1360) answers to its own resource, so this is read separately
+   * from `canManage` rather than implied by it.
+   */
+  canViewScreening: boolean;
+  /** Outcomes recorded against this applicant's person record. */
+  screenings: PersonScreeningRow[];
+  /** The tenant's own day, so an expiry is not judged in the viewer's zone. */
+  screeningToday: string;
   /** True when `?application=` names this row. */
   defaultOpen?: boolean;
   /**
@@ -224,6 +243,53 @@ export function VolunteerApplicationDetailsSheet({
               </Alert>
             )}
           </FieldGroup>
+
+          {/* Read only, deliberately. An outcome is recorded from the
+              person's own profile, so there is one form, one action and one
+              set of rules -- and the record belongs to the person rather than
+              to the application they happened to arrive through (#1360). */}
+          {canViewScreening ? (
+            <section className="mt-6 flex flex-col gap-3">
+              <h3 className="app-muted text-sm font-semibold">Screening</h3>
+              {screenings.length === 0 ? (
+                <p className="app-muted text-sm">
+                  No screening outcome recorded.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2 text-sm">
+                  {screenings.map((screening) => (
+                    <li key={screening.id}>
+                      <span className="font-medium">
+                        Cleared for {screening.tier?.name ?? "—"}
+                      </span>{" "}
+                      <span className="app-muted">
+                        {formatCalendarDate(screening.cleared_on)}
+                      </span>{" "}
+                      {isExpired(screening, screeningToday) && (
+                        <Badge variant="destructive">Expired</Badge>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {application.person_id && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
+                  // Rendering as a Link means this is an anchor, not a
+                  // <button>; Base UI warns on the console without it.
+                  nativeButton={false}
+                  render={
+                    <Link href={`/portal/people/${application.person_id}`} />
+                  }
+                >
+                  Open this person&apos;s profile
+                </Button>
+              )}
+            </section>
+          ) : null}
 
           {canManage ? (
             <section className="mt-6 flex flex-col gap-3">
