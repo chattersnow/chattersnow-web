@@ -6,11 +6,14 @@ import { ArrowLeft, Eye, Pencil, Trash2 } from "lucide-react";
 import { deleteDonationAction, updateDonationAction } from "./actions";
 import {
   DonationFormFields,
+  DonationProvenanceFields,
   packDonationFormData,
   type DonationFormState,
+  type DonationProvenance,
 } from "./donation-form-fields";
 import {
   donorLabel,
+  isImportedDonation,
   paymentMethodLabel,
   type EventOption,
   type MonetaryDonationRow,
@@ -81,6 +84,23 @@ function formStateFor(
   };
 }
 
+/**
+ * The provider's own figures, or undefined for a gift somebody typed. Drives
+ * both the read-only block and the fact that the amount is not an input.
+ */
+function provenanceFor(
+  donation: MonetaryDonationRow,
+): DonationProvenance | undefined {
+  if (!isImportedDonation(donation)) return undefined;
+  return {
+    source: donation.source,
+    externalReference: donation.external_reference,
+    processorLabel: donation.processor_label,
+    grossAmount: donation.gross_amount,
+    feeAmount: donation.fee_amount,
+  };
+}
+
 function isDirty(
   form: DonationFormState,
   donation: MonetaryDonationRow,
@@ -118,6 +138,7 @@ export function EditDonationModal({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const formId = `edit-donation-form-${donation.id}`;
   const dirty = isDirty(form, donation, people);
+  const provenance = provenanceFor(donation);
 
   function update<K extends keyof DonationFormState>(
     key: K,
@@ -175,7 +196,7 @@ export function EditDonationModal({
         return;
       }
       setMode("view");
-      toast.success("Donation deleted.");
+      toast.success("Donation saved.");
       router.refresh();
     });
   }
@@ -303,6 +324,12 @@ export function EditDonationModal({
                     {formatCurrency(donation.amount)}
                   </ReadOnlyField>
                 </Field>
+                {provenance && (
+                  <DonationProvenanceFields
+                    provenance={provenance}
+                    idPrefix="view-donation"
+                  />
+                )}
                 <ReadOnlyField label="Notes" htmlFor="edit-donation-notes">
                   {donation.notes || "—"}
                 </ReadOnlyField>
@@ -330,6 +357,7 @@ export function EditDonationModal({
                     people={peopleOptions}
                     onPersonCreated={handlePersonCreated}
                     idPrefix="edit-donation"
+                    provenance={provenance}
                   />
 
                   {error && (

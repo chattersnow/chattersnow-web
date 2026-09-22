@@ -40,8 +40,28 @@ const donation: MonetaryDonationRow = {
   method: "check",
   received_date: "2026-08-08",
   notes: "Annual gift.",
+  source: "manual",
+  external_reference: null,
+  processor_label: null,
+  gross_amount: null,
+  fee_amount: null,
   people: { name: "Jamie Rivera" },
   events: { name: "Trailhead Cleanup" },
+};
+
+/** The same gift as a processor reported it (#1390). */
+const importedDonation: MonetaryDonationRow = {
+  ...donation,
+  id: "donation-2",
+  donor_id: null,
+  amount: "94.55",
+  method: "online",
+  source: "import",
+  external_reference: "ch_3Pabc123",
+  processor_label: "Donorbox",
+  gross_amount: "100.00",
+  fee_amount: "5.45",
+  people: null,
 };
 
 async function openSheet(
@@ -148,6 +168,28 @@ describe("EditDonationModal", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(labelText("Amount"))).toBeInTheDocument();
+  });
+
+  test("an imported gift shows what the provider reported (#1390)", async () => {
+    const user = userEvent.setup();
+    await openSheet(user, importedDonation);
+
+    expect(screen.getByText("Imported — Donorbox")).toBeInTheDocument();
+    expect(screen.getByText("ch_3Pabc123")).toBeInTheDocument();
+    expect(screen.getByText("$94.55")).toBeInTheDocument();
+    expect(screen.getByText("$100.00")).toBeInTheDocument();
+    expect(screen.getByText("$5.45")).toBeInTheDocument();
+  });
+
+  test("an imported gift's amount is not editable — a mistake is a re-import", async () => {
+    const user = userEvent.setup();
+    await openSheet(user, importedDonation);
+    await user.click(screen.getByRole("button", { name: "Edit donation" }));
+
+    expect(screen.queryByLabelText(labelText("Amount"))).toBeNull();
+    // What a human legitimately adds afterwards is still there.
+    expect(screen.getByLabelText("Notes")).toBeInTheDocument();
+    expect(screen.getByLabelText(labelText("Date"))).toBeInTheDocument();
   });
 
   test("deletes the donation after confirming", async () => {
