@@ -10,6 +10,12 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AttendedBeforeField } from "@/components/attended-before-field";
+import {
+  EMPTY_MINOR_CONTACTS,
+  MinorAccompanimentFields,
+  type MinorContactValues,
+} from "@/components/minor-accompaniment-fields";
+import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -42,6 +48,7 @@ export function EventRegistrationForm({
   accountOffer = null,
   waiver = null,
   waiverBlock = null,
+  minorAccompaniment = [],
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -61,6 +68,13 @@ export function EventRegistrationForm({
   waiver?: { version: number } | null;
   /** The agreement itself, rendered on the server. */
   waiverBlock?: React.ReactNode;
+  /**
+   * This organization's rule for a party that includes anyone under 18
+   * (#685), from `events.minor_accompaniment`. Empty on a tenant that has
+   * written none, which leaves the revealed block saying only what this form
+   * asks for and what it never asks for.
+   */
+  minorAccompaniment?: string[];
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -71,6 +85,13 @@ export function EventRegistrationForm({
   // the unanswered state is a real third value and must not default to "no".
   const [attendedBefore, setAttendedBefore] = useState("");
   const [partySize, setPartySize] = useState("1");
+  // #685. No default, for the reason `attendedBefore` has none and a stronger
+  // one: a preselected "no" is how a party with a child arrives unflagged, and
+  // "no" is an answer somebody has to give rather than one the form gives on
+  // their behalf. Unlike that question, this one is required.
+  const [partyIncludesMinor, setPartyIncludesMinor] = useState("");
+  const [minorContacts, setMinorContacts] =
+    useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
   // Starts unticked, always. A pre-ticked box is not an acceptance, and this
@@ -94,6 +115,15 @@ export function EventRegistrationForm({
     formData.set("pronouns", pronouns);
     formData.set("attendedBefore", attendedBefore);
     formData.set("partySize", partySize);
+    formData.set("partyIncludesMinor", partyIncludesMinor);
+    // Only when the answer is yes. A reader who answered yes, filled these in
+    // and changed their mind must not leave a guardian's number behind them,
+    // and the parser reads them under the same condition.
+    if (partyIncludesMinor === "yes") {
+      for (const [key, value] of Object.entries(minorContacts)) {
+        formData.set(key, value);
+      }
+    }
     formData.set("notes", notes);
     formData.set("company", company);
     if (waiver) {
@@ -235,6 +265,28 @@ export function EventRegistrationForm({
             onChange={(event) => setPartySize(event.target.value)}
           />
         </Field>
+        {/* With the questions about this attendance rather than about the
+            person, and immediately after the head count it qualifies: "four
+            people" and "one of them is twelve" are one answer in two parts
+            (#685). A field on the form rather than a step after the write,
+            for the reason #1259 gives -- a step after the write is one that
+            can be abandoned, and this is the one answer an organizer has to
+            have before the day. */}
+        <PartyIncludesMinorField
+          id="registration-party-includes-minor"
+          value={partyIncludesMinor}
+          onChange={setPartyIncludesMinor}
+          disabled={isPending}
+        />
+        {partyIncludesMinor === "yes" && (
+          <MinorAccompanimentFields
+            idPrefix="registration"
+            paragraphs={minorAccompaniment}
+            values={minorContacts}
+            onChange={setMinorContacts}
+            disabled={isPending}
+          />
+        )}
         <Field>
           <FieldLabel htmlFor="registration-notes">Notes</FieldLabel>
           <Textarea

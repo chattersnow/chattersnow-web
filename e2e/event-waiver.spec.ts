@@ -10,6 +10,7 @@
 // e2e/events.spec.ts.
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
+import { sayNoMinors } from "./helpers/registration";
 
 const PUBLICATION_KEY = "legal_publication.waiver";
 const SLOT_KEY = "legal.waiver";
@@ -128,6 +129,7 @@ test.describe("the participant agreement at registration", () => {
     await dialog.getByLabel("Name").fill("Waiver Tester");
     await dialog.getByLabel("Email").fill(`waiver-${Date.now()}@example.test`);
     await box.check();
+    await sayNoMinors(dialog);
     await dialog.getByRole("button", { name: "Complete registration" }).click();
 
     await expect(
@@ -145,6 +147,8 @@ test.describe("the participant agreement at registration", () => {
     await dialog
       .getByLabel("Email")
       .fill(`waiver-refused-${Date.now()}@example.test`);
+    // Answered, so the box is unambiguously what stops this submission.
+    await sayNoMinors(dialog);
     await dialog.getByRole("button", { name: "Complete registration" }).click();
 
     // Still on the form. The browser's own `required` stops it here; the RPC

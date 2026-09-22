@@ -26,6 +26,15 @@ const route = publicWrite<
         p_notes: body.notes ?? null,
         p_instagram_handle: body.instagram_handle ?? null,
         p_pronouns: body.pronouns ?? null,
+        // #685. `undefined` rather than null for the question itself, so a
+        // caller that says nothing leaves the RPC's own default in place and
+        // the row records that nobody was asked. A caller that says `true`
+        // gets MINOR_CONTACTS_REQUIRED unless the four arrive with it.
+        p_party_includes_minor: body.party_includes_minor ?? undefined,
+        p_accompanying_adult_name: body.accompanying_adult_name ?? null,
+        p_accompanying_adult_phone: body.accompanying_adult_phone ?? null,
+        p_emergency_contact_name: body.emergency_contact_name ?? null,
+        p_emergency_contact_phone: body.emergency_contact_phone ?? null,
         p_ip_address: clientIp,
       }),
     );

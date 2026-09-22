@@ -172,6 +172,50 @@ export function RegistrantDetailSheet({
             <ReadOnlyField label="Been before" htmlFor="registrant-been-before">
               {attendedBeforeLabel(registrant.attended_before) ?? "Not asked"}
             </ReadOnlyField>
+            {/* Only for a party that has one. A row reading "no" on every
+                other registrant would be a line about children on every
+                record in the product, which is not what asking the question
+                bought (#685). Null -- nobody asked -- shows nothing either:
+                there is no answer to report. */}
+            {registrant.party_includes_minor === true && (
+              <>
+                <ReadOnlyField
+                  label="Under 18 in the party"
+                  htmlFor="registrant-includes-minor"
+                >
+                  Yes
+                </ReadOnlyField>
+                {/* `minorContacts` is null for a reader without
+                    `events: manage`, and it is null because the database
+                    refuses them rather than because this component chose not
+                    to ask: the four columns are revoked from `authenticated`
+                    and served only by a definer view. So the door shift sees
+                    the fact and not the guardian's number, and cannot reach
+                    it with curl either. */}
+                {registrant.minorContacts && (
+                  <>
+                    <ReadOnlyField
+                      label="Accompanying adult"
+                      htmlFor="registrant-accompanying-adult"
+                    >
+                      {registrant.minorContacts.accompanying_adult_name || "—"}
+                      {registrant.minorContacts.accompanying_adult_phone
+                        ? ` · ${registrant.minorContacts.accompanying_adult_phone}`
+                        : ""}
+                    </ReadOnlyField>
+                    <ReadOnlyField
+                      label="Emergency contact"
+                      htmlFor="registrant-emergency-contact"
+                    >
+                      {registrant.minorContacts.emergency_contact_name || "—"}
+                      {registrant.minorContacts.emergency_contact_phone
+                        ? ` · ${registrant.minorContacts.emergency_contact_phone}`
+                        : ""}
+                    </ReadOnlyField>
+                  </>
+                )}
+              </>
+            )}
             <ReadOnlyField label="Checked in" htmlFor="registrant-checked-in">
               {registrant.checked_in_at
                 ? formatDateTime(registrant.checked_in_at)

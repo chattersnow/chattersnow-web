@@ -79,6 +79,31 @@ export type RegistrantRiderProfile = {
   preferred_mountain: string | null;
 };
 
+/**
+ * Who is bringing the minors in this party, and who to call in an emergency
+ * (#685).
+ *
+ * Gated harder than `rider`, and by a different mechanism. A rider's preferred
+ * discipline is chosen in TypeScript — `listEventRegistrantsAction` selects the
+ * columns or does not — which any `events: view` holder could go round with a
+ * direct PostgREST call. These four are *revoked* from `authenticated` on
+ * `event_registrations` itself and served only by the security-definer view
+ * `event_registration_minor_contacts`, which does its own `events: manage`
+ * check. A guardian's mobile number earns the privilege rather than the
+ * convention; see `20260922040000_event_registration_minors.sql`.
+ *
+ * Null therefore means "not yours to see", and null is also what a party with
+ * no minors has — the view returns no row for one. The flag on the registrant
+ * is what distinguishes them, and it is readable by everybody who can read the
+ * list.
+ */
+export type RegistrantMinorContacts = {
+  accompanying_adult_name: string | null;
+  accompanying_adult_phone: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+};
+
 export type EventRegistrant = {
   id: string;
   event_id: string;
@@ -115,7 +140,19 @@ export type EventRegistrant = {
    */
   waiver_accepted_at: string | null;
   waiver_version: number | null;
+  /**
+   * Whether this party includes anyone under 18 (#685). Null means nobody was
+   * asked — a registration taken before the question existed, a walk-in added
+   * by staff, a caller of the public API — and must never be read as "no".
+   *
+   * Not gated on `events: manage`, and that split is the point of the ticket.
+   * An organizer working an `events: view` door shift is exactly who has to
+   * know before the day; the contacts below are a different matter.
+   */
+  party_includes_minor: boolean | null;
   rider: RegistrantRiderProfile | null;
+  /** See `RegistrantMinorContacts`. Null unless `events: manage`. */
+  minorContacts: RegistrantMinorContacts | null;
 };
 
 /**
@@ -201,8 +238,8 @@ export async function listEventRegistrantsAction(
     };
   }
 
-  const [messages, orgEmailEnabled, tenantContext, orgMail] = await Promise.all(
-    [
+  const [messages, orgEmailEnabled, tenantContext, orgMail, minorContacts] =
+    await Promise.all([
       loadRecordMessages(
         supabase,
         EVENT_REGISTRATION_RECORD_TYPE,
@@ -218,12 +255,37 @@ export async function listEventRegistrantsAction(
         .from("org_notification_settings")
         .select("reply_to")
         .maybeSingle(),
-    ],
+      // The four contacts, through the definer view that is the only way to
+      // them: they are revoked from `authenticated` on the table (#685). One
+      // read for the event, not one per row, and it returns nothing at all for
+      // a reader without `events: manage` — this branch already is one, and
+      // the view checks again anyway.
+      supabase
+        .from("event_registration_minor_contacts")
+        .select(
+          "registration_id, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+        )
+        .eq("event_id", eventId),
+    ]);
+
+  const contactsById = new Map(
+    (minorContacts.data ?? []).map((row) => [
+      row.registration_id as string,
+      {
+        accompanying_adult_name: row.accompanying_adult_name ?? null,
+        accompanying_adult_phone: row.accompanying_adult_phone ?? null,
+        emergency_contact_name: row.emergency_contact_name ?? null,
+        emergency_contact_phone: row.emergency_contact_phone ?? null,
+      },
+    ]),
   );
 
   return {
     data: {
-      registrants,
+      registrants: registrants.map((registrant) => ({
+        ...registrant,
+        minorContacts: contactsById.get(registrant.id) ?? null,
+      })),
       messages,
       messaging: {
         orgName:
@@ -239,12 +301,12 @@ export async function listEventRegistrantsAction(
 }
 
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
 
-type RegistrantRow = Omit<EventRegistrant, "rider"> & {
+type RegistrantRow = Omit<EventRegistrant, "rider" | "minorContacts"> & {
   riding_discipline_at_event?: string | null;
   ski_experience_level_at_event?: string | null;
   snowboard_experience_level_at_event?: string | null;
@@ -265,10 +327,13 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
     ...rest
   } = row as RegistrantRow;
 
-  if (!canSeeRider) return { ...rest, rider: null };
+  if (!canSeeRider) return { ...rest, rider: null, minorContacts: null };
 
   return {
     ...rest,
+    // Filled in by the caller from the definer view, which is the only place
+    // these four are readable at all.
+    minorContacts: null,
     rider: {
       riding_discipline_at_event: riding_discipline_at_event ?? null,
       ski_experience_level_at_event: ski_experience_level_at_event ?? null,

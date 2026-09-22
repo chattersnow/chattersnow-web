@@ -34,13 +34,27 @@ import {
   SEEDED_USER_IDS,
 } from "./seed-fixtures";
 
-async function countOf(table: string) {
+/**
+ * `column` exists for `event_registrations` and nothing else (#685). Four of
+ * its columns -- the accompanying adult and emergency contact a party with a
+ * minor gives -- are revoked from `authenticated` and served only by a
+ * security-definer view, so `select("*")` on that table is a permission error
+ * for every signed-in session, this admin one included. A count needs one
+ * column, not all of them; the others keep `*` because a join table here may
+ * have no `id` to name.
+ */
+async function countOf(table: string, column = "*") {
   const { count, error } = await adminClient
     .from(table)
-    .select("*", { count: "exact", head: true });
+    .select(column, { count: "exact", head: true });
   if (error) throw new Error(`${table}: ${error.message}`);
   return count ?? 0;
 }
+
+/** Tables that cannot be counted with `*`; see `countOf`. */
+const COUNT_COLUMN: Record<string, string> = {
+  event_registrations: "id",
+};
 
 // Recorded from a fresh `supabase db reset` on the deterministic seed.
 const EXPECTED_COUNTS: Record<string, number> = {
@@ -113,7 +127,7 @@ describe("seeded database shape", () => {
   test("headline tables have the recorded row counts", async () => {
     const actual: Record<string, number> = {};
     for (const table of Object.keys(EXPECTED_COUNTS)) {
-      actual[table] = await countOf(table);
+      actual[table] = await countOf(table, COUNT_COLUMN[table]);
     }
     expect(actual).toEqual(EXPECTED_COUNTS);
   });

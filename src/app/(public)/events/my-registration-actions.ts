@@ -9,6 +9,13 @@ import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseAttendedBefore } from "@/lib/attended-before";
+import {
+  MINOR_CONTACTS_REQUIRED_CODE,
+  MINOR_CONTACTS_REQUIRED_ERROR,
+  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+  parseMinorContacts,
+  parsePartyIncludesMinor,
+} from "@/lib/minors";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
 
@@ -25,6 +32,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
   PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   NO_RECORD: "We could not find your record. Please sign in again.",
+  // #685. The form asks for the four the moment somebody answers yes, so this
+  // is the belt to that braces.
+  [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
   // #686. Three ways a waiver can stop a registration, and they are three
   // different things to say. The first is the reader's to fix; the second is
   // nobody's fault and asks them to read again; the third is the
@@ -60,6 +70,20 @@ export async function registerMyselfForEventAction(
     return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE };
   }
 
+  // #685. Required on this form as on the anonymous one, and validated here
+  // rather than left to the RPC: the RPC has to keep accepting an unanswered
+  // question, because the public API's published contract predates it, so
+  // "the question was asked and skipped" is a distinction only the two forms
+  // can draw.
+  const partyIncludesMinor = parsePartyIncludesMinor(
+    formData.get("partyIncludesMinor"),
+  );
+  if (partyIncludesMinor === null) {
+    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR };
+  }
+  const minorContacts = parseMinorContacts(partyIncludesMinor, formData);
+  if ("error" in minorContacts) return minorContacts;
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("register_myself_for_event", {
     p_event_id: eventId,
@@ -88,6 +112,15 @@ export async function registerMyselfForEventAction(
     )
       ? Number(formData.get("waiverVersion"))
       : undefined,
+    p_party_includes_minor: partyIncludesMinor,
+    p_accompanying_adult_name:
+      minorContacts.data.accompanying_adult_name ?? undefined,
+    p_accompanying_adult_phone:
+      minorContacts.data.accompanying_adult_phone ?? undefined,
+    p_emergency_contact_name:
+      minorContacts.data.emergency_contact_name ?? undefined,
+    p_emergency_contact_phone:
+      minorContacts.data.emergency_contact_phone ?? undefined,
     p_ip_address: await getClientIp(),
   });
 

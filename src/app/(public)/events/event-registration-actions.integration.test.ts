@@ -45,8 +45,14 @@ mock.module("next/server", () => ({
 
 const { registerForEventAction } = await import("./event-registration-actions");
 
+/**
+ * #685: the form requires an answer about anyone under 18, so every case that
+ * expects a registration to land has to give one. Defaulted to "no" here and
+ * overridden by the cases that are about the question itself.
+ */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -909,5 +915,128 @@ describe("register_for_event name floor (integration)", () => {
 
     expect(error).toBeNull();
     await service.from("people").delete().eq("id", data!.id);
+  });
+});
+
+// #685. The RPC's half of the minors question, which is deliberately narrower
+// than the form's: it never demands an answer, because the public API's
+// published contract predates the question and a caller that says nothing must
+// be recorded as never having been asked. What it does enforce is the one rule
+// an organization's policy rests on -- a "yes" arrives with somebody to reach.
+describe("register_for_event and a party with a minor", () => {
+  async function registerWith(
+    args: Record<string, unknown>,
+    email = uniqueEmail("minors"),
+  ) {
+    const { id } = await event();
+    const result = await anonClient().rpc("register_for_event", {
+      p_event_id: id,
+      p_name: "Jamie Rivera",
+      p_email: email,
+      p_phone: null,
+      p_party_size: 2,
+      p_notes: null,
+      p_ip_address: uniqueIp(),
+      ...args,
+    });
+    return { ...result, email, eventId: id };
+  }
+
+  async function readRow(registrationId: string) {
+    const { data, error } = await service
+      .from("event_registrations")
+      .select(
+        "party_includes_minor, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+      )
+      .eq("id", registrationId)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  test("an unanswered question is stored as unanswered, never as no", async () => {
+    const { data, error } = await registerWith({});
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toMatchObject({
+      party_includes_minor: null,
+      accompanying_adult_name: null,
+    });
+  });
+
+  test("a no keeps nothing, whatever contacts came with it", async () => {
+    const { data, error } = await registerWith({
+      p_party_includes_minor: false,
+      p_accompanying_adult_name: "Robin Rivera",
+      p_emergency_contact_phone: "555-0102",
+    });
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      party_includes_minor: false,
+      accompanying_adult_name: null,
+      accompanying_adult_phone: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+    });
+  });
+
+  test("a yes without the four is refused", async () => {
+    for (const incomplete of [
+      {},
+      { p_accompanying_adult_name: "Robin Rivera" },
+      {
+        p_accompanying_adult_name: "Robin Rivera",
+        p_accompanying_adult_phone: "555-0101",
+        p_emergency_contact_name: "Sam Rivera",
+        p_emergency_contact_phone: "   ",
+      },
+    ]) {
+      const { data, error } = await registerWith({
+        p_party_includes_minor: true,
+        ...incomplete,
+      });
+
+      expect(data).toBeNull();
+      expect(error?.message).toContain("MINOR_CONTACTS_REQUIRED");
+    }
+  });
+
+  test("a yes with the four is stored, trimmed", async () => {
+    const { data, error } = await registerWith({
+      p_party_includes_minor: true,
+      p_accompanying_adult_name: "  Robin Rivera  ",
+      p_accompanying_adult_phone: "555-0101",
+      p_emergency_contact_name: "Sam Rivera",
+      p_emergency_contact_phone: "555-0102",
+    });
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      party_includes_minor: true,
+      accompanying_adult_name: "Robin Rivera",
+      accompanying_adult_phone: "555-0101",
+      emergency_contact_name: "Sam Rivera",
+      emergency_contact_phone: "555-0102",
+    });
+  });
+
+  // The honeypot returns a fake id before any validation runs, and that has to
+  // stay true of this rule too: a bot that trips the honeypot *and* sends an
+  // incomplete answer must get the same nothing a clean bot gets, or the
+  // refusal becomes an oracle telling it which field it missed.
+  test("a filled honeypot is still silent, incomplete answer and all", async () => {
+    const email = uniqueEmail("minors-honeypot");
+    const { data, error, eventId } = await registerWith(
+      {
+        p_honeypot: "bot",
+        p_party_includes_minor: true,
+      },
+      email,
+    );
+
+    expect(error).toBeNull();
+    expect(typeof data).toBe("string");
+    expect(await countEventRegistrations(eventId, email)).toBe(0);
   });
 });
