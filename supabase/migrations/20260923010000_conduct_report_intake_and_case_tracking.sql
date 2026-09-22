@@ -614,6 +614,15 @@ create policy "conduct_report_appeals update" on public.conduct_report_appeals
 -- No `delete` in any of these grants except the reviewer correction above: a
 -- table with no delete policy still refuses one, and withholding the privilege
 -- as well says the same thing twice on purpose.
+--
+-- The revoke comes first because a hosted Supabase project's default
+-- privileges hand `anon` and `authenticated` every privilege on a new table in
+-- `public`, and a grant only adds: without it `delete` would still be held (the
+-- self-check in section 11 refuses exactly that), and so would everything
+-- `anon` should never have on a case file.
+revoke all on public.conduct_reports, public.conduct_report_reviewers,
+  public.conduct_report_actions, public.conduct_report_appeals
+  from anon, authenticated;
 grant select, insert, update on public.conduct_reports to authenticated;
 grant select, insert, update, delete on public.conduct_report_reviewers to authenticated;
 grant select, insert, update on public.conduct_report_actions to authenticated;
