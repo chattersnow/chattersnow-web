@@ -51,6 +51,12 @@ const EXEMPT: Record<string, string> = {
   "calendar/import/csv-import-panel.tsx":
     "The preview of the rows about to be imported. Hiding a column would " +
     "hide a value the reader is being asked to approve.",
+  "finance/donations/import/donation-import-panel.tsx":
+    "The preview of the gifts about to be imported, and the reader is " +
+    "reconciling it against a bank statement. The received amount only " +
+    "means anything beside the gross and the fee it came out of, and the " +
+    "transaction ID is the column that says which line of the export a row " +
+    "is.",
   "inventory/reports/page.tsx":
     "A grouped aggregate: the subtotal rows span Group and Category with " +
     "colSpan, so dropping either leaves the spans describing columns that " +

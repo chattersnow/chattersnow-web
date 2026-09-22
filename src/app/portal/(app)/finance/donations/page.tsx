@@ -38,6 +38,7 @@ import { NewDonationDialog } from "./new-donation-dialog";
 import {
   DONATION_COLUMNS,
   PAYMENT_METHODS,
+  donationSourceLabel,
   donorLabel,
   isPaymentMethod,
   paymentMethodLabel,
@@ -410,6 +411,19 @@ export default async function FinanceDonationsPage({
             </form>
           </FiltersSheet>
 
+          {/* The import's only way in (docs/portal-navigation.md): it is the
+              same job as this page -- getting gifts into the ledger -- done
+              from a file rather than by hand, so it sits beside New donation
+              rather than taking a ninth slot in the Finance sidebar. The
+              breadcrumb on the page itself carries the trail back. */}
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href="/portal/finance/donations/import" />}
+          >
+            <LinkPendingPulse>Import</LinkPendingPulse>
+          </Button>
+
           <NewDonationDialog events={eventOptions} people={peopleOptions} />
         </div>
 
@@ -459,6 +473,10 @@ export default async function FinanceDonationsPage({
                       </TableHead>
                     ))}
                     <TableHead hideBelow="md">Event</TableHead>
+                    {/* Which figures were transcribed and which arrived from a
+                        provider (#1390). Last and `lg`-only: it matters when
+                        reconciling and nowhere else. */}
+                    <TableHead hideBelow="lg">Source</TableHead>
                     <TableHead className="w-0">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -479,6 +497,10 @@ export default async function FinanceDonationsPage({
                       </TableCell>
                       <TableCell hideBelow="md" className="app-muted">
                         {donation.events?.name ?? "—"}
+                      </TableCell>
+                      <TableCell hideBelow="lg" className="app-muted">
+                        {donation.processor_label ||
+                          donationSourceLabel(donation.source)}
                       </TableCell>
                       <TableCell>
                         <EditDonationModal

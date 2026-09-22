@@ -17,23 +17,23 @@ touches — not the set.** Section numbers are stable and unchanged, so a `§5.1
 migration comment or an issue still means what it always did; the index below says
 which file it now lives in.
 
-| Sections                                                          | File                                                           |
-| ----------------------------------------------------------------- | -------------------------------------------------------------- |
-| §5.3, §6 identity and access                                      | [`spec/access-control.md`](spec/access-control.md)             |
-| §5.11, §6 audit log                                               | [`spec/audit.md`](spec/audit.md)                               |
-| §5.23, §6 constituent accounts                                    | [`spec/constituent-accounts.md`](spec/constituent-accounts.md) |
-| §5.24, §6 conduct reports                                         | [`spec/conduct.md`](spec/conduct.md)                           |
-| §5.20, §6 content and community calendar                          | [`spec/content-calendar.md`](spec/content-calendar.md)         |
-| §5.2, §5.5, §6 public and events                                  | [`spec/events.md`](spec/events.md)                             |
-| §5.6, §5.16, §5.18, §5.21, §5.22, §5.25, §6 finance and giveaways | [`spec/finance.md`](spec/finance.md)                           |
-| §5.8                                                              | [`spec/giveaways.md`](spec/giveaways.md)                       |
-| §5.12, §6 governance                                              | [`spec/governance.md`](spec/governance.md)                     |
-| §5.4, §5.7, §5.13, §5.19, §6 inventory and donations              | [`spec/inventory.md`](spec/inventory.md)                       |
-| §6 multi-tenancy                                                  | [`spec/multi-tenancy.md`](spec/multi-tenancy.md)               |
-| §5.9                                                              | [`spec/people.md`](spec/people.md)                             |
-| §5.14, §5.15, §6 programs and impact                              | [`spec/programs.md`](spec/programs.md)                         |
-| §5.17, §6 volunteers                                              | [`spec/volunteers.md`](spec/volunteers.md)                     |
-| §16, §17 (review addenda)                                         | [`spec/addenda.md`](spec/addenda.md)                           |
+| Sections                                                                 | File                                                           |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| §5.3, §6 identity and access                                             | [`spec/access-control.md`](spec/access-control.md)             |
+| §5.11, §6 audit log                                                      | [`spec/audit.md`](spec/audit.md)                               |
+| §5.23, §6 constituent accounts                                           | [`spec/constituent-accounts.md`](spec/constituent-accounts.md) |
+| §5.24, §6 conduct reports                                                | [`spec/conduct.md`](spec/conduct.md)                           |
+| §5.20, §6 content and community calendar                                 | [`spec/content-calendar.md`](spec/content-calendar.md)         |
+| §5.2, §5.5, §6 public and events                                         | [`spec/events.md`](spec/events.md)                             |
+| §5.6, §5.16, §5.18, §5.21, §5.22, §5.25, §5.26, §6 finance and giveaways | [`spec/finance.md`](spec/finance.md)                           |
+| §5.8                                                                     | [`spec/giveaways.md`](spec/giveaways.md)                       |
+| §5.12, §6 governance                                                     | [`spec/governance.md`](spec/governance.md)                     |
+| §5.4, §5.7, §5.13, §5.19, §6 inventory and donations                     | [`spec/inventory.md`](spec/inventory.md)                       |
+| §6 multi-tenancy                                                         | [`spec/multi-tenancy.md`](spec/multi-tenancy.md)               |
+| §5.9                                                                     | [`spec/people.md`](spec/people.md)                             |
+| §5.14, §5.15, §6 programs and impact                                     | [`spec/programs.md`](spec/programs.md)                         |
+| §5.17, §6 volunteers                                                     | [`spec/volunteers.md`](spec/volunteers.md)                     |
+| §16, §17 (review addenda)                                                | [`spec/addenda.md`](spec/addenda.md)                           |
 
 §5.1 and §5.10 are cross-cutting rather than per-module and stay in this file, along
 with everything else: purpose, goals, technology, system boundaries, security, the route

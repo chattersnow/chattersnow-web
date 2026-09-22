@@ -5412,10 +5412,15 @@ export type Database = {
           created_by: string;
           donor_id: string | null;
           event_id: string | null;
+          external_reference: string | null;
+          fee_amount: number | null;
+          gross_amount: number | null;
           id: string;
           method: string;
           notes: string | null;
+          processor_label: string | null;
           received_date: string;
+          source: string;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
@@ -5426,10 +5431,15 @@ export type Database = {
           created_by?: string;
           donor_id?: string | null;
           event_id?: string | null;
+          external_reference?: string | null;
+          fee_amount?: number | null;
+          gross_amount?: number | null;
           id?: string;
           method: string;
           notes?: string | null;
+          processor_label?: string | null;
           received_date?: string;
+          source?: string;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5440,10 +5450,15 @@ export type Database = {
           created_by?: string;
           donor_id?: string | null;
           event_id?: string | null;
+          external_reference?: string | null;
+          fee_amount?: number | null;
+          gross_amount?: number | null;
           id?: string;
           method?: string;
           notes?: string | null;
+          processor_label?: string | null;
           received_date?: string;
+          source?: string;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -9087,6 +9102,10 @@ export type Database = {
           name: string;
         }[];
       };
+      bulk_import_monetary_donations: {
+        Args: { p_processor_label?: string; p_rows: Json };
+        Returns: Json;
+      };
       can_see_conduct_report: {
         Args: { p_report_id: string };
         Returns: boolean;
@@ -9296,6 +9315,7 @@ export type Database = {
           title: string;
         }[];
       };
+      get_donation_import_mapping: { Args: never; Returns: Json };
       get_event_impact_derived_data: {
         Args: { p_event_id: string };
         Returns: Json;
@@ -10388,6 +10408,10 @@ export type Database = {
         Returns: number;
       };
       set_current_tenant: { Args: { p_tenant_id: string }; Returns: undefined };
+      set_donation_import_mapping: {
+        Args: { p_mapping: Json };
+        Returns: undefined;
+      };
       set_gear_request_settings: {
         Args: {
           p_meetup_instructions: string;

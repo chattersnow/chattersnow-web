@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   ANONYMOUS_DONOR_LABEL,
+  donationSourceLabel,
   donorLabel,
+  isDonationSource,
+  isImportedDonation,
   isPaymentMethod,
   paymentMethodLabel,
   type MonetaryDonationRow,
@@ -16,6 +19,11 @@ function row(overrides: Partial<MonetaryDonationRow>): MonetaryDonationRow {
     method: "cash",
     received_date: "2026-08-15",
     notes: null,
+    source: "manual",
+    external_reference: null,
+    processor_label: null,
+    gross_amount: null,
+    fee_amount: null,
     people: { name: "Jamie Rivera" },
     events: null,
     ...overrides,
@@ -51,5 +59,28 @@ describe("donorLabel", () => {
   test("falls back to a dash when the linked person has no name", () => {
     expect(donorLabel(row({ people: { name: "  " } }))).toBe("—");
     expect(donorLabel(row({ people: null }))).toBe("—");
+  });
+});
+
+describe("donation provenance (#1390)", () => {
+  test("isDonationSource accepts the three the constraint allows", () => {
+    expect(isDonationSource("manual")).toBe(true);
+    expect(isDonationSource("import")).toBe(true);
+    expect(isDonationSource("processor")).toBe(true);
+    expect(isDonationSource("csv")).toBe(false);
+    expect(isDonationSource(undefined)).toBe(false);
+  });
+
+  test("donationSourceLabel says where a row came from in plain words", () => {
+    expect(donationSourceLabel("manual")).toBe("Entered here");
+    expect(donationSourceLabel("import")).toBe("Imported");
+  });
+
+  test("a typed gift is editable and anything else is not", () => {
+    expect(isImportedDonation(row({}))).toBe(false);
+    expect(isImportedDonation(row({ source: "import" }))).toBe(true);
+    // Reserved for a live integration, and read-only for the same reason an
+    // imported row is: its figures came from somewhere else.
+    expect(isImportedDonation(row({ source: "processor" }))).toBe(true);
   });
 });

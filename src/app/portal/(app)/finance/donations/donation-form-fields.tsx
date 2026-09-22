@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  donationSourceLabel,
   PAYMENT_METHODS,
   paymentMethodLabel,
+  type DonationSource,
   type EventOption,
 } from "./donations-shared";
 import { PersonPicker, type PickedPerson } from "../../people/person-picker";
@@ -17,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { formatCurrency } from "@/lib/format";
 
 export type DonationFormState = {
   donor: PickedPerson | null;
@@ -38,6 +42,75 @@ export function emptyDonationForm(): DonationFormState {
   };
 }
 
+/**
+ * What a row's provider reported (#1390), for a gift that did not come from
+ * this form. Present exactly when the row's `source` is not `manual`.
+ */
+export type DonationProvenance = {
+  source: DonationSource;
+  externalReference: string | null;
+  processorLabel: string | null;
+  grossAmount: number | string | null;
+  feeAmount: number | string | null;
+};
+
+/**
+ * The provider's own figures, shown wherever an imported gift is. Rendered by
+ * both the edit form and the view pane, so the two cannot drift.
+ *
+ * The gross and the fee are shown only where the file carried them: a platform
+ * that passes its cost to the donor reports no fee, and a dash under "Fee"
+ * would read as a fee of nothing rather than as no such thing.
+ */
+export function DonationProvenanceFields({
+  provenance,
+  idPrefix,
+}: {
+  provenance: DonationProvenance;
+  idPrefix: string;
+}) {
+  const hasSplit =
+    provenance.grossAmount !== null || provenance.feeAmount !== null;
+  return (
+    <>
+      <ReadOnlyField label="Recorded by" htmlFor={`${idPrefix}-source`}>
+        {donationSourceLabel(provenance.source)}
+        {provenance.processorLabel ? ` — ${provenance.processorLabel}` : ""}
+      </ReadOnlyField>
+      {provenance.externalReference && (
+        <ReadOnlyField
+          label="Transaction ID"
+          htmlFor={`${idPrefix}-externalReference`}
+        >
+          <span className="font-mono text-xs">
+            {provenance.externalReference}
+          </span>
+        </ReadOnlyField>
+      )}
+      {hasSplit && (
+        <Field orientation="responsive">
+          {provenance.grossAmount !== null && (
+            <ReadOnlyField
+              label="Gross amount"
+              htmlFor={`${idPrefix}-grossAmount`}
+            >
+              {formatCurrency(provenance.grossAmount)}
+            </ReadOnlyField>
+          )}
+          {provenance.feeAmount !== null && (
+            <ReadOnlyField
+              label="Processor fee"
+              htmlFor={`${idPrefix}-feeAmount`}
+            >
+              {formatCurrency(provenance.feeAmount)}
+            </ReadOnlyField>
+          )}
+        </Field>
+      )}
+    </>
+  );
+}
+
 export function DonationFormFields({
   form,
   update,
@@ -45,6 +118,7 @@ export function DonationFormFields({
   people,
   onPersonCreated,
   idPrefix,
+  provenance,
 }: {
   form: DonationFormState;
   update: <K extends keyof DonationFormState>(
@@ -55,6 +129,14 @@ export function DonationFormFields({
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
   idPrefix: string;
+  /**
+   * Set for an imported gift. The figures the provider reported render
+   * read-only rather than disabled -- a disabled input still looks like a
+   * field somebody failed to fill in -- and the database refuses the edit
+   * anyway (`freeze_imported_figures`), so this is the explanation rather
+   * than the enforcement.
+   */
+  provenance?: DonationProvenance;
 }) {
   return (
     <>
@@ -140,21 +222,31 @@ export function DonationFormFields({
             onChange={(event) => update("receivedDate", event.target.value)}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${idPrefix}-amount`} required>
-            Amount
-          </FieldLabel>
-          <Input
-            id={`${idPrefix}-amount`}
-            type="number"
-            min="0"
-            step="0.01"
-            required
-            value={form.amount}
-            onChange={(event) => update("amount", event.target.value)}
-          />
-        </Field>
+        {provenance ? (
+          <ReadOnlyField label="Amount" htmlFor={`${idPrefix}-amount`}>
+            {formatCurrency(form.amount)}
+          </ReadOnlyField>
+        ) : (
+          <Field>
+            <FieldLabel htmlFor={`${idPrefix}-amount`} required>
+              Amount
+            </FieldLabel>
+            <Input
+              id={`${idPrefix}-amount`}
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={form.amount}
+              onChange={(event) => update("amount", event.target.value)}
+            />
+          </Field>
+        )}
       </Field>
+
+      {provenance && (
+        <DonationProvenanceFields provenance={provenance} idPrefix={idPrefix} />
+      )}
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
