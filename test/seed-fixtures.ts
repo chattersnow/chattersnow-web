@@ -93,6 +93,15 @@ export const SEEDED_GOVERNANCE_IDS = {
   meeting: "abababab-0000-4000-8000-000000000001",
 } as const;
 
+export const SEEDED_CONDUCT_IDS = {
+  /** "CR-4QTXM": named reporter, acknowledged, one recused reviewer, one interim action in force. */
+  shoutedAt: "acacacac-0000-4000-8000-000000000001",
+  /** "CR-7HJ2K": anonymous, unacknowledged and past the 5-day commitment. */
+  groupChat: "acacacac-0000-4000-8000-000000000002",
+  /** "CR-2WNPF": closed, with an appeal filed in the window and heard. */
+  gearTable: "acacacac-0000-4000-8000-000000000003",
+} as const;
+
 export const SEEDED_PROGRAM_IDS = {
   /** "Winter Access Program". */
   winterAccess: "babababa-0000-4000-8000-000000000001",

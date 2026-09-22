@@ -12,6 +12,8 @@ import {
   getTenantOwnLegalDocuments,
 } from "@/lib/legal-publication";
 import { getTenantModules } from "@/lib/page-visibility";
+import { conductProcessValues, getConductProcess } from "@/lib/conduct";
+import { ConductProcessPanel } from "../conduct-process-panel";
 import {
   LegalDocumentsPanel,
   type LegalDocumentStatus,
@@ -70,6 +72,11 @@ export default async function WebsiteLegalDocumentsPage() {
     getTenantLegalPublishState(supabase),
   ]);
 
+  // Beside the document rather than in the Conduct section (#687): these four
+  // numbers restate what the code of conduct above them promises, and keeping
+  // the promise and the measure on one screen is what stops the two drifting.
+  const conductProcess = await getConductProcess(supabase);
+
   const legalStatuses: LegalDocumentStatus[] = LEGAL_DOCUMENTS.map(
     (document) => ({
       key: document.key,
@@ -116,6 +123,7 @@ export default async function WebsiteLegalDocumentsPage() {
           statuses={legalStatuses}
           gate={{ required: approvalRequired, approvers }}
         />
+        <ConductProcessPanel values={conductProcessValues(conductProcess)} />
       </div>
     </>
   );

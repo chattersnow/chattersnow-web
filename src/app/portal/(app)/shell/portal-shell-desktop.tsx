@@ -47,6 +47,7 @@ export async function PortalShellDesktop({
   branding,
   currentPerson,
   attentionItems,
+  legalLinks,
   tenantContext,
   hostPinned,
   isDemo,
@@ -105,6 +106,29 @@ export async function PortalShellDesktop({
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
+          {/* Staff are asked to enforce and answer for these, and until #687
+              there was no path to them from inside the portal at all. Only
+              what this organization actually serves is listed: a document it
+              has not adopted 404s (#859), so linking all of them would have
+              offered dead ends. Plain anchors rather than sidebar menu rows --
+              they leave the portal for the public site, and they are a
+              footnote rather than navigation. */}
+          {legalLinks.length > 0 && (
+            <nav
+              aria-label="Legal"
+              className="group-data-[collapsible=icon]:hidden px-2 pb-1"
+            >
+              <ul className="app-muted flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                {legalLinks.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="hover:underline">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
           <LogoutButton />
         </SidebarFooter>
       </Sidebar>

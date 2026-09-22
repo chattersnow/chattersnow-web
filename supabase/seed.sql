@@ -34,6 +34,7 @@
 --   aaaaaaaa-* auth accounts    bbbbbbbb-* people      cccccccc-* events
 --   dddddddd-* donations        eeeeeeee-* inventory   ffffffff-* calendar items
 --   abababab-* governance       babababa-* programs, giveaways
+--   cdcdcdcd-* products          acacacac-* conduct reports
 --
 -- These are mirrored in test/seed-fixtures.ts -- change one, change both.
 with new_users(id, email, full_name) as (
@@ -513,6 +514,114 @@ begin
 
   insert into public.person_screenings (person_id, tier_id, cleared_on, expires_on, created_by)
   values (v_person_volunteer, v_screening_tier_2, current_date - 1200, current_date - 105, v_admin_id);
+
+  -- Conduct reports (#687).
+  --
+  -- The migration seeds none on any tenant and no clocks on any tenant but the
+  -- first, because both are an organization's own decisions. This is the worked
+  -- case for local, CI and e2e, and it is deliberately a worked case rather
+  -- than a tidy one: an anonymous report and a named one, one acknowledged
+  -- inside the window and one that has blown through it, an interim action
+  -- still in force, a recusal with its reason, and an appeal. Every rendering
+  -- path in the section therefore has something to render by default, rather
+  -- than only when a test remembers to set it up.
+  --
+  -- The four clocks first, so the queue's indicators mean something here. They
+  -- are `example-nonprofit`'s own numbers, not the platform's -- see
+  -- 20260923010000, which writes Chatter Snow's and nobody else's.
+  insert into public.app_settings (key, value) values
+    ('conduct.acknowledgement_days', '5'::jsonb),
+    ('conduct.appeal_days', '14'::jsonb),
+    ('conduct.reviewer_minimum', '2'::jsonb),
+    ('conduct.appeal_excludes_original_reviewers', 'true'::jsonb)
+  on conflict (tenant_id, key) do nothing;
+
+  -- And the grant that makes a board member assignable. The migration seeds
+  -- `board: none` on every tenant on purpose -- whose job this is differs by
+  -- organization -- so this is the local tenant deciding, which is exactly the
+  -- act an administrator performs in Administration > Roles.
+  update public.role_permissions rp
+     set level = 'view'
+    from public.roles r, public.resources res
+   where rp.role_id = r.id
+     and rp.resource_id = res.id
+     and r.name = 'board'
+     and res.key = 'conduct_reports';
+
+  insert into public.conduct_reports (
+    id, reference, received_on, channel, reporter_kind, reporter_name,
+    reporter_contact, subject_person_id, subject_description, summary,
+    severity, status, acknowledged_on, created_by
+  ) values (
+    'acacacac-0000-4000-8000-000000000001', 'CR-4QTXM', current_date - 3,
+    'email', 'named', 'Robin Alvarez', 'robin.alvarez@example.test',
+    null, 'A coach in a red jacket, at the top of the beginner run',
+    'Robin wrote in on Sunday evening to say that during the afternoon session a coach shouted at their nephew in front of the whole group after he fell at the top of the beginner run, told him he was "wasting everyone''s time", and then refused to let him take the lift again. Robin says two other parents saw it and one of them went to find a staff member, who could not be found. Robin is not asking for anybody to be removed but wants to know that it has been taken seriously, and does not want to be named to the coach.',
+    'serious', 'acknowledged', current_date - 2, v_admin_id
+  );
+
+  insert into public.conduct_reports (
+    id, reference, received_on, channel, reporter_kind, subject_description,
+    context, summary, severity, status, created_by
+  ) values (
+    'acacacac-0000-4000-8000-000000000002', 'CR-7HJ2K', current_date - 11,
+    'in_person', 'anonymous', 'Somebody in the Wednesday group chat',
+    'The Wednesday evening group chat',
+    'Somebody stopped a volunteer at the end of the Wednesday session to say that the group chat has been getting uncomfortable — comments about who is and is not "a real rider", and one exchange late at night that they described as personal rather than about riding. They did not want to give their name and did not want the chat shut down, only for somebody to say something in it.',
+    'moderate', 'received', v_admin_id
+  );
+
+  -- Two reviewers on the first case, one of whom has stepped back. The recusal
+  -- keeps its row and its reason, which is the whole reason reviewers are a
+  -- table: "two unconflicted reviewers" is evidence only if both halves are
+  -- written down.
+  insert into public.conduct_report_reviewers (report_id, stage, user_id, assigned_on, assigned_by)
+  values ('acacacac-0000-4000-8000-000000000001', 'review', v_admin_id, current_date - 2, v_admin_id);
+
+  insert into public.conduct_report_reviewers (
+    report_id, stage, user_id, assigned_on, assigned_by, recused_on, recusal_reason
+  )
+  select 'acacacac-0000-4000-8000-000000000001', 'review', u.id, current_date - 2, v_admin_id,
+         current_date - 1, 'The coach named in the report coaches my daughter''s group.'
+  from auth.users u where u.email = 'board@example.test';
+
+  -- A third case, closed, with an appeal that was filed inside the window and
+  -- heard. It is what "All cases" shows that "Open cases" does not, and it is
+  -- the only row in `conduct_report_appeals` -- which the tenant-isolation
+  -- suite requires, since its per-table check means nothing on an empty table.
+  insert into public.conduct_reports (
+    id, reference, received_on, channel, reporter_kind, reporter_name,
+    subject_description, context, summary, severity, status,
+    acknowledged_on, decided_on, outcome, closed_on, created_by
+  ) values (
+    'acacacac-0000-4000-8000-000000000003', 'CR-2WNPF', current_date - 70,
+    'phone', 'named', 'Sam Okafor',
+    'A volunteer on the gear table', 'The Saturday gear pickup',
+    'Sam called to say that a volunteer handing out gear had been short with their daughter about the size she had asked for, in front of the queue, and that she left without taking anything. Sam was not asking for a sanction and said the volunteer had been helpful on other days; they wanted somebody to notice the pattern they thought they were seeing on busy mornings.',
+    'minor', 'closed', current_date - 68, current_date - 60,
+    'Spoken to by the volunteer coordinator. No further action, and the gear table now runs two people on Saturday mornings.',
+    current_date - 40, v_admin_id
+  );
+
+  insert into public.conduct_report_appeals (
+    report_id, filed_on, grounds, decided_on, outcome, created_by
+  ) values (
+    'acacacac-0000-4000-8000-000000000003', current_date - 55,
+    'The volunteer wrote back to say the conversation had been described to them second hand and that they were not asked what happened before the decision was made.',
+    current_date - 45,
+    'Heard by two board members who were not part of the original decision. The finding stands, and the note on the file now records the volunteer''s own account alongside it.',
+    v_admin_id
+  );
+
+  -- An interim measure that is still in force. Nothing about closing the case
+  -- or filing an appeal lifts it: `lifted_on is null` is the only definition of
+  -- "in force" anywhere in this feature.
+  insert into public.conduct_report_actions (report_id, kind, description, taken_on, created_by)
+  values (
+    'acacacac-0000-4000-8000-000000000001', 'interim',
+    'The coach is not rostered on beginner sessions while we look into this. Agreed with them by phone on the day the report came in, and they know why.',
+    current_date - 2, v_admin_id
+  );
 
   -- Public contact-form submissions, exercising the ops inbox (issue #173):
   -- one unread so the notification bell/dashboard card have something to

@@ -210,7 +210,14 @@ describe("navGroups", () => {
       // three sections out of Administration cost the sidebar no extra width.
       [
         "Organization",
-        ["platform", "website", "technology", "governance", "administration"],
+        [
+          "platform",
+          "website",
+          "technology",
+          "conduct",
+          "governance",
+          "administration",
+        ],
       ],
     ]);
   });

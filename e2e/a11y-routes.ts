@@ -163,6 +163,13 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
     listPath: "/portal/people",
     linkPattern: /^\/portal\/people\/[0-9a-f-]{36}$/,
   },
+  // The queue links every case by its reference, which is what the scan
+  // follows. Seeded reports exist on every reset (#687), so there is always
+  // one to reach.
+  "/portal/conduct/[id]": {
+    listPath: "/portal/conduct",
+    linkPattern: /^\/portal\/conduct\/[0-9a-f-]{36}$/,
+  },
   "/portal/calendar/[itemId]": {
     listPath: "/portal/calendar",
     linkPattern: /^\/portal\/calendar\/[0-9a-f-]{36}$/,
