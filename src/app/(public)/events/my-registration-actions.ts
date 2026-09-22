@@ -16,6 +16,7 @@ import {
   parseMinorContacts,
   parsePartyIncludesMinor,
 } from "@/lib/minors";
+import { PHOTO_CONSENT_FIELD, parsePhotoConsent } from "@/lib/photo-consent";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
 
@@ -121,6 +122,13 @@ export async function registerMyselfForEventAction(
       minorContacts.data.emergency_contact_name ?? undefined,
     p_emergency_contact_phone:
       minorContacts.data.emergency_contact_phone ?? undefined,
+    // #599, read straight off the FormData like the waiver above and for the
+    // same reason: this action has no parser of its own. `undefined` is how
+    // "this tenant asks nothing" reaches the RPC, which is the branch almost
+    // every registration takes; `false` is a box that was on screen and left
+    // unticked, and it never refuses the submission.
+    p_photo_consent:
+      parsePhotoConsent(formData.get(PHOTO_CONSENT_FIELD)) ?? undefined,
     p_ip_address: await getClientIp(),
   });
 

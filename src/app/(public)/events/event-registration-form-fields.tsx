@@ -16,6 +16,7 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { PhotoConsentField } from "@/components/photo-consent-field";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -23,6 +24,7 @@ import {
   RecordAccountOffer,
   type AccountOffer,
 } from "@/components/record-account-offer";
+import { PHOTO_CONSENT_FIELD, photoConsentValue } from "@/lib/photo-consent";
 import type { EventViewerAccount } from "./my-registration";
 
 /**
@@ -49,6 +51,7 @@ export function EventRegistrationForm({
   waiver = null,
   waiverBlock = null,
   minorAccompaniment = [],
+  photoConsent = [],
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -75,6 +78,16 @@ export function EventRegistrationForm({
    * asks for and what it never asks for.
    */
   minorAccompaniment?: string[];
+  /**
+   * This organization's photo and media consent scope (#599), from
+   * `events.photo_consent`. Empty on a tenant that has written none — which
+   * is almost all of them — and empty means the question is not asked at all:
+   * the block renders nothing, there is no box, and all three columns stay
+   * null. The platform writes no scope of its own, because what an
+   * organization does with a photo is off-platform and a default here would
+   * be a commitment a registrant then consented to on its behalf.
+   */
+  photoConsent?: string[];
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -97,6 +110,10 @@ export function EventRegistrationForm({
   // Starts unticked, always. A pre-ticked box is not an acceptance, and this
   // is the one control on the form where that matters (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
+  // Starts unticked too, and for the same reason (#599) — but unlike the
+  // waiver's, leaving this one alone is a valid answer that gets stored as a
+  // decline rather than a refused submission.
+  const [photoConsentGiven, setPhotoConsentGiven] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Holds the new registration's id once saved -- both the "did it work?"
   // flag and the token the rider-profile follow-up needs to authorize itself.
@@ -126,6 +143,12 @@ export function EventRegistrationForm({
     }
     formData.set("notes", notes);
     formData.set("company", company);
+    // Only when a scope was rendered, so an absent field means the question
+    // was never put and the row records "not asked". An unticked box that was
+    // on screen submits a real `"off"` and is stored as a decline (#599).
+    if (photoConsent.some((paragraph) => paragraph.trim())) {
+      formData.set(PHOTO_CONSENT_FIELD, photoConsentValue(photoConsentGiven));
+    }
     if (waiver) {
       formData.set("waiverAccepted", waiverAccepted ? "on" : "");
       formData.set("waiverVersion", String(waiver.version));
@@ -318,6 +341,28 @@ export function EventRegistrationForm({
         )}
 
         <PrivacyNotice surface="eventRegistration" />
+
+        {/* #789's order of accumulation: the notice, then the box that can be
+            declined, then the one that cannot. Photo consent sits between them
+            on purpose. It is a real choice, so it belongs after the notice
+            that explains what is collected; and it goes above the agreement
+            because an unticked box next to "I accept" reads as part of the
+            acceptance, which is exactly the confusion the two shapes have to
+            avoid.
+
+            The minors question is not part of this group -- it sits higher,
+            beside the head count it qualifies -- but its answer reaches here,
+            because where a party includes someone under 18 the label says the
+            adult is answering as their parent or guardian. One column, one
+            answer (#685, #599). */}
+        <PhotoConsentField
+          idPrefix="registration"
+          paragraphs={photoConsent}
+          partyIncludesMinor={partyIncludesMinor === "yes"}
+          checked={photoConsentGiven}
+          onChange={setPhotoConsentGiven}
+          disabled={isPending}
+        />
 
         {/* After the notice and beside the button, which is the order the
             artwork submission form argues for and for the same reason: the

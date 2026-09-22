@@ -94,6 +94,12 @@ export async function registerForEventAction(
       parsed.data.accompanying_adult_phone ?? undefined,
     p_emergency_contact_name: parsed.data.emergency_contact_name ?? undefined,
     p_emergency_contact_phone: parsed.data.emergency_contact_phone ?? undefined,
+    // #599, and `undefined` here carries real meaning rather than being a
+    // PostgREST nicety: it is how "this tenant asks nothing, so nobody was
+    // asked" reaches the RPC, and it is the branch almost every registration
+    // takes. A `false` is a box that was on screen and was left unticked --
+    // a decline, stored as one, and never a reason to refuse the submission.
+    p_photo_consent: parsed.data.photo_consent ?? undefined,
   });
 
   if (error) {

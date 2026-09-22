@@ -221,3 +221,71 @@ describe("MyEventRegistrationForm and the minors question", () => {
     });
   });
 });
+
+// #599. Put to a signed-in caller exactly as it is to an anonymous one:
+// holding an account is not permission to photograph anybody.
+describe("MyEventRegistrationForm and photo consent", () => {
+  const SCOPE = [
+    "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
+  ];
+
+  beforeEach(() => {
+    registerMyselfForEventActionMock.mockClear();
+  });
+
+  test("asks nothing, and posts nothing, when the tenant has written no scope", async () => {
+    render(<MyEventRegistrationForm eventId="event-1" person={person} />);
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    await sayNoMinors();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission().photoConsent).toBeUndefined();
+  });
+
+  test("an unticked box that was on screen posts a decline, and still registers", async () => {
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={person}
+        photoConsent={SCOPE}
+      />,
+    );
+
+    const box = screen.getByRole("checkbox", {
+      name: /happy to be photographed/i,
+    });
+    expect(box).not.toBeChecked();
+
+    await sayNoMinors();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission().photoConsent).toBe("off");
+    expect(registerMyselfForEventActionMock).toHaveBeenCalled();
+  });
+
+  test("a ticked box posts consent", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={person}
+        photoConsent={SCOPE}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /happy to be photographed/i }),
+    );
+    await sayNoMinors(user);
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    expect(lastSubmission().photoConsent).toBe("on");
+  });
+});

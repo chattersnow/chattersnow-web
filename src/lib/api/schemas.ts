@@ -133,6 +133,37 @@ export const eventRegistrationSchema = z
       description:
         "That contact's number. Required when party_includes_minor is true.",
     }),
+    // #1366, closing a gap #686 opened. `register_for_event()` gained these
+    // two parameters and this schema did not, so `p_waiver_accepted` fell
+    // through to its `false` default and every headless registration for a
+    // tenant with a waiver in force failed with WAIVER_REQUIRED -- advice no
+    // `curl` caller could act on, because there was no field to send.
+    //
+    // Optional, like the minors questions above and for the same reason: this
+    // contract predates the waiver, and the overwhelming majority of tenants
+    // have adopted none. Omitting both is correct on every one of those, and
+    // `false` is what the RPC already assumes.
+    waiver_accepted: z.boolean().optional().meta({
+      description:
+        "That the person accepted this organization's participant agreement. Omit it unless GET /legal reports a waiver in force; where one is, a registration without it is refused.",
+    }),
+    waiver_version: z.int().positive().optional().meta({
+      description:
+        "The agreement version the person was shown, if you track it. Sending one that is no longer in force is refused rather than accepted against text nobody read; omitting it accepts whatever is in force now.",
+    }),
+    // #599, and optional for the same reason as the minors question: an
+    // omitted field records that nobody was asked, which is both correct for
+    // a caller written before the question existed and correct for the
+    // overwhelming majority of organizations, which have written no scope.
+    //
+    // A `false` is a real decline and is stored as one; it never refuses the
+    // registration. The scope the answer is recorded against is read from the
+    // organization's own row server-side, never from this body, so sending
+    // `true` is an assertion that the person was shown it.
+    photo_consent: z.boolean().optional().meta({
+      description:
+        "Whether the person agreed to be photographed or recorded. Show them the events.photo_consent paragraphs from GET /content first; send false for a decline, which is recorded as one, and omit it entirely if you did not ask. It is never read as a no.",
+    }),
   })
   .meta({ id: "EventRegistration" });
 
