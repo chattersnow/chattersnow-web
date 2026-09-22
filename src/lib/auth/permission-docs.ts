@@ -212,7 +212,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   finance: {
     view: "Open the Finance section and see its landing figures. Enough to reach the section, not to read a ledger.",
     manage:
-      "Work the donation ledger, the expense ledger and event revenue: record, edit and delete entries, and record a donation from the dashboard's quick actions.",
+      "Work the donation ledger, the expense ledger and event revenue: record, edit and delete entries, record a donation from the dashboard's quick actions, and set the giving path the public site points at — which giving page it opens, and the amounts it offers.",
     excludes: [
       {
         key: "finance_approvals",
@@ -235,6 +235,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
     notes: [
       "The name is wider than the grant. Six adjacent resources carve pieces out of it, and this is the split that most often surprises an administrator.",
+      "It is also the gate on the giving path (#1389), which is configured in Finance > Donations rather than in Administration because it shapes one feature. Nothing about it moves money: the setting is the address of the page your provider hosts, and your organization is the one being paid.",
     ],
   },
   finance_reports: {

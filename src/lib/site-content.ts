@@ -2544,6 +2544,37 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default: "Explain what donations pay for.",
   },
   {
+    key: "support.giving_title",
+    page: "support",
+    section: "support:donations",
+    label: "Give card title",
+    description:
+      "Heads the card at the top of the Donations page. The card renders only once giving is switched on in Finance > Donations; until then nothing on this page changes.",
+    type: "text",
+    default: "Give",
+  },
+  {
+    key: "support.giving_body",
+    page: "support",
+    section: "support:donations",
+    label: "Give card body",
+    description:
+      "What a gift pays for, in your own words. The button beneath it says where giving happens, so this does not have to.",
+    type: "text",
+    default:
+      "Your gift goes straight into the work: describe what it pays for, and who it reaches.",
+  },
+  {
+    key: "support.giving_tax_note",
+    page: "support",
+    section: "support:donations",
+    label: "Tax note",
+    description:
+      "Your organization's own statement about whether a gift is tax-deductible, and the only place on this site one belongs. It is blank until you write it, on purpose: an organization whose exemption is pending, one giving through a fiscal sponsor and one holding its own determination letter each have a different true sentence, and none of them is ours to write for you. Leave it blank and nothing is claimed.",
+    type: "text",
+    default: "",
+  },
+  {
     key: "support.monetary_title",
     page: "support",
     section: "support:donations",

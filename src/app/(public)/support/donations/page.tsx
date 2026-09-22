@@ -5,6 +5,9 @@ import { SiteImage } from "@/components/site-image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { getPublicGivingSettings } from "@/lib/public-giving";
+import { givingIsPublished } from "@/lib/giving";
+import { GiveCard } from "./give-card";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -13,9 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function DonationsPage() {
   const supabase = await createSupabaseServerClient();
-  const [siteImages, { content }] = await Promise.all([
+  const [siteImages, { content }, giving] = await Promise.all([
     getSiteImageUrls(supabase),
     getPublicSite(supabase),
+    getPublicGivingSettings(supabase),
   ]);
 
   return (
@@ -31,6 +35,20 @@ export default async function DonationsPage() {
           {content.text("support.donations_intro")}
         </p>
       </section>
+
+      {/* Above the monetary/in-kind grid, and absent entirely until a tenant
+          has switched giving on: the ask comes first, and a tenant that has
+          configured nothing gets exactly today's page back (#1389). */}
+      {givingIsPublished(giving) ? (
+        <section>
+          <GiveCard
+            settings={giving}
+            title={content.text("support.giving_title")}
+            body={content.text("support.giving_body")}
+            taxNote={content.text("support.giving_tax_note")}
+          />
+        </section>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2">
         <Card>
