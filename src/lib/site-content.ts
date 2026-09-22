@@ -2298,6 +2298,28 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "We run on volunteers. Here are some of the ways you can get involved.",
   },
   {
+    key: "get_involved.volunteer_screening",
+    page: "get_involved",
+    section: "get_involved:volunteer",
+    label: "What happens after you apply",
+    description:
+      "What happens between an application arriving and a role starting — references, a conversation, a background check where the role calls for one, who sees the result, and whether a record is a bar. Write it before any screening begins: a check disclosed afterwards means going back to everyone already in the pipeline for consent. Blank renders nothing here but the line saying this form does not ask for a date of birth, a home address, or a Social Security number.",
+    type: "paragraphs",
+    // Blank, like `org.security_note`, and for a related reason (#690). The
+    // platform can say what the application *asks for* -- that is a fact about
+    // this software, checkable against `parseVolunteerApplicationForm`, and the
+    // component says it on every tenant. "We ask for references and may run a
+    // check" is a claim about an organization's own process, and
+    // `docs/legal-basis.md` rule 2 puts that out of reach of a default: a
+    // tenant that has adopted no screening policy would be publishing a hint
+    // that it screens. A tenant that has decided nothing describes nothing.
+    //
+    // Nothing is collected either way. #1318 decided that submitting a public
+    // form accepts nothing, so this is notice rather than consent: no checkbox,
+    // no column, no stored pointer to a version.
+    default: [],
+  },
+  {
     key: "get_involved.volunteer_empty",
     page: "get_involved",
     section: "get_involved:volunteer",

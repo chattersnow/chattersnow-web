@@ -152,6 +152,23 @@ test.describe("notice at the point of collection", () => {
 
     const sheet = page.getByRole("dialog", { name: "Apply to volunteer" });
     await expectPrivacyNotice(sheet, /check your status with the reference/);
+
+    // The application carries a second block the other forms do not (#690):
+    // what happens after you apply, in the organization's own words, and what
+    // the form does not ask for, in the platform's. The seeded tenant has
+    // written the first; a tenant that has not gets only the second, which the
+    // component's own test covers.
+    await expect(
+      sheet.getByRole("heading", { name: "What happens after you apply" }),
+    ).toBeVisible();
+    await expect(sheet.getByText(/asks for two references/)).toBeVisible();
+
+    const asksFor = sheet.getByText(/It does not ask for your date of birth/);
+    await expect(asksFor).toBeVisible();
+    // Notice, not consent, and nothing to click: the sentence that says the
+    // form does not want an SSN must not itself be a link or a box (#1318).
+    await expect(asksFor.getByRole("link")).toHaveCount(0);
+    await expect(asksFor.getByRole("checkbox")).toHaveCount(0);
   });
 
   test("the event registration form", async ({ page }) => {

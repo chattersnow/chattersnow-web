@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/sheet";
 import { VolunteerApplicationForm } from "./volunteer-application-form-fields";
 
-export function VolunteerApplicationSheet() {
+export function VolunteerApplicationSheet({
+  screeningNotes,
+}: {
+  screeningNotes: string[];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +31,7 @@ export function VolunteerApplicationSheet() {
           </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <VolunteerApplicationForm />
+          <VolunteerApplicationForm screeningNotes={screeningNotes} />
         </div>
       </SheetContent>
     </Sheet>
