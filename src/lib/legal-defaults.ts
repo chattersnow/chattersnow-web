@@ -80,7 +80,7 @@ export type LegalOrgContext = {
  * Printed on every document here. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 23, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 24, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -141,11 +141,27 @@ const PRIVACY: DocumentProse = {
           // documents would be told they had drifted the day they adopted one.
           //
           // The photo sentence is conditional in the same way and for the same
-          // reason (#599). It is also the one place this bullet promises a
-          // control rather than describing a field: `set_my_photo_consent()`
-          // is what makes "you can change it at any time" true, and a consent
-          // that cannot be withdrawn is not consent.
-          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts. Where we ask whether you're happy to be photographed or recorded, we keep your answer — including a no, so that the people running the event know — with the date and a copy of what you were asked, and you can change it at any time from your registration page.",
+          // reason (#599, #1376). What it describes is no longer an answer to
+          // a question: registering for an event is itself the agreement, so
+          // what this document can honestly say is that an **objection** is
+          // kept, and by which routes it can be made. It never calls that
+          // consent -- agreement implied by submitting a form is not an
+          // unambiguous affirmative act, and a privacy policy asserting
+          // otherwise would misstate the lawful basis.
+          //
+          // The three routes are named in order of reach, deliberately.
+          // `set_my_photo_consent()` resolves through
+          // `my_constituent_person_id('events')`, so the registration-page
+          // control exists only for somebody who has claimed an account --
+          // most registrants have not -- which is why the organizer and the
+          // email come first and the last clause is qualified rather than
+          // promised outright.
+          //
+          // Whether registering carries the agreement at all is the
+          // organization's claim, made in its own `events.photo_consent`
+          // paragraphs. This sentence describes only the record and the
+          // remedy, which are facts about this software (rule 2).
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts. Where the event pages say what we do with photos and video, you can tell us at any time that you'd rather not be photographed — say so to any organizer at the event, email us, or, if you have an account here, from your registration page. We keep that with your registration, with the date and a copy of what you were shown, so that the people running the event know.",
         surfaces.gearRequests &&
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&
@@ -348,7 +364,7 @@ const TERMS: DocumentProse = {
     ],
     "photos-and-content": (org) => [
       `The text, images, logo, and design on this site belong to ${org.name} or the people who made them, and are used here with permission. Please don't reuse them commercially or in a way that suggests we endorse you. You're welcome to link to us, and to share our event and program pages as they are.`,
-      "We take photos and video at events. Where we photograph or record participants for our own communications, we rely on the consent process described at registration or at the event itself, not on this page — and for anyone under 18, on a parent or guardian's consent.",
+      "We take photos and video at events and use them for our own communications. If you'd rather not be photographed, tell any organizer at the event — that holds for the rest of it — or tell us before or after, and we keep it on the record so the people running the event know. For anyone under 18, a parent or guardian can say the same on their behalf.",
       `If a photo of you appears on this site or on one of our social media accounts and you'd rather it didn't, email ${mailto(org.emailGeneral)} and we'll take it down. We can only remove things we control — once an image has been shared onward by someone else, that's out of our hands.`,
       "You keep ownership of anything you send us — a message, an application, a request. You're giving us permission to use, store, and share it as far as we reasonably need to in order to answer you, run the program you contacted us about, and keep our records.",
     ],
@@ -398,7 +414,7 @@ const CODE_OF_CONDUCT: DocumentProse = {
         "Look after the people around you. If someone seems isolated, unwell, in over their head, or uncomfortable, check in.",
         "Respect people's privacy. What someone tells you about themselves — their identity, their health, their story — stays with you unless they've said otherwise. The only exceptions are narrow: passing something on to deal with a safety concern, or because we're legally required to.",
       ]),
-      "We take photos and video at events for our own newsletters, site, and social accounts. When we do, we go on the consent process described at registration or at the event, which our terms of use set out. You can tell any organizer you'd rather not be photographed, and that holds for the rest of the event.",
+      "We take photos and video at events for our own newsletters, site, and social accounts. You can tell any organizer you'd rather not be photographed, and that holds for the rest of the event — you don't have to give a reason, and nobody will ask you for one. You can also tell us before or after, and our terms of use set out how to get a photo taken down.",
     ],
     "what-isnt-tolerated": () => [
       "**How we treat each other**",

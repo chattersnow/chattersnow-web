@@ -480,8 +480,9 @@ describe("run_retention_purge", () => {
             emergency_contact_phone: "555-0102",
             // #686 and #599 together, because the interesting thing about them
             // is that this one rule treats them oppositely and nothing else
-            // asserts it. The waiver pair survives; the three photo-consent
-            // columns go with the name.
+            // asserts it. The waiver pair survives; the three photo columns go
+            // with the name. `false` is an objection since #1376, and the rule
+            // is unchanged.
             waiver_accepted_at: new Date(endedAt).toISOString(),
             waiver_version: 2,
             photo_consent: false,
@@ -566,18 +567,20 @@ describe("run_retention_purge", () => {
       });
     });
 
-    // #599, and the opposite call from the waiver's on the same row. Both are
-    // records of something somebody said, so what separates them is what they
-    // are about. An acceptance is a fact about an ACT and stands without a
-    // name, which is why #686 kept it. Photo consent is a fact about a
-    // person's FACE: an anonymized "declined" protects nobody, because there
-    // is no name left to check a photograph against, and an anonymized
-    // "granted" authorizes nothing.
+    // #599, restated for #1376, and the opposite call from the waiver's on the
+    // same row. Both are records of something somebody said, so what separates
+    // them is what they are about. An acceptance is a fact about an ACT and
+    // stands without a name, which is why #686 kept it. The photo columns are
+    // a fact about a person's FACE: an anonymized objection protects nobody,
+    // because there is no name left to check a photograph against and nobody
+    // at a door can be recognised as its subject. An instruction about a face
+    // nobody can identify is no more useful than a permission was, which is
+    // why the flip in meaning left this rule exactly where it was.
     //
     // Nothing asserted that the waiver pair survives before this, so it is
     // asserted here — beside the divergence it is the counterpart to, since
     // one rule doing both is the only place they can be compared.
-    test("photo consent goes with the name, and the agreement does not", async () => {
+    test("the photo columns go with the name, and the agreement does not", async () => {
       await setMode("event_registrations", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
 

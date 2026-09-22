@@ -4,34 +4,45 @@ import { useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Checkbox } from "@/components/ui/checkbox";
-import { PHOTO_CONSENT_HEADING, photoConsentLabel } from "@/lib/photo-consent";
+import {
+  PHOTO_CONSENT_HEADING,
+  PHOTO_OBJECTION_ACTION,
+  PHOTO_OBJECTION_NONE,
+  PHOTO_OBJECTION_RECORDED,
+  PHOTO_OBJECTION_WITHDRAWN,
+  PHOTO_OBJECTION_WITHDRAW_ACTION,
+} from "@/lib/photo-consent";
 import { setMyPhotoConsentAction } from "./photo-consent-actions";
 
 /**
- * Changing your mind about being photographed, from your own registration
- * (#599).
+ * Asking not to be photographed, from your own registration (#599, #1376).
  *
- * **A consent that cannot be withdrawn is not consent.** That is the whole
- * reason this exists and the reason nothing like it exists for the participant
- * waiver: an acceptance records an act that happened, and a permission is
- * either still given or is not. `/terms` promises a takedown route by email
- * too, and this is the one that does not depend on somebody reading a mailbox.
+ * **The direction is reversed.** #599 put a consent box here, because
+ * registering asked a question and this is where the answer could be changed.
+ * Registering no longer asks anything: it carries the agreement, and the
+ * remedy is objection. So the primary action records an objection, and
+ * withdrawing one is offered only once there is something to withdraw.
  *
- * It renders only where the organization is asking — if the scope has been
- * emptied there is no question to answer and `set_my_photo_consent()` would
- * refuse the write anyway, so offering a control would be offering something
- * that cannot be saved.
+ * **It is one of three routes and the only self-service one.** The other two
+ * — telling an organizer, and emailing — are what `PHOTO_CONSENT_NOTICE` names
+ * first, because `set_my_photo_consent()` resolves through
+ * `my_constituent_person_id('events')` and so reaches only somebody who has
+ * claimed an account. Most registrants have not. That is why this card is a
+ * convenience rather than the mechanism, and why nothing anywhere says
+ * "change it from your registration page" without qualifying it.
  *
- * The paragraphs are **today's** scope, not the snapshot on the row: somebody
- * changing their answer is answering the words as they read now, and that is
- * what the RPC re-snapshots. Where the two differ, showing the old one would
- * be asking them to agree to text that is no longer the organization's.
+ * It renders only where the organization publishes paragraphs. With none there
+ * is nothing to object to, nothing was implied by registering, and
+ * `set_my_photo_consent()` would refuse the write anyway — offering a control
+ * that cannot be saved would be worse than offering none.
  *
- * `consent === null` means nobody asked when they registered — a row from
- * before the scope was written, or a walk-in. The box starts unticked in that
- * case, which is not a stored decline: nothing is written until they save.
+ * The paragraphs are **today's** text, not the snapshot on the row: somebody
+ * objecting is objecting to the words as they read now, and that is what the
+ * RPC re-snapshots onto the row.
+ *
+ * A pair of buttons rather than a checkbox and a Save. A box that starts
+ * unticked beside "photos are fine" is a consent control, and a consent
+ * control is the thing this ticket removed.
  */
 export function PhotoConsentCard({
   registrationId,
@@ -39,26 +50,31 @@ export function PhotoConsentCard({
   consent,
 }: {
   registrationId: string;
-  /** The organization's scope as it reads now. Never rendered when empty. */
+  /** The organization's paragraphs as they read now. Never rendered when empty. */
   paragraphs: string[];
-  /** Their stored answer, or null when they were never asked. */
+  /**
+   * What is on the record: `null` for no objection, `false` for an objection,
+   * `true` for one withdrawn or explicitly confirmed. Null is the resting
+   * state of every registration taken through this site.
+   */
   consent: boolean | null;
 }) {
-  const [checked, setChecked] = useState(consent === true);
-  const [saved, setSaved] = useState<boolean | null>(null);
+  const [saved, setSaved] = useState<boolean | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const written = paragraphs.filter((paragraph) => paragraph.trim());
   if (written.length === 0) return null;
 
-  const stored = saved ?? consent;
-  const unchanged = stored === checked;
+  const stored = saved === undefined ? consent : saved;
+  // `null` and `true` both mean "not objecting", so both offer the objection.
+  // Only a stored `false` is something to withdraw.
+  const objecting = stored === false;
 
-  function save() {
+  function save(next: boolean) {
     setError(null);
     startTransition(async () => {
-      const result = await setMyPhotoConsentAction(registrationId, checked);
+      const result = await setMyPhotoConsentAction(registrationId, next);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -77,32 +93,16 @@ export function PhotoConsentCard({
           </p>
         ))}
 
-        {/* What is on the record now, said plainly and including the decline.
-            Somebody checking whether their "no" actually stuck is the main
-            reason to open this page. */}
+        {/* What is on the record now, said plainly. Somebody checking whether
+            their objection actually stuck is the main reason to open this
+            page. */}
         <p className="text-sm">
           {stored === null
-            ? "We did not ask you about this when you registered, so there is nothing on your record yet."
+            ? PHOTO_OBJECTION_NONE
             : stored
-              ? "Right now your record says you are happy to be photographed."
-              : "Right now your record says you would rather not be photographed."}
+              ? PHOTO_OBJECTION_WITHDRAWN
+              : PHOTO_OBJECTION_RECORDED}
         </p>
-
-        <Field orientation="horizontal">
-          <Checkbox
-            id="my-photo-consent"
-            checked={checked}
-            onCheckedChange={(next) => setChecked(next === true)}
-            disabled={isPending}
-          />
-          <FieldLabel htmlFor="my-photo-consent">
-            {photoConsentLabel(false)}
-          </FieldLabel>
-        </Field>
-        <FieldDescription>
-          You can change this as often as you like, and it takes effect as soon
-          as you save.
-        </FieldDescription>
 
         {error && (
           <Alert variant="destructive">
@@ -110,9 +110,19 @@ export function PhotoConsentCard({
           </Alert>
         )}
 
-        <Button onClick={save} disabled={isPending || unchanged}>
-          {isPending ? "Saving…" : "Save this answer"}
-        </Button>
+        {objecting ? (
+          <Button
+            variant="outline"
+            onClick={() => save(true)}
+            disabled={isPending}
+          >
+            {isPending ? "Saving…" : PHOTO_OBJECTION_WITHDRAW_ACTION}
+          </Button>
+        ) : (
+          <Button onClick={() => save(false)} disabled={isPending}>
+            {isPending ? "Saving…" : PHOTO_OBJECTION_ACTION}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

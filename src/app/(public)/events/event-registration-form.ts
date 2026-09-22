@@ -6,7 +6,6 @@ import {
   parsePartyIncludesMinor,
   type MinorContacts,
 } from "@/lib/minors";
-import { PHOTO_CONSENT_FIELD, parsePhotoConsent } from "@/lib/photo-consent";
 import { parsePronouns } from "@/lib/pronouns";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
@@ -52,19 +51,6 @@ export type EventRegistrationFormData = {
    * the RPC, not this parser, that has to keep accepting those.
    */
   party_includes_minor: boolean;
-  /**
-   * The photo and media consent answer (#599), and the one field here that is
-   * genuinely three-state.
-   *
-   * `null` means the field was absent, which means the question was never
-   * put: the component renders nothing at all on a tenant that has written no
-   * scope, so there is no box to leave unticked. `false` is a box that *was*
-   * rendered and was left unticked — a real decline, with an operational job.
-   *
-   * Not validated, and never required: declining is a valid submission and
-   * must never block one. Nothing here can refuse it.
-   */
-  photo_consent: boolean | null;
 } & MinorContacts;
 
 export function parseEventRegistrationForm(
@@ -85,7 +71,6 @@ export function parseEventRegistrationForm(
   );
   const minorContacts = parseMinorContacts(party_includes_minor, formData);
   const waiver_accepted = formData.get("waiverAccepted") === "on";
-  const photo_consent = parsePhotoConsent(formData.get(PHOTO_CONSENT_FIELD));
   // Digits only, and no leading zero, the same discipline `selectLegalVersion`
   // applies to `?version=`. Anything else is treated as "not sent" rather than
   // rejected: a malformed value cannot match the version in force, and the RPC
@@ -131,7 +116,6 @@ export function parseEventRegistrationForm(
       attended_before,
       waiver_accepted,
       waiver_version,
-      photo_consent,
     },
   };
 }
