@@ -1,14 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import { PrivacyNotice, type PrivacyNoticeSurface } from "./privacy-notice";
+import { PrivacyNotice, PRIVACY_NOTICE_SURFACES } from "./privacy-notice";
 import { lexiconFromRows } from "@/lib/lexicon";
 
-const SURFACES: PrivacyNoticeSurface[] = [
-  "eventRegistration",
-  "volunteerApplication",
-  "gearRequest",
-  "contact",
-];
+// The component's own list, so a surface added without a test cannot happen.
+const SURFACES = PRIVACY_NOTICE_SURFACES;
 
 describe("PrivacyNotice (#684)", () => {
   // The whole point of the component: a link to the one legal document that is
