@@ -84,7 +84,7 @@ export function resolveApprovalRequired(value: unknown): boolean {
   return value === true;
 }
 
-/** Whether a key names one of the three legal documents' content slots. */
+/** Whether a key names one of the legal documents' content slots. */
 export function isLegalSlotKey(key: string): boolean {
   return key.startsWith("legal.");
 }

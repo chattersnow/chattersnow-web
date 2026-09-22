@@ -1,6 +1,6 @@
 /**
- * The three public legal documents, and which of them a tenant has put in
- * force (#859).
+ * The public legal documents, and which of them a tenant has put in force
+ * (#859).
  *
  * This replaces `LEGAL_PAGES_PUBLISHED`, one boolean compiled into the
  * application. That was the right shape when there was one client: it made one
@@ -10,7 +10,7 @@
  * board approved, all three documents went live for every tenant at once,
  * whether or not anybody had read them.
  *
- * The three divide two ways, and only one of them is a decision:
+ * They divide two ways, and only one of them is a decision:
  *
  *   * **The privacy policy is always served.** It has to stay reachable
  *     whenever the site is collecting personal data, which is from the first
@@ -18,10 +18,25 @@
  *     -- the tenant's own document, or the platform's default (#858). A toggle
  *     whose only correct position is "on" is a hazard, not a control, so there
  *     is none.
- *   * **The terms of use and the code of conduct are adopted or not.** An
- *     organization that has adopted neither should not have empty or borrowed
- *     ones served under its name, so they 404 and drop out of the footer until
- *     that tenant says the text is theirs and in force.
+ *   * **The terms of use, the code of conduct and the accessibility statement
+ *     are adopted or not.** An organization that has adopted none of them
+ *     should not have empty or borrowed ones served under its name, so they
+ *     404 and drop out of the footer until that tenant says the text is theirs
+ *     and in force.
+ *
+ * The accessibility statement (#1368) is the closest that second call has been.
+ * The one group that needs a route for reporting a barrier is exactly the group
+ * least able to go hunting for one, and the platform can write most of the
+ * document honestly, because most of it is about this software. What decides it
+ * is #859's own argument: a conformance claim published under an organization's
+ * name covers that organization's own content -- the alt text its staff type
+ * into Site Content, the images it uploads, the documents it links, the
+ * physical accessibility of the events it runs -- and none of that is the
+ * platform's to assert. Overclaiming conformance to a disabled reader is not a
+ * neutral error. Until a tenant adopts it, `/terms`' accessibility section and
+ * the contact form are the routes it has, and #1292/#1321 surface the
+ * unadopted document as an attention item rather than leaving it silently
+ * absent.
  *
  * That second thing is deliberately *not* page visibility. `PUBLIC_PAGE_SLOTS`
  * is about whether a section of the marketing site exists; this is a statement
@@ -48,6 +63,20 @@ export type LegalDocument = {
   route: string;
   /** As the footer's legal bar names it. */
   label: string;
+  /**
+   * What to call this document in the middle of a sentence, where the footer's
+   * label does not work as a noun (#1368).
+   *
+   * The first three need nothing here: "the platform's standard privacy
+   * policy", "Read the code of conduct in force". The accessibility statement
+   * is linked as **Accessibility**, because that is the word a legal bar uses
+   * and it sits beside three short ones -- but lowercased into a sentence that
+   * gives "the platform's standard accessibility", which is not English. So
+   * every sentence naming a document goes through `legalDocumentNoun()` rather
+   * than through `label.toLowerCase()`, and `legal-publication.test.ts` holds
+   * that the noun reads as one.
+   */
+  noun?: string;
   /**
    * Whether the document is served no matter what. True for the privacy policy
    * alone; see the note above.
@@ -133,7 +162,31 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
       "What your organization expects of people at its events and in its spaces, and how someone reports a problem. Put it in force once your organization has adopted it.",
     gates: [],
   },
+  {
+    key: "accessibility",
+    slotKey: "legal.accessibility",
+    route: "/accessibility",
+    label: "Accessibility",
+    noun: "accessibility statement",
+    alwaysInForce: false,
+    description:
+      "What your organization aims for on this site, what it knows is not there yet, and how someone tells you they hit a barrier. Put it in force once somebody here has read it, filled in the contact and the parts about your own events, and can answer a report that arrives.",
+    gates: [],
+  },
 ] as const;
+
+/**
+ * What to call the document mid-sentence: its `noun`, or its label lowercased.
+ *
+ * One function rather than `label.toLowerCase()` at eleven call sites, because
+ * that expression is right for three documents out of four and the fourth
+ * would read as a typo somebody fixed in one place and missed in ten.
+ */
+export function legalDocumentNoun(
+  document: Pick<LegalDocument, "label"> & Partial<Pick<LegalDocument, "noun">>,
+): string {
+  return document.noun ?? document.label.toLowerCase();
+}
 
 export const LEGAL_PUBLICATION_PREFIX = "legal_publication.";
 

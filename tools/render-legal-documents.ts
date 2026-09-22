@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Renders the platform's three legal documents as Markdown, so they can be
- * read and approved without a developer (#1340).
+ * Renders the platform's legal documents as Markdown, so they can be read and
+ * approved without a developer (#1340).
  *
  * The prose in `src/lib/legal-defaults.ts` is template literals assembled by
  * `platformLegalDocument()`, which makes the served text impossible to review
@@ -35,7 +35,12 @@ import {
 import type { CollectionSurface } from "@/lib/legal-surface";
 
 /** The slots, in the order the footer's legal bar lists them. */
-const SLOTS = ["legal.privacy", "legal.terms", "legal.code_of_conduct"];
+const SLOTS = [
+  "legal.privacy",
+  "legal.terms",
+  "legal.code_of_conduct",
+  "legal.accessibility",
+];
 
 /**
  * Deliberately obvious placeholders rather than a plausible organization.

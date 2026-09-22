@@ -416,7 +416,7 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     page: "legal",
     label: "Documents",
     description:
-      "The text of each document. Whether it is served at all is a separate decision, in Website > Legal documents: the terms and the code of conduct are published once your organization has adopted them, and the privacy policy always is (#859).",
+      "The text of each document. Whether it is served at all is a separate decision, in Website > Legal documents: the terms, the code of conduct and the accessibility statement are published once your organization has adopted them, and the privacy policy always is (#859).",
   },
 ] as const;
 
@@ -597,6 +597,27 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
       { id: "how-we-handle-a-report", title: "How we handle a report" },
       { id: "if-you-disagree", title: "If you disagree with a decision" },
       { id: "questions", title: "Questions" },
+    ],
+  },
+  // The order is the order a reader needs it in (#1368): what is aimed for,
+  // how it is tested, what is known to be missing, where the statement stops,
+  // and only then how to report -- so that somebody who scrolls no further than
+  // the third heading has already been told the claim is partial.
+  "legal.accessibility": {
+    title: "Accessibility",
+    sections: [
+      { id: "what-we-aim-for", title: "What we aim for" },
+      { id: "how-we-test", title: "How we test" },
+      {
+        id: "what-we-know-isnt-there-yet",
+        title: "What we know isn’t there yet",
+      },
+      { id: "where-this-statement-stops", title: "Where this statement stops" },
+      { id: "telling-us-about-a-problem", title: "Telling us about a problem" },
+      {
+        id: "when-this-was-last-reviewed",
+        title: "When this was last reviewed",
+      },
     ],
   },
 };
@@ -2735,6 +2756,17 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     type: "document",
     default: null,
     route: "/code-of-conduct",
+  },
+  {
+    key: "legal.accessibility",
+    page: "legal",
+    section: "legal:documents",
+    label: "Accessibility statement",
+    description:
+      "Replaces the whole accessibility page. The platform's starting document describes how this software is tested and what that testing misses; the three things only you can answer -- who to contact, what you commit to when told, and whether your own events and venues are accessible -- are marked in it as the parts to replace.",
+    type: "document",
+    default: null,
+    route: "/accessibility",
   },
 ] as const;
 

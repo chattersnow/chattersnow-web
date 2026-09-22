@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import {
   platformLegalDescription,
@@ -93,6 +95,7 @@ function hrefs(doc: {
 describe("the platform's legal documents", () => {
   test("there is one for each legal.* slot", () => {
     expect([...PLATFORM_LEGAL_SLOT_KEYS].sort()).toEqual([
+      "legal.accessibility",
       "legal.code_of_conduct",
       "legal.privacy",
       "legal.terms",
@@ -141,18 +144,26 @@ describe("the platform's legal documents", () => {
         expect(platformLegalDescription(key, ORG)).toContain(ORG.name);
       });
 
-      // Every public page but these three can be hidden per tenant, so a link
-      // to one is a link that may 404. /privacy is the exception #859 keeps
-      // served for everyone, and a #fragment stays inside this document.
-      test("links only to addresses, to /privacy and within itself", () => {
+      // Every public page but the legal ones can be hidden per tenant, so a
+      // link to one is a link that may 404. /privacy is the exception #859
+      // keeps served for everyone, and a #fragment stays inside this document.
+      //
+      // The one external address allowed is the WCAG specification (#1368).
+      // An accessibility statement that names a conformance target and does
+      // not say where to read it is asking the reader to take the target on
+      // trust, which is the opposite of what that document is for; the
+      // allowlist is one URL rather than a scheme, so this stays a decision
+      // per link rather than an open door to a marketing page.
+      test("links only to addresses, to /privacy, to WCAG and within itself", () => {
         const links = hrefs(platformLegalDocument(key, ORG));
         expect(links.length).toBeGreaterThan(0);
         for (const href of links) {
           expect(
             href.startsWith("mailto:") ||
               href.startsWith("#") ||
-              href === "/privacy",
-            `${href} is not an address, a fragment or /privacy`,
+              href === "/privacy" ||
+              href === "https://www.w3.org/TR/WCAG22/",
+            `${href} is not an address, a fragment, /privacy or the WCAG spec`,
           ).toBe(true);
         }
       });
@@ -468,5 +479,68 @@ describe("the terms and the constituent area", () => {
     expect(
       platformLegalDescription("legal.terms", withSurfaces(NOTHING)),
     ).not.toContain("hold an account with us");
+  });
+});
+
+/**
+ * The accessibility statement's two checkable sentences (#1368).
+ *
+ * Most of what a legal document here asserts is checked by a person reading it.
+ * These two are not: they are claims about the state of `e2e/a11y-baseline.json`
+ * on the day they were written, published under an organization's name, to a
+ * reader who cannot verify them. "Every failure we know about is in the staff
+ * area" and "the staff area has known problems this website does not" both stop
+ * being true the moment a public route joins that file -- silently, since
+ * nothing else reads the baseline for prose.
+ *
+ * The baseline is keyed `role|viewport|theme|pattern`, so the fourth field is
+ * the route. A new entry outside `/portal` means the sentences have to change,
+ * or the finding has to be fixed before the release; either is the right answer
+ * and neither should be reached by somebody noticing.
+ */
+describe("the accessibility statement's claim about the baseline", () => {
+  const baseline = JSON.parse(
+    readFileSync(
+      join(import.meta.dirname, "..", "..", "e2e", "a11y-baseline.json"),
+      "utf8",
+    ),
+  ) as Record<string, string[]>;
+
+  test("every known violation is on a portal route", () => {
+    const publicRoutes = Object.keys(baseline)
+      .map((key) => key.split("|")[3])
+      .filter((pattern) => !pattern?.startsWith("/portal"));
+
+    expect(
+      publicRoutes,
+      `the accessibility statement says every known failure is in the staff area; ${publicRoutes.join(", ")} is not. Fix the finding, or rewrite "how-we-test" and "what-we-aim-for" in legal-defaults.ts and bump PLATFORM_LEGAL_LAST_UPDATED.`,
+    ).toEqual([]);
+  });
+
+  test("and the document actually makes the claim this guards", () => {
+    const text = readable("legal.accessibility");
+    expect(text).toContain(
+      "Every accessibility failure we currently know about is in the staff area",
+    );
+    expect(text).toContain("it has known problems this website does not");
+  });
+
+  // The partial claim, and the thing it rests on. A future edit that drops
+  // either is the overclaim docs/legal-basis.md exists to refuse.
+  test("the conformance claim stays partial, and says why", () => {
+    const text = readable("legal.accessibility");
+    expect(text).toContain("We are not claiming we have met it");
+    expect(text).toContain("No full screen-reader pass has been done");
+    expect(text).toContain("partial rather than complete");
+  });
+
+  // No response time, no reviewer count, nothing a tenant has not agreed to
+  // (docs/legal-basis.md rule 2). The three things only an organization can
+  // answer are named as replaceable in the Site Content slot description, not
+  // guessed at here.
+  test("it commits the organization to no timescale", () => {
+    expect(readable("legal.accessibility")).not.toMatch(
+      /within \d|\d+ (business |working )?days|\d+ hours/i,
+    );
   });
 });

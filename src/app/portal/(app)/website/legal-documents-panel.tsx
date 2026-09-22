@@ -19,7 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 // registry and is free of them, but the read lives in @/lib/legal-publication,
 // which must not reach the client bundle. State arrives as props from the
 // server page, same as PageVisibilityPanel.
-import type { LegalDocument } from "@/lib/legal-documents";
+import { legalDocumentNoun, type LegalDocument } from "@/lib/legal-documents";
 // Free of server helpers on purpose, so the drift sentence is written where it
 // is tested rather than assembled in JSX.
 import {
@@ -125,7 +125,7 @@ function DriftLine({
 
   return (
     <>
-      You published your {document.label.toLowerCase()}
+      You published your {legalDocumentNoun(document)}
       {on ? ` on ${on}` : ""}.{" "}
       {added.length > 0 ? (
         <>
@@ -166,7 +166,7 @@ function AcknowledgementLine({
   document: LegalDocument;
   acknowledgement: LegalAcknowledgement;
 }) {
-  const label = document.label.toLowerCase();
+  const label = legalDocumentNoun(document);
 
   if (acknowledgement.status === "never") {
     return (
@@ -224,7 +224,7 @@ function PublishStateLines({
   state: LegalPublishState;
   approvalRequired: boolean;
 }) {
-  const label = document.label.toLowerCase();
+  const label = legalDocumentNoun(document);
   const pending = state.pending;
   const approval = state.approval;
   const draftedOn = pending?.draftedAt
@@ -441,7 +441,7 @@ function LegalDocumentRow({
       await runAction<SettingActionResult>(
         () => acknowledgeLegalDocumentAction(document.key),
         {
-          success: `Recorded that you have read the ${document.label.toLowerCase()}.`,
+          success: `Recorded that you have read the ${legalDocumentNoun(document)}.`,
           onError,
           onSuccess: () => router.refresh(),
         },

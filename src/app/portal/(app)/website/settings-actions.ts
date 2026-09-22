@@ -7,6 +7,7 @@ import {
 import {
   gatesHolding,
   legalDocument,
+  legalDocumentNoun,
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
 import {
@@ -105,7 +106,7 @@ export async function updateLegalPublicationAction(
   const document = legalDocument(key);
   if (!document) return { error: "That is not a legal document." };
   if (document.alwaysInForce) {
-    return { error: `The ${document.label.toLowerCase()} is always served.` };
+    return { error: `The ${legalDocumentNoun(document)} is always served.` };
   }
 
   // A document a module depends on cannot be withdrawn while that module is on
@@ -176,14 +177,14 @@ export async function acknowledgeLegalDocumentAction(
 
   if (!publication[document.key]) {
     return {
-      error: `Your ${document.label.toLowerCase()} is not being served, so there is nothing to confirm yet.`,
+      error: `Your ${legalDocumentNoun(document)} is not being served, so there is nothing to confirm yet.`,
     };
   }
   // Publishing your own text is the confirmation. There is no platform
   // document in the way to have gone unread.
   if (ownDocuments.has(document.slotKey)) {
     return {
-      error: `Your site serves your own ${document.label.toLowerCase()}, not the platform's, so there is nothing of ours to confirm.`,
+      error: `Your site serves your own ${legalDocumentNoun(document)}, not the platform's, so there is nothing of ours to confirm.`,
     };
   }
 

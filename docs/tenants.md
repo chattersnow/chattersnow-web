@@ -571,7 +571,7 @@ Both are the tenant admin's, not the operator's:
 - **Administration → Site Content**: every organization-specific line of copy
   on the public site, page by page, stored in `site_content`. The registry of
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;
-  a new tenant renders that until it rewrites a slot. The three legal pages
+  a new tenant renders that until it rewrites a slot. The four legal pages
   are published whole as structured documents under `legal.*` -- a tenant
   either publishes its own or the platform's renders. Since #858 the
   platform's is genuinely neutral (`src/lib/legal-defaults.ts`): it describes
@@ -582,12 +582,19 @@ Both are the tenant admin's, not the operator's:
   `bun run docs:legal`; [legal-basis.md](legal-basis.md) has the rules it is
   written under and the record of who approved it. Chatter Snow's own
   three documents are its tenant's rows
-  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
-  three is served is a separate per-tenant decision, in **Administration →
-  Website → Legal documents** (#859): the terms and the code of conduct
-  404 and stay out of the footer until that organization puts them in force,
-  and the privacy policy is always served because the public forms are always
-  collecting. It is one `app_settings` row per document
+  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`); the
+  accessibility statement (#1368) is the one it has no row for, so it renders
+  the platform's once put in force. Whether each document is served is a
+  separate per-tenant decision, in **Administration →
+  Website → Legal documents** (#859): the terms, the code of conduct and the
+  accessibility statement 404 and stay out of the footer until that
+  organization puts them in force, and the privacy policy is always served
+  because the public forms are always collecting. The accessibility statement
+  is the closest that call has been — the reader who most needs a route for
+  reporting a barrier is the least able to hunt for one — and it goes the same
+  way, because a conformance claim published under an organization's name
+  covers that organization's own alt text, uploads, linked documents and
+  venues, none of which is the platform's to assert. It is one `app_settings` row per document
   (`legal_publication.<key>`, read through `public_legal_publication`), and no
   row is seeded — a newly provisioned tenant serves its privacy policy and
   nothing else. **The terms of use are a prerequisite for the

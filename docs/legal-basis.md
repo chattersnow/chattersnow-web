@@ -1,8 +1,8 @@
 # The platform's legal basis
 
-The three documents in `src/lib/legal-defaults.ts` — a privacy policy, terms of
-use and a code of conduct — are what a tenant is served when it has published
-none of its own. Since #859 `/privacy` is served **unconditionally**, so from
+The four documents in `src/lib/legal-defaults.ts` — a privacy policy, terms of
+use, a code of conduct and an accessibility statement — are what a tenant is
+served when it has published none of its own. Since #859 `/privacy` is served **unconditionally**, so from
 the moment a tenant is provisioned this text is that organization's published
 privacy policy, under its own name and its own brand.
 
@@ -48,6 +48,39 @@ in any edit:
 It is a starting point for an organization's own counsel to rewrite, not legal
 advice, and the Site Content editor says so where the slot is edited.
 
+## The accessibility statement, and what it may claim
+
+Added #1368, and the one document whose factual claims are about this
+repository's own testing rather than about what the application collects. That
+makes rule 1 unusually easy to satisfy and unusually easy to get wrong in the
+flattering direction, so two things are load-bearing:
+
+- **The conformance claim is partial, and says what it rests on.** The
+  automated scan is thorough — every route derived from the app tree, axe-core
+  against `wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa`/`wcag22aa`, two themes, two
+  viewports, the surfaces that only exist once opened, gated on a checked-in
+  baseline — and it still finds only the minority of barriers a machine can
+  recognise. No full manual screen-reader pass has been done across the site;
+  `docs/a11y-scan-findings.md` says so in its own words. "Aims to meet WCAG 2.2
+  AA", with no basis given, is the same overclaim in nicer clothes.
+  Overclaiming conformance to a disabled reader is not a neutral error.
+- **It is scoped to the public website, explicitly rather than by silence.**
+  Every entry in `e2e/a11y-baseline.json` today is a portal route, and the
+  document says both that it covers the public site and that the staff area has
+  known problems it does not. `legal-defaults.test.ts` holds that against the
+  baseline file, so a public route joining it fails a test rather than leaving a
+  false sentence published.
+
+Three things only the organization can answer — **who to contact, what it
+commits to when it is told, and whether its own events and venues are
+accessible**. The platform's text therefore carries no response time and no
+promise a tenant has not made, and the Site Content slot description is what
+names those as the parts to replace. This is also why the statement is
+`alwaysInForce: false` despite being the document whose reader is least able to
+go hunting for an alternative: the parts under an organization's control — its
+alt text, its uploads, the documents it links, the buildings it meets in — are
+not the platform's to assert.
+
 ## What approving means
 
 Approving says: _this is what the platform is willing to assert, on behalf of an
@@ -64,9 +97,10 @@ longer applies to is still a change.
 
 ## Approval log
 
-| Date       | Version approved   | Approver                | Scope and notes                                                                                                                                                                                                                                                                                                                   |
-| ---------- | ------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-21 | September 21, 2026 | Rickie (platform owner) | First recorded approval of all three documents. Covers the text as rendered by `bun run docs:legal` at this version, which is the first to name Sentry in the privacy policy's subprocessor list (#1340). The prior state was not an approval: the documents had been served since #858 and #1291 with no reviewer and no record. |
+| Date       | Version approved   | Approver                | Scope and notes                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | ------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-21 | September 21, 2026 | Rickie (platform owner) | First recorded approval of all three documents. Covers the text as rendered by `bun run docs:legal` at this version, which is the first to name Sentry in the privacy policy's subprocessor list (#1340). The prior state was not an approval: the documents had been served since #858 and #1291 with no reviewer and no record.                                                                 |
+| 2026-09-22 | September 22, 2026 | Rickie (platform owner) | Adds a fourth document, the accessibility statement (#1368), and supersedes the row above for the other three, whose text is unchanged. Covers the text as rendered by `bun run docs:legal` at this version. The claim approved here is deliberately a **partial** one: full automated coverage, incomplete manual coverage, no full screen-reader pass, scoped to the public site and saying so. |
 
 ## What submitting a public form means
 
@@ -82,10 +116,10 @@ footer links it on every page. That notice is the whole of what a submission
 means.
 
 Nothing asserts acceptance of the terms of use or the code of conduct either,
-and that is a decision rather than an omission waiting to be fixed. Those two
+and that is a decision rather than an omission waiting to be fixed. Those
 routes 404 until a tenant adopts them (#859), so a site-wide agreement sentence
-would have to disappear per tenant; and blanket assent to three documents nobody
-opened is not what consent looks like.
+would have to disappear per tenant; and blanket assent to a stack of documents
+nobody opened is not what consent looks like.
 
 Where the platform does take agreement, it is scoped to the thing being
 submitted and worded by the organization for that purpose:
