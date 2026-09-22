@@ -91,11 +91,18 @@ test.describe("per-tenant legal publication", () => {
     expect(response?.status()).toBe(404);
 
     await page.goto("/home");
+    // The privacy policy is `alwaysInForce`, so the Legal nav is the one
+    // landmark here that is never empty. Asserting it arrived is what stops
+    // the absence below being satisfied by a footer that has not rendered --
+    // on its own, `toHaveCount(0)` for the terms link is equally true of a
+    // blank page, and could never go red.
+    const legal = page.getByRole("navigation", { name: "Legal" });
     await expect(
-      page
-        .getByRole("navigation", { name: "Legal" })
-        .getByRole("link", { name: "Terms of Use" }),
-    ).toHaveCount(0);
+      legal.getByRole("link", { name: "Privacy Policy" }),
+    ).toBeVisible();
+    await expect(legal.getByRole("link", { name: "Terms of Use" })).toHaveCount(
+      0,
+    );
   });
 });
 

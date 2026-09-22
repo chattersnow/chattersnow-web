@@ -111,6 +111,15 @@ export const SEEDED_USERS = {
 // access to everything fixtures need.
 export const adminClient = await signIn(SEEDED_USERS.admin);
 
+// The fixture builders below take an optional trailing `as` client, defaulting
+// to that session. Almost every file wants the default -- one tenant, one
+// admin -- but a file that provisions a tenant of its own has to write through
+// *that* tenant's admin, because `tenant_id` comes from the column default and
+// `default_tenant_id()` follows the caller's session. Passing the client is
+// what keeps such a file's rows out of the seeded tenant (#1379); the cleanup
+// each builder returns closes over the same client, so a fixture is removed by
+// whoever created it.
+
 // The four sessions a dashboard/report read must never hand privileged
 // figures to (#746): signed out, the narrow-carve-out `volunteer` role, a
 // signed-in account holding no role at all, and a deactivated member who
@@ -158,10 +167,13 @@ type EventOverrides = {
   eventLeadId?: string | null;
 };
 
-export async function createPublishedEvent(overrides: EventOverrides = {}) {
+export async function createPublishedEvent(
+  overrides: EventOverrides = {},
+  as: SupabaseClient = adminClient,
+) {
   const name =
     overrides.name ?? `Integration test event ${crypto.randomUUID()}`;
-  const { data, error } = await adminClient
+  const { data, error } = await as
     .from("events")
     .insert({
       name,
@@ -191,7 +203,7 @@ export async function createPublishedEvent(overrides: EventOverrides = {}) {
   return {
     id,
     name,
-    cleanup: () => deleteEvent(id),
+    cleanup: () => deleteEvent(id, as),
   };
 }
 
@@ -227,15 +239,15 @@ const EVENT_CHILD_TABLES = [
  * delete is still refused, so the next fixture to attach something the
  * registry blocks on finds out immediately instead of leaking.
  */
-export async function deleteEvent(eventId: string) {
+export async function deleteEvent(
+  eventId: string,
+  as: SupabaseClient = adminClient,
+) {
   for (const table of EVENT_CHILD_TABLES) {
-    const { error } = await adminClient
-      .from(table)
-      .delete()
-      .eq("event_id", eventId);
+    const { error } = await as.from(table).delete().eq("event_id", eventId);
     if (error) throw error;
   }
-  const { error } = await adminClient.from("events").delete().eq("id", eventId);
+  const { error } = await as.from("events").delete().eq("id", eventId);
   if (error) throw error;
 }
 
@@ -249,14 +261,17 @@ export async function countEventRegistrations(eventId: string, email: string) {
   return data.length;
 }
 
-export async function cleanupDonation(donationId: string) {
-  const { data: donation } = await adminClient
+export async function cleanupDonation(
+  donationId: string,
+  as: SupabaseClient = adminClient,
+) {
+  const { data: donation } = await as
     .from("donations")
     .select("donor_id")
     .eq("id", donationId)
     .single();
 
-  const { data: items } = await adminClient
+  const { data: items } = await as
     .from("inventory_items")
     .select("id")
     .eq("donation_id", donationId);
@@ -265,12 +280,12 @@ export async function cleanupDonation(donationId: string) {
     // A public request's header (#1032) outlives its movements by design,
     // so it has to be found through them before they go. Through the
     // service role: gear_requests has no delete grant for anyone else.
-    const { data: holds } = await adminClient
+    const { data: holds } = await as
       .from("inventory_movements")
       .select("gear_request_id")
       .in("inventory_item_id", itemIds)
       .not("gear_request_id", "is", null);
-    await adminClient
+    await as
       .from("inventory_movements")
       .delete()
       .in("inventory_item_id", itemIds);
@@ -284,16 +299,13 @@ export async function cleanupDonation(donationId: string) {
         .in("id", requestIds);
     }
   }
-  await adminClient
-    .from("inventory_items")
-    .delete()
-    .eq("donation_id", donationId);
-  await adminClient.from("donations").delete().eq("id", donationId);
+  await as.from("inventory_items").delete().eq("donation_id", donationId);
+  await as.from("donations").delete().eq("id", donationId);
 
   // Each test's donation gets its own fresh (email-less, so never deduped)
   // `people` row -- safe to delete once nothing references it any more.
   if (donation?.donor_id) {
-    await adminClient.from("people").delete().eq("id", donation.donor_id);
+    await as.from("people").delete().eq("id", donation.donor_id);
   }
 }
 
@@ -307,6 +319,7 @@ export async function createAvailableGearItems(
     condition?: string;
     intendedUse?: string;
   } = {},
+  as: SupabaseClient = adminClient,
 ) {
   const items = Array.from({ length: count }, () => ({
     description: `Integration test item ${crypto.randomUUID()}`,
@@ -315,7 +328,7 @@ export async function createAvailableGearItems(
     intended_use: overrides.intendedUse ?? "gear_library",
   }));
 
-  const { data, error } = await adminClient.rpc("create_donation_with_items", {
+  const { data, error } = await as.rpc("create_donation_with_items", {
     p_donor_name: `Integration Test Donor ${crypto.randomUUID()}`,
     p_donor_is_anonymous: false,
     p_donor_source_type: "individual",
@@ -330,7 +343,7 @@ export async function createAvailableGearItems(
   return {
     itemIds: row.inventory_item_ids,
     async cleanup() {
-      await cleanupDonation(row.donation_id);
+      await cleanupDonation(row.donation_id, as);
     },
   };
 }
@@ -545,8 +558,9 @@ export async function getInventoryItemStatus(itemId: string) {
 // via `create_donation_with_items`.
 export async function createPerson(
   overrides: { name?: string; email?: string; person_type?: string } = {},
+  as: SupabaseClient = adminClient,
 ) {
-  const { data, error } = await adminClient
+  const { data, error } = await as
     .from("people")
     .insert({
       name: overrides.name ?? `Integration Test Person ${crypto.randomUUID()}`,
@@ -564,7 +578,7 @@ export async function createPerson(
   return {
     id,
     async cleanup() {
-      await adminClient.from("people").delete().eq("id", id);
+      await as.from("people").delete().eq("id", id);
     },
   };
 }

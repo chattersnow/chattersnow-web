@@ -99,16 +99,19 @@ test.describe("board-controlled page visibility", () => {
     await setVisibility(false);
     await page.goto("/home");
 
+    // Sections the board hasn't hidden are untouched -- and this comes first
+    // because it is also the anchor for the two absences below. Either of
+    // those is satisfied by a page that has not rendered its nav and footer
+    // yet, so on its own neither could ever go red.
+    await expect(
+      page.getByRole("contentinfo").getByRole("link", { name: "Contact" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("navigation").getByText("Support", { exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("contentinfo").getByRole("link", { name: "Support" }),
     ).toHaveCount(0);
-    // Sections the board hasn't hidden are untouched.
-    await expect(
-      page.getByRole("contentinfo").getByRole("link", { name: "Contact" }),
-    ).toBeVisible();
   });
 
   // The whole point of the ticket: a board member does this themselves, with

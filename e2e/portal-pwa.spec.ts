@@ -85,7 +85,50 @@ test.describe("the installed portal", () => {
     // Both browser suites run against a production build, so the guard in
     // `shouldRegisterServiceWorker` is the only thing keeping a worker from
     // installing during one spec and serving cached chunks to every later one.
+    //
+    // The observation goes in before the navigation, rather than a
+    // `getRegistrations()` read on the line after it. `ServiceWorkerRegistrar`
+    // registers from an effect, so a read taken the moment `goto` resolves asks
+    // the question before the code under test has had the chance to answer it,
+    // and a regression in the guard would still come back zero. A hook
+    // installed first is not a sample: it stands for the whole life of the
+    // page, and "register was never called" is not something a later frame can
+    // take back.
+    await page.addInitScript(() => {
+      const probe = window as unknown as { __swRegisterCalls: number };
+      probe.__swRegisterCalls = 0;
+      const container = navigator.serviceWorker;
+      if (!container) return;
+      const register = container.register.bind(container);
+      container.register = ((...args: Parameters<typeof register>) => {
+        probe.__swRegisterCalls += 1;
+        return register(...args);
+      }) as typeof container.register;
+    });
+
     await page.goto("/portal/login");
+    // The portal shell rendered, so the registrar it mounts is in the tree --
+    // without this the absence below is equally true of a page that never
+    // arrived. `link[rel="manifest"]` is head markup, so it is asserted by
+    // attribute rather than by visibility.
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+      "href",
+      "/manifest.webmanifest",
+    );
+    // Effects run after hydration, so give the bundle the same chance to
+    // register that a reader's browser would have before reading the hook.
+    await page.waitForLoadState("load");
+
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as { __swRegisterCalls: number })
+            .__swRegisterCalls,
+      ),
+      "the registrar called navigator.serviceWorker.register under automation",
+    ).toBe(0);
+
+    // And nothing an earlier spec installed is live against this origin.
     const registrations = await page.evaluate(async () =>
       navigator.serviceWorker
         ? (await navigator.serviceWorker.getRegistrations()).length

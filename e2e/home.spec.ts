@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
+import { settledTransform } from "./helpers/measure";
 
 // Issue #593: the carousel arrows used to flip outside the carousel box at the
 // lg breakpoint (1024px), 96px before the viewport was wide enough to hold
@@ -52,6 +53,9 @@ test.describe("the home hero's buttons", () => {
   });
 });
 
+/** Embla's track: the element it moves, and the only record of where it is. */
+const TRACK = "[data-slot=carousel-content]";
+
 /**
  * Which slide the track is showing, by the one sitting closest to the
  * viewport's left edge.
@@ -62,8 +66,8 @@ test.describe("the home hero's buttons", () => {
  * needs.
  */
 function selectedSlide(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const track = document.querySelector("[data-slot=carousel-content]")!;
+  return page.evaluate((css) => {
+    const track = document.querySelector(css)!;
     const left = track.getBoundingClientRect().left;
     const slides = Array.from(
       document.querySelectorAll("[data-slot=carousel-item]"),
@@ -78,7 +82,7 @@ function selectedSlide(page: Page): Promise<number> {
       }
     });
     return selected;
-  });
+  }, TRACK);
 }
 
 /** One slide's turn, plus enough room for a slow runner to finish the move. */
@@ -103,14 +107,27 @@ test.describe("the home carousel", () => {
     // start up again the moment they moved away.
     await page.mouse.move(0, 0);
 
-    const paused = await selectedSlide(page);
-    await page.waitForTimeout(A_ROTATION);
-    expect(await selectedSlide(page), "it moved after being paused").toBe(
-      paused,
-    );
+    // The control flipping is what says the pause registered, so it gates the
+    // sample instead of following it.
     await expect(
       page.getByRole("button", { name: "Play the slideshow" }),
     ).toBeVisible();
+
+    // The track's own transform rather than a derived slide index (#1380).
+    // "Closest to the left edge" is only meaningful once the track has come to
+    // rest: sampled mid-rotation it answers with the slide being left behind,
+    // and nine seconds later the track has settled on the next one -- reported
+    // as "it moved after being paused" although nothing moved after the pause.
+    // The transform string is the position itself, and cannot be read halfway.
+    const paused = await settledTransform(page, TRACK);
+    await page.waitForTimeout(A_ROTATION);
+    expect(
+      await page.evaluate(
+        (css) => getComputedStyle(document.querySelector(css)!).transform,
+        TRACK,
+      ),
+      "it moved after being paused",
+    ).toBe(paused);
   });
 
   // WCAG 2.2.2 is satisfied by the button above; this is the other half, and
