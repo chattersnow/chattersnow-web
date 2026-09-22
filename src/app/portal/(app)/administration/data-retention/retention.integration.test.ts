@@ -14,7 +14,7 @@
  * notice.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { RETENTION_POLICIES } from "@/lib/retention";
 import {
   SEEDED_USERS,
@@ -24,6 +24,7 @@ import {
   createPerson,
   createPublishedEvent,
   serviceRoleClient,
+  signIn,
   signInAs,
   uniqueEmail,
 } from "@/../test/integration-setup";
@@ -51,29 +52,45 @@ const serviceClient = createClient(
 const cleanups: Array<() => Promise<void>> = [];
 
 /**
- * The tenant every seeded fixture belongs to.
+ * The tenant these tests own, provisioned in `beforeAll` below (#1379).
  *
  * Since Phase 5b (#707, 20260906160000) the rules, the runs and the run log are
  * per tenant, and `run_retention_purge` sweeps every active tenant when it is
  * given none -- returning null, because a sweep has no single run to name.
  * These tests are about one tenant's rules, and they need the run id back, so
- * they always name it. Resolved once and cached: on a single-tenant local stack
- * this is the seeded tenant, and the isolation of two tenants is asserted in
- * `tenant-isolation.integration.test.ts` rather than here.
+ * they always name it.
+ *
+ * It used to be the seeded tenant, and that was the bug. The purge is
+ * tenant-wide: at an `asOf` two years out every rule fires on every seeded row
+ * past its period, and rule K alone empties `outbound_messages.subject` and
+ * `.body` for the whole tenant. This file's `cleanups` restore the rows it
+ * inserted itself and nothing else, so whatever integration file ran next read
+ * anonymized seed data -- a failure that depended on file ordering, in a test
+ * nowhere near the change being reviewed.
+ *
+ * A tenant of its own is the honest fixture anyway: these tests are about one
+ * organization's rules, and `tenant-isolation.integration.test.ts` already
+ * establishes that two can coexist.
  */
-let seededTenantId: string | null = null;
+let retentionTenantId: string | null = null;
 async function tenantId(): Promise<string> {
-  if (seededTenantId) return seededTenantId;
-  const { data, error } = await serviceClient
-    .from("tenants")
-    .select("id")
-    .order("created_at")
-    .limit(1)
-    .single();
-  if (error) throw error;
-  seededTenantId = data.id as string;
-  return seededTenantId;
+  if (!retentionTenantId) {
+    throw new Error("the retention tenant is provisioned in beforeAll");
+  }
+  return retentionTenantId;
 }
+
+/**
+ * An admin session inside that tenant, standing in for the seeded
+ * `adminClient` everywhere below.
+ *
+ * Every fixture writes through it rather than through the seeded admin,
+ * because `tenant_id` comes from the column default and `default_tenant_id()`
+ * follows the caller's session -- so the session is what decides which
+ * organization a fixture row belongs to.
+ */
+let admin!: SupabaseClient;
+let retentionAdminId: string | null = null;
 
 async function runPurge(options: {
   dryRun: boolean;
@@ -114,8 +131,26 @@ function clockAtYears(years: number, offsetDays: number) {
 }
 
 // Through the granted RPC, not a table update: retention_policies has no write
-// policy and no update grant, which is itself part of the design.
+// policy and no update grant, which is itself part of the design. The RPC acts
+// on the caller's tenant, so the session is also what scopes it.
 async function setMode(policyKey: string, mode: string) {
+  const { error } = await admin.rpc("set_retention_policy_mode", {
+    p_policy_key: policyKey,
+    p_mode: mode,
+  });
+  if (error) throw error;
+}
+
+/**
+ * The same, against the seeded tenant.
+ *
+ * The one thing in this file that reaches outside its own tenant, and only
+ * rule N needs it: `constituent_accounts` enforces where EVERY active tenant
+ * has it enforcing, so the tenant next door is a veto until it agrees. A mode
+ * is not data -- it is put back to the shipped `dry_run` in `afterAll`, and
+ * nothing else about the seeded tenant is touched.
+ */
+async function setSeededMode(policyKey: string, mode: string) {
   const { error } = await adminClient.rpc("set_retention_policy_mode", {
     p_policy_key: policyKey,
     p_mode: mode,
@@ -124,7 +159,7 @@ async function setMode(policyKey: string, mode: string) {
 }
 
 async function countsFor(runId: string, policyKey: string) {
-  const { data, error } = await adminClient
+  const { data, error } = await admin
     .from("retention_run_tables")
     .select("policy_key, table_name, action, row_count")
     .eq("run_id", runId)
@@ -156,27 +191,159 @@ async function accountExists(userId: string): Promise<boolean> {
 }
 
 /** The signed-in administrator's own account id, for the reviewer columns. */
-let seededAdminId: string | null = null;
 async function adminUserId(): Promise<string> {
-  if (seededAdminId) return seededAdminId;
-  const { data, error } = await adminClient.auth.getUser();
-  if (error) throw error;
-  seededAdminId = data.user!.id;
-  return seededAdminId;
+  if (!retentionAdminId) {
+    throw new Error("the retention tenant is provisioned in beforeAll");
+  }
+  return retentionAdminId;
 }
 
+/**
+ * Every table this file writes a row into, in the order they have to be
+ * deleted in: a child before whatever it references. `tenants` is referenced
+ * with `no action` throughout, so the tenant row goes only once all of these
+ * are empty -- and a leftover active tenant would break the sole-active-tenant
+ * fallback in `default_tenant_id()` for every later sessionless test.
+ */
+const OWNED_TABLES = [
+  // The retention tables first: run_tables references people, and both runs
+  // and policies reference auth.users, so the admin account below cannot go
+  // while these stand.
+  "retention_run_tables",
+  "retention_runs",
+  "retention_policies",
+  "person_claims",
+  "volunteer_hour_submissions",
+  "outbound_messages",
+  "gear_requests",
+  "contact_messages",
+  "pending_role_grants",
+  "person_merges",
+  "inventory_movements",
+  "event_registrations",
+  "inventory_items",
+  "donations",
+  "events",
+  "people",
+  "role_permissions",
+  "user_roles",
+  "tenant_memberships",
+  "roles",
+] as const;
+
 describe("run_retention_purge", () => {
+  beforeAll(async () => {
+    const run = crypto.randomUUID().slice(0, 8);
+    const { data: tenant, error } = await serviceClient
+      .from("tenants")
+      .insert({
+        name: `Retention Suite ${run}`,
+        slug: `retention-suite-${run}`,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    retentionTenantId = tenant.id as string;
+
+    // An admin role holding `manage` on every resource -- the same reach the
+    // seeded admin has in its own tenant, so no fixture below fails for want
+    // of a permission rather than for the reason it is testing.
+    const { data: role, error: roleError } = await serviceClient
+      .from("roles")
+      .insert({
+        tenant_id: retentionTenantId,
+        name: "admin",
+        description: "retention suite",
+      })
+      .select("id")
+      .single();
+    if (roleError) throw roleError;
+    const roleId = role.id as string;
+
+    const { data: resources, error: resourcesError } = await serviceClient
+      .from("resources")
+      .select("id");
+    if (resourcesError) throw resourcesError;
+    const { error: grantError } = await serviceClient
+      .from("role_permissions")
+      .insert(
+        (resources ?? []).map((resource: { id: string }) => ({
+          role_id: roleId,
+          resource_id: resource.id,
+          level: "manage",
+        })),
+      );
+    if (grantError) throw grantError;
+
+    // A second, empty role for the invitation fixture in the audit-snapshot
+    // block to grant: `pending_role_grants` carries a composite foreign key,
+    // so the role it names has to belong to this tenant.
+    const { error: volunteerError } = await serviceClient.from("roles").insert({
+      tenant_id: retentionTenantId,
+      name: "volunteer",
+      description: "retention suite",
+    });
+    if (volunteerError) throw volunteerError;
+
+    const email = uniqueEmail("retention-admin");
+    const { data: created, error: userError } =
+      await serviceClient.auth.admin.createUser({
+        email,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (userError) throw userError;
+    retentionAdminId = created.user!.id;
+
+    // ensure_membership_for_role writes the tenant_memberships row, which is
+    // what makes current_tenant_id() resolve for this session without a
+    // selection.
+    const { error: assignError } = await serviceClient
+      .from("user_roles")
+      .insert({ user_id: retentionAdminId, role_id: roleId });
+    if (assignError) throw assignError;
+
+    admin = await signIn(email);
+  });
+
   afterAll(async () => {
     for (const cleanup of cleanups.reverse()) await cleanup();
+
     // Leave every policy as it ships. A test run that left a rule enforcing
-    // would arm the nightly job on whatever database this ran against.
-    const { data: policies } = await serviceClient
-      .from("retention_policies")
-      .select("policy_key")
-      .eq("tenant_id", await tenantId());
-    for (const policy of policies ?? []) {
-      await setMode(policy.policy_key, "dry_run");
+    // would arm the nightly job on whatever database this ran against -- and
+    // for `constituent_accounts` that reaches the seeded tenant, which is the
+    // only row this file changes outside its own.
+    await setSeededMode("constituent_accounts", "dry_run");
+
+    // The tenant and everything in it. Taking it away is the point: the rows
+    // above are the ones the purge anonymized, and leaving them would be the
+    // same cross-file contamination in a new place.
+    const tenant = retentionTenantId;
+    if (!tenant) return;
+    for (const table of OWNED_TABLES) {
+      const { error } = await serviceClient
+        .from(table)
+        .delete()
+        .eq("tenant_id", tenant);
+      if (error) throw new Error(`clearing ${table}: ${error.message}`);
     }
+    if (retentionAdminId) {
+      // audit_log.actor_id references auth.users without a cascade.
+      await serviceClient
+        .from("audit_log")
+        .update({ actor_id: null })
+        .eq("actor_id", retentionAdminId);
+      const { error } =
+        await serviceClient.auth.admin.deleteUser(retentionAdminId);
+      if (error) throw error;
+    }
+    await serviceClient.from("audit_log").delete().eq("tenant_id", tenant);
+    const { error } = await serviceClient
+      .from("tenants")
+      .delete()
+      .eq("id", tenant);
+    if (error)
+      throw new Error(`deleting the retention tenant: ${error.message}`);
   });
 
   // The reason src/lib/retention.ts duplicates `period` at all.
@@ -210,7 +377,7 @@ describe("run_retention_purge", () => {
         // As an admin, not as service_role: since Phase 5b the comparison
         // answers for the caller's tenant, and a session-less connection has
         // none. This is also how the portal calls it.
-        const { data: agrees, error: compareError } = await adminClient.rpc(
+        const { data: agrees, error: compareError } = await admin.rpc(
           "retention_period_matches",
           {
             p_policy_key: policy.key,
@@ -232,14 +399,22 @@ describe("run_retention_purge", () => {
     let oldId: string;
 
     beforeAll(async () => {
+      // `tenant_id` named rather than defaulted, here and in every sessionless
+      // insert below. `default_tenant_id()` falls back to the sole active
+      // tenant, and this file's tenant stands beside the seeded one -- so for a
+      // service-role connection, which has no session to resolve, the default
+      // is now null and the not-null constraint fires.
+      const tenant = await tenantId();
       const rows = [
         {
+          tenant_id: tenant,
           name: "Recent",
           email: uniqueEmail("retention-recent"),
           topic: "general",
           message: "recent",
         },
         {
+          tenant_id: tenant,
           name: "Old",
           email: uniqueEmail("retention-old"),
           topic: "general",
@@ -293,6 +468,7 @@ describe("run_retention_purge", () => {
       const { data, error } = await serviceClient
         .from("contact_messages")
         .insert({
+          tenant_id: await tenantId(),
           name: "Gate",
           email: uniqueEmail("retention-gate"),
           topic: "general",
@@ -361,18 +537,20 @@ describe("run_retention_purge", () => {
     let plainId: string;
 
     beforeAll(async () => {
-      const donor = await createPerson({
-        email: uniqueEmail("retention-donor"),
-      });
-      const plain = await createPerson({
-        email: uniqueEmail("retention-plain"),
-      });
+      const donor = await createPerson(
+        { email: uniqueEmail("retention-donor") },
+        admin,
+      );
+      const plain = await createPerson(
+        { email: uniqueEmail("retention-plain") },
+        admin,
+      );
       donorId = donor.id;
       plainId = plain.id;
       cleanups.push(donor.cleanup, plain.cleanup);
 
       for (const id of [donorId, plainId]) {
-        const { error } = await adminClient
+        const { error } = await admin
           .from("people")
           .update({
             riding_discipline: "ski",
@@ -382,7 +560,7 @@ describe("run_retention_purge", () => {
         if (error) throw error;
       }
 
-      const { data, error } = await adminClient
+      const { data, error } = await admin
         .from("donations")
         .insert({
           donor_id: donorId,
@@ -393,7 +571,7 @@ describe("run_retention_purge", () => {
       if (error) throw error;
       const donationId = data.id as string;
       cleanups.push(async () => {
-        await adminClient.from("donations").delete().eq("id", donationId);
+        await admin.from("donations").delete().eq("id", donationId);
       });
     });
 
@@ -405,7 +583,7 @@ describe("run_retention_purge", () => {
       await setMode("rider_profiles", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("people")
         .select("name, email, is_anonymous")
         .eq("id", donorId)
@@ -420,7 +598,7 @@ describe("run_retention_purge", () => {
       await setMode("rider_profiles", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("people")
         .select("riding_discipline, ski_experience_level")
         .eq("id", donorId)
@@ -434,7 +612,7 @@ describe("run_retention_purge", () => {
       await setMode("rider_profiles", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("people")
         .select("name, email, is_anonymous")
         .eq("id", plainId)
@@ -455,11 +633,14 @@ describe("run_retention_purge", () => {
     // whether the first one had already anonymized it.
     beforeAll(async () => {
       async function eventEndingAt(endedAt: number) {
-        const event = await createPublishedEvent({
-          startsAt: new Date(endedAt).toISOString(),
-          endsAt: new Date(endedAt).toISOString(),
-        });
-        const { data, error } = await adminClient
+        const event = await createPublishedEvent(
+          {
+            startsAt: new Date(endedAt).toISOString(),
+            endsAt: new Date(endedAt).toISOString(),
+          },
+          admin,
+        );
+        const { data, error } = await admin
           .from("event_registrations")
           .insert({
             event_id: event.id,
@@ -498,10 +679,7 @@ describe("run_retention_purge", () => {
         // still has registrations hanging off it.
         cleanups.push(event.cleanup);
         cleanups.push(async () => {
-          await adminClient
-            .from("event_registrations")
-            .delete()
-            .eq("id", data.id);
+          await admin.from("event_registrations").delete().eq("id", data.id);
         });
         return data.id as string;
       }
@@ -520,7 +698,7 @@ describe("run_retention_purge", () => {
       await setMode("event_registrations", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("event_registrations")
         .select(
           "name, email, phone, notes, instagram_handle, person_id, party_size, checked_in_at",
@@ -604,7 +782,7 @@ describe("run_retention_purge", () => {
       await setMode("event_registrations", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("event_registrations")
         .select("name, phone")
         .eq("id", recentRegistrationId)
@@ -624,15 +802,18 @@ describe("run_retention_purge", () => {
     let requesterId: string;
 
     beforeAll(async () => {
-      const gear = await createAvailableGearItems(2);
-      const requester = await createPerson({
-        name: "Retention Requester",
-        email: uniqueEmail("retention-requester"),
-      });
+      const gear = await createAvailableGearItems(2, {}, admin);
+      const requester = await createPerson(
+        {
+          name: "Retention Requester",
+          email: uniqueEmail("retention-requester"),
+        },
+        admin,
+      );
       requesterId = requester.id;
 
       async function reservationAt(occurredAt: number, itemId: string) {
-        const { data, error } = await adminClient
+        const { data, error } = await admin
           .from("inventory_movements")
           .insert({
             inventory_item_id: itemId,
@@ -663,7 +844,7 @@ describe("run_retention_purge", () => {
       cleanups.push(gear.cleanup);
       cleanups.push(requester.cleanup);
       cleanups.push(async () => {
-        await adminClient
+        await admin
           .from("inventory_movements")
           .delete()
           .in("id", [oldMovementId, recentMovementId]);
@@ -674,7 +855,7 @@ describe("run_retention_purge", () => {
       await setMode("gear_requests", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("inventory_movements")
         .select("recipient_person_id, notes, quantity, reason")
         .eq("id", oldMovementId)
@@ -692,7 +873,7 @@ describe("run_retention_purge", () => {
       await setMode("gear_requests", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
 
-      const { data } = await adminClient
+      const { data } = await admin
         .from("inventory_movements")
         .select("recipient_person_id, notes")
         .eq("id", recentMovementId)
@@ -764,10 +945,10 @@ describe("run_retention_purge", () => {
 
     beforeAll(async () => {
       recipientEmail = uniqueEmail("retention-message");
-      const recipient = await createPerson({
-        name: "Retention Recipient",
-        email: recipientEmail,
-      });
+      const recipient = await createPerson(
+        { name: "Retention Recipient", email: recipientEmail },
+        admin,
+      );
       recordId = crypto.randomUUID();
 
       // Written straight through the service role, because that is the only
@@ -856,9 +1037,13 @@ describe("run_retention_purge", () => {
     let recentGrantId: string;
 
     async function createGrant(email: string) {
+      // Scoped to this tenant: `roles` is per tenant, so an unscoped lookup
+      // for "volunteer" matches the seeded tenant's role as well as ours and
+      // `single()` fails on the two.
       const { data: role, error: roleError } = await serviceClient
         .from("roles")
         .select("id")
+        .eq("tenant_id", await tenantId())
         .eq("name", "volunteer")
         .single();
       if (roleError) throw roleError;
@@ -955,7 +1140,7 @@ describe("run_retention_purge", () => {
     });
 
     test("the audit log is still append-only through the API", async () => {
-      const { data } = await adminClient
+      const { data } = await admin
         .from("audit_log")
         .update({ redacted_at: null })
         .eq("record_id", expiredGrantId)
@@ -970,17 +1155,20 @@ describe("run_retention_purge", () => {
 
     beforeAll(async () => {
       const email = uniqueEmail("retention-merge");
-      const survivor = await createPerson({
-        name: "Retention Survivor",
-        email,
-      });
-      const duplicate = await createPerson({
-        name: "Retention Duplicate",
-        email: uniqueEmail("retention-merge-dupe"),
-      });
+      const survivor = await createPerson(
+        { name: "Retention Survivor", email },
+        admin,
+      );
+      const duplicate = await createPerson(
+        {
+          name: "Retention Duplicate",
+          email: uniqueEmail("retention-merge-dupe"),
+        },
+        admin,
+      );
       survivorId = survivor.id;
 
-      const { error } = await adminClient.rpc("merge_people", {
+      const { error } = await admin.rpc("merge_people", {
         p_survivor_id: survivor.id,
         p_duplicate_id: duplicate.id,
       });
@@ -1054,14 +1242,20 @@ describe("run_retention_purge", () => {
     let mergeId: string;
 
     beforeAll(async () => {
-      const person = await createPerson({
-        name: "Retention Requester",
-        email: uniqueEmail("retention-request"),
-      });
+      const person = await createPerson(
+        {
+          name: "Retention Requester",
+          email: uniqueEmail("retention-request"),
+        },
+        admin,
+      );
       personId = person.id;
 
-      const duplicate = await createPerson({ name: "Retention Request Dupe" });
-      const { error: mergeError } = await adminClient.rpc("merge_people", {
+      const duplicate = await createPerson(
+        { name: "Retention Request Dupe" },
+        admin,
+      );
+      const { error: mergeError } = await admin.rpc("merge_people", {
         p_survivor_id: person.id,
         p_duplicate_id: duplicate.id,
       });
@@ -1078,7 +1272,7 @@ describe("run_retention_purge", () => {
       // them, so its audit entry holds both. A gear movement would not do:
       // inventory_movements.notes is in audited_tables.redacted_columns
       // (20260905160000) and never reaches a snapshot in the first place.
-      const { data, error } = await adminClient
+      const { data, error } = await admin
         .from("donations")
         .insert({
           donor_id: person.id,
@@ -1102,7 +1296,7 @@ describe("run_retention_purge", () => {
           .eq("subject_person_id", personId);
         // Takes the donor row with it, which is why person.cleanup above is
         // pushed first and so runs last: cleanups are replayed in reverse.
-        await cleanupDonation(donationId);
+        await cleanupDonation(donationId, admin);
       });
     });
 
@@ -1112,7 +1306,7 @@ describe("run_retention_purge", () => {
       await setMode("audit_log_snapshots", "off");
       await setMode("person_merge_snapshots", "off");
 
-      const { error } = await adminClient.rpc("delete_rider_profile", {
+      const { error } = await admin.rpc("delete_rider_profile", {
         p_person_id: personId,
         p_reason: "Asked us to delete their profile",
       });
@@ -1140,7 +1334,7 @@ describe("run_retention_purge", () => {
       expect(entry!.new_data?.donor_id).toBe(personId);
       expect(entry!.redacted_at).not.toBeNull();
 
-      const { data: logged } = await adminClient
+      const { data: logged } = await admin
         .from("retention_run_tables")
         .select("policy_key, action, row_count, subject_person_id")
         .eq("subject_person_id", personId);
@@ -1258,7 +1452,10 @@ describe("run_retention_purge", () => {
     let confirmedId: string;
 
     beforeAll(async () => {
-      const person = await createPerson({ name: "Retention Hour Logger" });
+      const person = await createPerson(
+        { name: "Retention Hour Logger" },
+        admin,
+      );
       personId = person.id;
       const reviewerId = await adminUserId();
 
@@ -1354,7 +1551,10 @@ describe("run_retention_purge", () => {
       orphanId = await createAccount("retention-orphan-account");
 
       linkedId = await createAccount("retention-linked-account");
-      const person = await createPerson({ name: "Retention Account Holder" });
+      const person = await createPerson(
+        { name: "Retention Account Holder" },
+        admin,
+      );
       personId = person.id;
       const { error: linkError } = await serviceClient
         .from("people")
@@ -1396,7 +1596,20 @@ describe("run_retention_purge", () => {
       // Never leave this one armed: it is the only rule whose enforcement is
       // read from every tenant's row rather than from the one being swept.
       await setMode("constituent_accounts", "dry_run");
+      await setSeededMode("constituent_accounts", "dry_run");
     });
+
+    /**
+     * Rule N enforces only where every active tenant agrees, and this file no
+     * longer runs in the only active tenant. The seeded one beside it reads as
+     * `dry_run` and vetoes every deletion below, so these tests say what they
+     * are about out loud: both organizations have agreed to the period. The
+     * veto itself still has its own test, with a third tenant that has not.
+     */
+    async function everyTenantEnforces() {
+      await setMode("constituent_accounts", "enforce");
+      await setSeededMode("constituent_accounts", "enforce");
+    }
 
     test("only an account attached to nothing is a candidate", async () => {
       const { data, error } = await serviceClient.rpc(
@@ -1413,7 +1626,7 @@ describe("run_retention_purge", () => {
     });
 
     test("an account one day inside the window survives", async () => {
-      await setMode("constituent_accounts", "enforce");
+      await everyTenantEnforces();
       await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR - DAY) });
 
       expect(await accountExists(orphanId)).toBe(true);
@@ -1432,8 +1645,10 @@ describe("run_retention_purge", () => {
 
       // seed_tenant_retention_policies() gives a new tenant the shipped rules,
       // always in dry_run (20260906160000). So this tenant has not agreed to
-      // the period, and the row is as much its sign-up as ours.
-      await setMode("constituent_accounts", "enforce");
+      // the period, and the row is as much its sign-up as ours. The other two
+      // active tenants have agreed, which is what leaves this one alone as the
+      // reason nothing is deleted.
+      await everyTenantEnforces();
       await runPurge({ dryRun: false, asOf: clockAt(2 * YEAR + DAY) });
       expect(await accountExists(orphanId)).toBe(true);
 
@@ -1455,7 +1670,7 @@ describe("run_retention_purge", () => {
     });
 
     test("past the window the unattached account is deleted and logged", async () => {
-      await setMode("constituent_accounts", "enforce");
+      await everyTenantEnforces();
       const runId = await runPurge({
         dryRun: false,
         asOf: clockAt(2 * YEAR + DAY),
