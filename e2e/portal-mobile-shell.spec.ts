@@ -7,6 +7,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { settledBox } from "./helpers/measure";
 
 async function useShell(page: Page, device: "mobile" | "desktop") {
   await page.context().addCookies([
@@ -100,9 +101,14 @@ test.describe("the portal's two shells", () => {
     await expect(sheet).toBeVisible();
 
     const close = sheet.getByRole("button", { name: "Close menu" });
-    const box = await close.boundingBox();
-    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    // Settled, not read once: the button has no animation of its own and
+    // every pixel it travels comes from the sheet's enter transition, so a
+    // single `boundingBox()` measures a tap target that is still arriving and
+    // reports it short. The `?? 0` would have turned a missing box into a
+    // failure naming the size rather than the absence.
+    const box = await settledBox(close);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
 
     await close.click();
     await expect(sheet).toHaveCount(0);
@@ -126,9 +132,9 @@ test.describe("the portal's two shells", () => {
     await expect(sheet).toBeVisible();
 
     const close = sheet.getByRole("button", { name: "Close menu" });
-    const box = await close.boundingBox();
-    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const box = await settledBox(close);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
 
     await close.click();
     await expect(sheet).toHaveCount(0);
@@ -337,10 +343,8 @@ test.describe("tap targets on a phone", () => {
     const chevron = page
       .getByRole("button", { name: "Show more columns" })
       .first();
-    await expect(chevron).toBeVisible();
-
-    const box = await chevron.boundingBox();
-    expect(box?.width).toBeLessThan(44);
+    const box = await settledBox(chevron);
+    expect(box.width).toBeLessThan(44);
     const area = await hitArea(chevron);
     expect(area.width).toBe("44px");
     expect(area.height).toBe("44px");
@@ -356,8 +360,12 @@ test.describe("tap targets on a phone", () => {
 
     const search = page.getByRole("button", { name: "Search the portal" });
     const help = page.getByRole("button", { name: "Help for this page" });
-    const searchBox = (await search.boundingBox())!;
-    const helpBox = (await help.boundingBox())!;
+    // Both anchored and settled. These had no `toBeVisible` at all and the
+    // non-null assertions turned "the header has not laid out yet" into a
+    // `TypeError` naming neither button -- on a distance the whole assertion
+    // below is derived from.
+    const searchBox = await settledBox(search);
+    const helpBox = await settledBox(help);
 
     // Expanded targets that overlap are worse than small ones: the later
     // sibling paints over its neighbour's visible edge, so a tap that landed
