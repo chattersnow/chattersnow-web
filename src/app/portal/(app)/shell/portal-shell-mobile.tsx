@@ -37,7 +37,6 @@ export function PortalShellMobile({
   branding,
   currentPerson,
   attentionItems,
-  legalLinks,
   tenantContext,
   isDemo,
   welcomeOwed,
@@ -112,11 +111,7 @@ export function PortalShellMobile({
           </LexiconProvider>
         </BrandLogoProvider>
       </main>
-      <MobileNav
-        permissions={permissions}
-        lexicon={lexicon}
-        legalLinks={legalLinks}
-      />
+      <MobileNav permissions={permissions} lexicon={lexicon} />
       {welcomeOwed && (
         <WelcomeDialog key="welcome" initialOpen permissions={permissions} />
       )}

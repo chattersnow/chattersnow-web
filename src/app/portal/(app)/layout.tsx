@@ -18,7 +18,6 @@ import {
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "@/lib/portal/attention-items";
-import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrandStyle } from "@/components/brand-style";
 import { PortalHelpProvider } from "./help/help-context";
@@ -235,7 +234,6 @@ export default async function PortalAppLayout({
     accessManagementAlerts,
     legalDrift,
     conductAcknowledgements,
-    legalPublication,
   ] = await Promise.all([
     currentPersonPromise,
     // Records this account's first arrival and tells us what it has already
@@ -268,22 +266,6 @@ export default async function PortalAppLayout({
     getAccessManagementAttentionSummary(supabase, { canSeeAccessManagement }),
     getLegalDriftSummary(supabase, { canManageSiteContent }),
     getConductAcknowledgementSummary(supabase, { canManageConductReports }),
-    // Which legal documents this organization actually serves, for the
-    // sidebar's footer (#687). Staff are asked to enforce and answer for text
-    // they had no path to from inside the tool; linking all four regardless
-    // would have offered 404s, since a document nobody has adopted is not
-    // served and drops out of the public footer too.
-    //
-    // `getLegalPublication`, not `getTenantLegalPublication`: the footer's
-    // links are relative, so they resolve on whatever host the portal is being
-    // served from, and this is the reader the route gate itself uses
-    // (`requireLegalDocumentInForce`). Asking the same question the same way
-    // is what guarantees the footer never offers a link that 404s. The tenant
-    // reader would also have been wrong for a second reason -- it selects from
-    // `app_settings`, whose policy admits a handful of `manage` holders, so
-    // every other member of the organization would have seen the privacy
-    // policy alone whatever their organization had adopted.
-    getLegalPublication(supabase),
   ]);
 
   const welcomeOwed =
@@ -306,11 +288,6 @@ export default async function PortalAppLayout({
     ...legalDrift.items,
     ...conductAcknowledgements.items,
   ];
-
-  const legalLinks = documentsInForce(legalPublication).map((document) => ({
-    label: document.label,
-    href: document.route,
-  }));
 
   // Same display rule as every other person in the portal, so a preferred
   // name set at /portal/account shows up here too.
@@ -348,7 +325,6 @@ export default async function PortalAppLayout({
     branding,
     currentPerson,
     attentionItems,
-    legalLinks,
     tenantContext,
     hostPinned: hostDecision.kind !== "unenforced",
     isDemo: isDemoTenant(currentTenant(tenantContext)),

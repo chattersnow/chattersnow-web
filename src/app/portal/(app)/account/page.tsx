@@ -16,6 +16,7 @@ import {
   getCurrentUserPermissions,
   hasAnyPermission,
 } from "@/lib/auth/permissions";
+import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
 
 export const metadata: Metadata = {
   title: "My Account",
@@ -39,11 +40,20 @@ export default async function AccountPage() {
   // Filtered to this person explicitly, not left to the select policy: that
   // policy also admits administration:manage, so an administrator reading the
   // table unfiltered gets the whole tenant's rows (#1043).
-  const [enabledByKind, orgEmailEnabled, permissions] = await Promise.all([
-    getMyNotificationPreferences(supabase, person?.person_id ?? null),
-    getOrgEmailEnabled(supabase),
-    getCurrentUserPermissions(supabase),
-  ]);
+  const [enabledByKind, orgEmailEnabled, permissions, legalPublication] =
+    await Promise.all([
+      getMyNotificationPreferences(supabase, person?.person_id ?? null),
+      getOrgEmailEnabled(supabase),
+      getCurrentUserPermissions(supabase),
+      // Only what this organization serves (#687): a document it has not
+      // adopted 404s (#859). `getLegalPublication` rather than the tenant
+      // reader, because it is the one the routes' own gate asks, and because
+      // `app_settings`' policy would show most members the privacy policy
+      // alone. Here rather than in the sidebar footer (#1392): a footnote
+      // between My Account and Log out split the two account rows.
+      getLegalPublication(supabase),
+    ]);
+  const policies = documentsInForce(legalPublication);
 
   // Some kinds only exist for the people who own the queue they report on
   // (#742). Showing a volunteer a "New volunteer applications" switch would be
@@ -140,6 +150,34 @@ export default async function AccountPage() {
             />
           </CardContent>
         </Card>
+
+        {policies.length > 0 && (
+          <Card>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="app-eyebrow">Policies</p>
+                <p className="app-muted mt-1 text-sm">
+                  What this organization has published on its public site.
+                </p>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {policies.map((document) => (
+                  <li key={document.key}>
+                    <Link
+                      href={document.route}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${document.label} (opens in new tab)`}
+                      className="underline underline-offset-4"
+                    >
+                      {document.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="space-y-4">

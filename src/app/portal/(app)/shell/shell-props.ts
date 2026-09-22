@@ -27,14 +27,6 @@ export type PortalShellProps = {
   branding: Branding;
   currentPerson: EnsuredPerson | null;
   attentionItems: PendingApprovalItem[];
-  /**
-   * The legal documents this organization serves, for the shell's footer
-   * (#687). Resolved by the layout rather than by each shell, and only ever
-   * the documents actually in force: linking a document nobody has adopted
-   * would send staff to a 404, because #859 takes the route away as well as
-   * the public footer link.
-   */
-  legalLinks: { label: string; href: string }[];
   tenantContext: TenantContext;
   /** True when the host pinned the tenant, so the switcher is read-only. */
   hostPinned: boolean;
