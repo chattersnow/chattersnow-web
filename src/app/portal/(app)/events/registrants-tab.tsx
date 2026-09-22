@@ -42,6 +42,7 @@ import {
   withoutSorting,
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
+import { StatusBadge } from "@/components/portal/status-badge";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import {
   LIST_PREVIEW_ROWS,
@@ -237,6 +238,18 @@ export function RegistrantsTab({
               <span className="app-muted block truncate text-xs font-normal">
                 {registrant.pronouns}
               </span>
+            )}
+            {/* Beside the name, not in a column, and for the reason the
+                pronouns are here: this is read at the same moment as "who is
+                this", it is the one thing about a party that has to be known
+                before the day rather than at it, and a column would be the
+                first thing dropped on a phone. Only `true` renders anything --
+                null is "nobody was asked" and false is the ordinary case, and
+                neither is worth a badge (#685). */}
+            {registrant.party_includes_minor === true && (
+              <StatusBadge tone="info" className="mt-1 font-normal">
+                Includes a minor
+              </StatusBadge>
             )}
           </>
         ),

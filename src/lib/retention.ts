@@ -75,7 +75,11 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // The registration row survives with its personal fields stripped rather
     // than being deleted: attendance counts, first-time-rider counts and
     // discipline splits feed impact and grant reporting, and deleting the rows
-    // would restate figures already filed with funders.
+    // would restate figures already filed with funders. "Personal fields"
+    // includes the accompanying adult and the emergency contact a party with a
+    // minor gives (#685) -- the emergency contact especially, since they never
+    // visited the site. Whether the party included a minor is kept, like the
+    // party size: it describes the party, not the people in it.
     howLong: "3 years after the event.",
     period: "3 years",
     surface: "eventRegistrations",

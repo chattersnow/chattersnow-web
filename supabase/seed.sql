@@ -481,8 +481,21 @@ begin
   insert into public.contact_messages (name, email, topic, message, status)
   values ('Casey Nolan', 'casey.nolan@example.test', 'general', 'Do you have gear available in kids sizes right now?', 'resolved');
 
-  insert into public.event_registrations (event_id, name, email, phone, party_size, notes, person_id, checked_in_at)
-  values (v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2, 'Needs one adult medium jacket.', v_person_donor1, null)
+  -- #685: the one seeded party with a minor in it, so the registrant list has
+  -- a badge to render, `event_registration_minor_contacts` has a row to gate,
+  -- and the retention purge has something to clear. Every other seeded
+  -- registration leaves the column null -- which is what a walk-in and a row
+  -- written before the question existed look like, and never a "no".
+  insert into public.event_registrations (
+    event_id, name, email, phone, party_size, notes, person_id, checked_in_at,
+    party_includes_minor, accompanying_adult_name, accompanying_adult_phone,
+    emergency_contact_name, emergency_contact_phone
+  )
+  values (
+    v_event_upcoming, 'Jamie Rivera', 'jamie.rivera@example.test', '555-0101', 2,
+    'Needs one adult medium jacket.', v_person_donor1, null,
+    true, 'Jamie Rivera', '555-0101', 'Robin Rivera', '555-0102'
+  )
   returning id into v_registration_id;
 
   insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
@@ -1581,6 +1594,11 @@ insert into public.site_content (key, value, published_at) values
   ('programs.intro', '"Sample programs, seeded locally so the Programs page has something to lay out."', now()),
   ('programs.pillars', '[{"label":"Access","description":"Removing what stops people taking part."},{"label":"Community","description":"Bringing people who would not otherwise meet into the same room."}]', now()),
   ('programs.items', '[{"pillar":"Access","emoji":"\u2744\ufe0f","name":"Sample access program","description":"Copy-driven program card, rendered when the Programs page reads Site Content."},{"pillar":"Community","emoji":"\ud83e\udd1d","name":"Sample community program","description":"The second copy-driven card, so both pillars have something under them."}]', now()),
+  -- Blank by default, like get_involved.volunteer_screening below: the
+  -- platform does not write a safeguarding rule on a tenant's behalf (#685).
+  -- Seeded so local and CI have a tenant that has written one; the unwritten
+  -- case is what every other tenant has and what the unit tests cover.
+  ('events.minor_accompaniment', '["Anyone under 18 is welcome with a parent or legal guardian, and that adult needs to be with them for the whole event. Example Nonprofit is not staffed to supervise anyone.","The accompanying adult registers too, so please count them in the number attending. None of this is real: this is a development environment for a fictional organization."]', now()),
   ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
   ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
   ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),

@@ -9,6 +9,7 @@ import { formatDateTimeInZone } from "@/lib/time";
 import { publicGiveawayRulesPath } from "@/lib/giveaway-rules-path";
 import { getEventGiveawayRulesLink } from "@/lib/giveaway-rules-publication";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite } from "@/lib/public-site";
 import { loadEventWaiver } from "./event-waiver-data";
 import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
@@ -97,6 +98,7 @@ function EventDetailBody({
   giveawayRulesId,
   waiver,
   waiverBlock,
+  minorAccompaniment,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
@@ -112,6 +114,12 @@ function EventDetailBody({
   waiver: { version: number } | null;
   /** That agreement, already rendered on the server. Null with `waiver`. */
   waiverBlock: React.ReactNode;
+  /**
+   * This organization's rule for a party that includes anyone under 18
+   * (#685), shown once somebody answers yes. Empty on a tenant that has
+   * written none, which is the state every tenant starts in.
+   */
+  minorAccompaniment: string[];
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -204,6 +212,7 @@ function EventDetailBody({
                   person={viewer.person}
                   waiver={waiver}
                   waiverBlock={waiverBlock}
+                  minorAccompaniment={minorAccompaniment}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -216,6 +225,7 @@ function EventDetailBody({
                   accountOffer={accountOffer}
                   waiver={waiver}
                   waiverBlock={waiverBlock}
+                  minorAccompaniment={minorAccompaniment}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -263,6 +273,12 @@ export async function EventDetailContent({
   // the tenants that have adopted none, so does everything: `loadEventWaiver`
   // returns null off a read the footer already made.
   const waiver = await loadEventWaiver(supabase);
+  // This organization's rule for a party that includes anyone under 18
+  // (#685). Off the same `cache()`d `getPublicSite()` read the layout and the
+  // footer already made, so it costs no query; empty on a tenant that has
+  // written none, which leaves the form saying only what it asks for.
+  const { content } = await getPublicSite(supabase);
+  const minorAccompaniment = content.paragraphs("events.minor_accompaniment");
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -290,6 +306,7 @@ export async function EventDetailContent({
             giveawayRulesId={giveawayRules?.giveawayId ?? null}
             waiver={waiver ? { version: waiver.version } : null}
             waiverBlock={waiverBlock}
+            minorAccompaniment={minorAccompaniment}
           />
         </div>
       </>
@@ -316,6 +333,7 @@ export async function EventDetailContent({
         giveawayRulesId={giveawayRules?.giveawayId ?? null}
         waiver={waiver ? { version: waiver.version } : null}
         waiverBlock={waiverBlock}
+        minorAccompaniment={minorAccompaniment}
       />
     </>
   );
