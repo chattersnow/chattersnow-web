@@ -54,6 +54,7 @@ Role columns below are keyed by `roles.name`; each organization may label them a
 | Volunteers — roles (role-type definitions)                      | Manage  | View                | None                   | None                 | View                               |
 | Volunteers — participation                                      | Manage  | View                | None                   | None                 | View/log own                       |
 | Volunteers — applications (public intake queue)                 | Manage  | View                | None                   | None                 | View⁴                              |
+| Volunteers — screening outcomes (`volunteer_screening`)         | Manage  | None                | None                   | None                 | None                               |
 | Communications — contact messages                               | Manage  | None                | None                   | None                 | None                               |
 | Governance — all pages                                          | Manage  | None                | None                   | Manage               | None                               |
 | Administration — users, roles, permissions, settings, audit log | Manage  | None                | None                   | None                 | None                               |

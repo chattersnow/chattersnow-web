@@ -41,6 +41,7 @@ describe("collectionSurface", () => {
       artworkSubmissions: true,
       constituentAccounts: true,
       volunteerHours: true,
+      volunteerScreening: true,
       googleSignIn: true,
     });
   });
@@ -97,6 +98,7 @@ describe("collectionSurface", () => {
       artworkSubmissions: false,
       constituentAccounts: false,
       volunteerHours: false,
+      volunteerScreening: false,
       googleSignIn: true,
     });
   });
@@ -142,6 +144,7 @@ describe("surfaceKeys", () => {
       artworkSubmissions: false,
       constituentAccounts: false,
       volunteerHours: false,
+      volunteerScreening: false,
       googleSignIn: true,
     };
     expect(surfaceKeys(surface)).toEqual([
@@ -161,6 +164,7 @@ describe("surfaceKeys", () => {
         artworkSubmissions: false,
         constituentAccounts: false,
         volunteerHours: false,
+        volunteerScreening: false,
         googleSignIn: false,
       }),
     ).toEqual([]);

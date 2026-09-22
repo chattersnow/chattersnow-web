@@ -385,7 +385,32 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
         key: "event_volunteer_hours",
         covers: "hours as they are logged against an event",
       },
+      {
+        key: "volunteer_screening",
+        covers:
+          "whether somebody has been cleared for a screening level, which is granted separately and deliberately narrower",
+      },
       { key: "people", covers: "the underlying contact records" },
+    ],
+  },
+  volunteer_screening: {
+    view: "Open Volunteers > Screening levels, and see the screening outcomes recorded against a person on their profile and on a volunteer application.",
+    manage:
+      "Name the screening levels this organization recognises, and record or remove the outcome of a screening against a person.",
+    excludes: [
+      {
+        key: "volunteers",
+        covers:
+          "role types, applications and everyone's participation -- none of which this one grants",
+      },
+      {
+        key: "people",
+        covers: "the contact record an outcome is filed against",
+      },
+    ],
+    notes: [
+      "Seeded to Administrator alone, and deliberately not mirroring Volunteers: a coordinator or a volunteer holds Volunteers at View and has no reason to see who has been screened.",
+      "The portal stores the outcome and nothing else -- a level and a date. It has nowhere to put a check, a result, a reference or a note, by design rather than by policy.",
     ],
   },
   volunteer_hours_logging: {

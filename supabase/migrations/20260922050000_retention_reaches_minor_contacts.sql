@@ -1,7 +1,7 @@
 -- Retention reaches the accompanying-adult and emergency contacts (#685)
 -- ---------------------------------------------------------------------------
 --
--- 20260922010000 added four contact columns to `event_registrations`, and the
+-- 20260922040000 added four contact columns to `event_registrations`, and the
 -- purge's rule C does not know about them: it strips name, email, phone,
 -- notes, instagram_handle, pronouns and person_id three years after an event
 -- ends and leaves everything else. Without this, an emergency contact's name
@@ -19,22 +19,25 @@
 -- remaining personal data is an emergency contact is still picked up on a
 -- later run.
 --
--- The one-directional column constraint (20260922010000) exists for this
--- update. A biconditional would make the purge raise 23514 on every
--- waiver-era row whose party included a minor, inside a block whose own
--- `exception when others` swallows it into a skipped log row -- event
--- registrations would then never anonymize again.
+-- The one-directional column constraint (20260922040000) exists for this
+-- update. A biconditional would make the purge raise 23514 on every row whose
+-- party included a minor, inside a block whose own `exception when others`
+-- swallows it into a skipped log row -- event registrations would then never
+-- anonymize again.
 --
 -- `audited_tables` still has no row for event_registrations (20260922000000
 -- says why), so `redacted_columns` does not arise. If one is ever added, these
 -- four belong in it in the same commit: they are the "never record this" class
 -- rather than the "record it and clear it on a clock" class.
 --
--- The body is the live one from 20260919040000 with those two edits and
--- nothing else. Re-emitted in full because the function is one plpgsql block,
--- so changing a rule is a rewrite rather than a patch; the signature is
--- unchanged, so `create or replace` is enough and the pg_cron entry
--- (20260905140000) keeps resolving to this one.
+-- The body is the live one from 20260922010000 -- which added rule O for
+-- `person_screenings` (#1360) -- with those two edits and nothing else. This
+-- file and that one were written on the same day against the same base, so
+-- re-emitting from 20260919040000, the version this was first drafted over,
+-- would silently drop the screening rule. Re-emitted in full because the
+-- function is one plpgsql block, so changing a rule is a rewrite rather than a
+-- patch; the signature is unchanged, so `create or replace` is enough and the
+-- pg_cron entry (20260905140000) keeps resolving to this one.
 
 create or replace function public.run_retention_purge(
   p_dry_run boolean default true,
@@ -838,6 +841,42 @@ begin
       v_failed := true;
       insert into public.retention_run_tables (tenant_id, run_id, policy_key, table_name, action, error)
       values (v_tenant, v_run_id, 'constituent_accounts', 'auth.users', 'skipped', sqlerrm);
+    end;
+
+    -- O. Volunteer screening outcomes (#1360).
+    --
+    -- coalesce(expires_on, cleared_on): a clearance that runs to 2032 is live
+    -- until 2032, so the clock starts where the clearance ends, and falls back
+    -- to the decision for one that never expires. The ::date cast is load
+    -- bearing -- p_as_of is a timestamptz and both columns are date.
+    --
+    -- No audit-log residual to think about, and no redaction pass: this table
+    -- has no free-text column, so the snapshot audit_log kept was already
+    -- nothing but ids and dates.
+    begin
+      select period, mode into v_period, v_mode
+        from public.retention_policies
+       where policy_key = 'person_screenings' and tenant_id = v_tenant;
+      v_enforce := not p_dry_run and v_mode = 'enforce';
+
+      if v_mode = 'off' then
+        perform public.retention_log(v_run_id, 'person_screenings', 'person_screenings', 'skipped', '{}');
+      else
+        v_ids := array(
+          select s.id
+            from public.person_screenings s
+           where s.tenant_id = v_tenant
+             and coalesce(s.expires_on, s.cleared_on) < (p_as_of - v_period)::date
+        );
+        perform public.retention_log(v_run_id, 'person_screenings', 'person_screenings', 'deleted', v_ids);
+        if v_enforce and array_length(v_ids, 1) is not null then
+          delete from public.person_screenings where id = any(v_ids);
+        end if;
+      end if;
+    exception when others then
+      v_failed := true;
+      insert into public.retention_run_tables (tenant_id, run_id, policy_key, table_name, action, error)
+      values (v_tenant, v_run_id, 'person_screenings', 'person_screenings', 'skipped', sqlerrm);
     end;
 
     update public.retention_runs

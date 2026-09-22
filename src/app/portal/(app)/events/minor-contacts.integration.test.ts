@@ -5,7 +5,7 @@
 // than a convention. The rider block beside it is chosen in TypeScript --
 // `listEventRegistrantsAction` selects those columns or does not -- which
 // anybody holding `events:view` could go round with a direct PostgREST call.
-// A child's guardian's mobile number is a different call, so 20260922010000
+// A child's guardian's mobile number is a different call, so 20260922040000
 // revokes the four columns from `authenticated` on the table and serves them
 // only through `event_registration_minor_contacts`, a security-definer view
 // that checks `events:manage` itself.

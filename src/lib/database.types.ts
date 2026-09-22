@@ -6037,6 +6037,81 @@ export type Database = {
           },
         ];
       };
+      person_screenings: {
+        Row: {
+          cleared_on: string;
+          created_at: string;
+          created_by: string | null;
+          expires_on: string | null;
+          id: string;
+          person_id: string;
+          tenant_id: string;
+          tier_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          cleared_on: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_on?: string | null;
+          id?: string;
+          person_id: string;
+          tenant_id?: string;
+          tier_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          cleared_on?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_on?: string | null;
+          id?: string;
+          person_id?: string;
+          tenant_id?: string;
+          tier_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "person_screenings_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_screenings_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_screenings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_screenings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_screenings_tier_in_tenant";
+            columns: ["tenant_id", "tier_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_screening_tiers";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
       plan_modules: {
         Row: {
           enabled: boolean;
@@ -7854,6 +7929,60 @@ export type Database = {
           },
           {
             foreignKeyName: "volunteer_role_types_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      volunteer_screening_tiers: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          id: string;
+          is_active: boolean;
+          name: string;
+          sort_order: number;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_screening_tiers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_screening_tiers_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";

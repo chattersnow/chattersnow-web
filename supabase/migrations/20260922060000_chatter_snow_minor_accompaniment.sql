@@ -2,7 +2,7 @@
 -- and its privacy policy catching up with what the form now asks.
 --
 -- Two writes, both to this one tenant's rows, both content decisions rather
--- than platform behaviour. The mechanism shipped in 20260922010000 and is
+-- than platform behaviour. The mechanism shipped in 20260922040000 and is
 -- identical on every tenant; the words below are Chatter Snow's.
 --
 -- 1. THE RULE. `events.minor_accompaniment` is blank for every tenant by

@@ -90,7 +90,7 @@ export type RegistrantRiderProfile = {
  * `event_registrations` itself and served only by the security-definer view
  * `event_registration_minor_contacts`, which does its own `events: manage`
  * check. A guardian's mobile number earns the privilege rather than the
- * convention; see `20260922010000_event_registration_minors.sql`.
+ * convention; see `20260922040000_event_registration_minors.sql`.
  *
  * Null therefore means "not yours to see", and null is also what a party with
  * no minors has — the view returns no row for one. The flag on the registrant
