@@ -121,7 +121,11 @@ const PRIVACY: DocumentProse = {
     // every form in the software, followed by a sentence saying some of them
     // might not exist -- an honest dodge rather than an accurate policy.
     "what-we-collect": ({ surfaces }) => [
-      "Everything below is information you type into a form yourself. We don't buy personal information about you from anyone else.",
+      // "Yourself" stopped being the whole truth when registration began
+      // asking for an emergency contact (#685): that person never came to the
+      // site and cannot be told anything at the point of collection, so the
+      // sentence names them rather than glossing them. We still buy nothing.
+      "Everything below is information you type into a form yourself — including, in one place, somebody else's name and number that you give us. We don't buy personal information about you from anyone else.",
       bullets([
         surfaces.contact &&
           "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you, and we email you back to confirm it arrived — that confirmation names the topic and the date, never what you wrote.",
@@ -135,7 +139,7 @@ const PRIVACY: DocumentProse = {
           // "this organization has adopted a waiver" would have to feed
           // `legal_surface.*`, and every tenant with its own published
           // documents would be told they had drifted the day they adopted one.
-          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown.",
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts.",
         surfaces.gearRequests &&
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&

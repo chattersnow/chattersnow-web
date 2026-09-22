@@ -2501,15 +2501,20 @@ export type Database = {
       };
       event_registrations: {
         Row: {
+          accompanying_adult_name: string | null;
+          accompanying_adult_phone: string | null;
           attended_before: boolean | null;
           checked_in_at: string | null;
           created_at: string;
           email: string;
+          emergency_contact_name: string | null;
+          emergency_contact_phone: string | null;
           event_id: string;
           id: string;
           instagram_handle: string | null;
           name: string;
           notes: string | null;
+          party_includes_minor: boolean | null;
           party_size: number;
           person_id: string | null;
           phone: string | null;
@@ -2522,15 +2527,20 @@ export type Database = {
           waiver_version: number | null;
         };
         Insert: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
           attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
           email: string;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
           event_id: string;
           id?: string;
           instagram_handle?: string | null;
           name: string;
           notes?: string | null;
+          party_includes_minor?: boolean | null;
           party_size?: number;
           person_id?: string | null;
           phone?: string | null;
@@ -2543,15 +2553,20 @@ export type Database = {
           waiver_version?: number | null;
         };
         Update: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
           attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
           email?: string;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
           event_id?: string;
           id?: string;
           instagram_handle?: string | null;
           name?: string;
           notes?: string | null;
+          party_includes_minor?: boolean | null;
           party_size?: number;
           person_id?: string | null;
           phone?: string | null;
@@ -7983,6 +7998,33 @@ export type Database = {
       };
     };
     Views: {
+      event_registration_minor_contacts: {
+        Row: {
+          accompanying_adult_name: string | null;
+          accompanying_adult_phone: string | null;
+          emergency_contact_name: string | null;
+          emergency_contact_phone: string | null;
+          event_id: string | null;
+          registration_id: string | null;
+        };
+        Insert: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
+          event_id?: string | null;
+          registration_id?: string | null;
+        };
+        Update: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
+          event_id?: string | null;
+          registration_id?: string | null;
+        };
+        Relationships: [];
+      };
       inventory_items_with_category: {
         Row: {
           category_group_key: string | null;
@@ -9551,14 +9593,19 @@ export type Database = {
       };
       register_for_event: {
         Args: {
+          p_accompanying_adult_name?: string;
+          p_accompanying_adult_phone?: string;
           p_attended_before?: boolean;
           p_email: string;
+          p_emergency_contact_name?: string;
+          p_emergency_contact_phone?: string;
           p_event_id: string;
           p_honeypot?: string;
           p_instagram_handle?: string;
           p_ip_address?: unknown;
           p_name: string;
           p_notes: string;
+          p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone: string;
           p_pronouns?: string;
@@ -9569,11 +9616,16 @@ export type Database = {
       };
       register_myself_for_event: {
         Args: {
+          p_accompanying_adult_name?: string;
+          p_accompanying_adult_phone?: string;
           p_attended_before?: boolean;
+          p_emergency_contact_name?: string;
+          p_emergency_contact_phone?: string;
           p_event_id: string;
           p_instagram_handle?: string;
           p_ip_address?: unknown;
           p_notes?: string;
+          p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone?: string;
           p_pronouns?: string;
@@ -9766,6 +9818,22 @@ export type Database = {
       resolve_inventory_category: {
         Args: { p_tenant_id?: string; p_text: string };
         Returns: string;
+      };
+      resolve_minor_contacts: {
+        Args: {
+          p_adult_name: string;
+          p_adult_phone: string;
+          p_emergency_name: string;
+          p_emergency_phone: string;
+          p_includes_minor: boolean;
+        };
+        Returns: Database["public"]["CompositeTypes"]["minor_accompaniment_contacts"];
+        SetofOptions: {
+          from: "*";
+          to: "minor_accompaniment_contacts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       resolve_or_create_person_by_email: {
         Args: {
@@ -10150,7 +10218,12 @@ export type Database = {
       [_ in never]: never;
     };
     CompositeTypes: {
-      [_ in never]: never;
+      minor_accompaniment_contacts: {
+        accompanying_adult_name: string | null;
+        accompanying_adult_phone: string | null;
+        emergency_contact_name: string | null;
+        emergency_contact_phone: string | null;
+      };
     };
   };
 };

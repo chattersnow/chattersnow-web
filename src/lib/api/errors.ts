@@ -179,6 +179,12 @@ const RPC_ERRORS: Record<
     message: "Party size must be at least 1.",
     field: "party_size",
   },
+  MINOR_CONTACTS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "A party that includes anyone under 18 needs an accompanying adult and an emergency contact.",
+    field: "accompanying_adult_name",
+  },
   INVALID_RIDER_PROFILE: {
     code: "invalid_request",
     message: "The riding discipline and experience levels do not agree.",

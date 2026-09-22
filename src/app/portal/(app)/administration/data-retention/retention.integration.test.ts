@@ -23,6 +23,7 @@ import {
   createAvailableGearItems,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
   uniqueEmail,
 } from "@/../test/integration-setup";
@@ -468,6 +469,15 @@ describe("run_retention_purge", () => {
             notes: "allergic to nothing",
             party_size: 3,
             checked_in_at: new Date(endedAt).toISOString(),
+            // #685. Both halves of the minors answer, so this rule is asserted
+            // against the case that could break it: the four contacts have to
+            // go, the flag has to stay, and the column constraint has to
+            // tolerate the result.
+            party_includes_minor: true,
+            accompanying_adult_name: "Robin Rivera",
+            accompanying_adult_phone: "555-0101",
+            emergency_contact_name: "Sam Rivera",
+            emergency_contact_phone: "555-0102",
           })
           .select("id")
           .single();
@@ -517,6 +527,34 @@ describe("run_retention_purge", () => {
       // The reporting half, untouched.
       expect(data!.party_size).toBe(3);
       expect(data!.checked_in_at).not.toBeNull();
+    });
+
+    // #685, and the reason the column constraint is one-directional. The four
+    // contacts are personal data and go with the rest; the flag is a fact
+    // about the party and stays, like party_size. A biconditional constraint
+    // would make this update raise 23514 inside a block whose own `exception
+    // when others` swallows it, and event registrations would silently never
+    // anonymize again.
+    test("the accompanying adult and emergency contact go, the flag stays", async () => {
+      await setMode("event_registrations", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data, error } = await serviceRoleClient()
+        .from("event_registrations")
+        .select(
+          "party_includes_minor, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+        )
+        .eq("id", oldRegistrationId)
+        .single();
+
+      expect(error).toBeNull();
+      expect(data).toEqual({
+        party_includes_minor: true,
+        accompanying_adult_name: null,
+        accompanying_adult_phone: null,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+      });
     });
 
     test("a registration inside the window is untouched", async () => {

@@ -305,6 +305,7 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
   { key: "about_team:team", page: "about_team", label: "The team" },
 
   { key: "events:listing", page: "events", label: "Events listing" },
+  { key: "events:registration", page: "events", label: "Registration" },
   {
     key: "events:community",
     page: "events",
@@ -1938,6 +1939,27 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Events introduction",
     type: "text",
     default: "Browse upcoming and past events.",
+  },
+  {
+    key: "events.minor_accompaniment",
+    page: "events",
+    section: "events:registration",
+    label: "If the party includes someone under 18",
+    description:
+      "Your rule for a party that includes anyone under 18, shown on the registration form as soon as somebody answers yes: who has to come with them, whether that adult registers too and counts in the number attending, and whether you set a minimum age at all. Blank renders nothing here but the line saying what the form asks for and that it never asks a date of birth.",
+    type: "paragraphs",
+    // Blank, like `get_involved.volunteer_screening` and `org.security_note`,
+    // and for the same reason (#685). That the form collects an accompanying
+    // adult and an emergency contact is a fact about this software, so the
+    // component says it on every tenant. "A parent or guardian must be present
+    // for the whole event" is one organization's rule -- `docs/legal-basis.md`
+    // rule 2 puts it out of reach of a default, and a tenant that has adopted
+    // no safeguarding policy would otherwise be publishing one it never wrote.
+    //
+    // Nothing is collected by the paragraphs either way. #1318 decided that
+    // submitting a public form accepts nothing, so this is notice rather than
+    // consent: no checkbox, no column, no stored pointer to a version.
+    default: [],
   },
   {
     key: "events.community_heading",

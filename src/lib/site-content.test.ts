@@ -87,6 +87,15 @@ describe("the site content registry", () => {
     expect(
       DEFAULT_SITE_CONTENT.paragraphs("get_involved.volunteer_screening"),
     ).toEqual([]);
+    // The same argument one step further (#685). "A parent or guardian must be
+    // present for the whole event" is a safeguarding policy, and a default
+    // here would publish one on behalf of an organization that has adopted
+    // none -- on the registration form, to the family it governs. What the
+    // form asks for once somebody answers yes is a fact about the software and
+    // lives in the component.
+    expect(
+      DEFAULT_SITE_CONTENT.paragraphs("events.minor_accompaniment"),
+    ).toEqual([]);
   });
 
   // The public pages look a photo up by its short name (`urls.learn_photo`),

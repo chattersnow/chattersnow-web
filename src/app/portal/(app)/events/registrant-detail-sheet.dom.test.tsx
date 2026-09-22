@@ -22,7 +22,9 @@ const REGISTRANT: EventRegistrant = {
   attended_before: false,
   waiver_accepted_at: null,
   waiver_version: null,
+  party_includes_minor: null,
   rider: null,
+  minorContacts: null,
 };
 
 function renderSheet(
@@ -188,5 +190,45 @@ describe("RegistrantDetailSheet", () => {
     });
 
     expect(screen.getByText(/Accepted version 4 on/)).toBeInTheDocument();
+  });
+
+  // #685. The split the ticket is about: the fact is for everybody who can
+  // open the sheet, the two contacts are not — and they are absent because the
+  // database refused them, not because this component declined to ask.
+  test("says nothing about minors for a party that has none", () => {
+    renderSheet({ registrant: { party_includes_minor: false } });
+    expect(screen.queryByText("Under 18 in the party")).toBeNull();
+
+    renderSheet({ registrant: { party_includes_minor: null } });
+    expect(screen.queryByText("Under 18 in the party")).toBeNull();
+  });
+
+  test("an organizer sees the accompanying adult and the emergency contact", () => {
+    renderSheet({
+      registrant: {
+        party_includes_minor: true,
+        minorContacts: {
+          accompanying_adult_name: "Robin Rivera",
+          accompanying_adult_phone: "555-0101",
+          emergency_contact_name: "Sam Rivera",
+          emergency_contact_phone: "555-0102",
+        },
+      },
+    });
+
+    expect(screen.getByText("Under 18 in the party")).toBeInTheDocument();
+    expect(screen.getByText(/Robin Rivera · 555-0101/)).toBeInTheDocument();
+    expect(screen.getByText(/Sam Rivera · 555-0102/)).toBeInTheDocument();
+  });
+
+  test("a door shift sees the flag and neither contact", () => {
+    renderSheet({
+      canManage: false,
+      registrant: { party_includes_minor: true, minorContacts: null },
+    });
+
+    expect(screen.getByText("Under 18 in the party")).toBeInTheDocument();
+    expect(screen.queryByText("Accompanying adult")).toBeNull();
+    expect(screen.queryByText("Emergency contact")).toBeNull();
   });
 });

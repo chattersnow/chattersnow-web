@@ -108,6 +108,31 @@ export const eventRegistrationSchema = z
     instagram_handle: optionalText(30).meta({
       description: "Without the @; letters, numbers, dots and underscores.",
     }),
+    // #685, and every one of them optional on purpose. This contract predates
+    // the question, so a caller that says nothing is recorded as never having
+    // been asked rather than as a "no" -- the same three-state reading the
+    // column carries. Send `true` and the four contacts become required, which
+    // is the one rule the organization's own policy rests on.
+    party_includes_minor: z.boolean().optional().meta({
+      description:
+        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no.",
+    }),
+    accompanying_adult_name: optionalText(200).meta({
+      description:
+        "The adult attending with them. Required when party_includes_minor is true.",
+    }),
+    accompanying_adult_phone: optionalText(50).meta({
+      description:
+        "A number that reaches that adult on the day. Required when party_includes_minor is true.",
+    }),
+    emergency_contact_name: optionalText(200).meta({
+      description:
+        "Who to call in an emergency. Required when party_includes_minor is true.",
+    }),
+    emergency_contact_phone: optionalText(50).meta({
+      description:
+        "That contact's number. Required when party_includes_minor is true.",
+    }),
   })
   .meta({ id: "EventRegistration" });
 
