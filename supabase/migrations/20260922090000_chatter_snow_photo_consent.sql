@@ -28,7 +28,8 @@
 --    documents do not already name: no press, no sponsors, no funder reports.
 --    Restating your own published policy where somebody is typing is a factual
 --    correction rather than a new commitment, which is why it ships here
---    instead of waiting in #1320.
+--    instead of waiting in #1320. The record is
+--    planning/chatter-snow/legal/2026-09-22-photo-and-media-consent.md.
 --
 --    They also do not link /code-of-conduct or /terms. Those routes 404 until
 --    the board adopts the documents (#859), and a scope pointing at a page
