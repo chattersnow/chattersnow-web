@@ -571,6 +571,16 @@ export const LEGAL_DOCUMENT_OUTLINES: Record<string, LegalDocumentOutline> = {
         title: "Volunteering",
         requires: "volunteerApplications",
       },
+      // Named through the lexicon (#896), like the nav group above the gear
+      // library: "gear" is one organization's word for what these tables call
+      // inventory, and a heading about what an organization gives away has to
+      // be in that organization's noun. `platformLegalDocument()` resolves it,
+      // so nothing downstream sees the placeholder.
+      {
+        id: "items-we-give-away",
+        title: "{item_plural} we give away",
+        requires: "gearRequests",
+      },
       {
         id: "accessibility-and-inclusion",
         title: "Accessibility and inclusion",

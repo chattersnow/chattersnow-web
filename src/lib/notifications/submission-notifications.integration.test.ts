@@ -176,6 +176,8 @@ async function newGearRequest(): Promise<{ id: string; email: string }> {
     p_honeypot: null,
     // A fresh IP per fixture: the RPC's own per-IP limit is 8 per 15 minutes.
     p_ip_address: uniqueIp(),
+    p_as_is_acknowledged: true,
+    p_as_is_text: "Given as-is.",
   });
   if (error) throw error;
   return { id: data as string, email };

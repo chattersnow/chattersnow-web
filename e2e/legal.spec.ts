@@ -192,6 +192,23 @@ test.describe("notice at the point of collection", () => {
     // "items" rather than "gear": the noun is this tenant's own word (#896),
     // and the seeded tenant has not renamed it.
     await expectPrivacyNotice(cart, /match you with the items you asked for/);
+
+    // #1367. Beside the notice and unlike it: a real choice, in an unticked
+    // box, which is the difference `docs/legal-basis.md` draws. The seeded
+    // tenant has adopted no terms of use, so the summary is shown in full and
+    // nothing links `/terms` -- a notice may only link a document that is
+    // served (#859).
+    const asIs = cart.getByRole("checkbox", {
+      name: /I understand the items are given as-is/,
+    });
+    await expect(asIs).toBeVisible();
+    await expect(asIs).not.toBeChecked();
+    await expect(
+      cart.getByText(/We give away items exactly as they reach us/),
+    ).toBeVisible();
+    await expect(cart.getByRole("link", { name: /Terms of Use/ })).toHaveCount(
+      0,
+    );
   });
 
   // The fifth form, and the one #684 missed (#1344). It is reached by its code

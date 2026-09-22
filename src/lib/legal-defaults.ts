@@ -1,3 +1,5 @@
+import { GEAR_AS_IS_SUMMARY } from "@/lib/gear-as-is";
+import { applyLexicon, applyLexiconAll, type Lexicon } from "@/lib/lexicon";
 import type { CollectionSurface } from "@/lib/legal-surface";
 import { RETENTION_POLICIES } from "@/lib/retention";
 import {
@@ -61,13 +63,24 @@ export type LegalOrgContext = {
    * bullets, retention rows and whole sections the documents below carry.
    */
   surfaces: CollectionSurface;
+  /**
+   * This organization's own words for what it lends (#896, #1367).
+   *
+   * Only the `items-we-give-away` section needs it today, and it is resolved
+   * over the whole document rather than in that one block: a placeholder that
+   * reaches a published legal page is a brace on screen an administrator has
+   * to report, and `applyLexicon` leaves text with no placeholder in it
+   * untouched. `lexicon.test.ts` sweeps every section of every document for a
+   * surviving one, the same way it sweeps the nav registries.
+   */
+  lexicon: Lexicon;
 };
 
 /**
  * Printed on all three documents. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 22, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 23, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -298,6 +311,22 @@ const TERMS: DocumentProse = {
     volunteering: (org) => [
       `Applying to volunteer doesn't create a job, an employment relationship, or a promise of a role, and volunteering with ${org.name} is unpaid. Some roles may require screening before you can take them on. Volunteers act on our behalf only within the role they've been given.`,
     ],
+    // #1367. The platform can write this one, unlike the participant waiver:
+    // every claim in it is about what the software and the organization
+    // running it do *not* do, which is rule 1 of `docs/legal-basis.md`. An
+    // organization that catalogs donated equipment and passes it on has not,
+    // by doing so, inspected or certified anything, and saying so asserts
+    // nothing on its behalf.
+    //
+    // The first paragraphs are `GEAR_AS_IS_SUMMARY` verbatim, because they are
+    // also what somebody reads above the box they tick when they ask for
+    // something. Two places saying nearly the same thing about liability is
+    // the failure mode worth spending a test on, so there is one constant and
+    // `legal-defaults.test.ts` holds this section to it.
+    "items-we-give-away": () => [
+      ...GEAR_AS_IS_SUMMARY,
+      "Where you ask us for something through this site, we show you this before you ask, and we keep a record that you saw it alongside the request.",
+    ],
     "accessibility-and-inclusion": () => [
       "We want our programs, events, and communications to be welcoming and usable. If you need an accommodation to take part in something — at an event, on this site, or in how we contact you — tell us and we'll work with you to find a reasonable way to make it happen. If something here is inaccessible, we'd rather hear about it than not.",
     ],
@@ -438,10 +467,15 @@ export function platformLegalDocument(
 ): LegalDocumentContent {
   const outline = LEGAL_DOCUMENT_OUTLINES[slotKey];
   const { sections } = prose(slotKey);
+  // Over the whole document rather than the one section that needs it
+  // (#1367): a `{item_plural}` that survived into a published legal page is a
+  // brace on screen, and `applyLexicon` is a no-op on a string with no
+  // placeholder in it.
+  const named = (text: string) => applyLexicon(text, org.lexicon);
   return {
-    title: outline.title,
+    title: named(outline.title),
     last_updated: PLATFORM_LEGAL_LAST_UPDATED,
-    summary: prose(slotKey).summary(org),
+    summary: applyLexiconAll(prose(slotKey).summary(org), org.lexicon),
     sections: outline.sections
       .filter(
         (section) =>
@@ -456,8 +490,8 @@ export function platformLegalDocument(
         // carries an id, a title and prose and nothing else.
         return {
           id: section.id,
-          title: section.title,
-          paragraphs: write(org),
+          title: named(section.title),
+          paragraphs: applyLexiconAll(write(org), org.lexicon),
         };
       }),
   };
@@ -468,5 +502,5 @@ export function platformLegalDescription(
   slotKey: string,
   org: LegalOrgContext,
 ): string {
-  return prose(slotKey).description(org);
+  return applyLexicon(prose(slotKey).description(org), org.lexicon);
 }

@@ -37,6 +37,7 @@ export function GearCartSheet({
   prefill,
   accountOffer = null,
   lexicon,
+  termsInForce = false,
 }: {
   items: GearItem[];
   open: boolean;
@@ -53,6 +54,8 @@ export function GearCartSheet({
   accountOffer?: AccountOffer | null;
   /** This organization's words (#896), for the checkout form's copy. */
   lexicon: Lexicon;
+  /** Whether this tenant serves `/terms` (#859), for the as-is notice (#1367). */
+  termsInForce?: boolean;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -150,6 +153,7 @@ export function GearCartSheet({
                   onSuccess={onSubmitted}
                   prefill={prefill}
                   lexicon={lexicon}
+                  termsInForce={termsInForce}
                 />
               </div>
             </>

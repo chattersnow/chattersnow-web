@@ -33,6 +33,7 @@ import {
   PLATFORM_LEGAL_SLOT_KEYS,
   type LegalOrgContext,
 } from "@/lib/legal-defaults";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 import type { CollectionSurface } from "@/lib/legal-surface";
 
 /**
@@ -55,6 +56,10 @@ const PLACEHOLDER: Omit<LegalOrgContext, "surfaces"> = {
   emailGeneral: "hello@example.org",
   emailPrivacy: "privacy@example.org",
   emailConduct: "conduct@example.org",
+  // The platform's own words rather than a tenant's (#1367). What is approved
+  // here is the sentence the platform wrote; an organization that lends tools
+  // reads "tools" in place of "items" and has agreed to no different claim.
+  lexicon: DEFAULT_LEXICON,
 };
 
 const ALL_ON: CollectionSurface = {

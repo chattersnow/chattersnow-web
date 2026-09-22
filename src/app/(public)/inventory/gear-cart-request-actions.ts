@@ -11,7 +11,9 @@ import {
   notifyNewGearRequest,
   sendGearRequestConfirmation,
 } from "@/lib/notifications/submission-notifications";
+import { gearAsIsText } from "@/lib/gear-as-is";
 import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
+import { getPublicLexicon } from "@/lib/lexicon";
 import type { PublicGearRequestOptions } from "@/lib/gear-requests";
 import { loadConstituentViewer } from "@/lib/constituent/viewer";
 import {
@@ -34,6 +36,8 @@ const ERROR_MESSAGES: Record<string, string> = {
     "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
   NAME_REQUIRED: "Name is required.",
   NO_RECORD: "We could not find your record. Please sign in again.",
+  AS_IS_REQUIRED:
+    "Please tick the box to confirm you understand these items are given as-is.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
   DELIVERY_METHOD_INVALID: "Choose how you'd like to receive your items.",
   SHIPPING_UNAVAILABLE:
@@ -58,11 +62,16 @@ export async function requestGearItemsAction(
 
   const supabase = await createSupabaseServerClient();
 
-  const [options, viewer] = await Promise.all([
+  const [options, viewer, lexicon] = await Promise.all([
     getPublicGearRequestOptions(supabase),
     loadConstituentViewer(supabase),
+    // The as-is wording, in this organization's noun (#1367). Resolved here
+    // and never taken from the browser: what lands in `gear_requests.as_is_text`
+    // has to be what the platform says, not what a client claims it showed.
+    getPublicLexicon(supabase),
   ]);
   const ipAddress = await getClientIp();
+  const asIsText = gearAsIsText(lexicon);
 
   // Which person the request lands on is decided here, from the session, and
   // never from anything the browser sent (#1359). A reader with an approved
@@ -73,13 +82,21 @@ export async function requestGearItemsAction(
   // matches or creates a person from the typed address.
   const submitted =
     viewer?.kind === "linked"
-      ? await submitAsMe(supabase, itemIds, formData, options, ipAddress)
+      ? await submitAsMe(
+          supabase,
+          itemIds,
+          formData,
+          options,
+          ipAddress,
+          asIsText,
+        )
       : await submitAnonymously(
           supabase,
           itemIds,
           formData,
           options,
           ipAddress,
+          asIsText,
         );
 
   if ("error" in submitted) return submitted;
@@ -128,6 +145,7 @@ async function submitAnonymously(
   formData: FormData,
   options: PublicGearRequestOptions,
   ipAddress: string | null,
+  asIsText: string,
 ): Promise<Submitted> {
   const parsed = parseGearRequestForm(formData, options);
   if ("error" in parsed) return parsed;
@@ -144,6 +162,8 @@ async function submitAnonymously(
     p_delivery_method: parsed.data.deliveryMethod,
     p_shipping: parsed.data.shipping,
     p_payment_method: parsed.data.paymentMethod,
+    p_as_is_acknowledged: parsed.data.asIsAcknowledged,
+    p_as_is_text: asIsText,
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
@@ -167,6 +187,7 @@ async function submitAsMe(
   formData: FormData,
   options: PublicGearRequestOptions,
   ipAddress: string | null,
+  asIsText: string,
 ): Promise<Submitted> {
   const parsed = parseGearRequestDelivery(formData, options);
   if ("error" in parsed) return parsed;
@@ -178,6 +199,8 @@ async function submitAsMe(
     p_delivery_method: parsed.data.deliveryMethod,
     p_shipping: parsed.data.shipping,
     p_payment_method: parsed.data.paymentMethod,
+    p_as_is_acknowledged: parsed.data.asIsAcknowledged,
+    p_as_is_text: asIsText,
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };

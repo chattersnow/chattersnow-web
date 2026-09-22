@@ -7,6 +7,7 @@ import {
   type LegalOrgContext,
 } from "@/lib/legal-defaults";
 import { collectionSurface, type CollectionSurface } from "@/lib/legal-surface";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 import { LEGAL_DOCUMENT_OUTLINES } from "@/lib/site-content";
 
 // The section nav beside each legal document is driven by that document's
@@ -24,6 +25,7 @@ const ORG: LegalOrgContext = {
   emailPrivacy: "privacy@example.org",
   emailConduct: "conduct@example.org",
   surfaces: collectionSurface({}, {}),
+  lexicon: DEFAULT_LEXICON,
 };
 
 /** A tenant with no public forms: the surface #1291 drops whole sections on. */

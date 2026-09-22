@@ -515,6 +515,7 @@ describe("writes", () => {
           item_ids: [gearItemId],
           name: "API Requester",
           email: uniqueEmail("api-gear"),
+          as_is_acknowledged: true,
         }),
       }),
       tenantParams(),
@@ -527,6 +528,43 @@ describe("writes", () => {
       "item status",
     );
     expect(item.status).toBe("reserved");
+
+    // The wording is the endpoint's, not the caller's (#1367): a headless
+    // consumer says the requester was told, and the platform says what.
+    const [request] = await must(
+      service
+        .from("gear_requests")
+        .select("as_is_acknowledged_at, as_is_text")
+        .order("created_at", { ascending: false })
+        .limit(1),
+      "the request just made",
+    );
+    expect(request.as_is_acknowledged_at).not.toBeNull();
+    expect(request.as_is_text).toContain("exactly as they reach us");
+  });
+
+  // #1366 is the same mistake made once already: a new RPC parameter with no
+  // field in the schema to feed it. Here the field is required, so a body
+  // without it does not reach the database at all.
+  test("a gear request without the as-is acknowledgement is a 422", async () => {
+    const response = await postGearRequest(
+      apiRequest(`/api/v1/t/${SLUG}/gear-requests`, {
+        method: "POST",
+        body: JSON.stringify({
+          item_ids: [gearItemId],
+          name: "API Requester",
+          email: uniqueEmail("api-gear-no-ack"),
+        }),
+      }),
+      tenantParams(),
+    );
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("invalid_request");
+    expect(Object.keys(body.error.fields ?? {})).toContain(
+      "as_is_acknowledged",
+    );
   });
 
   test("a registration for another tenant's event is a 404", async () => {

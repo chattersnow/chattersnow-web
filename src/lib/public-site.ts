@@ -145,6 +145,10 @@ export async function legalOrg(
     emailPrivacy: site.content.text("org.email_privacy"),
     emailConduct: site.content.text("org.email_conduct"),
     surfaces: collectionSurface(visibility, modules),
+    // Already resolved for this host (#896): the site read it to name the nav
+    // and the content slots, so the terms of use naming what this organization
+    // gives away costs nothing extra (#1367).
+    lexicon: site.lexicon,
   };
 }
 
