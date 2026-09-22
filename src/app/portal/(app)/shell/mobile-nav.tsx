@@ -55,12 +55,9 @@ const ACCOUNT_ROW_CLASS =
 export function MobileNav({
   permissions,
   lexicon = DEFAULT_VOCABULARY,
-  legalLinks = [],
 }: {
   permissions: PermissionMap;
   lexicon?: Lexicon;
-  /** What this organization serves, for the sheet's footer (#687). */
-  legalLinks?: { label: string; href: string }[];
 }) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -350,25 +347,6 @@ export function MobileNav({
               <LogOut className="size-4 shrink-0" aria-hidden />
               {isSigningOut ? "Signing out..." : "Log out"}
             </button>
-            {/* The same footnote the desktop sidebar carries (#687), and only
-                the documents this organization actually serves. */}
-            {legalLinks.length > 0 && (
-              <nav aria-label="Legal" className="px-3 pt-2">
-                <ul className="app-muted flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  {legalLinks.map((link) => (
-                    <li key={link.href}>
-                      <Link
-                        href={link.href}
-                        onClick={() => setSheetOpen(false)}
-                        className="hover:underline"
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            )}
           </div>
         </SheetContent>
       </Sheet>

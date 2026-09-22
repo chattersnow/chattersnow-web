@@ -18,6 +18,8 @@ import {
   getConductProcess,
   type ConductProcess,
 } from "@/lib/conduct";
+import { getLegalPublication } from "@/lib/legal-publication";
+import { legalDocument } from "@/lib/legal-documents";
 import {
   CONDUCT_LIST_COLUMNS,
   acknowledgementBadge,
@@ -52,10 +54,17 @@ export default async function ConductPage({
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "conduct_reports", "manage");
 
-  const [zone, process] = await Promise.all([
+  const [zone, process, legalPublication] = await Promise.all([
     getOrgTimeZone(supabase),
     getConductProcess(supabase),
+    getLegalPublication(supabase),
   ]);
+  // The document this page measures against, linked where the work happens
+  // rather than from the sidebar footer (#1392), and only when this
+  // organization serves it: an unadopted document 404s (#859).
+  const codeOfConductHref = legalPublication.code_of_conduct
+    ? (legalDocument("code_of_conduct")?.route ?? null)
+    : null;
   const today = todayInZone(zone);
 
   let query = supabase
@@ -129,7 +138,11 @@ export default async function ConductPage({
         arrives in it.
       </p>
 
-      <ProcessSummary process={process} canManage={canManage} />
+      <ProcessSummary
+        process={process}
+        canManage={canManage}
+        codeOfConductHref={codeOfConductHref}
+      />
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2 text-sm">
@@ -235,9 +248,11 @@ function FilterLink({
 function ProcessSummary({
   process,
   canManage,
+  codeOfConductHref,
 }: {
   process: ConductProcess;
   canManage: boolean;
+  codeOfConductHref: string | null;
 }) {
   const commitments = [
     process.acknowledgementDays !== null &&
@@ -256,12 +271,42 @@ function ProcessSummary({
   return (
     <p className="app-muted mt-3 max-w-2xl text-sm">
       {commitments.length > 0 ? (
-        <>Measured against what your code of conduct says: {sentence}. </>
+        <>
+          Measured against what your{" "}
+          {codeOfConductHref ? (
+            <Link
+              href={codeOfConductHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="code of conduct (opens in new tab)"
+              className="underline underline-offset-2"
+            >
+              code of conduct
+            </Link>
+          ) : (
+            "code of conduct"
+          )}{" "}
+          says: {sentence}.{" "}
+        </>
       ) : (
         <>
           Your organization has not recorded what it promises about
           acknowledging a report, reviewing one or hearing an appeal, so nothing
           here carries a deadline.{" "}
+          {codeOfConductHref && (
+            <>
+              <Link
+                href={codeOfConductHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Read your code of conduct (opens in new tab)"
+                className="underline underline-offset-2"
+              >
+                Read your code of conduct
+              </Link>
+              .{" "}
+            </>
+          )}
         </>
       )}
       {canManage && (
