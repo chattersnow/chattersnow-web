@@ -151,18 +151,22 @@ export const eventRegistrationSchema = z
       description:
         "The agreement version the person was shown, if you track it. Sending one that is no longer in force is refused rather than accepted against text nobody read; omitting it accepts whatever is in force now.",
     }),
-    // #599, and optional for the same reason as the minors question: an
-    // omitted field records that nobody was asked, which is both correct for
-    // a caller written before the question existed and correct for the
-    // overwhelming majority of organizations, which have written no scope.
+    // #599, reinterpreted by #1376. The field, its type and its optionality
+    // are unchanged -- this is a published API contract -- but what it records
+    // is now an objection rather than an answer to a question. Omitting it
+    // records nothing, which is correct for a caller written before the field
+    // existed, correct for the overwhelming majority of organizations, which
+    // publish no photo notice, and what this platform's own registration forms
+    // now do: they have no control, and a form with no affirmative control
+    // cannot produce an affirmative record.
     //
-    // A `false` is a real decline and is stored as one; it never refuses the
-    // registration. The scope the answer is recorded against is read from the
+    // A `false` is an objection and is stored as one; it never refuses the
+    // registration. The paragraphs it is recorded against are read from the
     // organization's own row server-side, never from this body, so sending
-    // `true` is an assertion that the person was shown it.
+    // `true` is still an assertion that the person was shown them.
     photo_consent: z.boolean().optional().meta({
       description:
-        "Whether the person agreed to be photographed or recorded. Show them the events.photo_consent paragraphs from GET /content first; send false for a decline, which is recorded as one, and omit it entirely if you did not ask. It is never read as a no.",
+        "Send false to record that the person asked not to be photographed or recorded; it is stored as an objection and never refuses the registration. Send true only if they told you explicitly that photos are fine, after you showed them the events.photo_consent paragraphs from GET /content. Omit it — which is what this organization's own registration form does — and nothing is recorded; that is never read as an objection.",
     }),
   })
   .meta({ id: "EventRegistration" });

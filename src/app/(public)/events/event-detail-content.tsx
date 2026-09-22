@@ -122,10 +122,11 @@ function EventDetailBody({
    */
   minorAccompaniment: string[];
   /**
-   * This organization's photo and media consent scope (#599), shown above an
-   * unticked box. Empty on a tenant that has written none, and empty means
-   * the question is not asked at all -- the form renders exactly what it
-   * rendered before this shipped.
+   * This organization's photos-and-video paragraphs (#599, #1376), shown as a
+   * notice on the registration form. There is no box: registering carries the
+   * agreement, and objecting happens afterwards. Empty on a tenant that has
+   * written none, and empty means the form says nothing at all about photos --
+   * exactly what it rendered before #599 shipped.
    */
   photoConsent: string[];
 }) {

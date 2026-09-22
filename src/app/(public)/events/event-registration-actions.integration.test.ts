@@ -1041,14 +1041,18 @@ describe("register_for_event and a party with a minor", () => {
   });
 });
 
-// #599: photo and media consent. Three states, and the one worth the most is
-// the decline -- which is exactly the state a waiver cannot have, because
-// declining a waiver is declining to register.
+// #599, reversed by #1376: the three columns hold an OBJECTION now, and
+// `false` -- do not photograph -- is the one state with an operational job.
+// The RPC is unchanged and still honours an explicit `p_photo_consent`,
+// because that is the published API contract and the only remaining
+// registration-time writer. What changed is the Server Action above it, which
+// no longer passes the parameter at all: the form has no control, so a
+// registration taken through this platform rests at three nulls.
 //
-// The scope is a tenant content slot, so every case here writes or withholds
-// `events.photo_consent`, and the unwritten case is the one almost every
-// organization is in.
-describe("register_for_event and photo consent", () => {
+// The paragraphs are a tenant content slot, so every case here writes or
+// withholds `events.photo_consent`, and the unwritten case is the one almost
+// every organization is in.
+describe("register_for_event and the photo objection record", () => {
   const SCOPE = [
     "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
     "We never sell them, and we will take one down if you ask.",
@@ -1115,7 +1119,7 @@ describe("register_for_event and photo consent", () => {
   }
 
   // The state almost every tenant is in, and the one that must never break.
-  test("records nothing when the organization has written no scope", async () => {
+  test("records nothing when the organization has written no paragraphs", async () => {
     currentIp = uniqueIp();
     const { id } = await event();
     const email = uniqueEmail("photo-none");
@@ -1145,7 +1149,7 @@ describe("register_for_event and photo consent", () => {
     });
   });
 
-  test("an omitted answer is unasked, even where the organization is asking", async () => {
+  test("an omitted answer records nothing, even where paragraphs are written", async () => {
     await writeScope();
     const { data, error } = await registerWith({});
 
@@ -1157,7 +1161,10 @@ describe("register_for_event and photo consent", () => {
     });
   });
 
-  test("a decline is stored as a decline, and the registration is taken", async () => {
+  // The API contract, and the one thing about the RPC that #1376 must not
+  // change: a caller that genuinely asked can still record an objection at
+  // registration time, and it is never a reason to refuse the registration.
+  test("an explicit false is stored as an objection, and the registration is taken", async () => {
     await writeScope();
     const { data, error, eventId, email } = await registerWith({
       p_photo_consent: false,
@@ -1171,7 +1178,7 @@ describe("register_for_event and photo consent", () => {
     expect(row.photo_consent_at).not.toBeNull();
   });
 
-  test("a grant is stored with the moment it was given", async () => {
+  test("an explicit true is stored with the moment it was given", async () => {
     await writeScope();
     const { data, error } = await registerWith({ p_photo_consent: true });
 
@@ -1227,35 +1234,40 @@ describe("register_for_event and photo consent", () => {
     });
   });
 
-  // Both registration paths resolve through one function so they cannot
-  // disagree, and a disagreement would be silent in the direction that matters
-  // -- one path recording consent the other would have declined. This covers
-  // the anonymous path end to end through the action.
-  test("the action path reaches the same resolver", async () => {
+  // #1376's central claim, end to end and through the Server Action: with
+  // paragraphs written and a `photoConsent` field forced onto the FormData,
+  // the row still rests at three nulls. The action does not pass
+  // `p_photo_consent`, the parser does not read the field, and nothing
+  // between a browser and the column can put an answer back.
+  test("the action path leaves all three columns null, even with paragraphs written", async () => {
     await writeScope();
     currentIp = uniqueIp();
     const { id } = await event();
     const email = uniqueEmail("photo-action");
 
     const fd = formData({ name: "Jamie", email });
-    fd.set("photoConsent", "off");
+    // Nothing on the form sets this any more. Forced here so the test fails
+    // if a future change starts reading it again.
+    fd.set("photoConsent", "on");
     expect(await registerForEventAction(id, fd)).toMatchObject({
       success: true,
     });
 
     const registration = await registrationFor(id, email);
-    const row = await readRow(registration.id as string);
-    expect(row.photo_consent).toBe(false);
-    expect(row.photo_consent_text).toBe(SCOPE.join("\n\n"));
+    expect(await readRow(registration.id as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
   });
 
-  // The portal's "we never asked" / "this row predates the question" split,
-  // answered without `site_content: view` so an events:view door shift can
-  // read it. Asked as a signed-in staff account rather than through the
+  // The portal's "there is something to object to here" / "this organization
+  // says nothing about photos" split, answered without `site_content: view`
+  // so an events:view door shift can read it. Asked as a signed-in staff account rather than through the
   // service role, because it resolves `current_tenant_id()` -- which the
   // service role has no session to resolve, and which is the whole point of
   // not reading the request host here.
-  test("the portal can tell whether the organization is asking", async () => {
+  test("the portal can tell whether the organization publishes a notice", async () => {
     expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
       false,
     );
@@ -1265,7 +1277,7 @@ describe("register_for_event and photo consent", () => {
     );
   });
 
-  test("a scope of nothing but blanks does not count as asking", async () => {
+  test("paragraphs of nothing but blanks do not count as a notice", async () => {
     await writeScope(["  ", ""]);
     expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
       false,

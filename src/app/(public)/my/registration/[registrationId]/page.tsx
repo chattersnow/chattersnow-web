@@ -29,21 +29,24 @@ export default async function MyRegistrationPage({
 
   const supabase = await createSupabaseServerClient();
 
-  // #599. The one thing on this page that is theirs to change rather than to
-  // read: whether they are happy to be photographed. A consent that cannot be
-  // withdrawn is not consent, and `/terms`' other route out of it -- email --
-  // depends on somebody reading a mailbox.
+  // #599, reversed by #1376. The one thing on this page that is theirs to
+  // change rather than to read: asking not to be photographed. It is the
+  // self-service one of the three routes the registration form names, and the
+  // narrowest -- the other two, an organizer and email, reach everybody, and
+  // this one reaches only somebody who has claimed an account.
   //
   // Read through `my_photo_consent()`, which resolves the person itself, so an
   // id belonging to somebody else returns no rows and renders nothing. That is
   // the same silence `ClaimHandoff` keeps above: a page that said "not yours"
   // would be a way to test ids.
   //
-  // `asked` is whether the organization is asking *now*, which is not the same
-  // as whether it asked when they registered -- a tenant that has since
-  // written a scope should be able to collect an answer from a null row. The
-  // paragraphs come from the live slot for the same reason: somebody changing
-  // their mind is answering today's words, which is what the RPC snapshots.
+  // `asked` is whether the organization publishes a photo notice *now* -- that
+  // is, whether there is anything to object to. It is computed from the
+  // tenant's slot alone, with no reference to this row's own columns, so the
+  // control appears for every registrant of a tenant that publishes one,
+  // including the overwhelming majority whose columns are null. The paragraphs
+  // come from the live slot for the same reason: somebody objecting is
+  // objecting to today's words, which is what the RPC snapshots.
   const { data: photoRows } = await supabase.rpc("my_photo_consent", {
     p_registration_id: registrationId,
   });

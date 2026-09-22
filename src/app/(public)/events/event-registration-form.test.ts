@@ -135,54 +135,32 @@ describe("parseEventRegistrationForm", () => {
         accompanying_adult_phone: null,
         emergency_contact_name: null,
         emergency_contact_phone: null,
-        // No scope written, so no box was rendered and the field is absent.
-        // Null is "nobody was asked", which is the only honest reading (#599).
-        photo_consent: null,
       },
     });
   });
 
-  // #599. Three states, and the middle one is why the column is nullable: a
-  // box that was on screen and left unticked is a decline, not an absence, and
-  // a field that never existed is an absence, not a decline.
-  describe("photo consent", () => {
-    const base = { name: "Jane", email: "jane@example.com" };
+  // #1376 removed the box, the parser's `photo_consent` field and
+  // `parsePhotoConsent` with it. This is the wire guard: nothing a browser
+  // sends can put an answer back on the registration, because nothing here
+  // reads the field at all. Under #599 a `photoConsent` of `"on"` produced a
+  // stored `true`; a form with no affirmative control must not be able to
+  // produce one, however it is posted.
+  test("a photoConsent field in the FormData is ignored entirely", () => {
+    for (const photoConsent of ["on", "off", "true", "yes"]) {
+      const result = parseEventRegistrationForm(
+        formData({
+          name: "Jane",
+          email: "jane@example.com",
+          photoConsent,
+        }),
+      );
 
-    test("a ticked box is consent", () => {
-      expect(
-        parseEventRegistrationForm(formData({ ...base, photoConsent: "on" })),
-      ).toMatchObject({ data: { photo_consent: true } });
-    });
-
-    test("an unticked box that was rendered is a decline", () => {
-      expect(
-        parseEventRegistrationForm(formData({ ...base, photoConsent: "off" })),
-      ).toMatchObject({ data: { photo_consent: false } });
-    });
-
-    test("an absent field is unasked, and never a decline", () => {
-      expect(parseEventRegistrationForm(formData(base))).toMatchObject({
-        data: { photo_consent: null },
-      });
-    });
-
-    // Anything the form did not send is no answer at all, the same discipline
-    // `attendedBefore` and the minors question apply.
-    test("an unrecognised value is unasked", () => {
-      for (const photoConsent of ["yes", "true", "1", "  "]) {
-        expect(
-          parseEventRegistrationForm(formData({ ...base, photoConsent })),
-        ).toMatchObject({ data: { photo_consent: null } });
-      }
-    });
-
-    // The parser cannot refuse a decline and must not try: declining is a
-    // valid submission, so there is no error branch for it to reach.
-    test("declining never fails the parse", () => {
-      expect(
-        parseEventRegistrationForm(formData({ ...base, photoConsent: "off" })),
-      ).toHaveProperty("data");
-    });
+      expect(result).toHaveProperty("data");
+      expect("data" in result && result.data).not.toHaveProperty(
+        "photo_consent",
+      );
+      expect(JSON.stringify(result)).not.toMatch(/photo/i);
+    }
   });
 
   // #1259. Three states, and the third is the common one: the question is

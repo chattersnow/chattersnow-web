@@ -81,11 +81,13 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // visited the site. Whether the party included a minor is kept, like the
     // party size: it describes the party, not the people in it.
     //
-    // Photo and media consent goes too (#599), which is the opposite of what
+    // The photo columns go too (#599, #1376), which is the opposite of what
     // happens to the participant agreement on the same row. An acceptance is a
-    // fact about an act and stands without a name; a photo consent is a fact
-    // about a face, and an anonymized "declined" protects nobody because there
-    // is no longer a name to check a photograph against.
+    // fact about an act and stands without a name; these are a fact about a
+    // face. An anonymized objection protects nobody, because there is no
+    // longer a name to check a photograph against and nobody at a door can be
+    // recognised as its subject -- an instruction about a face nobody can
+    // identify is no more useful than a permission was.
     howLong: "3 years after the event.",
     period: "3 years",
     surface: "eventRegistrations",

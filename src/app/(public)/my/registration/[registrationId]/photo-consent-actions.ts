@@ -19,24 +19,28 @@ const ERROR_MESSAGES: Record<string, string> = {
     "We could not find that registration on your account.",
   NO_RECORD: "We could not find that registration on your account.",
   [PHOTO_CONSENT_UNAVAILABLE_CODE]: PHOTO_CONSENT_UNAVAILABLE_ERROR,
-  // The control only sends true or false, so this is a hand-crafted post.
-  PHOTO_CONSENT_REQUIRED: "Please choose yes or no.",
+  // The control only ever sends true or false, so nothing in the interface can
+  // reach this. Kept as a last line: null is "no objection on record", and
+  // writing it back would erase the record of having objected.
+  PHOTO_CONSENT_REQUIRED:
+    "We could not save that. Tell any organizer at the event, or email us, and we will put it on the record.",
 };
 
 /**
- * Changing your mind about being photographed (#599).
+ * Recording or withdrawing an objection to being photographed (#599, #1376).
  *
- * **A consent that cannot be withdrawn is not consent**, which is the
- * substantive difference from the participant waiver: an acceptance records an
- * act that happened and stands, and this records a permission that is either
- * still given or is not. `/terms` already promises a takedown route by email;
- * this is the one that does not depend on somebody reading a mailbox.
+ * `false` records the objection and `true` withdraws it. Null is refused by
+ * the RPC, because null means "no objection on record" and writing it back
+ * would erase the record of having objected — the one thing the three states
+ * exist to keep straight.
  *
- * It reaches whoever has claimed an account, and only their own rows —
+ * **This is the self-service route and the narrowest of the three.** It
+ * reaches whoever has claimed an account, and only their own rows —
  * `set_my_photo_consent()` resolves the person itself through
- * `my_constituent_person_id('events')`, so whose answer is written is never
- * the caller's to choose. An anonymous registrant still has the email route
- * and nothing here takes it away.
+ * `my_constituent_person_id('events')`, so whose record is written is never
+ * the caller's to choose. Most registrants have never claimed an account,
+ * which is why the registration form names an organizer and email first and
+ * qualifies this one rather than promising it.
  */
 export async function setMyPhotoConsentAction(
   registrationId: string,
@@ -53,7 +57,7 @@ export async function setMyPhotoConsentAction(
     return {
       error:
         ERROR_MESSAGES[error.message] ??
-        "Could not save your answer. Please try again.",
+        "Could not save that. Please try again.",
     };
   }
 

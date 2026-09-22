@@ -776,11 +776,13 @@ describe("a participant waiver over the API", () => {
   });
 });
 
-describe("photo consent over the API", () => {
-  // #599, and the only configuration-dependent field that is never a gate: a
-  // decline is a valid answer and the registration is still taken. A caller
-  // that omits the field records that nobody was asked, which is what almost
-  // every caller of almost every organization does.
+describe("the photo objection record over the API", () => {
+  // #599, reinterpreted by #1376. The field, its type and its optionality are
+  // unchanged -- this is a published contract -- but `false` now records an
+  // OBJECTION rather than a declined consent, and it is still the only
+  // configuration-dependent field that is never a gate. Omitting it records
+  // nothing, which is what almost every caller of almost every organization
+  // does and what this platform's own registration forms now do.
   const SCOPE = [
     "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
   ];
@@ -833,14 +835,14 @@ describe("photo consent over the API", () => {
       .eq("key", "events.photo_consent");
   });
 
-  test("an organization that asks nothing records nothing, whatever is sent", async () => {
+  test("an organization publishing nothing records nothing, whatever is sent", async () => {
     expect(await register({ photo_consent: true })).toEqual({
       photo_consent: null,
       photo_consent_text: null,
     });
   });
 
-  test("GET /content is where an integrator reads the scope", async () => {
+  test("GET /content is where an integrator reads the paragraphs", async () => {
     await writeScope();
     const response = await getContent(
       apiRequest(`/api/v1/t/${SLUG}/content`),
@@ -852,7 +854,7 @@ describe("photo consent over the API", () => {
     expect(body.content["events.photo_consent"]).toEqual(SCOPE);
   });
 
-  test("a decline is recorded as one, and the registration is still taken", async () => {
+  test("a false is recorded as an objection, and the registration is still taken", async () => {
     await writeScope();
     const row = await register({ photo_consent: false });
 
@@ -861,7 +863,7 @@ describe("photo consent over the API", () => {
     expect(row.photo_consent_text).toBe(SCOPE.join("\n\n"));
   });
 
-  test("omitting it records that nobody was asked, not a no", async () => {
+  test("omitting it records nothing, and nothing is never an objection", async () => {
     await writeScope();
     expect(await register({})).toEqual({
       photo_consent: null,

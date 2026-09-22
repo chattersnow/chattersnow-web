@@ -1986,27 +1986,34 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     key: "events.photo_consent",
     page: "events",
     section: "events:registration",
-    label: "Photo and video consent",
+    label: "Photos and video at your events",
     description:
-      "What you do with photos and video of the people at your events — your own site and social accounts, press, sponsors, funder reports — shown on the registration form above a box somebody can leave unticked. Write this and the form asks; leave it blank and it asks nothing and records nothing. Say what you never do with a photo as well: this is the text a registrant's answer is kept against.",
+      "What you do with photos and video of the people at your events — your own site and social accounts, press, sponsors, funder reports — and that registering for an event means agreeing to it. This is a notice on the registration form, not a question: there is no box, and writing it is what makes a submission carry the agreement. Leave it blank and the form says nothing at all about photos. Say what you never do with a photo as well, and name how somebody asks you to take one down — the platform tells them they can object to any organizer, by email, or from their registration page, and that promise is only as good as the mailbox you give them.",
     type: "paragraphs",
     // Blank, like `events.minor_accompaniment` above it, and one step further
-    // (#599). There the platform still prints what the form collects, because
-    // it collects a guardian's number whatever a tenant has written. Here an
-    // unwritten slot means the question is not asked at all: the component
-    // renders nothing, the box does not exist and all three columns stay null.
+    // (#599, #1376). There the platform still prints what the form collects,
+    // because it collects a guardian's number whatever a tenant has written.
+    // Here an unwritten slot means the form says nothing whatsoever: no
+    // heading, no notice, and byte-identical to the form before #599 shipped.
     //
-    // The reason is `docs/legal-basis.md` rule 2 at its sharpest. What an
-    // organization does with a photo of somebody's face is off-platform and
-    // unknowable from this codebase, and a scope invented here would be a
-    // commitment made on a tenant's behalf -- the most consequential kind,
-    // since a registrant would be consenting to it. Almost every tenant is in
-    // the blank state and it is the one that must never break.
+    // The reason is `docs/legal-basis.md` rule 2 at its sharpest, and #1376
+    // sharpened it again. What an organization does with a photo of somebody's
+    // face is off-platform and unknowable from this codebase; worse, since
+    // #1376 these paragraphs are what makes *registering itself* carry the
+    // agreement, and inventing them here would be the platform implying an
+    // agreement on a tenant's behalf. The platform's own sentence beneath them
+    // describes only the mechanism and the remedy, which are facts about this
+    // software. Almost every tenant is in the blank state and it is the one
+    // that must never break.
     //
-    // Unlike the slot above, what this one carries *is* collected: an unticked
-    // box is a decline, stored as one, and the paragraphs are snapshotted onto
-    // the registration as the text that answer was given against (#1319's
-    // shape, not #686's -- there is no version table and no permalink here).
+    // This is why the description above is treated as legal surface rather
+    // than helper text: it is the only place a tenant admin is told that
+    // filling in a content slot changes what a submission means.
+    //
+    // Nothing on the form is collected against these words any more. They are
+    // still snapshotted onto a registration -- by `set_my_photo_consent()`,
+    // when somebody objects -- as the text that objection was made against
+    // (#1319's shape, not #686's: no version table and no permalink here).
     default: [],
   },
   {

@@ -1,17 +1,19 @@
-// Changing your mind about being photographed (#599), against a real local
-// stack.
+// Asking not to be photographed, from your own registration (#599, #1376),
+// against a real local stack.
 //
-// **A consent that cannot be withdrawn is not consent**, which is the whole
-// reason `set_my_photo_consent()` exists and the reason nothing like it exists
-// for the participant waiver: an acceptance records an act that happened and
-// stands, and a permission is either still given or is not.
+// Registering carries the agreement now, and the remedy is objection, so these
+// two functions are the SELF-SERVICE one of the three routes the registration
+// form names -- and the narrowest, because they resolve through
+// `my_constituent_person_id('events')` and reach only somebody who has claimed
+// an account. Telling an organizer and emailing are the other two and neither
+// passes through this database.
 //
 // What is under test is the part a policy cannot express: whose row a signed-in
-// constituent may write, what happens when the organization stops asking, and
-// that the text is re-snapshotted rather than carried over. There is no RLS
-// path for any of it -- `event_registrations`' only update policy requires
-// events:manage and its grant is table-level -- so these two definer functions
-// are the entire surface.
+// constituent may write, what happens when the organization takes its notice
+// down, and that the text is re-snapshotted rather than carried over. There is
+// no RLS path for any of it -- `event_registrations`' only update policy
+// requires events:manage and its grant is table-level -- so these two definer
+// functions are the entire surface.
 //
 // Requires `bun run db:start && bun run db:reset`; run via
 // `bun run test:integration`.
@@ -163,7 +165,7 @@ afterAll(async () => {
 });
 
 describe("set_my_photo_consent", () => {
-  test("withdraws a consent, re-stamping the moment and the text", async () => {
+  test("records an objection, stamping the moment and the text", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, true);
@@ -176,15 +178,15 @@ describe("set_my_photo_consent", () => {
 
     const row = await readRow(registrationId);
     expect(row.photo_consent).toBe(false);
-    // Re-snapshotted, not carried over: they are answering the words as they
-    // read today, and those are what this answer was given against.
+    // Re-snapshotted, not carried over: they are objecting to the words as
+    // they read today, and those are what this objection was made against.
     expect(row.photo_consent_text).toBe(SCOPE.join("\n\n"));
     expect(new Date(row.photo_consent_at as string).getUTCFullYear()).toBe(
       new Date().getUTCFullYear(),
     );
   });
 
-  test("gives one back, because withdrawal runs both ways", async () => {
+  test("withdraws an objection, because it runs both ways", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, false);
@@ -201,10 +203,9 @@ describe("set_my_photo_consent", () => {
     expect((await readRow(registrationId)).photo_consent).toBe(true);
   });
 
-  // A tenant that has written a scope since somebody registered should be able
-  // to collect an answer from a row whose columns are null -- which is what
-  // `asked` on the reader is for.
-  test("answers a question nobody put at the time", async () => {
+  // The ordinary case since #1376: every registration this platform takes
+  // rests at three nulls, and the objection is recorded afterwards.
+  test("writes against a row whose columns are all null", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, null);
@@ -222,8 +223,8 @@ describe("set_my_photo_consent", () => {
   });
 
   // Refused rather than quietly cleared. Nulling the row would destroy the
-  // record of a decline, and a decline is the answer an organizer acts on.
-  test("refuses where the organization has stopped asking, and leaves the answer alone", async () => {
+  // record of an objection, and the objection is what an organizer acts on.
+  test("refuses where the organization publishes no notice, and leaves the record alone", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, false);
@@ -238,10 +239,10 @@ describe("set_my_photo_consent", () => {
     expect((await readRow(registrationId)).photo_consent).toBe(false);
   });
 
-  // Null is "nobody asked". Writing it back would let somebody erase the
-  // record of having been asked, which is the one thing the three states exist
-  // to keep straight. Withdrawing is `false`.
-  test("will not write the not-asked state back", async () => {
+  // Null is "no objection on record". Writing it back would let somebody erase
+  // the record of having objected, which is the one thing the three states
+  // exist to keep straight. Objecting is `false`; withdrawing is `true`.
+  test("will not write the no-objection state back", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, true);
@@ -271,7 +272,7 @@ describe("set_my_photo_consent", () => {
 });
 
 describe("my_photo_consent", () => {
-  test("reports the answer and that the organization is asking", async () => {
+  test("reports the objection and that the organization publishes a notice", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, false);
@@ -284,8 +285,9 @@ describe("my_photo_consent", () => {
   });
 
   // The distinction the portal and this page both need: whether the
-  // organization asks *now* is not whether it asked when they registered.
-  test("says the organization is not asking once the scope is empty", async () => {
+  // organization publishes a notice *now* is not whether this row carries
+  // anything.
+  test("says the organization publishes nothing once the slot is empty", async () => {
     await writeScope();
     const { client, personId } = await constituent();
     const registrationId = await registrationFor(personId, true);
@@ -294,8 +296,33 @@ describe("my_photo_consent", () => {
     const { data } = await client.rpc("my_photo_consent", {
       p_registration_id: registrationId,
     });
-    // Still holds the answer; just no longer offers a control for it.
+    // Still holds the record; just no longer offers a control for it.
     expect(data?.[0]).toMatchObject({ asked: false, consent: true });
+  });
+
+  // **The test the whole #1376 model rests on, and which did not exist under
+  // #599.** `asked` is computed from the tenant's slot alone, with no
+  // reference to the row's own columns, so the objection control appears for
+  // every registrant of a tenant that publishes a notice -- including the
+  // overwhelming majority whose three columns are null, which since #1376 is
+  // every registration this platform takes. If this ever started depending on
+  // the row, the self-service route would vanish for almost everybody.
+  test("asked is true for a row with all three columns null", async () => {
+    await writeScope();
+    const { client, personId } = await constituent();
+    const registrationId = await registrationFor(personId, null);
+
+    expect(await readRow(registrationId)).toMatchObject({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+
+    const { data, error } = await client.rpc("my_photo_consent", {
+      p_registration_id: registrationId,
+    });
+    expect(error).toBeNull();
+    expect(data?.[0]).toMatchObject({ asked: true, consent: null });
   });
 
   test("returns no rows for a registration that is not theirs", async () => {
