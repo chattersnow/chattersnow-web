@@ -8646,15 +8646,15 @@ export type Database = {
         };
         Returns: number;
       };
-      acknowledged_as_is: {
-        Args: { p_acknowledged: boolean; p_text: string };
-        Returns: string;
-      };
       account_email: {
         Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
         Returns: {
           error: true;
         } & "the function public.account_email with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
+      };
+      acknowledged_as_is: {
+        Args: { p_acknowledged: boolean; p_text: string };
+        Returns: string;
       };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
       approve_event_expense: {
