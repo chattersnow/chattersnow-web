@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Json } from "@/lib/supabase/types";
 import {
   act,
   configure,
   fireEvent,
+  getConfig,
   screen,
   waitFor,
   within,
@@ -45,7 +46,24 @@ type ActionResult = { error: string } | { success: true };
  */
 const ACTION_TIMEOUT_MS = 5_000;
 
-configure({ asyncUtilTimeout: ACTION_TIMEOUT_MS });
+/**
+ * Raised for this file's tests only, and put back afterwards.
+ *
+ * `configure()` writes to Testing Library's process-wide config, and Bun
+ * preloads one module registry per process, so a call at module scope is a
+ * budget this file imposes on every other DOM file the runner reaches after
+ * it -- which made another file's timings depend on run order rather than on
+ * its own code (#1381).
+ */
+const defaultAsyncUtilTimeout = getConfig().asyncUtilTimeout;
+
+beforeEach(() => {
+  configure({ asyncUtilTimeout: ACTION_TIMEOUT_MS });
+});
+
+afterEach(() => {
+  configure({ asyncUtilTimeout: defaultAsyncUtilTimeout });
+});
 
 /**
  * Waits for a save's transition to close.
