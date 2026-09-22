@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EMPTY_CONTACT_PREFILL } from "@/lib/constituent/viewer";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 
 // The action module reaches the admin client, which is `server-only`-guarded
 // and throws outside Next's bundler. Neutralising the guard lets it load so
@@ -25,6 +26,9 @@ const { GearCartCheckoutForm } = await import("./gear-cart-checkout-form");
 
 const OPTIONS = { shippingEnabled: false, paymentMethods: [] };
 
+/** The box every request has to carry since #1367. */
+const AS_IS = /I understand the items are given as-is/;
+
 /** The FormData the action was last called with, as plain fields. */
 function lastSubmission() {
   const call = requestGearItemsActionMock.mock.calls.at(-1);
@@ -36,6 +40,10 @@ describe("GearCartCheckoutForm", () => {
   beforeEach(() => {
     requestGearItemsActionMock.mockClear();
   });
+
+  /** Tick the as-is box, which every path has to do before submitting. */
+  const acknowledge = (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByRole("checkbox", { name: AS_IS }));
 
   const LINKED = {
     ...EMPTY_CONTACT_PREFILL,
@@ -100,6 +108,7 @@ describe("GearCartCheckoutForm", () => {
     await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
     await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
     await user.type(screen.getByLabelText("Instagram"), "@jane.rivers");
+    await acknowledge(user);
     await user.click(screen.getByRole("button", { name: /Request 1 item/ }));
 
     // The form does not normalize: parseGearRequestForm strips the @ and
@@ -146,10 +155,14 @@ describe("GearCartCheckoutForm", () => {
     );
 
     await user.type(screen.getByLabelText("Notes"), "A 9.5 works too.");
+    await acknowledge(user);
     await user.click(screen.getByRole("button", { name: /Request 1 item/ }));
 
+    // The acknowledgement is here and the contact fields are not: it belongs
+    // to the request, and holding an account is not agreement to anything.
     expect(lastSubmission()).toEqual({
       notes: "A 9.5 works too.",
+      as_is_acknowledged: "true",
       delivery_method: "meetup",
     });
   });
@@ -169,8 +182,101 @@ describe("GearCartCheckoutForm", () => {
 
     await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
     await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await acknowledge(user);
     await user.click(screen.getByRole("button", { name: /Request 1 item/ }));
 
     expect(onSuccess).toHaveBeenCalledWith("meetup", REQUEST_ID);
+  });
+
+  // #1367. The one box on this form that carries a real choice, and the
+  // difference from the privacy notice beside it: declining "I understand
+  // this is given as-is" is declining the gear.
+  describe("the as-is acknowledgement", () => {
+    test("starts unticked and is required, on every path", () => {
+      for (const prefill of [EMPTY_CONTACT_PREFILL, LINKED]) {
+        const view = render(
+          <GearCartCheckoutForm
+            itemIds={["item-1"]}
+            options={OPTIONS}
+            onSuccess={() => {}}
+            prefill={prefill}
+          />,
+        );
+
+        const box = screen.getByRole("checkbox", { name: AS_IS });
+        expect(box).not.toBeChecked();
+        expect(box).toBeRequired();
+        // The words above it, which are also the terms-of-use section.
+        expect(
+          screen.getByText(/We give away items exactly as they reach us/),
+        ).toBeVisible();
+        view.unmount();
+      }
+    });
+
+    test("does not submit while the box is untouched", async () => {
+      const user = userEvent.setup();
+      render(
+        <GearCartCheckoutForm
+          itemIds={["item-1"]}
+          options={OPTIONS}
+          onSuccess={() => {}}
+          prefill={LINKED}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Request 1 item/ }));
+
+      expect(requestGearItemsActionMock).not.toHaveBeenCalled();
+    });
+
+    // A notice may only link a document that is served (#859): `/terms` 404s
+    // on a tenant that has adopted none, and the summary itself is
+    // unconditional either way.
+    test("links the terms only where the tenant serves them", () => {
+      const view = render(
+        <GearCartCheckoutForm
+          itemIds={["item-1"]}
+          options={OPTIONS}
+          onSuccess={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("link", { name: /Terms of Use/ })).toBeNull();
+      view.unmount();
+
+      render(
+        <GearCartCheckoutForm
+          itemIds={["item-1"]}
+          options={OPTIONS}
+          onSuccess={() => {}}
+          termsInForce
+        />,
+      );
+      expect(
+        screen.getByRole("link", { name: "Terms of Use (opens in new tab)" }),
+      ).toHaveAttribute("href", "/terms");
+    });
+
+    // #896: the noun is the organization's, in the box and in the words above
+    // it, because the snapshot stored against the request is the same string.
+    test("is written in this organization's own word for what it lends", () => {
+      render(
+        <GearCartCheckoutForm
+          itemIds={["item-1"]}
+          options={OPTIONS}
+          onSuccess={() => {}}
+          lexicon={{ ...DEFAULT_LEXICON, item_plural: "Tools" }}
+        />,
+      );
+
+      expect(
+        screen.getByRole("checkbox", {
+          name: /I understand the tools are given as-is/,
+        }),
+      ).toBeVisible();
+      expect(
+        screen.getByText(/We give away tools exactly as they reach us/),
+      ).toBeVisible();
+    });
   });
 });

@@ -215,6 +215,16 @@ const RPC_ERRORS: Record<
     message: "Name at least one item.",
     field: "item_ids",
   },
+  // Unreachable through the handler, whose schema will not parse a body
+  // without it (#1367). Mapped anyway, because the alternative for a refusal
+  // this endpoint can make is a 500 that says "something went wrong on our
+  // side" about something that went wrong on the caller's.
+  AS_IS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "The requester must be shown, and acknowledge, that these items are given as-is.",
+    field: "as_is_acknowledged",
+  },
 
   // #1366, and the one waiver code that is not the caller's fault: this tenant
   // has an agreement in force with no published version to show. Nothing the

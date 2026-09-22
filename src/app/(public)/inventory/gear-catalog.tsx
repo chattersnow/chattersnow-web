@@ -60,6 +60,7 @@ export function GearCatalog({
   prefill,
   accountOffer = null,
   lexicon = DEFAULT_LEXICON,
+  termsInForce = false,
 }: {
   items: GearItem[];
   placeholderUrl: string | null;
@@ -82,6 +83,11 @@ export function GearCatalog({
    * privacy notice (#684), which names what was requested.
    */
   lexicon?: Lexicon;
+  /**
+   * Whether this tenant serves `/terms` (#859), for the as-is notice on the
+   * checkout form (#1367). It links the document only where one is served.
+   */
+  termsInForce?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -420,6 +426,7 @@ export function GearCatalog({
         prefill={prefill}
         accountOffer={accountOffer}
         lexicon={lexicon}
+        termsInForce={termsInForce}
       />
     </div>
   );

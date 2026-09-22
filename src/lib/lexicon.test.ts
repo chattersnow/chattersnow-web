@@ -13,6 +13,12 @@ import { PUBLIC_PAGE_SLOTS, namedSlots } from "./page-visibility";
 import { SITE_CONTENT_SLOTS, resolveSiteContent } from "./site-content";
 import { NAV_ITEMS, visibleNavItems } from "./portal/nav";
 import { CONTACT_TOPICS, contactTopicLabel } from "./contact-topics";
+import {
+  platformLegalDocument,
+  PLATFORM_LEGAL_SLOT_KEYS,
+  type LegalOrgContext,
+} from "./legal-defaults";
+import { collectionSurface } from "./legal-surface";
 
 /** A tenant that lends tools rather than snow gear. */
 const TOOLS = lexiconFromRows([
@@ -141,6 +147,35 @@ describe("every registry template resolves", () => {
       expect(unresolved(contactTopicLabel(topic.value)), topic.value).toBe(
         false,
       );
+    }
+  });
+
+  // #1367 put a placeholder in a legal document's heading, so the same sweep
+  // has to cover the three documents the platform serves. A brace on a
+  // published privacy policy is worse than one in the nav: it is text an
+  // organization is publishing under its own name.
+  test("the platform's legal documents", () => {
+    const org: LegalOrgContext = {
+      name: "Riverside Trails",
+      emailGeneral: "hello@riverside.example",
+      emailPrivacy: "privacy@riverside.example",
+      emailConduct: "conduct@riverside.example",
+      surfaces: collectionSurface({}, {}),
+      lexicon: DEFAULT_LEXICON,
+    };
+
+    for (const key of PLATFORM_LEGAL_SLOT_KEYS) {
+      const document = platformLegalDocument(key, org);
+      expect(unresolved(document.title), key).toBe(false);
+      for (const paragraph of document.summary) {
+        expect(unresolved(paragraph), key).toBe(false);
+      }
+      for (const section of document.sections) {
+        expect(unresolved(section.title), `${key}/${section.id}`).toBe(false);
+        for (const paragraph of section.paragraphs) {
+          expect(unresolved(paragraph), `${key}/${section.id}`).toBe(false);
+        }
+      }
     }
   });
 

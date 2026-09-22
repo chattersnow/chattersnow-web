@@ -12,6 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../test/toast-testing";
 import { platformLegalDocument } from "@/lib/legal-defaults";
 import { collectionSurface } from "@/lib/legal-surface";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 import type {
   ContentPage,
   ContentSection,
@@ -173,6 +174,7 @@ function editorSlot(
             emailPrivacy: "privacy@example.org",
             emailConduct: "conduct@example.org",
             surfaces: collectionSurface({}, {}),
+            lexicon: DEFAULT_LEXICON,
           })
         : null,
   };

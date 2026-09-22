@@ -31,6 +31,20 @@ export type GearRequestDeliveryData = {
   shipping: GearRequestShipping | null;
   /** The key of the tenant's payment method; present exactly when shipping. */
   paymentMethod: string | null;
+  /**
+   * Whether the box saying these items are given as-is was ticked (#1367).
+   *
+   * Only ever `true` here: a request without it does not parse. It is carried
+   * as a field rather than checked and dropped so the two callers hand the RPC
+   * something explicit, and it lives on the delivery half because it belongs
+   * to the *request* -- a signed-in reader is asked for it exactly as a
+   * visitor is, since holding an account is not agreement to anything.
+   *
+   * The wording itself is not here. `gearAsIsText()` resolves it server-side
+   * from `@/lib/gear-as-is`, so what gets snapshotted onto the row is what the
+   * platform says rather than what a browser claims it showed.
+   */
+  asIsAcknowledged: true;
 };
 
 export type GearRequestFormData = GearRequestDeliveryData & {
@@ -71,9 +85,27 @@ export function parseGearRequestDelivery(
     return { error: "Choose how you'd like to receive your items." };
   const deliveryMethod: DeliveryMethod = deliveryMethodRaw;
 
+  // Before the delivery fields, so somebody who left the box unticked hears
+  // about that rather than about their postal code. The database refuses it
+  // independently -- see `acknowledged_as_is()` -- because a client-side
+  // `required` is a convenience and never the gate.
+  if (field("as_is_acknowledged") !== "true") {
+    return {
+      error:
+        "Please tick the box to confirm you understand these items are given as-is.",
+    };
+  }
+  const asIsAcknowledged = true;
+
   if (deliveryMethod === "meetup") {
     return {
-      data: { notes, deliveryMethod, shipping: null, paymentMethod: null },
+      data: {
+        notes,
+        deliveryMethod,
+        shipping: null,
+        paymentMethod: null,
+        asIsAcknowledged,
+      },
     };
   }
 
@@ -109,6 +141,7 @@ export function parseGearRequestDelivery(
         country: field("ship_country") || null,
       },
       paymentMethod,
+      asIsAcknowledged,
     },
   };
 }

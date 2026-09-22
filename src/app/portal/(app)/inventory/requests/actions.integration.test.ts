@@ -94,6 +94,10 @@ async function newGearRequest(): Promise<{ id: string; email: string }> {
     p_notes: null,
     p_honeypot: null,
     p_ip_address: uniqueIp(),
+    // #1367: the acknowledgement gates every path. The wording is resolved
+    // server-side in the real callers; a fixture only has to supply one.
+    p_as_is_acknowledged: true,
+    p_as_is_text: "Given as-is.",
   });
   if (error) throw error;
   return { id: data as string, email };

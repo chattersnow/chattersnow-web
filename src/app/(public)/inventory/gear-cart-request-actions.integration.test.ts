@@ -30,6 +30,8 @@ import {
   PAYMENT_METHODS_SETTING_KEY,
   SHIPPING_ENABLED_SETTING_KEY,
 } from "@/lib/gear-requests";
+import { gearAsIsText } from "@/lib/gear-as-is";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -65,8 +67,11 @@ mock.module("next/server", () => ({
 
 const { requestGearItemsAction } = await import("./gear-cart-request-actions");
 
+// The as-is box is ticked unless a case says otherwise (#1367), so every test
+// below still exercises the rule it was written for rather than the gate.
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("as_is_acknowledged", "true");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -491,6 +496,76 @@ describe("requestGearItemsAction with shipping", () => {
     expect(await getInventoryItemStatus(item)).toBe("available");
   });
 
+  // #1367. The gate is unconditional, on every path, and the wording stored
+  // is the platform's rather than anything a caller sent.
+  describe("the as-is acknowledgement", () => {
+    test("records when it was given and the words that were shown", async () => {
+      currentIp = uniqueIp();
+      const [item] = await gearItems(1);
+      const email = uniqueEmail("as-is");
+
+      const result = await requestGearItemsAction(
+        [item],
+        formData({ name: "Jamie Rivera", email }),
+      );
+      expect(result).toEqual({
+        success: true,
+        requestId: expect.any(String),
+      });
+
+      const { data: request } = await adminClient
+        .from("gear_requests")
+        .select("as_is_acknowledged_at, as_is_text")
+        .eq("id", (result as { requestId: string }).requestId)
+        .single();
+
+      expect(request!.as_is_acknowledged_at).not.toBeNull();
+      // Resolved server-side from `src/lib/gear-as-is.ts` against this
+      // tenant's lexicon, so it is the platform's claim and not the
+      // browser's report of one.
+      expect(request!.as_is_text).toBe(gearAsIsText(DEFAULT_LEXICON));
+    });
+
+    test("the RPC refuses a request that did not acknowledge it", async () => {
+      const [item] = await gearItems(1);
+
+      const { error } = await anonClient().rpc("request_gear_items", {
+        p_inventory_item_ids: [item],
+        p_name: "Jamie Rivera",
+        p_email: uniqueEmail("rpc-no-ack"),
+        p_phone: null,
+        p_ip_address: uniqueIp(),
+        p_as_is_acknowledged: false,
+        p_as_is_text: "Given as-is.",
+      });
+
+      expect(error?.message).toContain("AS_IS_REQUIRED");
+      // Refused before the item locks, so nothing was held for a request
+      // that was never written.
+      expect(await getInventoryItemStatus(item)).toBe("available");
+    });
+
+    // An acknowledgement pointing at nothing is the state the snapshot exists
+    // to prevent -- "understood something, at 14:02". Not reachable from this
+    // application, since both entry points supply the words themselves.
+    test("the RPC refuses an acknowledgement with no wording behind it", async () => {
+      const [item] = await gearItems(1);
+
+      const { error } = await anonClient().rpc("request_gear_items", {
+        p_inventory_item_ids: [item],
+        p_name: "Jamie Rivera",
+        p_email: uniqueEmail("rpc-no-text"),
+        p_phone: null,
+        p_ip_address: uniqueIp(),
+        p_as_is_acknowledged: true,
+        p_as_is_text: "   ",
+      });
+
+      expect(error?.message).toContain("AS_IS_TEXT_REQUIRED");
+      expect(await getInventoryItemStatus(item)).toBe("available");
+    });
+  });
+
   // The RPC's own check, bypassing the action's parser: an address the form
   // would have refused must be refused again underneath it.
   test("the RPC refuses a shipping request with no address", async () => {
@@ -503,6 +578,8 @@ describe("requestGearItemsAction with shipping", () => {
       p_email: uniqueEmail("rpc-no-address"),
       p_phone: null,
       p_ip_address: uniqueIp(),
+      p_as_is_acknowledged: true,
+      p_as_is_text: "Given as-is.",
       p_delivery_method: "shipping",
       p_shipping: { name: "Jamie" },
       p_payment_method: "venmo",
@@ -521,6 +598,8 @@ describe("requestGearItemsAction with shipping", () => {
       p_email: uniqueEmail("rpc-bad-method"),
       p_phone: null,
       p_ip_address: uniqueIp(),
+      p_as_is_acknowledged: true,
+      p_as_is_text: "Given as-is.",
       p_delivery_method: "shipping",
       p_shipping: { line1: "12 Ridge Rd", city: "Bend", postal_code: "97701" },
       p_payment_method: "cash",
@@ -714,11 +793,15 @@ describe("requesting gear as yourself (integration)", () => {
 
     const { data: request } = await service
       .from("gear_requests")
-      .select("person_id, notes")
+      .select("person_id, notes, as_is_acknowledged_at, as_is_text")
       .eq("id", (result as { requestId: string }).requestId)
       .single();
     expect(request!.person_id).toBe(personId);
     expect(request!.notes).toBe("A 9.5 works too.");
+    // #1367: asked on this path too, and recorded the same way. Holding an
+    // account is not agreement to anything.
+    expect(request!.as_is_acknowledged_at).not.toBeNull();
+    expect(request!.as_is_text).toBe(gearAsIsText(DEFAULT_LEXICON));
 
     // The whole point: the decoy address minted nothing.
     expect(await peopleCount()).toBe(before);
