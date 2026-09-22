@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseInstagramHandle } from "@/lib/instagram-handle";
 import {
   isDeliveryMethod,
   type DeliveryMethod,
@@ -19,6 +20,8 @@ export type GearRequestFormData = {
   name: string;
   email: string;
   phone: string | null;
+  /** Without the `@`, and shaped as `people.instagram_handle` requires (#1357). */
+  instagramHandle: string | null;
   notes: string | null;
   deliveryMethod: DeliveryMethod;
   /** Present exactly when deliveryMethod is `shipping`. */
@@ -47,12 +50,16 @@ export function parseGearRequestForm(
   const name = field("name");
   const email = field("email");
   const phone = field("phone");
+  const instagramHandle = parseInstagramHandle(
+    formData.get("instagram_handle"),
+  );
   const notes = field("notes");
   const deliveryMethodRaw = field("delivery_method") || "meetup";
 
   if (!name) return { error: "Name is required." };
   if (!email || !email.includes("@"))
     return { error: "A valid email is required." };
+  if ("error" in instagramHandle) return instagramHandle;
   if (!isDeliveryMethod(deliveryMethodRaw))
     return { error: "Choose how you'd like to receive your items." };
   const deliveryMethod: DeliveryMethod = deliveryMethodRaw;
@@ -61,6 +68,7 @@ export function parseGearRequestForm(
     name,
     email,
     phone: phone || null,
+    instagramHandle: instagramHandle.instagramHandle,
     notes: notes || null,
   };
 

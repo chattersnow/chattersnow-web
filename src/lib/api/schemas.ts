@@ -135,6 +135,9 @@ export const gearRequestSchema = z
     name,
     email,
     phone,
+    instagram_handle: optionalText(30).meta({
+      description: "Without the @; letters, numbers, dots and underscores.",
+    }),
     notes: optionalText(2000),
     delivery_method: z.enum(["meetup", "shipping"]).optional().meta({
       description:

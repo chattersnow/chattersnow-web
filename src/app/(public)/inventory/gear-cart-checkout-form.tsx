@@ -17,25 +17,41 @@ import type {
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import {
+  EMPTY_CONTACT_PREFILL,
+  type ViewerContactPrefill,
+} from "@/lib/constituent/viewer";
 
 export function GearCartCheckoutForm({
   itemIds,
   options,
   onSuccess,
+  prefill = EMPTY_CONTACT_PREFILL,
   lexicon = DEFAULT_LEXICON,
 }: {
   itemIds: string[];
   options: PublicGearRequestOptions;
   onSuccess: (deliveryMethod: DeliveryMethod) => void;
   /**
+   * What a signed-in reader's session already knows about them (#1357), so
+   * they do not retype it -- and do not mint a second `people` row with a
+   * typo. Everything in it is derivable from the caller's own session, which
+   * is the line: nothing here may differ according to whether a typed address
+   * matches a directory record (§5.23).
+   */
+  prefill?: ViewerContactPrefill;
+  /**
    * This organization's words (#896), for the privacy notice: it names what
    * was requested, and "gear" is one tenant's word for it.
    */
   lexicon?: Lexicon;
 }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(prefill.name);
+  const [email, setEmail] = useState(prefill.email);
+  const [phone, setPhone] = useState(prefill.phone);
+  const [instagramHandle, setInstagramHandle] = useState(
+    prefill.instagramHandle,
+  );
   const [notes, setNotes] = useState("");
   const [deliveryMethod, setDeliveryMethod] =
     useState<DeliveryMethod>("meetup");
@@ -55,6 +71,7 @@ export function GearCartCheckoutForm({
     formData.set("name", name);
     formData.set("email", email);
     formData.set("phone", phone);
+    formData.set("instagram_handle", instagramHandle);
     formData.set("notes", notes);
     formData.set("company", company);
     formData.set("delivery_method", deliveryMethod);
@@ -82,6 +99,14 @@ export function GearCartCheckoutForm({
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        {prefill.signedInAs && (
+          // One line, and no more than that (#1257). It says which session is
+          // filling the fields in, so a shared browser can correct them; it
+          // says nothing about what the organization knows.
+          <p className="app-muted text-sm">
+            Signed in as {prefill.signedInAs}.
+          </p>
+        )}
         <RequiredFieldsNote />
         <GearRequesterFields
           idPrefix="cart-checkout"
@@ -91,6 +116,8 @@ export function GearCartCheckoutForm({
           onEmailChange={setEmail}
           phone={phone}
           onPhoneChange={setPhone}
+          instagramHandle={instagramHandle}
+          onInstagramHandleChange={setInstagramHandle}
           notes={notes}
           onNotesChange={setNotes}
           options={options}

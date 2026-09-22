@@ -24,6 +24,7 @@ import type {
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
+import type { ViewerContactPrefill } from "@/lib/constituent/viewer";
 
 const PAGE_SIZE = 12;
 
@@ -49,12 +50,18 @@ export function GearCatalog({
   items,
   placeholderUrl,
   requestOptions,
+  prefill,
   lexicon = DEFAULT_LEXICON,
 }: {
   items: GearItem[];
   placeholderUrl: string | null;
   /** What the checkout form may offer (#1032): shipping, and how to pay for it. */
   requestOptions: PublicGearRequestOptions;
+  /**
+   * What a signed-in reader's session already knows about them (#1357),
+   * handed to the checkout form so they do not retype it.
+   */
+  prefill?: ViewerContactPrefill;
   /**
    * This organization's words (#896), passed down to the checkout form's
    * privacy notice (#684), which names what was requested.
@@ -394,6 +401,7 @@ export function GearCatalog({
         }}
         placeholderUrl={placeholderUrl}
         requestOptions={requestOptions}
+        prefill={prefill}
         lexicon={lexicon}
       />
     </div>

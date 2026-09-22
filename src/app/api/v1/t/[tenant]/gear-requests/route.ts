@@ -25,6 +25,7 @@ const route = publicWrite(
         p_name: body.name,
         p_email: body.email,
         p_phone: body.phone ?? null,
+        p_instagram_handle: body.instagram_handle ?? null,
         p_notes: body.notes ?? null,
         p_delivery_method: body.delivery_method ?? null,
         p_shipping: body.shipping ?? null,

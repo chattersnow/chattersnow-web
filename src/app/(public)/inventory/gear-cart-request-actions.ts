@@ -58,6 +58,7 @@ export async function requestGearItemsAction(
     p_name: parsed.data.name,
     p_email: parsed.data.email,
     p_phone: parsed.data.phone,
+    p_instagram_handle: parsed.data.instagramHandle,
     p_notes: parsed.data.notes,
     p_honeypot: honeypot,
     p_ip_address: ipAddress,
