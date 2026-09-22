@@ -8624,6 +8624,18 @@ export type Database = {
         };
         Returns: string;
       };
+      create_gear_request: {
+        Args: {
+          p_delivery_method?: string;
+          p_inventory_item_ids: string[];
+          p_notes?: string;
+          p_payment_method?: string;
+          p_person_id: string;
+          p_shipping?: Json;
+          p_tenant_id: string;
+        };
+        Returns: string;
+      };
       create_giveaway_prize: {
         Args: {
           p_donor_person_id?: string;
@@ -9557,6 +9569,17 @@ export type Database = {
         };
         Returns: string;
       };
+      request_gear_items_as_me: {
+        Args: {
+          p_delivery_method?: string;
+          p_inventory_item_ids: string[];
+          p_ip_address?: unknown;
+          p_notes?: string;
+          p_payment_method?: string;
+          p_shipping?: Json;
+        };
+        Returns: string;
+      };
       request_host: { Args: never; Returns: string };
       request_my_email_change: {
         Args: { p_email: string; p_token_hash: string };
@@ -9845,6 +9868,10 @@ export type Database = {
           p_title: string;
         };
         Returns: string;
+      };
+      submit_claim_from_gear_request: {
+        Args: { p_ip_address?: unknown; p_request_id: string };
+        Returns: undefined;
       };
       submit_claim_from_registration: {
         Args: { p_ip_address?: unknown; p_registration_id: string };

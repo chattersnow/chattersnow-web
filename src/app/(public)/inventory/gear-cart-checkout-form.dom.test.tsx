@@ -8,9 +8,14 @@ import { EMPTY_CONTACT_PREFILL } from "@/lib/constituent/viewer";
 // that the mock below can replace its one export; nothing in it runs.
 mock.module("server-only", () => ({}));
 
+const REQUEST_ID = "22222222-2222-4222-8222-222222222222";
+
 const requestGearItemsActionMock = mock<
-  (itemIds: string[], formData: FormData) => Promise<{ success: true }>
->(async () => ({ success: true }));
+  (
+    itemIds: string[],
+    formData: FormData,
+  ) => Promise<{ success: true; requestId: string }>
+>(async () => ({ success: true, requestId: REQUEST_ID }));
 
 mock.module("./gear-cart-request-actions", () => ({
   requestGearItemsAction: requestGearItemsActionMock,
@@ -31,6 +36,16 @@ describe("GearCartCheckoutForm", () => {
   beforeEach(() => {
     requestGearItemsActionMock.mockClear();
   });
+
+  const LINKED = {
+    ...EMPTY_CONTACT_PREFILL,
+    name: "Jane Rivers",
+    email: "jane@example.com",
+    phone: "555-1234",
+    instagramHandle: "jane.rivers",
+    signedInAs: "jane@example.com",
+    linked: true,
+  };
 
   test("a visitor with no session gets the blank form it always had", () => {
     render(
@@ -90,5 +105,72 @@ describe("GearCartCheckoutForm", () => {
     // The form does not normalize: parseGearRequestForm strips the @ and
     // refuses what the column would, in one place, on the server.
     expect(lastSubmission().instagram_handle).toBe("@jane.rivers");
+  });
+
+  // #1359: a reader with a record of their own requests as that record, so
+  // the contact fields decide nothing. Showing them as inputs would invite a
+  // correction the request has nowhere to put.
+  test("shows a linked reader their own record instead of asking for it", () => {
+    render(
+      <GearCartCheckoutForm
+        itemIds={["item-1"]}
+        options={OPTIONS}
+        onSuccess={() => {}}
+        prefill={LINKED}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Requesting as Jane Rivers \(jane@example.com\)/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Not you, or out of date?" }),
+    ).toHaveAttribute("href", "/my/details");
+    expect(screen.queryByLabelText(/^Name/)).toBeNull();
+    expect(screen.queryByLabelText(/^Email/)).toBeNull();
+    expect(screen.queryByLabelText("Instagram")).toBeNull();
+    // The one line about the session is redundant beside the line above, and
+    // saying both would say the same thing twice.
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
+  });
+
+  test("sends a linked reader's request with no contact fields on it", async () => {
+    const user = userEvent.setup();
+    render(
+      <GearCartCheckoutForm
+        itemIds={["item-1"]}
+        options={OPTIONS}
+        onSuccess={() => {}}
+        prefill={LINKED}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Notes"), "A 9.5 works too.");
+    await user.click(screen.getByRole("button", { name: /Request 1 item/ }));
+
+    expect(lastSubmission()).toEqual({
+      notes: "A 9.5 works too.",
+      delivery_method: "meetup",
+    });
+  });
+
+  // The receipt's offer to keep the request is authorized by this id (#1359),
+  // so it has to survive the hand-off from the action to the cart.
+  test("hands the new request's id to the cart", async () => {
+    const user = userEvent.setup();
+    const onSuccess = mock(() => {});
+    render(
+      <GearCartCheckoutForm
+        itemIds={["item-1"]}
+        options={OPTIONS}
+        onSuccess={onSuccess}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/^Name/), "Jane Rivers");
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.click(screen.getByRole("button", { name: /Request 1 item/ }));
+
+    expect(onSuccess).toHaveBeenCalledWith("meetup", REQUEST_ID);
   });
 });

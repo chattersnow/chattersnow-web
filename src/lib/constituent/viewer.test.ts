@@ -40,6 +40,7 @@ describe("contactPrefill", () => {
       // The session's address, not the record's: they can differ, and only
       // one of them tells a shared browser whose form this is.
       signedInAs: "signed-in@example.com",
+      linked: true,
     });
   });
 
@@ -67,6 +68,9 @@ describe("contactPrefill", () => {
       phone: "",
       instagramHandle: "",
       signedInAs: "someone@example.com",
+      // An account whose claim has not been approved is not linked, and the
+      // form treats it exactly as it treats a visitor whose fields it filled.
+      linked: false,
     });
   });
 });

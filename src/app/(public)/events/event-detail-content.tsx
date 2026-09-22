@@ -22,7 +22,7 @@ import {
   loadRegistrationAccountOffer,
   type EventViewer,
 } from "./my-registration";
-import type { AccountOffer } from "@/components/registration-account-offer";
+import type { AccountOffer } from "@/lib/constituent/account-offer";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and

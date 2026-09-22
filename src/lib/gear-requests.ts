@@ -182,6 +182,18 @@ export const DEFAULT_PUBLIC_GEAR_REQUEST_OPTIONS: PublicGearRequestOptions = {
   paymentMethods: [],
 };
 
+/**
+ * Whether shipping is genuinely on offer.
+ *
+ * Shipping needs somewhere to send the postage bill, so a tenant that has
+ * turned it on and configured no payment method is not offering it. Here
+ * rather than in the form, because more than one part of the checkout has to
+ * agree about it -- which fields render, and whether any of them is required.
+ */
+export function shippingOffered(options: PublicGearRequestOptions): boolean {
+  return options.shippingEnabled && options.paymentMethods.length > 0;
+}
+
 /** The `public_gear_request_settings` view's two rows, resolved. */
 export function resolvePublicGearRequestOptions(
   rows: readonly { slot: string; value: unknown }[],

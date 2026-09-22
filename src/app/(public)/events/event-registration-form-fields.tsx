@@ -13,9 +13,9 @@ import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
-  RegistrationAccountOffer,
+  RecordAccountOffer,
   type AccountOffer,
-} from "@/components/registration-account-offer";
+} from "@/components/record-account-offer";
 import type { EventViewerAccount } from "./my-registration";
 
 /**
@@ -116,9 +116,9 @@ export function EventRegistrationForm({
             email rather than becoming a third step. */}
         {accountOffer && (
           <div className="mt-6">
-            <RegistrationAccountOffer
+            <RecordAccountOffer
               offer={accountOffer}
-              registrationId={registrationId}
+              record={{ kind: "registration", id: registrationId }}
             />
           </div>
         )}
