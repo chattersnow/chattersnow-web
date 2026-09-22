@@ -28,19 +28,26 @@ export type DiscoveredRoute = {
 const SKIP: Record<string, string> = {
   "/portal": "redirect shim to /portal/login or /portal/entry",
   "/portal/entry": "redirect shim to /portal/home",
-  // The terms and the code of conduct are served once a tenant has put them in
-  // force, and the seeded tenant this scan runs against has not (#859), so both
-  // 404 here -- scanning them would be a second and third pass over the same
-  // 404 page. The privacy policy has no such gate and is scanned: it is served
-  // for every tenant, from the platform's own document when the tenant has
-  // published none of its own (#858).
+  // The terms, the code of conduct and the accessibility statement are served
+  // once a tenant has put them in force, and the seeded tenant this scan runs
+  // against has not (#859), so all three 404 here -- scanning them would be
+  // three more passes over the same 404 page. The privacy policy has no such
+  // gate and is scanned: it is served for every tenant, from the platform's own
+  // document when the tenant has published none of its own (#858).
   //
-  // If either becomes part of the seed, delete its line rather than leaving a
-  // skip that no longer describes anything.
+  // If one becomes part of the seed, delete its line rather than leaving a skip
+  // that no longer describes anything.
+  //
+  // The accessibility statement is the uncomfortable one to have here (#1368),
+  // since the page saying how this site is tested is the page the scan does not
+  // reach. It is scanned by putting it in force by hand -- see
+  // `docs/a11y-scan-findings.md` -- and a route that 404s cannot be scanned
+  // whatever the subject of its text.
   "/terms": "not in force for the seeded tenant (#859)",
   "/code-of-conduct": "not in force for the seeded tenant (#859)",
+  "/accessibility": "not in force for the seeded tenant (#859)",
   // The participant waiver (#686) is skipped for a stronger reason than those
-  // two: the platform has no text for it at all, so it 404s for every tenant
+  // three: the platform has no text for it at all, so it 404s for every tenant
   // that has not written and published its own, and no seed can change that
   // without writing somebody's release of legal rights. The agreement is still
   // scanned where it is read -- inside the registration form -- by

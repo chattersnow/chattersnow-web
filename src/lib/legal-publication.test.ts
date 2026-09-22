@@ -6,6 +6,7 @@ import {
   gatesHolding,
   LEGAL_DOCUMENTS,
   legalDocument,
+  legalDocumentNoun,
   legalPublicationSettingKey,
   moduleGate,
   resolveInForce,
@@ -76,7 +77,36 @@ describe("LEGAL_DOCUMENTS", () => {
     }
   });
 
-  // The whole shape of #859: one of the three is not a decision.
+  // A document is named mid-sentence in eleven places -- "the platform's
+  // standard {x}", "Recorded that you have read the {x}" -- and for three of
+  // the four the footer's label lowercases into exactly that noun. The
+  // accessibility statement is linked as "Accessibility", which does not, so
+  // it carries its own noun (#1368). This is what stops the next one being
+  // added without one, or with one that adds nothing.
+  test("every document has a noun that can sit inside a sentence", () => {
+    for (const document of LEGAL_DOCUMENTS) {
+      const noun = legalDocumentNoun(document);
+      expect(noun, document.key).toBe(noun.toLowerCase());
+      expect(noun.length, document.key).toBeGreaterThan(0);
+      if (document.noun !== undefined) {
+        expect(
+          document.noun,
+          `${document.key} spells out a noun its label already gives`,
+        ).not.toBe(document.label.toLowerCase());
+      }
+    }
+  });
+
+  test("a document with no noun falls back to its label", () => {
+    expect(legalDocumentNoun(legalDocument("code_of_conduct")!)).toBe(
+      "code of conduct",
+    );
+    expect(legalDocumentNoun(legalDocument("accessibility")!)).toBe(
+      "accessibility statement",
+    );
+  });
+
+  // The whole shape of #859: one of the four is not a decision.
   test("the privacy policy alone is always in force", () => {
     expect(
       LEGAL_DOCUMENTS.filter((document) => document.alwaysInForce).map(
@@ -147,6 +177,7 @@ describe("getLegalPublication", () => {
       terms: false,
       code_of_conduct: false,
       waiver: false,
+      accessibility: false,
     });
   });
 
@@ -171,6 +202,7 @@ describe("getLegalPublication", () => {
         terms: false,
         code_of_conduct: false,
         waiver: false,
+        accessibility: false,
       });
       expect(error).toHaveBeenCalled();
     } finally {
@@ -186,8 +218,10 @@ describe("documentsInForce", () => {
         privacy: true,
         terms: false,
         code_of_conduct: true,
+        waiver: false,
+        accessibility: true,
       }).map((document) => document.route),
-    ).toEqual(["/privacy", "/code-of-conduct"]);
+    ).toEqual(["/privacy", "/code-of-conduct", "/accessibility"]);
   });
 });
 
@@ -205,6 +239,7 @@ describe("getTenantLegalPublication", () => {
       terms: true,
       code_of_conduct: true,
       waiver: false,
+      accessibility: false,
     });
   });
 
@@ -216,6 +251,7 @@ describe("getTenantLegalPublication", () => {
       terms: false,
       code_of_conduct: false,
       waiver: false,
+      accessibility: false,
     });
   });
 

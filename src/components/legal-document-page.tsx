@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LegalDocument } from "@/components/legal-document";
-import { legalDocumentBySlot } from "@/lib/legal-documents";
+import { legalDocumentBySlot, legalDocumentNoun } from "@/lib/legal-documents";
 import {
   PLATFORM_LEGAL_LAST_UPDATED,
   platformLegalDescription,
@@ -19,12 +19,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateTimeInZone } from "@/lib/time";
 
 /**
- * One of the three legal documents, live or at a version (#601).
+ * One of the legal documents, live or at a version (#601).
  *
- * `/privacy`, `/terms` and `/code-of-conduct` differ only by which `legal.*`
- * slot they read and what the page is called when nobody has named it, so they
- * are one component with two arguments rather than three copies of a page that
- * has grown a version notice.
+ * `/privacy`, `/terms`, `/code-of-conduct` and `/accessibility` differ only by
+ * which `legal.*` slot they read and what the page is called when nobody has
+ * named it, so they are one component with two arguments rather than four
+ * copies of a page that has grown a version notice.
  *
  * `?version=N` serves the document as it was published, from the frozen
  * snapshot rather than from anything live -- that is the point of the table
@@ -49,7 +49,7 @@ type LegalPageArgs = {
 };
 
 /**
- * `<title>` and indexing for one of the three.
+ * `<title>` and indexing for one of them.
  *
  * A superseded version stays readable for anyone holding the link but is not
  * what a search engine should offer somebody looking for an organization's
@@ -134,7 +134,7 @@ export async function LegalDocumentPage({
                 href={registered.route}
                 className="hover:text-foreground underline underline-offset-4"
               >
-                Read the {registered.label.toLowerCase()} in force
+                Read the {legalDocumentNoun(registered)} in force
               </Link>
               .
             </p>
@@ -203,7 +203,7 @@ function VersionNotice({
   organization,
   servingPlatformDefault,
 }: {
-  document: { route: string; label: string };
+  document: { route: string; label: string; noun?: string };
   versions: readonly PublishedLegalVersion[];
   /** The version on screen, or undefined when the live text is not a version. */
   showing: PublishedLegalVersion | undefined;
@@ -219,7 +219,7 @@ function VersionNotice({
     return (
       <Notice>
         <p className="app-muted">
-          This is the platform&rsquo;s standard {document.label.toLowerCase()},
+          This is the platform&rsquo;s standard {legalDocumentNoun(document)},
           last updated {PLATFORM_LEGAL_LAST_UPDATED}.{" "}
           {organization ?? "This organization"} has not published a document of
           its own.
@@ -240,7 +240,7 @@ function VersionNotice({
                 href={document.route}
                 className="hover:text-foreground underline underline-offset-4"
               >
-                Read the {document.label.toLowerCase()} in force
+                Read the {legalDocumentNoun(document)} in force
               </Link>
               .
             </>
@@ -252,8 +252,8 @@ function VersionNotice({
           )
         ) : (
           <>
-            This is the platform&rsquo;s standard {document.label.toLowerCase()}
-            , last updated {PLATFORM_LEGAL_LAST_UPDATED}.{" "}
+            This is the platform&rsquo;s standard {legalDocumentNoun(document)},
+            last updated {PLATFORM_LEGAL_LAST_UPDATED}.{" "}
             {organization ?? "This organization"} published the versions below
             and is no longer serving any of them.
           </>

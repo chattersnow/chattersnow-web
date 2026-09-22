@@ -18,14 +18,43 @@
  *     -- the tenant's own document, or the platform's default (#858). A toggle
  *     whose only correct position is "on" is a hazard, not a control, so there
  *     is none.
- *   * **The terms of use and the code of conduct are adopted or not.** An
- *     organization that has adopted neither should not have empty or borrowed
- *     ones served under its name, so they 404 and drop out of the footer until
- *     that tenant says the text is theirs and in force.
+ *   * **The terms of use, the code of conduct and the accessibility statement
+ *     are adopted or not.** An organization that has adopted none of them
+ *     should not have empty or borrowed ones served under its name, so they
+ *     404 and drop out of the footer until that tenant says the text is theirs
+ *     and in force.
+ *
+ * The accessibility statement (#1368) is the closest that second call has been.
+ * The one group that needs a route for reporting a barrier is exactly the group
+ * least able to go hunting for one, and the platform can write most of the
+ * document honestly, because most of it is about this software. What decides it
+ * is #859's own argument: a conformance claim published under an organization's
+ * name covers that organization's own content -- the alt text its staff type
+ * into Site Content, the images it uploads, the documents it links, the
+ * physical accessibility of the events it runs -- and none of that is the
+ * platform's to assert. Overclaiming conformance to a disabled reader is not a
+ * neutral error. Until a tenant adopts it, `/terms`' accessibility section and
+ * the contact form are the routes it has, and #1292/#1321 surface the
+ * unadopted document as an attention item rather than leaving it silently
+ * absent.
  *
  * The participant waiver (#686) is the fourth, and it is adopted the same way
  * with one difference that runs through every consumer of this registry: there
  * is no platform text behind it. See `hasPlatformDefault`.
+ *
+ * The accessibility statement (#1368) is the fifth, and the closest that
+ * adoption call has been. The one group that needs a route for reporting a
+ * barrier is exactly the group least able to go hunting for one, and the
+ * platform can write most of the document honestly, because most of it is
+ * about this software. What decides it is #859's own argument: a conformance
+ * claim published under an organization's name covers that organization's own
+ * content -- the alt text its staff type into Site Content, the images it
+ * uploads, the documents it links, the physical accessibility of the events it
+ * runs -- and none of that is the platform's to assert. Overclaiming
+ * conformance to a disabled reader is not a neutral error. Until a tenant
+ * adopts it, `/terms`' accessibility section and the contact form are the
+ * routes it has, and #1292/#1321 surface the unadopted document as an
+ * attention item rather than leaving it silently absent.
  *
  * That second thing is deliberately *not* page visibility. `PUBLIC_PAGE_SLOTS`
  * is about whether a section of the marketing site exists; this is a statement
@@ -53,6 +82,20 @@ export type LegalDocument = {
   /** As the footer's legal bar names it. */
   label: string;
   /**
+   * What to call this document in the middle of a sentence, where the footer's
+   * label does not work as a noun (#1368).
+   *
+   * Four of the five need nothing here: "the platform's standard privacy
+   * policy", "Read the code of conduct in force". The accessibility statement
+   * is linked as **Accessibility**, because that is the word a legal bar uses
+   * and it sits beside three short ones -- but lowercased into a sentence that
+   * gives "the platform's standard accessibility", which is not English. So
+   * every sentence naming a document goes through `legalDocumentNoun()` rather
+   * than through `label.toLowerCase()`, and `legal-publication.test.ts` holds
+   * that the noun reads as one.
+   */
+  noun?: string;
+  /**
    * Whether the document is served no matter what. True for the privacy policy
    * alone; see the note above.
    */
@@ -61,7 +104,8 @@ export type LegalDocument = {
    * Whether `@/lib/legal-defaults.ts` has prose to serve for this document when
    * the tenant has written none.
    *
-   * True for the first three. False for the participant waiver alone (#686),
+   * True for every document but one. False for the participant waiver alone
+   * (#686),
    * and that is the first time a document's default is *absence* rather than a
    * neutral starting draft. `docs/legal-basis.md` rule 2 says the platform
    * makes no commitments on a tenant's behalf; a release of legal rights is the
@@ -177,7 +221,32 @@ export const LEGAL_DOCUMENTS: readonly LegalDocument[] = [
       "What someone agrees to by taking part in your events, shown in full when they register. There is no starting text for this one: a release of legal rights is yours to write with your own counsel. Put it in force once your organization has adopted it, and every registration from that moment records which version was accepted.",
     gates: [],
   },
+  {
+    key: "accessibility",
+    slotKey: "legal.accessibility",
+    route: "/accessibility",
+    label: "Accessibility",
+    noun: "accessibility statement",
+    alwaysInForce: false,
+    hasPlatformDefault: true,
+    description:
+      "What your organization aims for on this site, what it knows is not there yet, and how someone tells you they hit a barrier. Put it in force once somebody here has read it, filled in the contact and the parts about your own events, and can answer a report that arrives.",
+    gates: [],
+  },
 ] as const;
+
+/**
+ * What to call the document mid-sentence: its `noun`, or its label lowercased.
+ *
+ * One function rather than `label.toLowerCase()` at eleven call sites, because
+ * that expression is right for four documents out of five and the fifth would
+ * read as a typo somebody fixed in one place and missed in ten.
+ */
+export function legalDocumentNoun(
+  document: Pick<LegalDocument, "label"> & Partial<Pick<LegalDocument, "noun">>,
+): string {
+  return document.noun ?? document.label.toLowerCase();
+}
 
 export const LEGAL_PUBLICATION_PREFIX = "legal_publication.";
 

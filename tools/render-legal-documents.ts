@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Renders the platform's three legal documents as Markdown, so they can be
- * read and approved without a developer (#1340).
+ * Renders the platform's legal documents as Markdown, so they can be read and
+ * approved without a developer (#1340).
  *
  * The prose in `src/lib/legal-defaults.ts` is template literals assembled by
  * `platformLegalDocument()`, which makes the served text impossible to review

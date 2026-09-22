@@ -5,11 +5,13 @@
 // Putting a document in force must both serve its URL and put it back in the
 // footer: a link the footer no longer renders is still a live page, and a page
 // that is live but unlinked is text nobody can find but anybody can reach.
+import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
 
 const TERMS_KEY = "legal_publication.terms";
 const CONDUCT_KEY = "legal_publication.code_of_conduct";
+const ACCESSIBILITY_KEY = "legal_publication.accessibility";
 
 async function setInForce(key: string, inForce: boolean) {
   const admin = createAdminClient();
@@ -41,6 +43,7 @@ test.describe("per-tenant legal publication", () => {
   test.afterEach(async () => {
     await clear(TERMS_KEY);
     await clear(CONDUCT_KEY);
+    await clear(ACCESSIBILITY_KEY);
   });
 
   test("putting the terms in force serves them and links them", async ({
@@ -93,5 +96,69 @@ test.describe("per-tenant legal publication", () => {
         .getByRole("navigation", { name: "Legal" })
         .getByRole("link", { name: "Terms of Use" }),
     ).toHaveCount(0);
+  });
+});
+
+/**
+ * The accessibility statement's own page, scanned (#1368).
+ *
+ * `e2e/a11y-scan.ts` cannot reach it. The scan runs against the seeded tenant,
+ * which has adopted nothing, so `/accessibility` 404s there and sits in
+ * `SKIPPED_ROUTES` beside /terms and /code-of-conduct -- which leaves the one
+ * page on the site that describes how this site is tested as a page the tests
+ * never see. On any other document that is a footnote; on this one it is the
+ * claim failing on its own terms.
+ *
+ * So it is scanned here instead, where a document can be put in force. Same
+ * rule set as the sweep, and in both themes, because a legal page is a wall of
+ * text and contrast is the rule a wall of text fails.
+ */
+test.describe("the accessibility statement's own page", () => {
+  test.describe.configure({ mode: "serial" });
+
+  test.afterEach(async () => {
+    await clear(ACCESSIBILITY_KEY);
+  });
+
+  for (const theme of ["light", "dark"] as const) {
+    test(`has no axe violations in ${theme} mode`, async ({ page }) => {
+      await setInForce(ACCESSIBILITY_KEY, true);
+
+      const response = await page.goto("/accessibility");
+      expect(response?.status()).toBe(200);
+
+      await page.evaluate((next) => {
+        document.documentElement.setAttribute("data-theme", next);
+        document.documentElement.classList.toggle("dark", next === "dark");
+      }, theme);
+      // The palette crossfade, which axe would otherwise measure mid-blend.
+      await page.waitForTimeout(600);
+
+      const results = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+
+      expect(
+        results.violations.map((violation) => violation.id),
+        "the page saying how this site is tested may not itself fail the test",
+      ).toEqual([]);
+    });
+  }
+
+  // The rail is how anyone reads a document this long, and an anchor that
+  // scrolls nowhere is invisible to axe and to types alike.
+  test("every section link in the rail points at a heading", async ({
+    page,
+  }) => {
+    await setInForce(ACCESSIBILITY_KEY, true);
+    await page.goto("/accessibility");
+
+    const dead = await page.evaluate(() =>
+      [...document.querySelectorAll('nav a[href^="#"]')]
+        .map((link) => link.getAttribute("href")!)
+        .filter((href) => href.length > 1 && !document.querySelector(href)),
+    );
+
+    expect(dead).toEqual([]);
   });
 });

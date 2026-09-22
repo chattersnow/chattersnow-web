@@ -10,12 +10,12 @@ import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 //
 // What this file asserts is the state of a tenant that has adopted nothing,
 // which is what the seeded tenant is and what every newly provisioned tenant
-// starts as (#859): the privacy policy is served and linked, and the other two
-// are not. Putting one in force is `legal-publication.spec.ts`, which mutates a
+// starts as (#859): the privacy policy is served and linked, and the others are
+// not. Putting one in force is `legal-publication.spec.ts`, which mutates a
 // real row and therefore runs alone in the `mutating` project.
 
 test.describe("legal documents a tenant has not adopted", () => {
-  for (const path of ["/terms", "/code-of-conduct"]) {
+  for (const path of ["/terms", "/code-of-conduct", "/accessibility"]) {
     test(`${path} is not served`, async ({ page }) => {
       const response = await page.goto(path);
 
@@ -30,14 +30,18 @@ test.describe("legal documents a tenant has not adopted", () => {
   // (#601), so the adoption gate covers it for free -- and has to, or text
   // nobody adopted would be one query parameter from being published under
   // this organization's name.
-  for (const path of ["/terms?version=1", "/code-of-conduct?version=1"]) {
+  for (const path of [
+    "/terms?version=1",
+    "/code-of-conduct?version=1",
+    "/accessibility?version=1",
+  ]) {
     test(`${path} is not served either`, async ({ page }) => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(404);
     });
   }
 
-  test("the footer links to neither", async ({ page }) => {
+  test("the footer links to none of them", async ({ page }) => {
     await page.goto("/home");
 
     const legal = page.getByRole("navigation", { name: "Legal" });
@@ -46,6 +50,9 @@ test.describe("legal documents a tenant has not adopted", () => {
     );
     await expect(
       legal.getByRole("link", { name: "Code of Conduct" }),
+    ).toHaveCount(0);
+    await expect(
+      legal.getByRole("link", { name: "Accessibility" }),
     ).toHaveCount(0);
   });
 });

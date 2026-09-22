@@ -7,9 +7,9 @@ import {
 export type { LegalSection };
 
 /**
- * Frame for the long-form legal pages (/privacy, /terms, /code-of-conduct):
- * a left rail of section links, the document beside it, and the shared title
- * block all three used to repeat.
+ * Frame for the long-form legal pages (/privacy, /terms, /code-of-conduct,
+ * /accessibility): a left rail of section links, the document beside it, and
+ * the shared title block each of them used to repeat.
  *
  * The rail is on the left because that is where readers look. NN/g ranks the
  * right rail last of the three table-of-contents placements -- "right-rail
@@ -46,7 +46,7 @@ export function LegalPageShell({
   banner?: ReactNode;
   lastUpdated: string;
   /**
-   * What the date under the title is. "Last updated" for the three legal
+   * What the date under the title is. "Last updated" for the legal
    * documents; a promotion's official rules say "Effective" instead, because
    * the date is the moment that version took force rather than the day
    * somebody edited it (#1322).
