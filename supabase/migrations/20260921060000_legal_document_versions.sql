@@ -128,13 +128,25 @@ create policy "legal_document_versions select" on public.legal_document_versions
 grant select on public.legal_document_versions to authenticated;
 
 -- RLS does not stop a TRUNCATE, and Supabase's schema-wide default privileges
--- hand `anon` and `authenticated` TRUNCATE on every table in `public` --
--- `site_content`, `events` and `giveaway_rules_versions` included. That is a
--- platform-wide condition and not this migration's to fix, but a table whose
--- entire contract is "never updated, never deleted" should not be one
--- statement from empty, so it is revoked here and the self-check at the foot
--- of this file holds it revoked.
-revoke truncate on public.legal_document_versions from anon, authenticated;
+-- hand `anon` and `authenticated` every write privilege on each new table in
+-- `public` -- `site_content`, `events` and `giveaway_rules_versions` included.
+-- That is a platform-wide condition and not this migration's to fix, but a
+-- table whose entire contract is "never updated, never deleted" should not be
+-- one statement from empty, so all four are revoked here and the self-check at
+-- the foot of this file holds them revoked.
+--
+-- All four rather than TRUNCATE alone, which is what this revoke said until
+-- the first push to a project carrying those defaults: RLS refuses an INSERT,
+-- UPDATE or DELETE from a session either way -- there is no policy for any of
+-- them -- but the self-check asserts the *grants* are absent, and on such a
+-- project it fired on its own migration. A privilege nothing may exercise is
+-- one an RLS mistake later would silently hand out, so the check is right and
+-- the revoke was short. Nothing writes here through a session role:
+-- publish_site_content() is the only writer and is security definer, and
+-- `legal-versions.integration.test.ts` already asserts that no session can
+-- insert, change or remove a version.
+revoke insert, update, delete, truncate
+  on public.legal_document_versions from anon, authenticated;
 
 -- 2. What the public site reads, as `anon` -----------------------------------
 --

@@ -91,7 +91,16 @@ comment on column public.event_registrations.emergency_contact_phone is
 -- fails if a later column is added without one -- a new column that nobody
 -- grants disappears from the portal, which is the safe direction to fail but a
 -- confusing one to debug.
-revoke select on public.event_registrations from authenticated;
+--
+-- `anon` is named as well, though 20260823090000 granted it nothing on this
+-- table on purpose: a project carrying Supabase's schema-wide default
+-- privileges hands `anon` and `authenticated` every privilege on each new
+-- table in `public`, which is what 20260921060000 ran into on its own
+-- self-check. RLS refuses an anonymous read either way -- there is no policy
+-- for `anon` here and every public write goes through the definer RPC -- but a
+-- revoke that only names `authenticated` would leave this guarantee weaker on
+-- the hosted project than it is locally, which is the opposite of the point.
+revoke select on public.event_registrations from anon, authenticated;
 
 grant select (
   id,
