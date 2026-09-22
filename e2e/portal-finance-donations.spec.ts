@@ -187,7 +187,13 @@ test.describe("portal finance donations", () => {
 
     await expect(dialog.getByRole("option")).toHaveCount(0);
     // The first Escape belongs to the list; the dialog outlives it.
-    await expect(dialog).toBeVisible();
+    //
+    // Read off `data-open` rather than `toBeVisible`: Base UI keeps the popup
+    // mounted and on screen through its close animation, carrying `data-closed`
+    // and `data-ending-style`, so a dialog on its way out is still "visible" and
+    // a regression where one Escape closed both would pass. The attribute flips
+    // the moment the dialog is asked to close, and nothing takes it back.
+    await expect(dialog).toHaveAttribute("data-open");
     await expect(search).toHaveValue("Jamie");
 
     await page.keyboard.press("Escape");
