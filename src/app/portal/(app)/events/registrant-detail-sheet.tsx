@@ -66,6 +66,7 @@ export function RegistrantDetailSheet({
   orgEmailEnabled,
   canManage,
   waiverInForce,
+  photoConsentInForce,
   onClosed,
   onSent,
 }: {
@@ -87,6 +88,14 @@ export function RegistrantDetailSheet({
    * submitting, so a refusal leaves no registration to open.
    */
   waiverInForce: boolean;
+  /**
+   * Whether this organization asks about photos today (#599) — the same
+   * "we never asked" / "this row predates the question" distinction.
+   *
+   * Unlike the waiver, the field below *can* say "they declined", and that is
+   * the state the whole ticket exists for.
+   */
+  photoConsentInForce: boolean;
   /** The sheet is mounted per target, so closing it unmounts it. */
   onClosed: () => void;
   onSent?: () => void;
@@ -251,6 +260,56 @@ export function RegistrantDetailSheet({
                   // registered" and "they declined" are different facts, and
                   // only the first one can produce a row to read this on.
                   "Not recorded — no agreement was in force when they registered"
+                )}
+              </ReadOnlyField>
+            )}
+            {/* Photo consent, and the one field here that has to be able to say
+                "they declined" (#599). The waiver's two-state rendering above
+                deliberately cannot -- its own comment says so -- because
+                declining a waiver is declining to register, and no row
+                survives it. This answer has three states and all three are
+                real:
+
+                  granted  -- the date, and the scope they agreed to
+                  declined -- the date, and an instruction, because this is the
+                              record somebody acts on
+                  not asked -- said plainly, because a blank here would read as
+                              "no objection"
+
+                Unlike the agreement it is shown on every registrant whose row
+                carries an answer AND on those whose row does not, whenever the
+                organization is asking now: "nobody asked this person" is worth
+                knowing when the person beside them was asked. */}
+            {(photoConsentInForce || registrant.photo_consent !== null) && (
+              <ReadOnlyField label="Photos" htmlFor="registrant-photo-consent">
+                {registrant.photo_consent === null ? (
+                  "Not recorded — they were not asked about photos when they registered"
+                ) : (
+                  <>
+                    {registrant.photo_consent
+                      ? "Agreed to be photographed or recorded"
+                      : "Declined — do not photograph or record this person"}
+                    {registrant.photo_consent_at
+                      ? `, ${formatDateTime(registrant.photo_consent_at)}.`
+                      : "."}
+                    {/* The words they answered, not a link to the words as
+                        they read today. A content slot has no version table
+                        and no permalink -- which is why the column is a
+                        snapshot (#1319's shape) -- so this disclosure is the
+                        only place the actual text can be reached, and a
+                        question about it months later has to be answerable
+                        from the row itself. */}
+                    {registrant.photo_consent_text && (
+                      <details className="mt-1">
+                        <summary className="app-muted cursor-pointer text-xs">
+                          What they were asked
+                        </summary>
+                        <p className="app-muted mt-1 text-xs whitespace-pre-line">
+                          {registrant.photo_consent_text}
+                        </p>
+                      </details>
+                    )}
+                  </>
                 )}
               </ReadOnlyField>
             )}

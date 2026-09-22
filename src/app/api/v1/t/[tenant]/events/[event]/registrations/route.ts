@@ -35,6 +35,20 @@ const route = publicWrite<
         p_accompanying_adult_phone: body.accompanying_adult_phone ?? null,
         p_emergency_contact_name: body.emergency_contact_name ?? null,
         p_emergency_contact_phone: body.emergency_contact_phone ?? null,
+        // #1366. `undefined` for both, so a caller that sends neither leaves
+        // the RPC's own defaults in place -- which is the right answer for
+        // every tenant that has adopted no waiver, and the only answer for a
+        // caller written before the question existed. A tenant that has
+        // adopted one refuses the registration instead of taking it without
+        // the agreement it says governs taking part.
+        p_waiver_accepted: body.waiver_accepted ?? undefined,
+        p_waiver_version: body.waiver_version ?? undefined,
+        // #599, and `undefined` here is load-bearing rather than tidy: it is
+        // how "this caller did not ask" reaches the RPC, which records null
+        // instead of inventing either answer. A `false` is a decline and is
+        // stored as one. The words the answer is recorded against come from
+        // the organization's own row, never from this body.
+        p_photo_consent: body.photo_consent ?? undefined,
         p_ip_address: clientIp,
       }),
     );

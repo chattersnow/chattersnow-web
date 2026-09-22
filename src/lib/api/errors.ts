@@ -146,6 +146,16 @@ const RPC_ERRORS: Record<
     code: "conflict",
     message: "One of these items has already been requested.",
   },
+  // #1366. The agreement moved between the version this caller was shown and
+  // the one in force now, which is the state of the thing rather than a
+  // malformed request: read the new one and accept that. Only a caller that
+  // pins a version can get here -- omitting waiver_version accepts whatever is
+  // in force, which is what a caller with nowhere to store one should do.
+  WAIVER_CHANGED: {
+    code: "conflict",
+    message:
+      "The participant agreement has been updated since the version you sent. Read it again and register against the current one, or omit waiver_version.",
+  },
 
   // Field-level refusals the database makes even though the handler's schema
   // passed -- a length or a shape only Postgres knows about.
@@ -185,6 +195,17 @@ const RPC_ERRORS: Record<
       "A party that includes anyone under 18 needs an accompanying adult and an emergency contact.",
     field: "accompanying_adult_name",
   },
+  // #1366. Names where to find the document, because the website's own wording
+  // -- "tick the box" -- is advice a headless caller cannot act on. It names
+  // the endpoint rather than a version: GET /legal reports each document's
+  // `url` and whether it is in force, and the version is the organization's
+  // own numbering, which a caller is free not to track.
+  WAIVER_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This organization requires its participant agreement to be accepted before registering. GET /api/v1/t/{tenant}/legal reports where to read it; send waiver_accepted once the person has.",
+    field: "waiver_accepted",
+  },
   INVALID_RIDER_PROFILE: {
     code: "invalid_request",
     message: "The riding discipline and experience levels do not agree.",
@@ -203,6 +224,16 @@ const RPC_ERRORS: Record<
     message:
       "The requester must be shown, and acknowledge, that these items are given as-is.",
     field: "as_is_acknowledged",
+  },
+
+  // #1366, and the one waiver code that is not the caller's fault: this tenant
+  // has an agreement in force with no published version to show. Nothing the
+  // caller can send fixes it, so it stays a 500 and the detail goes to our log
+  // -- the same treatment as any other unmapped failure, but named so it is
+  // not mistaken for one.
+  WAIVER_UNAVAILABLE: {
+    code: "server_error",
+    message: "Something went wrong on our side.",
   },
 };
 

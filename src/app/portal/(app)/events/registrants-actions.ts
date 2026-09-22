@@ -150,6 +150,25 @@ export type EventRegistrant = {
    * know before the day; the contacts below are a different matter.
    */
   party_includes_minor: boolean | null;
+  /**
+   * What this person said about being photographed or recorded (#599), and the
+   * only three-state field here where every state has to be legible.
+   *
+   * Null means nobody was asked — this organization had written no
+   * `events.photo_consent` scope at the time, or the row came from a walk-in,
+   * a staff-added registrant or the public API. **False means they declined**,
+   * which is the answer with a job: it is what somebody checks before pointing
+   * a camera. `photo_consent_text` is the scope they answered against, kept so
+   * a question about it months later can be answered from the row itself.
+   *
+   * Not gated on `events: manage`, for the same reason as the two fields above
+   * and more urgently: the door shift is precisely who needs it, and needs it
+   * before the camera comes out. A consent record nobody can see when it
+   * matters is the same failure as no record at all.
+   */
+  photo_consent: boolean | null;
+  photo_consent_at: string | null;
+  photo_consent_text: string | null;
   rider: RegistrantRiderProfile | null;
   /** See `RegistrantMinorContacts`. Null unless `events: manage`. */
   minorContacts: RegistrantMinorContacts | null;
@@ -195,6 +214,17 @@ export type EventRegistrantsData = {
    * consent would be unavailable here.
    */
   waiverInForce: boolean;
+  /**
+   * Whether this organization currently asks about photos at registration
+   * (#599) — that is, whether `events.photo_consent` holds any text.
+   *
+   * The same thing `waiverInForce` buys above: it separates "we never asked"
+   * from "we ask, and this row has no answer", the second being a registration
+   * taken before the scope was written. Read through
+   * `tenant_asks_photo_consent()` rather than off `site_content`, because that
+   * table needs `site_content: view` and the reader here is a door shift.
+   */
+  photoConsentInForce: boolean;
 };
 
 export async function listEventRegistrantsAction(
@@ -226,6 +256,12 @@ export async function listEventRegistrantsAction(
   // the organization takes a waiver at all is what turns an empty cell from
   // ambiguous into "nobody was asked" (#686).
   const waiverInForce = (await getTenantLegalPublication(supabase)).waiver;
+  // Read for both readers too, and for the same reason (#599). A failure lands
+  // on "not asking", which makes the sheet hide the row for registrants who
+  // have no answer rather than claim they were never asked -- the quiet
+  // direction, and the honest one when the flag itself could not be read.
+  const photoConsentInForce =
+    (await supabase.rpc("tenant_asks_photo_consent")).data === true;
 
   if (!canSeeRider) {
     return {
@@ -234,6 +270,7 @@ export async function listEventRegistrantsAction(
         messages: NO_RECORD_MESSAGES,
         messaging: null,
         waiverInForce,
+        photoConsentInForce,
       },
     };
   }
@@ -296,12 +333,17 @@ export async function listEventRegistrantsAction(
         orgEmailEnabled,
       },
       waiverInForce,
+      photoConsentInForce,
     },
   };
 }
 
+// Every name here also has to appear in 20260922070000's `grant select (...)`
+// list: that migration replaced this table's table-level SELECT with a column
+// allow-list so the minor contacts could be carved out of it, and a column
+// missing from the list simply disappears from the portal.
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, photo_consent, photo_consent_at, photo_consent_text";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";

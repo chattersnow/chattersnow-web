@@ -96,6 +96,13 @@ describe("the site content registry", () => {
     expect(
       DEFAULT_SITE_CONTENT.paragraphs("events.minor_accompaniment"),
     ).toEqual([]);
+    // The same argument at its sharpest (#599), and the one slot where blank
+    // removes the question rather than just the prose. What an organization
+    // does with a photo of somebody's face is off-platform and unknowable from
+    // here, and a default would be a scope a registrant then consented to on a
+    // tenant's behalf. Blank means the box is never rendered and all three
+    // columns stay null, which is where almost every tenant stays.
+    expect(DEFAULT_SITE_CONTENT.paragraphs("events.photo_consent")).toEqual([]);
   });
 
   // The public pages look a photo up by its short name (`urls.learn_photo`),

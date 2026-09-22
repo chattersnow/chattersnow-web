@@ -99,6 +99,7 @@ function EventDetailBody({
   waiver,
   waiverBlock,
   minorAccompaniment,
+  photoConsent,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
@@ -120,6 +121,13 @@ function EventDetailBody({
    * written none, which is the state every tenant starts in.
    */
   minorAccompaniment: string[];
+  /**
+   * This organization's photo and media consent scope (#599), shown above an
+   * unticked box. Empty on a tenant that has written none, and empty means
+   * the question is not asked at all -- the form renders exactly what it
+   * rendered before this shipped.
+   */
+  photoConsent: string[];
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -213,6 +221,7 @@ function EventDetailBody({
                   waiver={waiver}
                   waiverBlock={waiverBlock}
                   minorAccompaniment={minorAccompaniment}
+                  photoConsent={photoConsent}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -226,6 +235,7 @@ function EventDetailBody({
                   waiver={waiver}
                   waiverBlock={waiverBlock}
                   minorAccompaniment={minorAccompaniment}
+                  photoConsent={photoConsent}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -279,6 +289,13 @@ export async function EventDetailContent({
   // written none, which leaves the form saying only what it asks for.
   const { content } = await getPublicSite(supabase);
   const minorAccompaniment = content.paragraphs("events.minor_accompaniment");
+  // And this organization's photo and media consent scope (#599), off the same
+  // read. Empty on a tenant that has written none, which is almost all of
+  // them, and empty means the form asks nothing about photographs at all --
+  // not an empty box, not a heading. Read here rather than in the client
+  // component for the reason the waiver is: a block of tenant prose has no
+  // business in the browser bundle of the tenants that have none.
+  const photoConsent = content.paragraphs("events.photo_consent");
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -307,6 +324,7 @@ export async function EventDetailContent({
             waiver={waiver ? { version: waiver.version } : null}
             waiverBlock={waiverBlock}
             minorAccompaniment={minorAccompaniment}
+            photoConsent={photoConsent}
           />
         </div>
       </>
@@ -334,6 +352,7 @@ export async function EventDetailContent({
         waiver={waiver ? { version: waiver.version } : null}
         waiverBlock={waiverBlock}
         minorAccompaniment={minorAccompaniment}
+        photoConsent={photoConsent}
       />
     </>
   );

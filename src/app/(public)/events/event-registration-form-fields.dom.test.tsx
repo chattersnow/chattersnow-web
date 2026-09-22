@@ -385,4 +385,113 @@ describe("EventRegistrationForm and the minors question", () => {
     expect(submission.accompanyingAdultName).toBeUndefined();
     expect(submission.emergencyContactPhone).toBeUndefined();
   });
+
+  // #599. The scope is a tenant slot, so the whole question appears and
+  // disappears with it -- and the absent case is almost every tenant.
+  describe("photo and media consent", () => {
+    const SCOPE = [
+      "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
+    ];
+
+    // Structurally typed for the reason `sayNoMinors` above is: the default
+    // export and what `userEvent.setup()` returns are different types, and
+    // both get passed here.
+    async function fillAndSubmit(
+      user: {
+        click: (element: Element) => Promise<unknown>;
+        type: (element: Element, text: string) => Promise<unknown>;
+      } = userEvent,
+    ) {
+      await user.type(screen.getByLabelText(/^Name/), "Jane");
+      await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+      await sayNoMinors(user);
+      await user.click(
+        screen.getByRole("button", { name: "Complete registration" }),
+      );
+    }
+
+    test("asks nothing, and posts nothing, when the tenant has written no scope", async () => {
+      render(<EventRegistrationForm eventId="event-1" />);
+
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      await fillAndSubmit();
+
+      // Absent, not "off". The question was never put, and the row has to
+      // record that rather than a decline.
+      expect(lastSubmission().photoConsent).toBeUndefined();
+    });
+
+    test("an unticked box that was on screen posts a decline", async () => {
+      render(<EventRegistrationForm eventId="event-1" photoConsent={SCOPE} />);
+
+      expect(screen.getByText(SCOPE[0])).toBeInTheDocument();
+      const box = screen.getByRole("checkbox", {
+        name: /happy to be photographed/i,
+      });
+      expect(box).not.toBeChecked();
+
+      await fillAndSubmit();
+      expect(lastSubmission().photoConsent).toBe("off");
+    });
+
+    // The difference from the waiver's box, and the reason it is not
+    // `required`: leaving this one alone submits.
+    test("declining does not stop the registration", async () => {
+      render(<EventRegistrationForm eventId="event-1" photoConsent={SCOPE} />);
+
+      await fillAndSubmit();
+      expect(registerForEventActionMock).toHaveBeenCalled();
+    });
+
+    test("a ticked box posts consent", async () => {
+      const user = userEvent.setup();
+      render(<EventRegistrationForm eventId="event-1" photoConsent={SCOPE} />);
+
+      await user.click(
+        screen.getByRole("checkbox", { name: /happy to be photographed/i }),
+      );
+      await fillAndSubmit(user);
+
+      expect(lastSubmission().photoConsent).toBe("on");
+    });
+
+    // #685's answer branches the label and not the record: still one box, and
+    // still one field on the wire.
+    test("a party with a minor is asked in the guardian's capacity", async () => {
+      const user = userEvent.setup();
+      render(<EventRegistrationForm eventId="event-1" photoConsent={SCOPE} />);
+
+      await user.click(screen.getByLabelText(/under 18/i));
+      await user.click(screen.getByRole("option", { name: "Yes" }));
+
+      expect(
+        screen.getByRole("checkbox", { name: /parent or guardian/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getAllByRole("checkbox", { name: /photographed/i }),
+      ).toHaveLength(1);
+    });
+
+    // The order #789 sets out: notice, then the box that can be declined, then
+    // the one that cannot.
+    test("sits between the privacy notice and the agreement", () => {
+      const { container } = render(
+        <EventRegistrationForm
+          eventId="event-1"
+          photoConsent={SCOPE}
+          waiver={{ version: 1 }}
+          waiverBlock={<p>The agreement itself.</p>}
+        />,
+      );
+
+      const text = container.textContent ?? "";
+      const notice = text.indexOf("We use what you enter here");
+      const photos = text.indexOf("happy to be photographed");
+      const agreement = text.indexOf("I have read the agreement");
+
+      expect(notice).toBeGreaterThanOrEqual(0);
+      expect(photos).toBeGreaterThan(notice);
+      expect(agreement).toBeGreaterThan(photos);
+    });
+  });
 });

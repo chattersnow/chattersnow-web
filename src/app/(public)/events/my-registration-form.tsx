@@ -21,7 +21,9 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { PhotoConsentField } from "@/components/photo-consent-field";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
+import { PHOTO_CONSENT_FIELD, photoConsentValue } from "@/lib/photo-consent";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
 
@@ -47,6 +49,7 @@ export function MyEventRegistrationForm({
   waiver = null,
   waiverBlock = null,
   minorAccompaniment = [],
+  photoConsent = [],
 }: {
   eventId: string;
   person: MyContactDetails;
@@ -64,6 +67,13 @@ export function MyEventRegistrationForm({
    * (#685). Empty on a tenant that has written none.
    */
   minorAccompaniment?: string[];
+  /**
+   * This organization's photo and media consent scope (#599). Empty on a
+   * tenant that has written none, and empty means the question is not asked
+   * at all. Put to a signed-in caller exactly as it is to an anonymous one:
+   * holding an account is not permission to photograph anybody.
+   */
+  photoConsent?: string[];
 }) {
   const [phone, setPhone] = useState(person.phone ?? "");
   const [pronouns, setPronouns] = useState(person.pronouns ?? "");
@@ -85,6 +95,9 @@ export function MyEventRegistrationForm({
   const [notes, setNotes] = useState("");
   // Unticked, always (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
+  // Unticked too (#599), but leaving this one alone is a stored decline rather
+  // than a refused submission.
+  const [photoConsentGiven, setPhotoConsentGiven] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -108,6 +121,11 @@ export function MyEventRegistrationForm({
       for (const [key, value] of Object.entries(minorContacts)) {
         formData.set(key, value);
       }
+    }
+    // Only when a scope was rendered: an absent field records "not asked",
+    // and an unticked box that was on screen records a decline (#599).
+    if (photoConsent.some((paragraph) => paragraph.trim())) {
+      formData.set(PHOTO_CONSENT_FIELD, photoConsentValue(photoConsentGiven));
     }
     if (waiver) {
       formData.set("waiverAccepted", waiverAccepted ? "on" : "");
@@ -247,6 +265,20 @@ export function MyEventRegistrationForm({
             onChange={(event) => setNotes(event.target.value)}
           />
         </Field>
+
+        {/* Above the agreement, the same order the anonymous form uses and for
+            the same reason: an unticked box sitting beside "I accept" reads as
+            part of the acceptance. The minors answer reaches it, because where
+            the party includes someone under 18 the label says the adult is
+            answering as their parent or guardian (#685, #599). */}
+        <PhotoConsentField
+          idPrefix="my-registration"
+          paragraphs={photoConsent}
+          partyIncludesMinor={partyIncludesMinor === "yes"}
+          checked={photoConsentGiven}
+          onChange={setPhotoConsentGiven}
+          disabled={isPending}
+        />
 
         {/* Immediately above the button that acts on it, the same placement
             the anonymous form uses. This form carries no privacy notice --

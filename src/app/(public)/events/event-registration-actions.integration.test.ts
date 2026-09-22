@@ -1040,3 +1040,235 @@ describe("register_for_event and a party with a minor", () => {
     expect(await countEventRegistrations(eventId, email)).toBe(0);
   });
 });
+
+// #599: photo and media consent. Three states, and the one worth the most is
+// the decline -- which is exactly the state a waiver cannot have, because
+// declining a waiver is declining to register.
+//
+// The scope is a tenant content slot, so every case here writes or withholds
+// `events.photo_consent`, and the unwritten case is the one almost every
+// organization is in.
+describe("register_for_event and photo consent", () => {
+  const SCOPE = [
+    "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
+    "We never sell them, and we will take one down if you ask.",
+  ];
+
+  async function photoTenantId() {
+    const { data, error } = await service
+      .from("tenants")
+      .select("id")
+      .eq("slug", "example-nonprofit")
+      .single();
+    if (error) throw error;
+    return data.id as string;
+  }
+
+  /** What a tenant writing its own scope in Website > Pages produces. */
+  async function writeScope(paragraphs: string[] = SCOPE) {
+    const tenantId = await photoTenantId();
+    await service.from("site_content").upsert(
+      {
+        tenant_id: tenantId,
+        key: "events.photo_consent",
+        value: paragraphs,
+        published_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id,key" },
+    );
+    cleanups.push(async () => {
+      await service
+        .from("site_content")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "events.photo_consent");
+    });
+    return tenantId;
+  }
+
+  async function readRow(registrationId: string) {
+    const { data, error } = await service
+      .from("event_registrations")
+      .select("photo_consent, photo_consent_at, photo_consent_text")
+      .eq("id", registrationId)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function registerWith(
+    args: Record<string, unknown>,
+    email = uniqueEmail("photo"),
+  ) {
+    const { id } = await event();
+    const result = await anonClient().rpc("register_for_event", {
+      p_event_id: id,
+      p_name: "Jamie Rivera",
+      p_email: email,
+      p_phone: null,
+      p_party_size: 2,
+      p_notes: null,
+      p_ip_address: uniqueIp(),
+      ...args,
+    });
+    return { ...result, email, eventId: id };
+  }
+
+  // The state almost every tenant is in, and the one that must never break.
+  test("records nothing when the organization has written no scope", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("photo-none");
+
+    expect(
+      await registerForEventAction(id, formData({ name: "Jamie", email })),
+    ).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    expect(await readRow(registration.id as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  // Even a `true` from a caller: with no scope there is nothing the answer
+  // could have been given against, so there is nothing honest to store.
+  test("records nothing even when an answer arrives with no scope written", async () => {
+    const { data, error } = await registerWith({ p_photo_consent: true });
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  test("an omitted answer is unasked, even where the organization is asking", async () => {
+    await writeScope();
+    const { data, error } = await registerWith({});
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  test("a decline is stored as a decline, and the registration is taken", async () => {
+    await writeScope();
+    const { data, error, eventId, email } = await registerWith({
+      p_photo_consent: false,
+    });
+
+    expect(error).toBeNull();
+    expect(await countEventRegistrations(eventId, email)).toBe(1);
+
+    const row = await readRow(data as string);
+    expect(row.photo_consent).toBe(false);
+    expect(row.photo_consent_at).not.toBeNull();
+  });
+
+  test("a grant is stored with the moment it was given", async () => {
+    await writeScope();
+    const { data, error } = await registerWith({ p_photo_consent: true });
+
+    expect(error).toBeNull();
+    const row = await readRow(data as string);
+    expect(row.photo_consent).toBe(true);
+    expect(row.photo_consent_at).not.toBeNull();
+  });
+
+  // The invariant `artwork_submissions.consented_terms` carries: the words come
+  // from the organization's own row, never from whoever is posting the form. A
+  // snapshot rather than a version pointer, because a content slot has no
+  // version table and no permalink (#1319's test).
+  test("the snapshot is the organization's own paragraphs, joined", async () => {
+    await writeScope();
+    const { data } = await registerWith({ p_photo_consent: true });
+
+    expect((await readRow(data as string)).photo_consent_text).toBe(
+      SCOPE.join("\n\n"),
+    );
+  });
+
+  test("a blank paragraph is not part of the snapshot", async () => {
+    await writeScope(["First.", "   ", "Second."]);
+    const { data } = await registerWith({ p_photo_consent: false });
+
+    expect((await readRow(data as string)).photo_consent_text).toBe(
+      "First.\n\nSecond.",
+    );
+  });
+
+  // The one structural refusal case, and it refuses by recording null rather
+  // than by rejecting the registration: punishing a registrant for an edit
+  // somebody else made would be the wrong trade.
+  test("a scope emptied between render and submit records not-asked, not a stale snapshot", async () => {
+    const tenantId = await writeScope();
+    await service
+      .from("site_content")
+      .update({ value: [] })
+      .eq("tenant_id", tenantId)
+      .eq("key", "events.photo_consent");
+
+    const { data, error, eventId, email } = await registerWith({
+      p_photo_consent: true,
+    });
+
+    expect(error).toBeNull();
+    expect(await countEventRegistrations(eventId, email)).toBe(1);
+    expect(await readRow(data as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  // Both registration paths resolve through one function so they cannot
+  // disagree, and a disagreement would be silent in the direction that matters
+  // -- one path recording consent the other would have declined. This covers
+  // the anonymous path end to end through the action.
+  test("the action path reaches the same resolver", async () => {
+    await writeScope();
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("photo-action");
+
+    const fd = formData({ name: "Jamie", email });
+    fd.set("photoConsent", "off");
+    expect(await registerForEventAction(id, fd)).toMatchObject({
+      success: true,
+    });
+
+    const registration = await registrationFor(id, email);
+    const row = await readRow(registration.id as string);
+    expect(row.photo_consent).toBe(false);
+    expect(row.photo_consent_text).toBe(SCOPE.join("\n\n"));
+  });
+
+  // The portal's "we never asked" / "this row predates the question" split,
+  // answered without `site_content: view` so an events:view door shift can
+  // read it. Asked as a signed-in staff account rather than through the
+  // service role, because it resolves `current_tenant_id()` -- which the
+  // service role has no session to resolve, and which is the whole point of
+  // not reading the request host here.
+  test("the portal can tell whether the organization is asking", async () => {
+    expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
+      false,
+    );
+    await writeScope();
+    expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
+      true,
+    );
+  });
+
+  test("a scope of nothing but blanks does not count as asking", async () => {
+    await writeScope(["  ", ""]);
+    expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
+      false,
+    );
+  });
+});
