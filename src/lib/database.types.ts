@@ -8716,6 +8716,13 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_giving_settings: {
+        Row: {
+          slot: string | null;
+          value: Json | null;
+        };
+        Relationships: [];
+      };
       public_legal_document_versions: {
         Row: {
           content: Json | null;
@@ -9302,6 +9309,7 @@ export type Database = {
         Args: { p_giveaway_id: string };
         Returns: Json;
       };
+      get_giving_settings: { Args: never; Returns: Json };
       get_program_impact_rollup_data: {
         Args: { p_program_id: string };
         Returns: Json;
@@ -10394,6 +10402,18 @@ export type Database = {
           p_quoted_amount?: number;
           p_request_id: string;
           p_status: string;
+        };
+        Returns: undefined;
+      };
+      set_giving_settings: {
+        Args: {
+          p_amount_param: string;
+          p_enabled: boolean;
+          p_mode: string;
+          p_provider_label: string;
+          p_recurring_available: boolean;
+          p_suggested_amounts: Json;
+          p_url: string;
         };
         Returns: undefined;
       };

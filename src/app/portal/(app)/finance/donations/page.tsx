@@ -45,6 +45,12 @@ import {
   type MonetaryDonationRow,
 } from "./donations-shared";
 import { formatCalendarDate, formatCurrency } from "@/lib/format";
+import { parseGivingSettings } from "@/lib/giving";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import { GivingSettingsPanel } from "./giving-settings-panel";
 import { EmptyState } from "@/components/portal/empty-state";
 
 type DonationsPageProps = {
@@ -123,20 +129,34 @@ export default async function FinanceDonationsPage({
   }
 
   const { offset, to } = pageRange(page, perPage);
-  const [{ data: donations, count }, { data: events }, { data: people }] =
-    await Promise.all([
-      query.range(offset, to),
-      supabase
-        .from("events")
-        .select("id, name")
-        .order("name", { ascending: true }),
-      supabase
-        .from("people")
-        .select(
-          "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
-        )
-        .order("name", { ascending: true }),
-    ]);
+  const [
+    { data: donations, count },
+    { data: events },
+    { data: people },
+    permissions,
+  ] = await Promise.all([
+    query.range(offset, to),
+    supabase
+      .from("events")
+      .select("id, name")
+      .order("name", { ascending: true }),
+    supabase
+      .from("people")
+      .select(
+        "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
+      )
+      .order("name", { ascending: true }),
+    getCurrentUserPermissions(supabase),
+  ]);
+
+  // The giving path (#1389) is configured here rather than in Administration
+  // because it shapes exactly one feature (docs/portal-navigation.md), and it
+  // is read only for somebody who could change it -- get_giving_settings()
+  // returns null without finance:view either way.
+  const canManageGiving = hasPermission(permissions, "finance", "manage");
+  const givingResult = canManageGiving
+    ? await supabase.rpc("get_giving_settings")
+    : null;
 
   const donationRows = (donations ?? []) as unknown as MonetaryDonationRow[];
   const eventOptions = (events ?? []) as EventOption[];
@@ -485,6 +505,12 @@ export default async function FinanceDonationsPage({
             perPageHrefFor={perPageHref}
           />
         )}
+
+        {canManageGiving && givingResult && !givingResult.error ? (
+          <GivingSettingsPanel
+            settings={parseGivingSettings(givingResult.data)}
+          />
+        ) : null}
       </div>
     </>
   );
