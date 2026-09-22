@@ -143,6 +143,21 @@ const PRIVACY: DocumentProse = {
         surfaces.volunteerHours &&
           "**Hours you log yourself** — if you volunteer with us and log your own hours: how many, the date, which event and which role they were for, and any note you add. They stay pending until somebody here confirms them.",
       ]),
+      // Not a bullet, because the list above is introduced by "information you
+      // type into a form yourself" and nobody types this: it is recorded by
+      // the organization about a volunteer. A trailing paragraph is where that
+      // already goes — the IP-address sentence below has the same shape and
+      // the same reason (#1360).
+      //
+      // The last sentence is the one that matters, and it is a claim about the
+      // software rather than about anyone's process, so it is true on every
+      // tenant: `person_screenings` has columns for a level and two dates and
+      // no column any result could be written into.
+      ...(surfaces.volunteerScreening
+        ? [
+            "If you volunteer with us in a role our policy says needs screening — references, a conversation, or a background check — we record only the outcome: which level you were cleared for, the date of the decision, and, where the clearance is time-limited, the date it runs to. That is all this site stores. It holds no reference, no interview, no check, no result of one, and nothing a screening provider sends back.",
+          ]
+        : []),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",
     ],
     "what-we-dont-do": () => [
@@ -170,6 +185,11 @@ const PRIVACY: DocumentProse = {
     "who-can-see-it": (org) =>
       paragraphs([
         `Inside ${org.name}, what you submit is visible to the people whose role covers it — the people running events see event registrations, whoever coordinates volunteers sees volunteer applications, and so on. Access is enforced in the database by the permissions attached to each role, not just hidden in the interface.`,
+        // True of this software rather than of any organization's practice:
+        // `person_screenings` is gated on its own permission and never on the
+        // one that covers the rest of the volunteers module (#1360).
+        org.surfaces.volunteerScreening &&
+          "A screening outcome is held more narrowly still. It is visible only to the people whose role carries the screening permission, which is a separate grant from the one that covers volunteer roles, applications and participation — so coordinating volunteers does not by itself show you who has been screened.",
         // Both halves of this paragraph have to be true for it to be: it is
         // about volunteers seeing registrations.
         org.surfaces.eventRegistrations &&

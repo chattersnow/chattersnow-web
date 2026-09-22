@@ -65,6 +65,7 @@ const ALL_ON: CollectionSurface = {
   artworkSubmissions: true,
   constituentAccounts: true,
   volunteerHours: true,
+  volunteerScreening: true,
   googleSignIn: true,
 };
 
@@ -76,6 +77,7 @@ const ALL_OFF: CollectionSurface = {
   artworkSubmissions: false,
   constituentAccounts: false,
   volunteerHours: false,
+  volunteerScreening: false,
   googleSignIn: false,
 };
 
