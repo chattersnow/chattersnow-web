@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
+import { createAdminClient } from "./helpers/admin-client";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 // The legal notices have to be reachable from anywhere on the site, which is
@@ -9,12 +10,12 @@ import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 //
 // What this file asserts is the state of a tenant that has adopted nothing,
 // which is what the seeded tenant is and what every newly provisioned tenant
-// starts as (#859): the privacy policy is served and linked, and the other two
-// are not. Putting one in force is `legal-publication.spec.ts`, which mutates a
+// starts as (#859): the privacy policy is served and linked, and the others are
+// not. Putting one in force is `legal-publication.spec.ts`, which mutates a
 // real row and therefore runs alone in the `mutating` project.
 
 test.describe("legal documents a tenant has not adopted", () => {
-  for (const path of ["/terms", "/code-of-conduct"]) {
+  for (const path of ["/terms", "/code-of-conduct", "/accessibility"]) {
     test(`${path} is not served`, async ({ page }) => {
       const response = await page.goto(path);
 
@@ -29,14 +30,18 @@ test.describe("legal documents a tenant has not adopted", () => {
   // (#601), so the adoption gate covers it for free -- and has to, or text
   // nobody adopted would be one query parameter from being published under
   // this organization's name.
-  for (const path of ["/terms?version=1", "/code-of-conduct?version=1"]) {
+  for (const path of [
+    "/terms?version=1",
+    "/code-of-conduct?version=1",
+    "/accessibility?version=1",
+  ]) {
     test(`${path} is not served either`, async ({ page }) => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(404);
     });
   }
 
-  test("the footer links to neither", async ({ page }) => {
+  test("the footer links to none of them", async ({ page }) => {
     await page.goto("/home");
 
     const legal = page.getByRole("navigation", { name: "Legal" });
@@ -45,6 +50,9 @@ test.describe("legal documents a tenant has not adopted", () => {
     );
     await expect(
       legal.getByRole("link", { name: "Code of Conduct" }),
+    ).toHaveCount(0);
+    await expect(
+      legal.getByRole("link", { name: "Accessibility" }),
     ).toHaveCount(0);
   });
 });
@@ -151,6 +159,23 @@ test.describe("notice at the point of collection", () => {
 
     const sheet = page.getByRole("dialog", { name: "Apply to volunteer" });
     await expectPrivacyNotice(sheet, /check your status with the reference/);
+
+    // The application carries a second block the other forms do not (#690):
+    // what happens after you apply, in the organization's own words, and what
+    // the form does not ask for, in the platform's. The seeded tenant has
+    // written the first; a tenant that has not gets only the second, which the
+    // component's own test covers.
+    await expect(
+      sheet.getByRole("heading", { name: "What happens after you apply" }),
+    ).toBeVisible();
+    await expect(sheet.getByText(/asks for two references/)).toBeVisible();
+
+    const asksFor = sheet.getByText(/It does not ask for your date of birth/);
+    await expect(asksFor).toBeVisible();
+    // Notice, not consent, and nothing to click: the sentence that says the
+    // form does not want an SSN must not itself be a link or a box (#1318).
+    await expect(asksFor.getByRole("link")).toHaveCount(0);
+    await expect(asksFor.getByRole("checkbox")).toHaveCount(0);
   });
 
   test("the event registration form", async ({ page }) => {
@@ -174,6 +199,55 @@ test.describe("notice at the point of collection", () => {
     // "items" rather than "gear": the noun is this tenant's own word (#896),
     // and the seeded tenant has not renamed it.
     await expectPrivacyNotice(cart, /match you with the items you asked for/);
+
+    // #1367. Beside the notice and unlike it: a real choice, in an unticked
+    // box, which is the difference `docs/legal-basis.md` draws. The seeded
+    // tenant has adopted no terms of use, so the summary is shown in full and
+    // nothing links `/terms` -- a notice may only link a document that is
+    // served (#859).
+    const asIs = cart.getByRole("checkbox", {
+      name: /I understand the items are given as-is/,
+    });
+    await expect(asIs).toBeVisible();
+    await expect(asIs).not.toBeChecked();
+    await expect(
+      cart.getByText(/We give away items exactly as they reach us/),
+    ).toBeVisible();
+    await expect(cart.getByRole("link", { name: /Terms of Use/ })).toHaveCount(
+      0,
+    );
+  });
+
+  // The fifth form, and the one #684 missed (#1344). It is reached by its code
+  // rather than from the nav and nothing seeds a call, so this stands one up
+  // and takes it away again -- safe beside the other projects because a call
+  // with no event is surfaced nowhere but its own link (#879).
+  test("the artwork submission form", async ({ page }) => {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("event_artwork_calls")
+      .insert({
+        event_id: null,
+        title: "E2E Privacy Notice Call",
+        is_open: true,
+      })
+      .select("id, submission_code")
+      .single();
+    if (error) throw error;
+
+    try {
+      await page.goto(`/artwork/${data.submission_code}`);
+
+      await expectPrivacyNotice(page, /credit you if it's shown/);
+
+      // The call's own rights-and-credit box is a real choice and stays one:
+      // the notice sits above it rather than replacing or absorbing it.
+      await expect(
+        page.getByRole("checkbox", { name: /This is my own work/ }),
+      ).toBeVisible();
+    } finally {
+      await admin.from("event_artwork_calls").delete().eq("id", data.id);
+    }
   });
 });
 

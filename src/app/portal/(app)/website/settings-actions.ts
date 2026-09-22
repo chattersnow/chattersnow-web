@@ -7,6 +7,7 @@ import {
 import {
   gatesHolding,
   legalDocument,
+  legalDocumentNoun,
   legalPublicationSettingKey,
 } from "@/lib/legal-documents";
 import {
@@ -105,7 +106,7 @@ export async function updateLegalPublicationAction(
   const document = legalDocument(key);
   if (!document) return { error: "That is not a legal document." };
   if (document.alwaysInForce) {
-    return { error: `The ${document.label.toLowerCase()} is always served.` };
+    return { error: `The ${legalDocumentNoun(document)} is always served.` };
   }
 
   // A document a module depends on cannot be withdrawn while that module is on
@@ -120,6 +121,28 @@ export async function updateLegalPublicationAction(
     const supabase = await createSupabaseServerClient();
     const held = gatesHolding(document, await getTenantModules(supabase));
     if (held.length > 0) return { error: held[0].refuseWithdrawing };
+  }
+
+  // And the document with no platform text cannot be put in force before that
+  // text exists (#686). The other three fall back to a neutral starting
+  // document, so adopting one always serves something; adopting this one with
+  // nothing written would put an organization's name on an empty page and,
+  // worse, start refusing every event registration -- the registration flow
+  // asks for the waiver the moment it is in force.
+  //
+  // Refused here for the same reason the withdrawal gate above is: this is
+  // where the decision is made, and `service_role` writes from seeding, the
+  // demo reset and the e2e fixtures stay free to set whatever state they are
+  // testing. `publish_site_content()` holds the other direction, which is the
+  // one that would empty a waiver already in force.
+  if (inForce && !document.hasPlatformDefault) {
+    const supabase = await createSupabaseServerClient();
+    const own = await getTenantOwnLegalDocuments(supabase);
+    if (!own.has(document.slotKey)) {
+      return {
+        error: `Write and publish your ${document.label.toLowerCase()} first. There is no starting text for it, so putting it in force would serve nothing.`,
+      };
+    }
   }
 
   return writeAppSetting(
@@ -176,14 +199,14 @@ export async function acknowledgeLegalDocumentAction(
 
   if (!publication[document.key]) {
     return {
-      error: `Your ${document.label.toLowerCase()} is not being served, so there is nothing to confirm yet.`,
+      error: `Your ${legalDocumentNoun(document)} is not being served, so there is nothing to confirm yet.`,
     };
   }
   // Publishing your own text is the confirmation. There is no platform
   // document in the way to have gone unread.
   if (ownDocuments.has(document.slotKey)) {
     return {
-      error: `Your site serves your own ${document.label.toLowerCase()}, not the platform's, so there is nothing of ours to confirm.`,
+      error: `Your site serves your own ${legalDocumentNoun(document)}, not the platform's, so there is nothing of ours to confirm.`,
     };
   }
 

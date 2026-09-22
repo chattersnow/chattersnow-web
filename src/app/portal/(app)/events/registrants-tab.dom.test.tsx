@@ -28,6 +28,23 @@ const registrants: EventRegistrant[] = [
     person_id: "person-1",
     attended_before: false,
     checked_in_at: null,
+    waiver_accepted_at: null,
+    waiver_version: null,
+    // #685. The row that carries the flag, so the badge has something to
+    // render and the other row proves it renders on that one alone.
+    party_includes_minor: true,
+    // #599. The row that declined, so the "No photos" badge has something to
+    // render and the other row proves it renders on that one alone. Declining
+    // is the notable state here, which is the inverse of the minors flag above.
+    photo_consent: false,
+    photo_consent_at: "2026-08-01T12:00:00Z",
+    photo_consent_text: "We use photos on our site and socials.",
+    minorContacts: {
+      accompanying_adult_name: "Robin Rivera",
+      accompanying_adult_phone: "555-0101",
+      emergency_contact_name: "Sam Rivera",
+      emergency_contact_phone: "555-0102",
+    },
     rider: {
       riding_discipline_at_event: null,
       ski_experience_level_at_event: null,
@@ -54,6 +71,15 @@ const registrants: EventRegistrant[] = [
     // one up alongside Jamie's "no".
     attended_before: null,
     checked_in_at: "2026-08-28T09:00:00Z",
+    waiver_accepted_at: null,
+    waiver_version: null,
+    party_includes_minor: false,
+    // Granted, which renders nothing: the badge is for the decline, and
+    // "agreed" on every other row would be noise at the door (#599).
+    photo_consent: true,
+    photo_consent_at: "2026-08-01T12:05:00Z",
+    photo_consent_text: "We use photos on our site and socials.",
+    minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",
       ski_experience_level_at_event: null,
@@ -131,6 +157,8 @@ function payload(
     registrants,
     messages: NO_RECORD_MESSAGES,
     messaging: null,
+    waiverInForce: false,
+    photoConsentInForce: false,
     ...overrides,
   };
 }
@@ -445,5 +473,79 @@ describe("RegistrantsTab", () => {
         "2 registrations, 3 attending of 10 capacity · 1 checked in · 0 recurring, 1 first-time",
       ),
     ).toBeInTheDocument();
+  });
+
+  // #685. Beside the name, on the row that said yes and no other. An organizer
+  // has to see it before the day rather than at the door, which is why it is
+  // not behind the detail sheet and not behind `events: manage`.
+  test("flags the party that includes a minor, and only that one", async () => {
+    render(<RegistrantsTab capacity={10} mode="view" {...slices()} />);
+
+    expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
+    expect(screen.getAllByText("Includes a minor")).toHaveLength(1);
+  });
+
+  test("says nothing when nobody answered yes", async () => {
+    const noMinors = registrants.map((registrant) => ({
+      ...registrant,
+      party_includes_minor:
+        registrant.party_includes_minor === true ? null : false,
+      minorContacts: null,
+    }));
+
+    render(
+      <RegistrantsTab
+        capacity={10}
+        mode="view"
+        {...slices()}
+        registrants={{
+          data: payload({ registrants: noMinors }),
+          loadError: null,
+          refresh: refreshRegistrants,
+        }}
+      />,
+    );
+
+    expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
+    expect(screen.queryByText("Includes a minor")).toBeNull();
+  });
+
+  // #599, and the condition is the inverse of the minors flag above: the state
+  // a camera has to know about is the decline. This is also the check-in
+  // surface, because `check-in-modal.tsx` renders this same table.
+  test("flags the registrant who declined photos, and only that one", async () => {
+    render(<RegistrantsTab capacity={10} mode="view" {...slices()} />);
+
+    expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
+    expect(screen.getAllByText("No photos")).toHaveLength(1);
+  });
+
+  test("says nothing about photos when nobody declined", async () => {
+    // One granted, one never asked: the two states that must both stay silent.
+    // A badge on "agreed" would be noise on most rows, and a badge on "not
+    // asked" would put a gap in the organization's own configuration in front
+    // of the door shift.
+    const noDeclines = registrants.map((registrant, index) => ({
+      ...registrant,
+      photo_consent: index === 0 ? true : null,
+      photo_consent_at: index === 0 ? registrant.photo_consent_at : null,
+      photo_consent_text: index === 0 ? registrant.photo_consent_text : null,
+    }));
+
+    render(
+      <RegistrantsTab
+        capacity={10}
+        mode="view"
+        {...slices()}
+        registrants={{
+          data: payload({ registrants: noDeclines }),
+          loadError: null,
+          refresh: refreshRegistrants,
+        }}
+      />,
+    );
+
+    expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
+    expect(screen.queryByText("No photos")).toBeNull();
   });
 });

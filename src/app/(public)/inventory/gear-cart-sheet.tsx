@@ -14,13 +14,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resolveImageUrl } from "@/lib/inventory";
+import { RecordAccountOffer } from "@/components/record-account-offer";
 import { GearCartCheckoutForm } from "./gear-cart-checkout-form";
-import type { GearItem } from "./gear-catalog";
+import type { GearItem, SubmittedRequest } from "./gear-catalog";
 import type {
   DeliveryMethod,
   PublicGearRequestOptions,
 } from "@/lib/gear-requests";
 import type { Lexicon } from "@/lib/lexicon";
+import type { AccountOffer } from "@/lib/constituent/account-offer";
+import type { ViewerContactPrefill } from "@/lib/constituent/viewer";
 
 export function GearCartSheet({
   items,
@@ -31,19 +34,28 @@ export function GearCartSheet({
   onSubmitted,
   placeholderUrl,
   requestOptions,
+  prefill,
+  accountOffer = null,
   lexicon,
+  termsInForce = false,
 }: {
   items: GearItem[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRemove: (itemId: string) => void;
-  /** The delivery method the submitted request asked for, once it has been. */
-  success: DeliveryMethod | null;
-  onSubmitted: (deliveryMethod: DeliveryMethod) => void;
+  /** The request just submitted, once one has been. */
+  success: SubmittedRequest | null;
+  onSubmitted: (deliveryMethod: DeliveryMethod, requestId: string) => void;
   placeholderUrl: string | null;
   requestOptions: PublicGearRequestOptions;
+  /** What the signed-in reader's session already knows about them (#1357). */
+  prefill?: ViewerContactPrefill;
+  /** Whether the receipt offers this reader an account, and which (#1359). */
+  accountOffer?: AccountOffer | null;
   /** This organization's words (#896), for the checkout form's copy. */
   lexicon: Lexicon;
+  /** Whether this tenant serves `/terms` (#859), for the as-is notice (#1367). */
+  termsInForce?: boolean;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -57,16 +69,30 @@ export function GearCartSheet({
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {success ? (
-            <Alert>
-              <div className="rainbow-accent mb-2 w-10" />
-              <AlertDescription>
-                Request received! These items are now on hold for you and no
-                longer available to others.{" "}
-                {success === "shipping"
-                  ? "We'll weigh the package and email you the postage amount and where to send it."
-                  : "We'll be in touch to arrange a time and place to hand them over."}
-              </AlertDescription>
-            </Alert>
+            <>
+              <Alert>
+                <div className="rainbow-accent mb-2 w-10" />
+                <AlertDescription>
+                  Request received! These items are now on hold for you and no
+                  longer available to others.{" "}
+                  {success.deliveryMethod === "shipping"
+                    ? "We'll weigh the package and email you the postage amount and where to send it."
+                    : "We'll be in touch to arrange a time and place to hand them over."}
+                </AlertDescription>
+              </Alert>
+
+              {/* The post-request slot (#1359), and never a gate: the items
+                  are already held, the confirmation email is already on its
+                  way, and skipping is one click that changes nothing. */}
+              {accountOffer && (
+                <div className="mt-6">
+                  <RecordAccountOffer
+                    offer={accountOffer}
+                    record={{ kind: "gear-request", id: success.requestId }}
+                  />
+                </div>
+              )}
+            </>
           ) : items.length === 0 ? (
             <p className="app-muted py-8 text-center text-sm">
               Your cart is empty. Add items from the catalog to get started.
@@ -125,7 +151,9 @@ export function GearCartSheet({
                   itemIds={items.map((item) => item.id)}
                   options={requestOptions}
                   onSuccess={onSubmitted}
+                  prefill={prefill}
                   lexicon={lexicon}
+                  termsInForce={termsInForce}
                 />
               </div>
             </>

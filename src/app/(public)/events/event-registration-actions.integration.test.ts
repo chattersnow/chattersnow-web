@@ -45,8 +45,14 @@ mock.module("next/server", () => ({
 
 const { registerForEventAction } = await import("./event-registration-actions");
 
+/**
+ * #685: the form requires an answer about anyone under 18, so every case that
+ * expects a registration to land has to give one. Defaulted to "no" here and
+ * overridden by the cases that are about the question itself.
+ */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -101,7 +107,9 @@ async function assignedRegistrationIds(eventId: string) {
 async function registrationFor(eventId: string, email: string) {
   const { data, error } = await adminClient
     .from("event_registrations")
-    .select("id, person_id, pronouns, attended_before")
+    .select(
+      "id, person_id, pronouns, attended_before, waiver_accepted_at, waiver_version",
+    )
     .eq("event_id", eventId)
     .ilike("email", email)
     .single();
@@ -198,6 +206,193 @@ describe("registerForEventAction (integration)", () => {
     expect(await personPronouns(person.id)).toBe("she/her");
     // The registration still snapshots what was submitted on the day.
     expect((await registrationFor(second.id, email)).pronouns).toBe("he/him");
+  });
+
+  // #686 --------------------------------------------------------------------
+  //
+  // A waiver is adopted by two rows that only publish_site_content() writes
+  // together: the text in site_content, and a version in
+  // legal_document_versions. Written by hand here for the same reason the
+  // legal-publication specs do it -- publishing through the portal needs a
+  // signed-in admin and a draft, and what is under test is what the
+  // registration RPC does with the result.
+
+  async function adoptWaiver(version = 1) {
+    const tenantId = await defaultTenantId();
+    await service.from("site_content").upsert(
+      {
+        tenant_id: tenantId,
+        key: "legal.waiver",
+        value: {
+          title: "Participant Waiver",
+          last_updated: "September 22, 2026",
+          summary: [],
+          sections: [
+            { id: "risks", title: "Risks", paragraphs: ["Snow is slippery."] },
+          ],
+        },
+        published_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id,key" },
+    );
+    await service.from("legal_document_versions").insert({
+      tenant_id: tenantId,
+      document: "waiver",
+      version,
+      content: {
+        title: "Participant Waiver",
+        last_updated: "x",
+        summary: [],
+        sections: [],
+      },
+      effective_at: new Date().toISOString(),
+      time_zone: "UTC",
+    });
+    await service
+      .from("app_settings")
+      .upsert(
+        { tenant_id: tenantId, key: "legal_publication.waiver", value: true },
+        { onConflict: "tenant_id,key" },
+      );
+
+    cleanups.push(async () => {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal_publication.waiver");
+      await service
+        .from("legal_document_versions")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("document", "waiver");
+      await service
+        .from("site_content")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal.waiver");
+    });
+  }
+
+  async function defaultTenantId() {
+    const { data, error } = await service
+      .from("tenants")
+      .select("id")
+      .eq("slug", "example-nonprofit")
+      .single();
+    if (error) throw error;
+    return data.id as string;
+  }
+
+  test("records nothing about a waiver when the tenant has adopted none", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("waiver-none");
+
+    expect(
+      await registerForEventAction(id, formData({ name: "Jamie", email })),
+    ).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    // Both null, and that means "nothing was asked" -- never "they declined".
+    expect(registration.waiver_accepted_at).toBeNull();
+    expect(registration.waiver_version).toBeNull();
+  });
+
+  test("refuses a registration that did not accept an adopted waiver", async () => {
+    currentIp = uniqueIp();
+    await adoptWaiver();
+    const { id } = await event();
+    const email = uniqueEmail("waiver-refused");
+
+    expect(
+      await registerForEventAction(id, formData({ name: "Jamie", email })),
+    ).toMatchObject({ error: expect.stringContaining("tick the box") });
+
+    // And the refusal writes nothing: a declined waiver leaves no row to read
+    // a decline off, which is why null can only mean "not asked".
+    expect(await countEventRegistrations(id, email)).toBe(0);
+  });
+
+  test("stores the version accepted", async () => {
+    currentIp = uniqueIp();
+    await adoptWaiver(3);
+    const { id } = await event();
+    const email = uniqueEmail("waiver-accepted");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({
+          name: "Jamie",
+          email,
+          waiverAccepted: "on",
+          waiverVersion: "3",
+        }),
+      ),
+    ).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    expect(registration.waiver_version).toBe(3);
+    expect(registration.waiver_accepted_at).not.toBeNull();
+  });
+
+  // The version the reader was shown is compared, never stored. A republish
+  // between render and submit is a different document, and recording
+  // acceptance of text nobody read is the failure the pointer exists to
+  // prevent.
+  test("refuses a submission made against a version no longer in force", async () => {
+    currentIp = uniqueIp();
+    await adoptWaiver(2);
+    const { id } = await event();
+    const email = uniqueEmail("waiver-stale");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({
+          name: "Jamie",
+          email,
+          waiverAccepted: "on",
+          waiverVersion: "1",
+        }),
+      ),
+    ).toMatchObject({ error: expect.stringContaining("was updated") });
+
+    expect(await countEventRegistrations(id, email)).toBe(0);
+  });
+
+  // In force with nothing to point at. The portal refuses to create this, so
+  // reaching it means a direct write -- and taking a registration without the
+  // waiver the organization said governs taking part is the wrong way to fail.
+  test("refuses when a waiver is in force but no version exists", async () => {
+    currentIp = uniqueIp();
+    const tenantId = await defaultTenantId();
+    await service
+      .from("app_settings")
+      .upsert(
+        { tenant_id: tenantId, key: "legal_publication.waiver", value: true },
+        { onConflict: "tenant_id,key" },
+      );
+    cleanups.push(async () => {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal_publication.waiver");
+    });
+
+    const { id } = await event();
+    const email = uniqueEmail("waiver-unavailable");
+
+    expect(
+      await registerForEventAction(
+        id,
+        formData({ name: "Jamie", email, waiverAccepted: "on" }),
+      ),
+    ).toMatchObject({ error: expect.stringContaining("could not be loaded") });
+
+    expect(await countEventRegistrations(id, email)).toBe(0);
   });
 
   // #1259 -------------------------------------------------------------------
@@ -720,5 +915,360 @@ describe("register_for_event name floor (integration)", () => {
 
     expect(error).toBeNull();
     await service.from("people").delete().eq("id", data!.id);
+  });
+});
+
+// #685. The RPC's half of the minors question, which is deliberately narrower
+// than the form's: it never demands an answer, because the public API's
+// published contract predates the question and a caller that says nothing must
+// be recorded as never having been asked. What it does enforce is the one rule
+// an organization's policy rests on -- a "yes" arrives with somebody to reach.
+describe("register_for_event and a party with a minor", () => {
+  async function registerWith(
+    args: Record<string, unknown>,
+    email = uniqueEmail("minors"),
+  ) {
+    const { id } = await event();
+    const result = await anonClient().rpc("register_for_event", {
+      p_event_id: id,
+      p_name: "Jamie Rivera",
+      p_email: email,
+      p_phone: null,
+      p_party_size: 2,
+      p_notes: null,
+      p_ip_address: uniqueIp(),
+      ...args,
+    });
+    return { ...result, email, eventId: id };
+  }
+
+  async function readRow(registrationId: string) {
+    const { data, error } = await service
+      .from("event_registrations")
+      .select(
+        "party_includes_minor, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+      )
+      .eq("id", registrationId)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  test("an unanswered question is stored as unanswered, never as no", async () => {
+    const { data, error } = await registerWith({});
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toMatchObject({
+      party_includes_minor: null,
+      accompanying_adult_name: null,
+    });
+  });
+
+  test("a no keeps nothing, whatever contacts came with it", async () => {
+    const { data, error } = await registerWith({
+      p_party_includes_minor: false,
+      p_accompanying_adult_name: "Robin Rivera",
+      p_emergency_contact_phone: "555-0102",
+    });
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      party_includes_minor: false,
+      accompanying_adult_name: null,
+      accompanying_adult_phone: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+    });
+  });
+
+  test("a yes without the four is refused", async () => {
+    for (const incomplete of [
+      {},
+      { p_accompanying_adult_name: "Robin Rivera" },
+      {
+        p_accompanying_adult_name: "Robin Rivera",
+        p_accompanying_adult_phone: "555-0101",
+        p_emergency_contact_name: "Sam Rivera",
+        p_emergency_contact_phone: "   ",
+      },
+    ]) {
+      const { data, error } = await registerWith({
+        p_party_includes_minor: true,
+        ...incomplete,
+      });
+
+      expect(data).toBeNull();
+      expect(error?.message).toContain("MINOR_CONTACTS_REQUIRED");
+    }
+  });
+
+  test("a yes with the four is stored, trimmed", async () => {
+    const { data, error } = await registerWith({
+      p_party_includes_minor: true,
+      p_accompanying_adult_name: "  Robin Rivera  ",
+      p_accompanying_adult_phone: "555-0101",
+      p_emergency_contact_name: "Sam Rivera",
+      p_emergency_contact_phone: "555-0102",
+    });
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      party_includes_minor: true,
+      accompanying_adult_name: "Robin Rivera",
+      accompanying_adult_phone: "555-0101",
+      emergency_contact_name: "Sam Rivera",
+      emergency_contact_phone: "555-0102",
+    });
+  });
+
+  // The honeypot returns a fake id before any validation runs, and that has to
+  // stay true of this rule too: a bot that trips the honeypot *and* sends an
+  // incomplete answer must get the same nothing a clean bot gets, or the
+  // refusal becomes an oracle telling it which field it missed.
+  test("a filled honeypot is still silent, incomplete answer and all", async () => {
+    const email = uniqueEmail("minors-honeypot");
+    const { data, error, eventId } = await registerWith(
+      {
+        p_honeypot: "bot",
+        p_party_includes_minor: true,
+      },
+      email,
+    );
+
+    expect(error).toBeNull();
+    expect(typeof data).toBe("string");
+    expect(await countEventRegistrations(eventId, email)).toBe(0);
+  });
+});
+
+// #599: photo and media consent. Three states, and the one worth the most is
+// the decline -- which is exactly the state a waiver cannot have, because
+// declining a waiver is declining to register.
+//
+// The scope is a tenant content slot, so every case here writes or withholds
+// `events.photo_consent`, and the unwritten case is the one almost every
+// organization is in.
+describe("register_for_event and photo consent", () => {
+  const SCOPE = [
+    "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
+    "We never sell them, and we will take one down if you ask.",
+  ];
+
+  async function photoTenantId() {
+    const { data, error } = await service
+      .from("tenants")
+      .select("id")
+      .eq("slug", "example-nonprofit")
+      .single();
+    if (error) throw error;
+    return data.id as string;
+  }
+
+  /** What a tenant writing its own scope in Website > Pages produces. */
+  async function writeScope(paragraphs: string[] = SCOPE) {
+    const tenantId = await photoTenantId();
+    await service.from("site_content").upsert(
+      {
+        tenant_id: tenantId,
+        key: "events.photo_consent",
+        value: paragraphs,
+        published_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id,key" },
+    );
+    cleanups.push(async () => {
+      await service
+        .from("site_content")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "events.photo_consent");
+    });
+    return tenantId;
+  }
+
+  async function readRow(registrationId: string) {
+    const { data, error } = await service
+      .from("event_registrations")
+      .select("photo_consent, photo_consent_at, photo_consent_text")
+      .eq("id", registrationId)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function registerWith(
+    args: Record<string, unknown>,
+    email = uniqueEmail("photo"),
+  ) {
+    const { id } = await event();
+    const result = await anonClient().rpc("register_for_event", {
+      p_event_id: id,
+      p_name: "Jamie Rivera",
+      p_email: email,
+      p_phone: null,
+      p_party_size: 2,
+      p_notes: null,
+      p_ip_address: uniqueIp(),
+      ...args,
+    });
+    return { ...result, email, eventId: id };
+  }
+
+  // The state almost every tenant is in, and the one that must never break.
+  test("records nothing when the organization has written no scope", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("photo-none");
+
+    expect(
+      await registerForEventAction(id, formData({ name: "Jamie", email })),
+    ).toMatchObject({ success: true });
+
+    const registration = await registrationFor(id, email);
+    expect(await readRow(registration.id as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  // Even a `true` from a caller: with no scope there is nothing the answer
+  // could have been given against, so there is nothing honest to store.
+  test("records nothing even when an answer arrives with no scope written", async () => {
+    const { data, error } = await registerWith({ p_photo_consent: true });
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  test("an omitted answer is unasked, even where the organization is asking", async () => {
+    await writeScope();
+    const { data, error } = await registerWith({});
+
+    expect(error).toBeNull();
+    expect(await readRow(data as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  test("a decline is stored as a decline, and the registration is taken", async () => {
+    await writeScope();
+    const { data, error, eventId, email } = await registerWith({
+      p_photo_consent: false,
+    });
+
+    expect(error).toBeNull();
+    expect(await countEventRegistrations(eventId, email)).toBe(1);
+
+    const row = await readRow(data as string);
+    expect(row.photo_consent).toBe(false);
+    expect(row.photo_consent_at).not.toBeNull();
+  });
+
+  test("a grant is stored with the moment it was given", async () => {
+    await writeScope();
+    const { data, error } = await registerWith({ p_photo_consent: true });
+
+    expect(error).toBeNull();
+    const row = await readRow(data as string);
+    expect(row.photo_consent).toBe(true);
+    expect(row.photo_consent_at).not.toBeNull();
+  });
+
+  // The invariant `artwork_submissions.consented_terms` carries: the words come
+  // from the organization's own row, never from whoever is posting the form. A
+  // snapshot rather than a version pointer, because a content slot has no
+  // version table and no permalink (#1319's test).
+  test("the snapshot is the organization's own paragraphs, joined", async () => {
+    await writeScope();
+    const { data } = await registerWith({ p_photo_consent: true });
+
+    expect((await readRow(data as string)).photo_consent_text).toBe(
+      SCOPE.join("\n\n"),
+    );
+  });
+
+  test("a blank paragraph is not part of the snapshot", async () => {
+    await writeScope(["First.", "   ", "Second."]);
+    const { data } = await registerWith({ p_photo_consent: false });
+
+    expect((await readRow(data as string)).photo_consent_text).toBe(
+      "First.\n\nSecond.",
+    );
+  });
+
+  // The one structural refusal case, and it refuses by recording null rather
+  // than by rejecting the registration: punishing a registrant for an edit
+  // somebody else made would be the wrong trade.
+  test("a scope emptied between render and submit records not-asked, not a stale snapshot", async () => {
+    const tenantId = await writeScope();
+    await service
+      .from("site_content")
+      .update({ value: [] })
+      .eq("tenant_id", tenantId)
+      .eq("key", "events.photo_consent");
+
+    const { data, error, eventId, email } = await registerWith({
+      p_photo_consent: true,
+    });
+
+    expect(error).toBeNull();
+    expect(await countEventRegistrations(eventId, email)).toBe(1);
+    expect(await readRow(data as string)).toEqual({
+      photo_consent: null,
+      photo_consent_at: null,
+      photo_consent_text: null,
+    });
+  });
+
+  // Both registration paths resolve through one function so they cannot
+  // disagree, and a disagreement would be silent in the direction that matters
+  // -- one path recording consent the other would have declined. This covers
+  // the anonymous path end to end through the action.
+  test("the action path reaches the same resolver", async () => {
+    await writeScope();
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const email = uniqueEmail("photo-action");
+
+    const fd = formData({ name: "Jamie", email });
+    fd.set("photoConsent", "off");
+    expect(await registerForEventAction(id, fd)).toMatchObject({
+      success: true,
+    });
+
+    const registration = await registrationFor(id, email);
+    const row = await readRow(registration.id as string);
+    expect(row.photo_consent).toBe(false);
+    expect(row.photo_consent_text).toBe(SCOPE.join("\n\n"));
+  });
+
+  // The portal's "we never asked" / "this row predates the question" split,
+  // answered without `site_content: view` so an events:view door shift can
+  // read it. Asked as a signed-in staff account rather than through the
+  // service role, because it resolves `current_tenant_id()` -- which the
+  // service role has no session to resolve, and which is the whole point of
+  // not reading the request host here.
+  test("the portal can tell whether the organization is asking", async () => {
+    expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
+      false,
+    );
+    await writeScope();
+    expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
+      true,
+    );
+  });
+
+  test("a scope of nothing but blanks does not count as asking", async () => {
+    await writeScope(["  ", ""]);
+    expect((await adminClient.rpc("tenant_asks_photo_consent")).data).toBe(
+      false,
+    );
   });
 });

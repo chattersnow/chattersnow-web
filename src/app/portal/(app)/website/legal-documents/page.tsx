@@ -93,14 +93,16 @@ export default async function WebsiteLegalDocumentsPage() {
 
       <div className="mt-6 space-y-4">
         <p className="app-muted max-w-3xl text-sm leading-relaxed">
-          Which of the three legal documents this organization serves on its
-          public site. This is not a show/hide control: putting one in force is
-          saying the text is yours and governs using your site, so a document
-          nobody has adopted stays off rather than being published under your
-          name. The privacy policy is always served &mdash; the site collects
-          personal information through its public forms, and a policy saying
-          what happens to it has to be reachable while it does. Write or replace
-          the text itself in{" "}
+          Which of the legal documents this organization serves on its public
+          site. This is not a show/hide control: putting one in force is saying
+          the text is yours and governs using your site, so a document nobody
+          has adopted stays off rather than being published under your name. The
+          privacy policy is always served &mdash; the site collects personal
+          information through its public forms, and a policy saying what happens
+          to it has to be reachable while it does. The participant waiver is the
+          other end of that: there is no starting text for it, so it cannot be
+          put in force until you have written and published your own. Write or
+          replace the text itself in{" "}
           <Link
             href="/portal/website?page=legal"
             className="underline underline-offset-4"

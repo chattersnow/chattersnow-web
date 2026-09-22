@@ -9,6 +9,9 @@ import { formatDateTimeInZone } from "@/lib/time";
 import { publicGiveawayRulesPath } from "@/lib/giveaway-rules-path";
 import { getEventGiveawayRulesLink } from "@/lib/giveaway-rules-publication";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite } from "@/lib/public-site";
+import { loadEventWaiver } from "./event-waiver-data";
+import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
@@ -22,7 +25,7 @@ import {
   loadRegistrationAccountOffer,
   type EventViewer,
 } from "./my-registration";
-import type { AccountOffer } from "@/components/registration-account-offer";
+import type { AccountOffer } from "@/lib/constituent/account-offer";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -93,6 +96,10 @@ function EventDetailBody({
   viewer,
   accountOffer,
   giveawayRulesId,
+  waiver,
+  waiverBlock,
+  minorAccompaniment,
+  photoConsent,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
@@ -100,6 +107,27 @@ function EventDetailBody({
   accountOffer: AccountOffer | null;
   /** The promotion whose official rules this event serves, if any (#1322). */
   giveawayRulesId: string | null;
+  /**
+   * The version of the participant agreement being shown, which the form
+   * posts back so the RPC can refuse a submission made against text that has
+   * since been republished (#686). Null where the tenant takes no waiver.
+   */
+  waiver: { version: number } | null;
+  /** That agreement, already rendered on the server. Null with `waiver`. */
+  waiverBlock: React.ReactNode;
+  /**
+   * This organization's rule for a party that includes anyone under 18
+   * (#685), shown once somebody answers yes. Empty on a tenant that has
+   * written none, which is the state every tenant starts in.
+   */
+  minorAccompaniment: string[];
+  /**
+   * This organization's photo and media consent scope (#599), shown above an
+   * unticked box. Empty on a tenant that has written none, and empty means
+   * the question is not asked at all -- the form renders exactly what it
+   * rendered before this shipped.
+   */
+  photoConsent: string[];
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -190,6 +218,10 @@ function EventDetailBody({
                 <MyEventRegistrationForm
                   eventId={event.id}
                   person={viewer.person}
+                  waiver={waiver}
+                  waiverBlock={waiverBlock}
+                  minorAccompaniment={minorAccompaniment}
+                  photoConsent={photoConsent}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -200,6 +232,10 @@ function EventDetailBody({
                   eventId={event.id}
                   account={viewer?.kind === "account" ? viewer.account : null}
                   accountOffer={accountOffer}
+                  waiver={waiver}
+                  waiverBlock={waiverBlock}
+                  minorAccompaniment={minorAccompaniment}
+                  photoConsent={photoConsent}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -239,10 +275,34 @@ export async function EventDetailContent({
   // Whether this event's promotion has published rules to point at. Loaded
   // here for the same reason the viewer is: the page and the sheet must not
   // drift into two different answers.
-  const giveawayRules = await getEventGiveawayRulesLink(
-    await createSupabaseServerClient(),
-    event.id,
-  );
+  const supabase = await createSupabaseServerClient();
+  const giveawayRules = await getEventGiveawayRulesLink(supabase, event.id);
+  // The participant agreement, if this organization takes one (#686). Rendered
+  // here on the server and handed down as an element, so a whole legal
+  // document and the markup parser stay out of the client bundle -- and, for
+  // the tenants that have adopted none, so does everything: `loadEventWaiver`
+  // returns null off a read the footer already made.
+  const waiver = await loadEventWaiver(supabase);
+  // This organization's rule for a party that includes anyone under 18
+  // (#685). Off the same `cache()`d `getPublicSite()` read the layout and the
+  // footer already made, so it costs no query; empty on a tenant that has
+  // written none, which leaves the form saying only what it asks for.
+  const { content } = await getPublicSite(supabase);
+  const minorAccompaniment = content.paragraphs("events.minor_accompaniment");
+  // And this organization's photo and media consent scope (#599), off the same
+  // read. Empty on a tenant that has written none, which is almost all of
+  // them, and empty means the form asks nothing about photographs at all --
+  // not an empty box, not a heading. Read here rather than in the client
+  // component for the reason the waiver is: a block of tenant prose has no
+  // business in the browser bundle of the tenants that have none.
+  const photoConsent = content.paragraphs("events.photo_consent");
+  const waiverBlock = waiver ? (
+    <EventWaiver
+      doc={waiver.content}
+      version={waiver.version}
+      headingId="event-waiver-title"
+    />
+  ) : null;
 
   if (variant === "sheet") {
     return (
@@ -261,6 +321,10 @@ export async function EventDetailContent({
             viewer={viewer}
             accountOffer={accountOffer}
             giveawayRulesId={giveawayRules?.giveawayId ?? null}
+            waiver={waiver ? { version: waiver.version } : null}
+            waiverBlock={waiverBlock}
+            minorAccompaniment={minorAccompaniment}
+            photoConsent={photoConsent}
           />
         </div>
       </>
@@ -285,6 +349,10 @@ export async function EventDetailContent({
         viewer={viewer}
         accountOffer={accountOffer}
         giveawayRulesId={giveawayRules?.giveawayId ?? null}
+        waiver={waiver ? { version: waiver.version } : null}
+        waiverBlock={waiverBlock}
+        minorAccompaniment={minorAccompaniment}
+        photoConsent={photoConsent}
       />
     </>
   );

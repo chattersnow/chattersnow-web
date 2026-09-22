@@ -31,6 +31,8 @@ import {
 import { deviceClass } from "@/lib/portal/device";
 import { siteContentActorNames } from "@/lib/site-content-actors";
 import { getTenantLegalApproval } from "@/lib/legal-publication";
+import { legalDocumentBySlot } from "@/lib/legal-documents";
+import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { ContentEditor } from "./content-editor";
 import {
   buildOutline,
@@ -71,6 +73,7 @@ export default async function SiteContentPage({
     tenantVisibility,
     tenantModules,
     approvalRequired,
+    tenantLexicon,
     { data: userData },
   ] = await Promise.all([
     getCurrentUserPermissions(supabase),
@@ -92,6 +95,10 @@ export default async function SiteContentPage({
     // (#600). The publish dialog asks for an approval only while this is on,
     // and refuses outright on a draft the reader wrote themselves.
     getTenantLegalApproval(supabase),
+    // The *selected* tenant's own words, for the same reason the visibility
+    // and module reads above are the selected tenant's (#1367): the starter
+    // document names what this organization gives away.
+    getTenantLexicon(supabase),
     supabase.auth.getUser(),
   ]);
   const rows = (data ?? []) as SiteContentDraftRow[];
@@ -120,6 +127,7 @@ export default async function SiteContentPage({
     emailPrivacy: published.text("org.email_privacy"),
     emailConduct: published.text("org.email_conduct"),
     surfaces: collectionSurface(tenantVisibility, tenantModules),
+    lexicon: tenantLexicon,
   };
 
   // The editor gets, for every slot on the page, the copy it edits (the draft
@@ -145,8 +153,16 @@ export default async function SiteContentPage({
       publishedBy: row?.published_by
         ? (actors.get(row.published_by) ?? null)
         : null,
+      // Only for a document the platform has prose for. The participant
+      // waiver has none (#686), and `platformLegalDocument()` throws on a slot
+      // whose outline sections have no text behind them -- which would 500
+      // this page for every tenant rather than leaving one starter empty. The
+      // editor offers its outline instead.
       starter:
-        slot.type === "document" ? platformLegalDocument(slot.key, org) : null,
+        slot.type === "document" &&
+        legalDocumentBySlot(slot.key)?.hasPlatformDefault
+          ? platformLegalDocument(slot.key, org)
+          : null,
     };
   });
 

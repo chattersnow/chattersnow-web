@@ -54,6 +54,10 @@ async function seedGearRequest(admin: AdminClient) {
     p_ip_address: `10.${Math.floor(Math.random() * 256)}.${Math.floor(
       Math.random() * 256,
     )}.${Math.floor(Math.random() * 256)}`,
+    // #1367: every request records that the requester was told the items are
+    // given as-is. The real callers resolve the wording server-side.
+    p_as_is_acknowledged: true,
+    p_as_is_text: "Given as-is.",
   });
   if (error) throw error;
 

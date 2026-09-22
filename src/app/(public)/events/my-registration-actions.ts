@@ -9,6 +9,14 @@ import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseAttendedBefore } from "@/lib/attended-before";
+import {
+  MINOR_CONTACTS_REQUIRED_CODE,
+  MINOR_CONTACTS_REQUIRED_ERROR,
+  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+  parseMinorContacts,
+  parsePartyIncludesMinor,
+} from "@/lib/minors";
+import { PHOTO_CONSENT_FIELD, parsePhotoConsent } from "@/lib/photo-consent";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
 
@@ -25,6 +33,18 @@ const ERROR_MESSAGES: Record<string, string> = {
   INVALID_PARTY_SIZE: "Party size must be at least 1.",
   PRONOUNS_TOO_LONG: PRONOUNS_TOO_LONG_ERROR,
   NO_RECORD: "We could not find your record. Please sign in again.",
+  // #685. The form asks for the four the moment somebody answers yes, so this
+  // is the belt to that braces.
+  [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
+  // #686. Three ways a waiver can stop a registration, and they are three
+  // different things to say. The first is the reader's to fix; the second is
+  // nobody's fault and asks them to read again; the third is the
+  // organization's and is a state its own portal refuses to create.
+  WAIVER_REQUIRED: "Please read the agreement and tick the box to register.",
+  WAIVER_CHANGED:
+    "The agreement was updated while you were filling this in. Reload the page, read it again, and register.",
+  WAIVER_UNAVAILABLE:
+    "This organization's participant agreement could not be loaded, so we can't take your registration right now. Please try again shortly.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };
 
@@ -51,6 +71,20 @@ export async function registerMyselfForEventAction(
     return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE };
   }
 
+  // #685. Required on this form as on the anonymous one, and validated here
+  // rather than left to the RPC: the RPC has to keep accepting an unanswered
+  // question, because the public API's published contract predates it, so
+  // "the question was asked and skipped" is a distinction only the two forms
+  // can draw.
+  const partyIncludesMinor = parsePartyIncludesMinor(
+    formData.get("partyIncludesMinor"),
+  );
+  if (partyIncludesMinor === null) {
+    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR };
+  }
+  const minorContacts = parseMinorContacts(partyIncludesMinor, formData);
+  if ("error" in minorContacts) return minorContacts;
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("register_myself_for_event", {
     p_event_id: eventId,
@@ -68,6 +102,33 @@ export async function registerMyselfForEventAction(
     // derived figure.
     p_attended_before:
       parseAttendedBefore(formData.get("attendedBefore")) ?? undefined,
+    // #686, and the same on this path as on the anonymous one. Holding an
+    // account is not agreement to anything: a signed-in route that skipped the
+    // waiver would be the shortest way to a registration with no acceptance
+    // behind it. Read straight off the FormData, since this action has no
+    // parser of its own -- the RPC is what validates either way.
+    p_waiver_accepted: formData.get("waiverAccepted") === "on",
+    p_waiver_version: /^[1-9]\d*$/.test(
+      String(formData.get("waiverVersion") ?? "").trim(),
+    )
+      ? Number(formData.get("waiverVersion"))
+      : undefined,
+    p_party_includes_minor: partyIncludesMinor,
+    p_accompanying_adult_name:
+      minorContacts.data.accompanying_adult_name ?? undefined,
+    p_accompanying_adult_phone:
+      minorContacts.data.accompanying_adult_phone ?? undefined,
+    p_emergency_contact_name:
+      minorContacts.data.emergency_contact_name ?? undefined,
+    p_emergency_contact_phone:
+      minorContacts.data.emergency_contact_phone ?? undefined,
+    // #599, read straight off the FormData like the waiver above and for the
+    // same reason: this action has no parser of its own. `undefined` is how
+    // "this tenant asks nothing" reaches the RPC, which is the branch almost
+    // every registration takes; `false` is a box that was on screen and left
+    // unticked, and it never refuses the submission.
+    p_photo_consent:
+      parsePhotoConsent(formData.get(PHOTO_CONSENT_FIELD)) ?? undefined,
     p_ip_address: await getClientIp(),
   });
 

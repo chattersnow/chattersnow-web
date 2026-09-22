@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
-import { PageShell } from "@/components/page-shell";
-import { RegistrationAccountOffer } from "@/components/registration-account-offer";
+import { ClaimHandoff } from "@/app/(public)/my/claim-handoff";
 import { requireConstituentSession } from "@/lib/constituent/guard";
-import {
-  MY_PATH_PREFIX,
-  myRegistrationClaimPath,
-} from "@/lib/constituent/paths";
+import { myRegistrationClaimPath } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import { PhotoConsentCard } from "./photo-consent-card";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -22,27 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/**
- * Where the sign-up hand-off lands (#1258).
- *
- * The offer after a registration is a link to `/my/sign-in` carrying this
- * path, so the registration survives whatever making an account costs -- a
- * password, a Google round trip, or an email confirmation opened tomorrow on a
- * different device. The guard sends a visitor with no session to sign in and
- * brings them back here, which is the whole reason this is a route and not a
- * query parameter: `safeMyDestination` only carries a `next` that is a path
- * inside `/my`.
- *
- * It reads nothing about the registration, and deliberately: an id that names
- * nothing, an id from another tenant and an id belonging to somebody else all
- * render this same page, and `submit_claim_from_registration()` is silent
- * about which of them it was. A page that said "we could not find that
- * registration" would be a way to test ids.
- *
- * The one thing it does say is about the reader's own account, which is theirs
- * to know: somebody already linked to a record is told it is already on it,
- * and sent to `/my`.
- */
+/** Where the registration sign-up hand-off lands (#1258). See `ClaimHandoff`. */
 export default async function MyRegistrationPage({
   params,
 }: {
@@ -53,45 +27,44 @@ export default async function MyRegistrationPage({
     myRegistrationClaimPath(registrationId),
   );
 
-  return (
-    <PageShell>
-      <div className="space-y-8">
-        <section>
-          <div className="w-fit">
-            <div className="rainbow-accent w-full" />
-            <h1 className="brand-display mt-4 text-3xl font-semibold tracking-brand sm:text-4xl">
-              Your registration
-            </h1>
-          </div>
-          <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed">
-            You&apos;re registered either way — this only decides whether it
-            ends up on your account.
-          </p>
-        </section>
+  const supabase = await createSupabaseServerClient();
 
-        <Card className="rainbow-surface">
-          <CardContent>
-            {personId ? (
-              <Alert>
-                <AlertTitle>This is on your record</AlertTitle>
-                <AlertDescription>
-                  <p>
-                    Your account is already linked, so there is nothing to ask
-                    for. <Link href={MY_PATH_PREFIX}>See your account</Link>.
-                  </p>
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <RegistrationAccountOffer
-                offer="claim"
-                registrationId={registrationId}
-                skipHref={MY_PATH_PREFIX}
-                headingLevel="h2"
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </PageShell>
+  // #599. The one thing on this page that is theirs to change rather than to
+  // read: whether they are happy to be photographed. A consent that cannot be
+  // withdrawn is not consent, and `/terms`' other route out of it -- email --
+  // depends on somebody reading a mailbox.
+  //
+  // Read through `my_photo_consent()`, which resolves the person itself, so an
+  // id belonging to somebody else returns no rows and renders nothing. That is
+  // the same silence `ClaimHandoff` keeps above: a page that said "not yours"
+  // would be a way to test ids.
+  //
+  // `asked` is whether the organization is asking *now*, which is not the same
+  // as whether it asked when they registered -- a tenant that has since
+  // written a scope should be able to collect an answer from a null row. The
+  // paragraphs come from the live slot for the same reason: somebody changing
+  // their mind is answering today's words, which is what the RPC snapshots.
+  const { data: photoRows } = await supabase.rpc("my_photo_consent", {
+    p_registration_id: registrationId,
+  });
+  const photo = photoRows?.[0] ?? null;
+  const { content } = await getPublicSite(supabase);
+
+  return (
+    <ClaimHandoff
+      title="Your registration"
+      lede="You're registered either way — this only decides whether it ends up on your account."
+      record={{ kind: "registration", id: registrationId }}
+      personId={personId}
+      after={
+        photo?.asked ? (
+          <PhotoConsentCard
+            registrationId={registrationId}
+            paragraphs={content.paragraphs("events.photo_consent")}
+            consent={photo.consent}
+          />
+        ) : null
+      }
+    />
   );
 }

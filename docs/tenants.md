@@ -571,7 +571,7 @@ Both are the tenant admin's, not the operator's:
 - **Administration → Site Content**: every organization-specific line of copy
   on the public site, page by page, stored in `site_content`. The registry of
   slots and Chatter Snow's copy as each default is `src/lib/site-content.ts`;
-  a new tenant renders that until it rewrites a slot. The three legal pages
+  a new tenant renders that until it rewrites a slot. The four legal pages
   are published whole as structured documents under `legal.*` -- a tenant
   either publishes its own or the platform's renders. Since #858 the
   platform's is genuinely neutral (`src/lib/legal-defaults.ts`): it describes
@@ -582,12 +582,19 @@ Both are the tenant admin's, not the operator's:
   `bun run docs:legal`; [legal-basis.md](legal-basis.md) has the rules it is
   written under and the record of who approved it. Chatter Snow's own
   three documents are its tenant's rows
-  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`). Whether each of the
-  three is served is a separate per-tenant decision, in **Administration →
-  Website → Legal documents** (#859): the terms and the code of conduct
-  404 and stay out of the footer until that organization puts them in force,
-  and the privacy policy is always served because the public forms are always
-  collecting. It is one `app_settings` row per document
+  (`20260909020000_chatter_snow_owns_its_legal_documents.sql`); the
+  accessibility statement (#1368) is the one it has no row for, so it renders
+  the platform's once put in force. Whether each document is served is a
+  separate per-tenant decision, in **Administration →
+  Website → Legal documents** (#859): the terms, the code of conduct and the
+  accessibility statement 404 and stay out of the footer until that
+  organization puts them in force, and the privacy policy is always served
+  because the public forms are always collecting. The accessibility statement
+  is the closest that call has been — the reader who most needs a route for
+  reporting a barrier is the least able to hunt for one — and it goes the same
+  way, because a conformance claim published under an organization's name
+  covers that organization's own alt text, uploads, linked documents and
+  venues, none of which is the platform's to assert. It is one `app_settings` row per document
   (`legal_publication.<key>`, read through `public_legal_publication`), and no
   row is seeded — a newly provisioned tenant serves its privacy policy and
   nothing else. **The terms of use are a prerequisite for the
@@ -600,7 +607,24 @@ Both are the tenant admin's, not the operator's:
   is declared in `src/lib/legal-documents.ts` (`LegalDocument.gates`) and
   enforced in the two Server Actions the two switches call, so seeding, the
   demo reset and the e2e fixtures — all of which write these rows as
-  `service_role` — are free to set whatever state they need. **Publishing a
+  `service_role` — are free to set whatever state they need. **The participant
+  waiver is the fourth legal document and the one with no platform text**
+  (#686): a release of legal rights cannot be written for an organization that
+  has not written it, so `legal.waiver` has no entry in `PLATFORM_LEGAL_PROSE`
+  and its default is absence — `/waiver` 404s, the footer omits it and the
+  registration form asks about no agreement until that tenant publishes its
+  own. The registry records this as `hasPlatformDefault: false`, and the
+  adoption gate runs both ways: the Legal documents switch refuses to put it in
+  force while nothing is published (and is disabled, with the reason beside
+  it), and `publish_site_content()` refuses a publish that would empty a waiver
+  already in force. Where one _is_ adopted, both registration paths show it in
+  full, take an unticked box, and record
+  `event_registrations.waiver_accepted_at` and `waiver_version` — a pointer
+  into `legal_document_versions`, readable by anybody at
+  `/waiver?version=N`. **Anything that writes `legal.waiver` text directly must
+  write a version row with it**: versions come only from
+  `publish_site_content()`, and text with no version leaves the waiver in force
+  with nothing to cite, which refuses every registration. **Publishing a
   `legal.*` slot records what the site was collecting at that moment** (#1292):
   one `app_settings` row per document, `legal_surface.<key>`, holding the
   sorted keys of `collectionSurface()` (`src/lib/legal-surface.ts`) — the same

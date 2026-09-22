@@ -42,6 +42,7 @@ import {
   withoutSorting,
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
+import { StatusBadge } from "@/components/portal/status-badge";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import {
   LIST_PREVIEW_ROWS,
@@ -127,6 +128,11 @@ export function RegistrantsTab({
   const registrants = data?.registrants;
   const messages = data?.messages ?? NO_RECORD_MESSAGES;
   const messaging = data?.messaging ?? null;
+  // False while the tab is still loading, which is the right default: it only
+  // suppresses a row, and the row reappears with the data behind it (#686).
+  const waiverInForce = data?.waiverInForce ?? false;
+  // Same default and same reasoning (#599).
+  const photoConsentInForce = data?.photoConsentInForce ?? false;
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -234,6 +240,33 @@ export function RegistrantsTab({
               <span className="app-muted block truncate text-xs font-normal">
                 {registrant.pronouns}
               </span>
+            )}
+            {/* Beside the name, not in a column, and for the reason the
+                pronouns are here: this is read at the same moment as "who is
+                this", it is the one thing about a party that has to be known
+                before the day rather than at it, and a column would be the
+                first thing dropped on a phone. Only `true` renders anything --
+                null is "nobody was asked" and false is the ordinary case, and
+                neither is worth a badge (#685). */}
+            {registrant.party_includes_minor === true && (
+              <StatusBadge tone="info" className="mt-1 font-normal">
+                Includes a minor
+              </StatusBadge>
+            )}
+            {/* Same place, same argument, and the condition is inverted (#599).
+                For the minors flag the notable state is `true`; here it is
+                `false` -- somebody who declined being photographed is the one
+                registrant a camera has to know about, and "agreed" is the
+                ordinary case that would only add noise. Null renders nothing
+                because nobody asked, and a badge saying so would put a gap in
+                the organization's own configuration in front of the door shift.
+
+                This is also the check-in surface: `check-in-modal.tsx` renders
+                this same table, so the badge is there without a second copy. */}
+            {registrant.photo_consent === false && (
+              <StatusBadge tone="warning" className="mt-1 font-normal">
+                No photos
+              </StatusBadge>
             )}
           </>
         ),
@@ -522,6 +555,8 @@ export function RegistrantsTab({
           orgName={messaging?.orgName ?? ""}
           replyTo={messaging?.replyTo ?? null}
           orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          waiverInForce={waiverInForce}
+          photoConsentInForce={photoConsentInForce}
           onClosed={() => setDetailId(null)}
           onSent={refreshRegistrants}
         />

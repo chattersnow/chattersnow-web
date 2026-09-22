@@ -108,6 +108,62 @@ export const eventRegistrationSchema = z
     instagram_handle: optionalText(30).meta({
       description: "Without the @; letters, numbers, dots and underscores.",
     }),
+    // #685, and every one of them optional on purpose. This contract predates
+    // the question, so a caller that says nothing is recorded as never having
+    // been asked rather than as a "no" -- the same three-state reading the
+    // column carries. Send `true` and the four contacts become required, which
+    // is the one rule the organization's own policy rests on.
+    party_includes_minor: z.boolean().optional().meta({
+      description:
+        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no.",
+    }),
+    accompanying_adult_name: optionalText(200).meta({
+      description:
+        "The adult attending with them. Required when party_includes_minor is true.",
+    }),
+    accompanying_adult_phone: optionalText(50).meta({
+      description:
+        "A number that reaches that adult on the day. Required when party_includes_minor is true.",
+    }),
+    emergency_contact_name: optionalText(200).meta({
+      description:
+        "Who to call in an emergency. Required when party_includes_minor is true.",
+    }),
+    emergency_contact_phone: optionalText(50).meta({
+      description:
+        "That contact's number. Required when party_includes_minor is true.",
+    }),
+    // #1366, closing a gap #686 opened. `register_for_event()` gained these
+    // two parameters and this schema did not, so `p_waiver_accepted` fell
+    // through to its `false` default and every headless registration for a
+    // tenant with a waiver in force failed with WAIVER_REQUIRED -- advice no
+    // `curl` caller could act on, because there was no field to send.
+    //
+    // Optional, like the minors questions above and for the same reason: this
+    // contract predates the waiver, and the overwhelming majority of tenants
+    // have adopted none. Omitting both is correct on every one of those, and
+    // `false` is what the RPC already assumes.
+    waiver_accepted: z.boolean().optional().meta({
+      description:
+        "That the person accepted this organization's participant agreement. Omit it unless GET /legal reports a waiver in force; where one is, a registration without it is refused.",
+    }),
+    waiver_version: z.int().positive().optional().meta({
+      description:
+        "The agreement version the person was shown, if you track it. Sending one that is no longer in force is refused rather than accepted against text nobody read; omitting it accepts whatever is in force now.",
+    }),
+    // #599, and optional for the same reason as the minors question: an
+    // omitted field records that nobody was asked, which is both correct for
+    // a caller written before the question existed and correct for the
+    // overwhelming majority of organizations, which have written no scope.
+    //
+    // A `false` is a real decline and is stored as one; it never refuses the
+    // registration. The scope the answer is recorded against is read from the
+    // organization's own row server-side, never from this body, so sending
+    // `true` is an assertion that the person was shown it.
+    photo_consent: z.boolean().optional().meta({
+      description:
+        "Whether the person agreed to be photographed or recorded. Show them the events.photo_consent paragraphs from GET /content first; send false for a decline, which is recorded as one, and omit it entirely if you did not ask. It is never read as a no.",
+    }),
   })
   .meta({ id: "EventRegistration" });
 
@@ -135,6 +191,9 @@ export const gearRequestSchema = z
     name,
     email,
     phone,
+    instagram_handle: optionalText(30).meta({
+      description: "Without the @; letters, numbers, dots and underscores.",
+    }),
     notes: optionalText(2000),
     delivery_method: z.enum(["meetup", "shipping"]).optional().meta({
       description:
@@ -146,6 +205,18 @@ export const gearRequestSchema = z
     payment_method: optionalText(60).meta({
       description:
         "One of the keys from `/gear-request-settings`, when shipping.",
+    }),
+    // Required, and `true` is the only value that parses (#1367). Unlike the
+    // participant waiver it is not conditional on anything a tenant has
+    // adopted: these items are given as-is on every organization running this
+    // software, so every request records that the person asking was told so.
+    // A consumer that will not say it on the requester's behalf should not be
+    // making the request. The wording is the platform's own and is snapshotted
+    // onto the row by this endpoint, not sent -- read it from `/legal`'s terms
+    // of use, under "we give away".
+    as_is_acknowledged: z.literal(true).meta({
+      description:
+        "Confirms the person asking was shown, and understood, that these items are given as-is — not inspected, tested, serviced or certified. Must be `true`; there is no way to request without it. Show them the wording first: it is the `items-we-give-away` section of this organization's terms of use.",
     }),
   })
   .meta({ id: "GearRequest" });

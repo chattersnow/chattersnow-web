@@ -21,6 +21,13 @@ export type VolunteerApplicationStatus =
 
 export type VolunteerApplication = {
   id: string;
+  /**
+   * Always present: `submit_volunteer_application()` resolves or creates the
+   * person before it inserts. Typed nullable anyway because the column's
+   * composite foreign key is what guarantees it, and the screening lookup
+   * (#1360) keys on it.
+   */
+  person_id: string | null;
   name: string;
   email: string;
   phone: string | null;

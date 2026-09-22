@@ -165,7 +165,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
  * The site's legal notices. These render in the footer's bottom bar, next to
  * the copyright line, rather than mixed into the section links above it --
  * they are utility links, not destinations, and listing them alongside Events
- * and Gear read as if the privacy policy were a fifth part of the site.
+ * and Gear read as if the privacy policy were another part of the site.
  *
  * They are deliberately not NAV_GROUPS entries with slots: a section of the
  * marketing site is shown or hidden, and a legal document is adopted or not,
@@ -174,7 +174,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
  * visibility -- the privacy policy is always among them.
  *
  * Derived from the registry so the footer, the routes and the admin panel
- * cannot disagree about what the three documents are.
+ * cannot disagree about what the documents are.
  */
 export const LEGAL_LINKS: readonly NavLink[] = LEGAL_DOCUMENTS.map(
   (document) => ({ label: document.label, href: document.route }),

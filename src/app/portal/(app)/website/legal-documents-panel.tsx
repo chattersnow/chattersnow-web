@@ -19,7 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 // registry and is free of them, but the read lives in @/lib/legal-publication,
 // which must not reach the client bundle. State arrives as props from the
 // server page, same as PageVisibilityPanel.
-import type { LegalDocument } from "@/lib/legal-documents";
+import { legalDocumentNoun, type LegalDocument } from "@/lib/legal-documents";
 // Free of server helpers on purpose, so the drift sentence is written where it
 // is tested rather than assembled in JSX.
 import {
@@ -125,7 +125,7 @@ function DriftLine({
 
   return (
     <>
-      You published your {document.label.toLowerCase()}
+      You published your {legalDocumentNoun(document)}
       {on ? ` on ${on}` : ""}.{" "}
       {added.length > 0 ? (
         <>
@@ -166,7 +166,7 @@ function AcknowledgementLine({
   document: LegalDocument;
   acknowledgement: LegalAcknowledgement;
 }) {
-  const label = document.label.toLowerCase();
+  const label = legalDocumentNoun(document);
 
   if (acknowledgement.status === "never") {
     return (
@@ -224,7 +224,7 @@ function PublishStateLines({
   state: LegalPublishState;
   approvalRequired: boolean;
 }) {
-  const label = document.label.toLowerCase();
+  const label = legalDocumentNoun(document);
   const pending = state.pending;
   const approval = state.approval;
   const draftedOn = pending?.draftedAt
@@ -379,7 +379,13 @@ function ServingLine({
         footer omits it.
         {ownDocument
           ? " Your own text is written and waiting."
-          : " Nothing of your own is written yet, so putting it in force would serve the platform's starting document."}
+          : document.hasPlatformDefault
+            ? " Nothing of your own is written yet, so putting it in force would serve the platform's starting document."
+            : // The one document with nothing behind it (#686). "Putting it in
+              // force would serve the platform's starting document" is not
+              // merely wrong here, it is the opposite of what happens, and the
+              // switch beside this line is disabled for exactly that reason.
+              " There is no starting text for this one, so it cannot be put in force until you have written and published your own."}
       </>
     );
   }
@@ -433,6 +439,13 @@ function LegalDocumentRow({
     (status.drift.status === "unknown" || hasDrifted(status.drift))
       ? status.drift
       : undefined;
+  // A document with no platform text cannot be adopted before it is written
+  // (#686): there would be nothing at its route and nothing at the point it is
+  // meant to be accepted. `updateLegalPublicationAction` refuses this too --
+  // the switch is disabled so nobody has to discover the refusal by tripping
+  // it, and `ServingLine` above says why.
+  const needsOwnText =
+    !document.hasPlatformDefault && !status.ownDocument && !status.inForce;
 
   function handleConfirm() {
     onError(null);
@@ -441,7 +454,7 @@ function LegalDocumentRow({
       await runAction<SettingActionResult>(
         () => acknowledgeLegalDocumentAction(document.key),
         {
-          success: `Recorded that you have read the ${document.label.toLowerCase()}.`,
+          success: `Recorded that you have read the ${legalDocumentNoun(document)}.`,
           onError,
           onSuccess: () => router.refresh(),
         },
@@ -543,7 +556,7 @@ function LegalDocumentRow({
             // missing one: this is a state the organization can get out of by
             // asking, so the control stays where it was and says why it is
             // stuck (#1295).
-            disabled={isPending || Boolean(held)}
+            disabled={isPending || Boolean(held) || needsOwnText}
             aria-labelledby={labelId}
           />
         )}

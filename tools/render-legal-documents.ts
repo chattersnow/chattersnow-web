@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Renders the platform's three legal documents as Markdown, so they can be
- * read and approved without a developer (#1340).
+ * Renders the platform's legal documents as Markdown, so they can be read and
+ * approved without a developer (#1340).
  *
  * The prose in `src/lib/legal-defaults.ts` is template literals assembled by
  * `platformLegalDocument()`, which makes the served text impossible to review
@@ -30,12 +30,21 @@
 import {
   platformLegalDocument,
   PLATFORM_LEGAL_LAST_UPDATED,
+  PLATFORM_LEGAL_SLOT_KEYS,
   type LegalOrgContext,
 } from "@/lib/legal-defaults";
+import { DEFAULT_LEXICON } from "@/lib/lexicon";
 import type { CollectionSurface } from "@/lib/legal-surface";
 
-/** The slots, in the order the footer's legal bar lists them. */
-const SLOTS = ["legal.privacy", "legal.terms", "legal.code_of_conduct"];
+/**
+ * Every slot the platform has prose for, which is not every legal document
+ * any more: the participant waiver (#686) is a tenant's own words or nothing,
+ * so there is nothing here to render for it.
+ *
+ * Derived rather than listed, so this can neither miss a document the platform
+ * starts writing nor invent one it does not.
+ */
+const SLOTS = PLATFORM_LEGAL_SLOT_KEYS;
 
 /**
  * Deliberately obvious placeholders rather than a plausible organization.
@@ -47,6 +56,10 @@ const PLACEHOLDER: Omit<LegalOrgContext, "surfaces"> = {
   emailGeneral: "hello@example.org",
   emailPrivacy: "privacy@example.org",
   emailConduct: "conduct@example.org",
+  // The platform's own words rather than a tenant's (#1367). What is approved
+  // here is the sentence the platform wrote; an organization that lends tools
+  // reads "tools" in place of "items" and has agreed to no different claim.
+  lexicon: DEFAULT_LEXICON,
 };
 
 const ALL_ON: CollectionSurface = {
@@ -57,6 +70,7 @@ const ALL_ON: CollectionSurface = {
   artworkSubmissions: true,
   constituentAccounts: true,
   volunteerHours: true,
+  volunteerScreening: true,
   googleSignIn: true,
 };
 
@@ -68,6 +82,7 @@ const ALL_OFF: CollectionSurface = {
   artworkSubmissions: false,
   constituentAccounts: false,
   volunteerHours: false,
+  volunteerScreening: false,
   googleSignIn: false,
 };
 

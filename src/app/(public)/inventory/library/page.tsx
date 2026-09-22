@@ -8,6 +8,12 @@ import { GearCatalog, type GearItem } from "../gear-catalog";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
 import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
+import {
+  contactPrefill,
+  loadConstituentViewer,
+} from "@/lib/constituent/viewer";
+import { loadAccountOffer } from "@/lib/constituent/account-offer";
+import { getLegalPublication } from "@/lib/legal-publication";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -26,6 +32,8 @@ export default async function GearLibraryPage() {
     { content, lexicon },
     sizingVisible,
     requestOptions,
+    viewer,
+    publication,
   ] = await Promise.all([
     supabase
       .from("public_gear_catalog")
@@ -44,7 +52,21 @@ export default async function GearLibraryPage() {
     // What the cart may offer (#1032): a meetup always, shipping when the
     // organization has turned it on and named a way to pay the postage.
     getPublicGearRequestOptions(supabase),
+    // Who is asking (#1357). A signed-in reader starts from what the
+    // application already holds rather than retyping it -- and only from what
+    // their own session knows, never from whether the directory recognises a
+    // typed address (§5.23).
+    loadConstituentViewer(supabase),
+    // Whether the as-is notice may point at `/terms` (#1367). Free: the public
+    // layout already reads this on every request for the footer's legal bar,
+    // and it is `cache()`d.
+    getLegalPublication(supabase),
   ]);
+
+  // What to offer once a request is saved (#1359). Read after the viewer
+  // because it depends on it, and it costs no query of its own: the module map
+  // it reads is request-cached and the public layout has already issued it.
+  const accountOffer = await loadAccountOffer(viewer);
 
   return (
     <div>
@@ -74,7 +96,10 @@ export default async function GearLibraryPage() {
           items={items ?? []}
           placeholderUrl={siteImages.gear_placeholder ?? null}
           requestOptions={requestOptions}
+          prefill={contactPrefill(viewer)}
+          accountOffer={accountOffer}
           lexicon={lexicon}
+          termsInForce={publication.terms}
         />
       </div>
     </div>

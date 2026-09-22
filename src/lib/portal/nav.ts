@@ -240,6 +240,22 @@ export const NAV_ITEMS: readonly NavItem[] = [
         href: "/portal/volunteers/applications",
         access: [{ resource: "volunteers", level: "view" }],
       },
+      // Its own resource rather than `volunteers` (#1360), so this is the one
+      // sub-item in the section a `volunteers:view` holder does not see. It
+      // sits above Directory rather than below it because Directory points
+      // outside the section: for somebody holding screening and nothing else,
+      // firstAccessibleHref should land them on /portal/volunteers/screening,
+      // not on the People directory.
+      //
+      // No `alsoRequires`. Unlike Directory, this route's own resource carries
+      // module_key = 'volunteers', so has_permission() already answers false
+      // when the tenant has the module off (20260910010000).
+      {
+        value: "screening",
+        label: "Screening levels",
+        href: "/portal/volunteers/screening",
+        access: [{ resource: "volunteer_screening", level: "view" }],
+      },
       // The People directory filtered to volunteers. Cross-linked rather than
       // duplicated, and gated on the guard its route actually has
       // (people/layout.tsx), which is why this one says people:view. Listed

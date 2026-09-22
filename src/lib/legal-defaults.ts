@@ -1,3 +1,5 @@
+import { GEAR_AS_IS_SUMMARY } from "@/lib/gear-as-is";
+import { applyLexicon, applyLexiconAll, type Lexicon } from "@/lib/lexicon";
 import type { CollectionSurface } from "@/lib/legal-surface";
 import { RETENTION_POLICIES } from "@/lib/retention";
 import {
@@ -61,13 +63,24 @@ export type LegalOrgContext = {
    * bullets, retention rows and whole sections the documents below carry.
    */
   surfaces: CollectionSurface;
+  /**
+   * This organization's own words for what it lends (#896, #1367).
+   *
+   * Only the `items-we-give-away` section needs it today, and it is resolved
+   * over the whole document rather than in that one block: a placeholder that
+   * reaches a published legal page is a brace on screen an administrator has
+   * to report, and `applyLexicon` leaves text with no placeholder in it
+   * untouched. `lexicon.test.ts` sweeps every section of every document for a
+   * surviving one, the same way it sweeps the nav registries.
+   */
+  lexicon: Lexicon;
 };
 
 /**
- * Printed on all three documents. Bump it in the same commit as any change to
+ * Printed on every document here. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "September 21, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "September 23, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -108,14 +121,31 @@ const PRIVACY: DocumentProse = {
     // every form in the software, followed by a sentence saying some of them
     // might not exist -- an honest dodge rather than an accurate policy.
     "what-we-collect": ({ surfaces }) => [
-      "Everything below is information you type into a form yourself. We don't buy personal information about you from anyone else.",
+      // "Yourself" stopped being the whole truth when registration began
+      // asking for an emergency contact (#685): that person never came to the
+      // site and cannot be told anything at the point of collection, so the
+      // sentence names them rather than glossing them. We still buy nothing.
+      "Everything below is information you type into a form yourself — including, in one place, somebody else's name and number that you give us. We don't buy personal information about you from anyone else.",
       bullets([
         surfaces.contact &&
           "**Contact form** — your name, email address, the topic you pick, and your message. We use it to read what you sent and reply to you, and we email you back to confirm it arrived — that confirmation names the topic and the date, never what you wrote.",
         surfaces.volunteerApplications &&
           "**Volunteer application** — your name, email address, and, if you choose to give them, your phone number, the roles you're interested in, and your availability. We use it to review your application, follow up with you, and let you check its status with the reference code we give you.",
         surfaces.eventRegistrations &&
-          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details.",
+          // The closing sentence is deliberately conditional in its own
+          // wording rather than gated on a collection surface (#686). "Where
+          // we ask you to accept" is a true claim about this software on every
+          // tenant, including the ones that ask nobody; a surface key for
+          // "this organization has adopted a waiver" would have to feed
+          // `legal_surface.*`, and every tenant with its own published
+          // documents would be told they had drifted the day they adopted one.
+          //
+          // The photo sentence is conditional in the same way and for the same
+          // reason (#599). It is also the one place this bullet promises a
+          // control rather than describing a field: `set_my_photo_consent()`
+          // is what makes "you can change it at any time" true, and a consent
+          // that cannot be withdrawn is not consent.
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts. Where we ask whether you're happy to be photographed or recorded, we keep your answer — including a no, so that the people running the event know — with the date and a copy of what you were asked, and you can change it at any time from your registration page.",
         surfaces.gearRequests &&
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&
@@ -136,6 +166,21 @@ const PRIVACY: DocumentProse = {
         surfaces.volunteerHours &&
           "**Hours you log yourself** — if you volunteer with us and log your own hours: how many, the date, which event and which role they were for, and any note you add. They stay pending until somebody here confirms them.",
       ]),
+      // Not a bullet, because the list above is introduced by "information you
+      // type into a form yourself" and nobody types this: it is recorded by
+      // the organization about a volunteer. A trailing paragraph is where that
+      // already goes — the IP-address sentence below has the same shape and
+      // the same reason (#1360).
+      //
+      // The last sentence is the one that matters, and it is a claim about the
+      // software rather than about anyone's process, so it is true on every
+      // tenant: `person_screenings` has columns for a level and two dates and
+      // no column any result could be written into.
+      ...(surfaces.volunteerScreening
+        ? [
+            "If you volunteer with us in a role our policy says needs screening — references, a conversation, or a background check — we record only the outcome: which level you were cleared for, the date of the decision, and, where the clearance is time-limited, the date it runs to. That is all this site stores. It holds no reference, no interview, no check, no result of one, and nothing a screening provider sends back.",
+          ]
+        : []),
       "We also record the IP address a form submission came from and store it with that submission. It is used only to stop spam and abuse — to limit how many times the same sender can submit a form in a short window — and it is deleted when the submission it belongs to is deleted.",
     ],
     "what-we-dont-do": () => [
@@ -163,6 +208,11 @@ const PRIVACY: DocumentProse = {
     "who-can-see-it": (org) =>
       paragraphs([
         `Inside ${org.name}, what you submit is visible to the people whose role covers it — the people running events see event registrations, whoever coordinates volunteers sees volunteer applications, and so on. Access is enforced in the database by the permissions attached to each role, not just hidden in the interface.`,
+        // True of this software rather than of any organization's practice:
+        // `person_screenings` is gated on its own permission and never on the
+        // one that covers the rest of the volunteers module (#1360).
+        org.surfaces.volunteerScreening &&
+          "A screening outcome is held more narrowly still. It is visible only to the people whose role carries the screening permission, which is a separate grant from the one that covers volunteer roles, applications and participation — so coordinating volunteers does not by itself show you who has been screened.",
         // Both halves of this paragraph have to be true for it to be: it is
         // about volunteers seeing registrations.
         org.surfaces.eventRegistrations &&
@@ -271,6 +321,22 @@ const TERMS: DocumentProse = {
     volunteering: (org) => [
       `Applying to volunteer doesn't create a job, an employment relationship, or a promise of a role, and volunteering with ${org.name} is unpaid. Some roles may require screening before you can take them on. Volunteers act on our behalf only within the role they've been given.`,
     ],
+    // #1367. The platform can write this one, unlike the participant waiver:
+    // every claim in it is about what the software and the organization
+    // running it do *not* do, which is rule 1 of `docs/legal-basis.md`. An
+    // organization that catalogs donated equipment and passes it on has not,
+    // by doing so, inspected or certified anything, and saying so asserts
+    // nothing on its behalf.
+    //
+    // The first paragraphs are `GEAR_AS_IS_SUMMARY` verbatim, because they are
+    // also what somebody reads above the box they tick when they ask for
+    // something. Two places saying nearly the same thing about liability is
+    // the failure mode worth spending a test on, so there is one constant and
+    // `legal-defaults.test.ts` holds this section to it.
+    "items-we-give-away": () => [
+      ...GEAR_AS_IS_SUMMARY,
+      "Where you ask us for something through this site, we show you this before you ask, and we keep a record that you saw it alongside the request.",
+    ],
     "accessibility-and-inclusion": () => [
       "We want our programs, events, and communications to be welcoming and usable. If you need an accommodation to take part in something — at an event, on this site, or in how we contact you — tell us and we'll work with you to find a reasonable way to make it happen. If something here is inaccessible, we'd rather hear about it than not.",
     ],
@@ -378,10 +444,92 @@ const CODE_OF_CONDUCT: DocumentProse = {
   },
 };
 
+/**
+ * The accessibility statement (#1368).
+ *
+ * The one document here whose factual claims are about this repository's own
+ * testing, which makes rule 1 unusually easy to satisfy and unusually easy to
+ * get wrong in the flattering direction. Two things are load-bearing and have
+ * to survive any edit:
+ *
+ *   * **The conformance claim is partial, and the basis is stated.** An
+ *     automated check finds a minority of the barriers on a page, and no full
+ *     manual screen-reader pass has been done across the site --
+ *     `docs/a11y-scan-findings.md` says so in its own words. "Aims to meet
+ *     WCAG 2.2 AA", with no basis given, is the same overclaim in nicer
+ *     clothes. Overclaiming conformance to a disabled reader is not a neutral
+ *     error.
+ *   * **It is scoped to the public website, explicitly rather than by
+ *     silence.** Every entry in `e2e/a11y-baseline.json` today is a portal
+ *     route, and a reader left to assume the wider reading would be reading a
+ *     claim nobody made. `legal-defaults.test.ts` holds the two sentences that
+ *     depend on that being true, so a public route joining the baseline fails a
+ *     test rather than leaving a false statement published.
+ *
+ * Three things only the organization can answer -- who to contact, what it
+ * commits to when it is told, and whether its own events and venues are
+ * accessible. So the prose carries no response time and no promise a tenant has
+ * not made, and the Site Content slot description is what names those as the
+ * parts to replace.
+ */
+const ACCESSIBILITY: DocumentProse = {
+  description: (org) =>
+    `What ${org.name} aims for on this website, how it is tested, what we know is not there yet, and how to tell us when something here gets in your way.`,
+  summary: (org) => [
+    `${org.name} wants this website to work for everyone who comes to it — including people using a screen reader, a keyboard and no mouse, magnification, speech input, or a browser set to larger text, higher contrast or less motion.`,
+    "The standard we build and test against is WCAG 2.2 Level AA. **We are not claiming we have met it.** What we can tell you is what is tested, how, and what that testing cannot see — which is the rest of this page, so that you can weigh the claim rather than take our word for it.",
+    `If something here gets in your way, tell us at ${mailto(org.emailGeneral)}. You don't need to know what the problem is called or which rule it breaks.`,
+  ],
+  sections: {
+    "what-we-aim-for": () => [
+      "Our target is Level AA of the [Web Content Accessibility Guidelines](https://www.w3.org/TR/WCAG22/) version 2.2 — WCAG, the W3C's standard for what makes a web page usable by people with disabilities. Among a great many other things, that means every page can be operated with the keyboard alone, text and controls meet a minimum contrast, images carry a text alternative, form fields have real labels, and nothing depends on your seeing a colour, hearing a sound or noticing a movement.",
+      "**This statement covers this public website.** It does not cover the signed-in area our staff and volunteers use to run the organization. That area is built from the same components and checked the same way, but it has known problems this website does not, and folding the two together would tell you something that isn't true of either.",
+    ],
+    "how-we-test": () => [
+      "Every page of this site is checked automatically before a change to it can be released, and that check is broader than a one-off audit:",
+      bullets([
+        "**Every page, not a sample.** The list of pages to check is derived from the site itself rather than kept by hand, so a page added today is covered today.",
+        "**The whole rule set.** The checks run the axe-core rules for WCAG 2.0, 2.1 and 2.2, at levels A and AA.",
+        "**Both themes, both sizes.** Light and dark, phone width and desktop width — a contrast failure or a tap target that is too small can exist in one and not the other.",
+        "**What only exists once you open it.** Dialogs, slide-over panels, dropdowns, tab panels and the error state of a form are opened and checked too, not just the page as it first loads.",
+        "**A written record of what is already known.** Outstanding failures are listed in the code, and a failure that is not on that list stops the release — so something that has been fixed cannot quietly come back.",
+      ]),
+      "Alongside that, parts of the site have been worked through with the keyboard alone, and the shared controls most likely to trap somebody — the dropdown menus among them — have keyboard tests of their own that run with everything else.",
+      "**Every accessibility failure we currently know about is in the staff area, not on this public website.**",
+    ],
+    "what-we-know-isnt-there-yet": () => [
+      "**An automated check finds a minority of the barriers that exist.** It can tell that an image has no text alternative; it cannot tell whether the alternative somebody wrote is any good, whether a page's headings make sense read aloud, whether an error message says what to do next, or whether a form can actually be completed by someone who cannot see it. Those need a person.",
+      "**No full screen-reader pass has been done across this site.** Keyboard operation has been checked by hand in places, and individual components have been fixed after being tested that way. A complete pass over every page with VoiceOver or NVDA has not happened.",
+      "**So our conformance claim is partial rather than complete.** Partial is the accurate word for a claim resting on thorough automated coverage and incomplete manual coverage, and we would rather give you that than a headline you can't check.",
+      "A page can also regress between releases in a way the automated checks do not catch. If you hit something, the fastest route to it being fixed is you telling us.",
+    ],
+    "where-this-statement-stops": () => [
+      "Some of what you meet on this site is outside what the testing above reaches, and it is better to say so than to let the claim cover it:",
+      bullets([
+        "**Where a link takes you.** We link to partners, venues and other organizations. We choose what to link and we can stop linking it, but we do not control how those sites are built and make no claim about them.",
+        "**Documents rather than pages.** If we link a PDF, a spreadsheet or a slide deck, it is not covered by the checks above and may not be accessible at all. Ask us and we will find another way to get you what is in it.",
+        "**What is typed into the site.** The words, the images and the descriptions of those images are written by people at our organization. The software makes an accessible page possible; it cannot make a photograph's description a good one.",
+        "**Our events, our venues and anything on paper.** Whether a building has step-free access, whether a room has a hearing loop, whether an activity can be adapted — none of that is a question about this website, and this page cannot answer it. Ask us before you come.",
+      ]),
+    ],
+    "telling-us-about-a-problem": (org) => [
+      `Email ${mailto(org.emailGeneral)}. Tell us which page you were on, what you were trying to do and what happened instead. If you know what you were using — a screen reader and which one, the keyboard alone, magnification, voice control, a phone rather than a computer — that helps us reproduce it, but none of it is required. "The menu doesn't open when I press Enter" is a perfectly good report.`,
+      "You are not complaining, and you do not need to be sure the fault is ours. We would rather look into something and find it was not than never hear about it.",
+      "If a barrier here is stopping you doing what you came here to do, say so, and tell us how to reach you. We would rather get you there another way while the page is being fixed than leave you waiting for it.",
+    ],
+    "when-this-was-last-reviewed": () => [
+      "The date at the top of this page is when this text last changed.",
+      "The automated part of what it describes is not an audit from an earlier date: it runs against every change to this site, so what is written above about testing is true of the version you are reading now.",
+      "The parts only a person can do — the screen-reader pass, and whether the words on our pages read well aloud — are the parts a date matters for. When that work is done, this page is where it will be written down.",
+    ],
+  },
+};
+
 const PLATFORM_LEGAL_PROSE: Record<string, DocumentProse> = {
   "legal.privacy": PRIVACY,
   "legal.terms": TERMS,
   "legal.code_of_conduct": CODE_OF_CONDUCT,
+  "legal.accessibility": ACCESSIBILITY,
 };
 
 /** The `legal.*` slot keys the platform has a document for. */
@@ -411,10 +559,15 @@ export function platformLegalDocument(
 ): LegalDocumentContent {
   const outline = LEGAL_DOCUMENT_OUTLINES[slotKey];
   const { sections } = prose(slotKey);
+  // Over the whole document rather than the one section that needs it
+  // (#1367): a `{item_plural}` that survived into a published legal page is a
+  // brace on screen, and `applyLexicon` is a no-op on a string with no
+  // placeholder in it.
+  const named = (text: string) => applyLexicon(text, org.lexicon);
   return {
-    title: outline.title,
+    title: named(outline.title),
     last_updated: PLATFORM_LEGAL_LAST_UPDATED,
-    summary: prose(slotKey).summary(org),
+    summary: applyLexiconAll(prose(slotKey).summary(org), org.lexicon),
     sections: outline.sections
       .filter(
         (section) =>
@@ -429,8 +582,8 @@ export function platformLegalDocument(
         // carries an id, a title and prose and nothing else.
         return {
           id: section.id,
-          title: section.title,
-          paragraphs: write(org),
+          title: named(section.title),
+          paragraphs: applyLexiconAll(write(org), org.lexicon),
         };
       }),
   };
@@ -441,5 +594,5 @@ export function platformLegalDescription(
   slotKey: string,
   org: LegalOrgContext,
 ): string {
-  return prose(slotKey).description(org);
+  return applyLexicon(prose(slotKey).description(org), org.lexicon);
 }

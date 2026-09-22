@@ -23,6 +23,7 @@ import {
   createAvailableGearItems,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
   uniqueEmail,
 } from "@/../test/integration-setup";
@@ -468,6 +469,24 @@ describe("run_retention_purge", () => {
             notes: "allergic to nothing",
             party_size: 3,
             checked_in_at: new Date(endedAt).toISOString(),
+            // #685. Both halves of the minors answer, so this rule is asserted
+            // against the case that could break it: the four contacts have to
+            // go, the flag has to stay, and the column constraint has to
+            // tolerate the result.
+            party_includes_minor: true,
+            accompanying_adult_name: "Robin Rivera",
+            accompanying_adult_phone: "555-0101",
+            emergency_contact_name: "Sam Rivera",
+            emergency_contact_phone: "555-0102",
+            // #686 and #599 together, because the interesting thing about them
+            // is that this one rule treats them oppositely and nothing else
+            // asserts it. The waiver pair survives; the three photo-consent
+            // columns go with the name.
+            waiver_accepted_at: new Date(endedAt).toISOString(),
+            waiver_version: 2,
+            photo_consent: false,
+            photo_consent_at: new Date(endedAt).toISOString(),
+            photo_consent_text: "We use photos on our site and socials.",
           })
           .select("id")
           .single();
@@ -519,6 +538,65 @@ describe("run_retention_purge", () => {
       expect(data!.checked_in_at).not.toBeNull();
     });
 
+    // #685, and the reason the column constraint is one-directional. The four
+    // contacts are personal data and go with the rest; the flag is a fact
+    // about the party and stays, like party_size. A biconditional constraint
+    // would make this update raise 23514 inside a block whose own `exception
+    // when others` swallows it, and event registrations would silently never
+    // anonymize again.
+    test("the accompanying adult and emergency contact go, the flag stays", async () => {
+      await setMode("event_registrations", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data, error } = await serviceRoleClient()
+        .from("event_registrations")
+        .select(
+          "party_includes_minor, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+        )
+        .eq("id", oldRegistrationId)
+        .single();
+
+      expect(error).toBeNull();
+      expect(data).toEqual({
+        party_includes_minor: true,
+        accompanying_adult_name: null,
+        accompanying_adult_phone: null,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+      });
+    });
+
+    // #599, and the opposite call from the waiver's on the same row. Both are
+    // records of something somebody said, so what separates them is what they
+    // are about. An acceptance is a fact about an ACT and stands without a
+    // name, which is why #686 kept it. Photo consent is a fact about a
+    // person's FACE: an anonymized "declined" protects nobody, because there
+    // is no name left to check a photograph against, and an anonymized
+    // "granted" authorizes nothing.
+    //
+    // Nothing asserted that the waiver pair survives before this, so it is
+    // asserted here — beside the divergence it is the counterpart to, since
+    // one rule doing both is the only place they can be compared.
+    test("photo consent goes with the name, and the agreement does not", async () => {
+      await setMode("event_registrations", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data, error } = await serviceRoleClient()
+        .from("event_registrations")
+        .select(
+          "photo_consent, photo_consent_at, photo_consent_text, waiver_accepted_at, waiver_version",
+        )
+        .eq("id", oldRegistrationId)
+        .single();
+
+      expect(error).toBeNull();
+      expect(data!.photo_consent).toBeNull();
+      expect(data!.photo_consent_at).toBeNull();
+      expect(data!.photo_consent_text).toBeNull();
+      expect(data!.waiver_accepted_at).not.toBeNull();
+      expect(data!.waiver_version).toBe(2);
+    });
+
     test("a registration inside the window is untouched", async () => {
       await setMode("event_registrations", "enforce");
       await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
@@ -540,6 +618,7 @@ describe("run_retention_purge", () => {
     const REQUEST_NOTES = "Size 10 boots if you have them.";
     let oldMovementId: string;
     let recentMovementId: string;
+    let requesterId: string;
 
     beforeAll(async () => {
       const gear = await createAvailableGearItems(2);
@@ -547,6 +626,7 @@ describe("run_retention_purge", () => {
         name: "Retention Requester",
         email: uniqueEmail("retention-requester"),
       });
+      requesterId = requester.id;
 
       async function reservationAt(occurredAt: number, itemId: string) {
         const { data, error } = await adminClient
@@ -617,6 +697,54 @@ describe("run_retention_purge", () => {
 
       expect(data!.recipient_person_id).not.toBeNull();
       expect(data!.notes).toBe(REQUEST_NOTES);
+    });
+
+    // #1367. The header's requester link, address, payment preference and
+    // notes go on the gear clock; the as-is acknowledgement does not. It is a
+    // fact about an act and about the organization's own published words, not
+    // personal data about the requester -- the same call #686 and #1319 made,
+    // and the reason `purge_expired_records()` names the columns it clears
+    // rather than nulling the row.
+    test("the header loses its personal fields and keeps the as-is record", async () => {
+      const acknowledgedAt = new Date(Date.now() - 7 * DAY).toISOString();
+      const { data: inserted, error } = await serviceClient
+        .from("gear_requests")
+        .insert({
+          tenant_id: await tenantId(),
+          person_id: requesterId,
+          delivery_method: "meetup",
+          notes: REQUEST_NOTES,
+          as_is_acknowledged_at: acknowledgedAt,
+          as_is_text: "We give away items exactly as they reach us.",
+          created_at: acknowledgedAt,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const requestId = inserted.id as string;
+      cleanups.push(async () => {
+        await serviceClient.from("gear_requests").delete().eq("id", requestId);
+      });
+
+      await setMode("gear_requests", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data } = await serviceClient
+        .from("gear_requests")
+        .select("person_id, notes, as_is_acknowledged_at, as_is_text")
+        .eq("id", requestId)
+        .single();
+
+      expect(data!.person_id).toBeNull();
+      expect(data!.notes).toBeNull();
+      // Compared as an instant: Postgres answers `+00:00` where the insert
+      // sent `Z`, and the fact under test is that the value survived.
+      expect(new Date(data!.as_is_acknowledged_at!).toISOString()).toBe(
+        acknowledgedAt,
+      );
+      expect(data!.as_is_text).toBe(
+        "We give away items exactly as they reach us.",
+      );
     });
   });
 

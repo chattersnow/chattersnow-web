@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseInstagramHandle } from "@/lib/instagram-handle";
 import {
   isDeliveryMethod,
   type DeliveryMethod,
@@ -15,58 +16,96 @@ export type GearRequestShipping = {
   country: string | null;
 };
 
-export type GearRequestFormData = {
-  name: string;
-  email: string;
-  phone: string | null;
+/**
+ * Everything on the cart that is about the *request* rather than about who is
+ * asking (#1359).
+ *
+ * Split out because a signed-in reader with a record submits exactly this and
+ * nothing more: `request_gear_items_as_me()` takes the person from the
+ * session, so there are no contact fields to send and none to check.
+ */
+export type GearRequestDeliveryData = {
   notes: string | null;
   deliveryMethod: DeliveryMethod;
   /** Present exactly when deliveryMethod is `shipping`. */
   shipping: GearRequestShipping | null;
   /** The key of the tenant's payment method; present exactly when shipping. */
   paymentMethod: string | null;
+  /**
+   * Whether the box saying these items are given as-is was ticked (#1367).
+   *
+   * Only ever `true` here: a request without it does not parse. It is carried
+   * as a field rather than checked and dropped so the two callers hand the RPC
+   * something explicit, and it lives on the delivery half because it belongs
+   * to the *request* -- a signed-in reader is asked for it exactly as a
+   * visitor is, since holding an account is not agreement to anything.
+   *
+   * The wording itself is not here. `gearAsIsText()` resolves it server-side
+   * from `@/lib/gear-as-is`, so what gets snapshotted onto the row is what the
+   * platform says rather than what a browser claims it showed.
+   */
+  asIsAcknowledged: true;
 };
 
+export type GearRequestFormData = GearRequestDeliveryData & {
+  name: string;
+  email: string;
+  phone: string | null;
+  /** Without the `@`, and shaped as `people.instagram_handle` requires (#1357). */
+  instagramHandle: string | null;
+};
+
+const NO_OPTIONS: PublicGearRequestOptions = {
+  shippingEnabled: false,
+  paymentMethods: [],
+};
+
+const trimmed = (formData: FormData, key: string) =>
+  String(formData.get(key) ?? "").trim();
+
 /**
+ * The delivery half of the cart, for either caller.
+ *
  * Field-level checks only. Whether shipping is on offer at all, and whether
  * the payment method is one the tenant actually accepts, are re-checked
- * authoritatively inside request_gear_items() against the tenant's settings;
- * `options` here is what the form was rendered with, so the message can be
- * specific when the two disagree (a stale tab after an administrator turned
- * shipping off).
+ * authoritatively in the database against the tenant's settings; `options`
+ * here is what the form was rendered with, so the message can be specific when
+ * the two disagree (a stale tab after an administrator turned shipping off).
  */
-export function parseGearRequestForm(
+export function parseGearRequestDelivery(
   formData: FormData,
-  options: PublicGearRequestOptions = {
-    shippingEnabled: false,
-    paymentMethods: [],
-  },
-): ParseResult<GearRequestFormData> {
-  const field = (key: string) => String(formData.get(key) ?? "").trim();
+  options: PublicGearRequestOptions = NO_OPTIONS,
+): ParseResult<GearRequestDeliveryData> {
+  const field = (key: string) => trimmed(formData, key);
 
-  const name = field("name");
-  const email = field("email");
-  const phone = field("phone");
-  const notes = field("notes");
+  const notes = field("notes") || null;
   const deliveryMethodRaw = field("delivery_method") || "meetup";
 
-  if (!name) return { error: "Name is required." };
-  if (!email || !email.includes("@"))
-    return { error: "A valid email is required." };
   if (!isDeliveryMethod(deliveryMethodRaw))
     return { error: "Choose how you'd like to receive your items." };
   const deliveryMethod: DeliveryMethod = deliveryMethodRaw;
 
-  const base = {
-    name,
-    email,
-    phone: phone || null,
-    notes: notes || null,
-  };
+  // Before the delivery fields, so somebody who left the box unticked hears
+  // about that rather than about their postal code. The database refuses it
+  // independently -- see `acknowledged_as_is()` -- because a client-side
+  // `required` is a convenience and never the gate.
+  if (field("as_is_acknowledged") !== "true") {
+    return {
+      error:
+        "Please tick the box to confirm you understand these items are given as-is.",
+    };
+  }
+  const asIsAcknowledged = true;
 
   if (deliveryMethod === "meetup") {
     return {
-      data: { ...base, deliveryMethod, shipping: null, paymentMethod: null },
+      data: {
+        notes,
+        deliveryMethod,
+        shipping: null,
+        paymentMethod: null,
+        asIsAcknowledged,
+      },
     };
   }
 
@@ -90,7 +129,7 @@ export function parseGearRequestForm(
 
   return {
     data: {
-      ...base,
+      notes,
       deliveryMethod,
       shipping: {
         name: field("ship_name") || null,
@@ -102,6 +141,46 @@ export function parseGearRequestForm(
         country: field("ship_country") || null,
       },
       paymentMethod,
+      asIsAcknowledged,
+    },
+  };
+}
+
+/**
+ * The whole cart, as a visitor with no account submits it.
+ *
+ * The contact fields are checked first, in the order the form shows them, so
+ * that somebody who has left their name blank hears about that rather than
+ * about their postal code.
+ */
+export function parseGearRequestForm(
+  formData: FormData,
+  options: PublicGearRequestOptions = NO_OPTIONS,
+): ParseResult<GearRequestFormData> {
+  const field = (key: string) => trimmed(formData, key);
+
+  const name = field("name");
+  const email = field("email");
+  const phone = field("phone");
+  const instagramHandle = parseInstagramHandle(
+    formData.get("instagram_handle"),
+  );
+
+  if (!name) return { error: "Name is required." };
+  if (!email || !email.includes("@"))
+    return { error: "A valid email is required." };
+  if ("error" in instagramHandle) return instagramHandle;
+
+  const delivery = parseGearRequestDelivery(formData, options);
+  if ("error" in delivery) return delivery;
+
+  return {
+    data: {
+      name,
+      email,
+      phone: phone || null,
+      instagramHandle: instagramHandle.instagramHandle,
+      ...delivery.data,
     },
   };
 }

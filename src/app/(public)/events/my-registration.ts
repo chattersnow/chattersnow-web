@@ -1,7 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { constituentAreaEnabled } from "@/lib/constituent/guard";
+import {
+  type AccountOffer,
+  loadAccountOffer,
+} from "@/lib/constituent/account-offer";
 import type { MyContactDetails } from "@/lib/constituent/contact";
-import type { AccountOffer } from "@/components/registration-account-offer";
 
 /** The caller's own registration for one event, from `my_event_registration()`. */
 export type MyEventRegistration = {
@@ -115,29 +117,12 @@ export async function loadEventViewer(
 /**
  * What to offer a registrant once their registration is saved (#1258).
  *
- * Decided on the server and null on a tenant without the constituent area,
- * rather than rendered and hidden: there is no `/my` to send anyone to there,
- * `requireConstituentArea()` answers that route with `notFound()`, and the RPC
- * behind the offer refuses as well. The demo tenant is covered by the same
- * gate, permanently and by decision (#1177).
- *
- * The three states are the three readers. A visitor with no session is offered
- * an account; an account with no record linked yet is offered the claim, with
- * nothing to retype; somebody already linked is offered nothing, because it is
- * already on their record -- and in practice never reaches here, since a linked
- * reader registers down `register_myself_for_event()` instead.
- *
- * Nothing in it varies with whether the registration matched a directory
- * record, which is the point: an offer that did would answer "do you have a
- * record of this person?" for anybody who can make an account (§5.23).
- *
- * The module read costs no query: `getPublicTenantModules` is `cache()`d on a
- * request-scoped client, and the public layout has already issued it.
+ * The decision itself is `loadAccountOffer()`, shared with the gear cart
+ * (#1359) so the two surfaces cannot come to different answers about the same
+ * reader. This name stays because the event page is where it is read.
  */
 export async function loadRegistrationAccountOffer(
   viewer: EventViewer | null,
 ): Promise<AccountOffer | null> {
-  if (viewer?.kind === "linked") return null;
-  if (!(await constituentAreaEnabled())) return null;
-  return viewer ? "claim" : "sign-up";
+  return loadAccountOffer(viewer);
 }

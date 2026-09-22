@@ -42,8 +42,8 @@ describe("completeApproval", () => {
   });
 });
 
-// The gate covers the three legal documents and nothing else: the other twelve
-// pages publish as they always have.
+// The gate covers the legal documents and nothing else: every other page
+// publishes as it always has.
 describe("isLegalSlotKey", () => {
   test("every registered legal document's slot is one", () => {
     for (const document of LEGAL_DOCUMENTS) {

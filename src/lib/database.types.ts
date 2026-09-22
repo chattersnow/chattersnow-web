@@ -2501,61 +2501,91 @@ export type Database = {
       };
       event_registrations: {
         Row: {
+          accompanying_adult_name: string | null;
+          accompanying_adult_phone: string | null;
           attended_before: boolean | null;
           checked_in_at: string | null;
           created_at: string;
           email: string;
+          emergency_contact_name: string | null;
+          emergency_contact_phone: string | null;
           event_id: string;
           id: string;
           instagram_handle: string | null;
           name: string;
           notes: string | null;
+          party_includes_minor: boolean | null;
           party_size: number;
           person_id: string | null;
           phone: string | null;
+          photo_consent: boolean | null;
+          photo_consent_at: string | null;
+          photo_consent_text: string | null;
           pronouns: string | null;
           riding_discipline_at_event: string | null;
           ski_experience_level_at_event: string | null;
           snowboard_experience_level_at_event: string | null;
           tenant_id: string;
+          waiver_accepted_at: string | null;
+          waiver_version: number | null;
         };
         Insert: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
           attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
           email: string;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
           event_id: string;
           id?: string;
           instagram_handle?: string | null;
           name: string;
           notes?: string | null;
+          party_includes_minor?: boolean | null;
           party_size?: number;
           person_id?: string | null;
           phone?: string | null;
+          photo_consent?: boolean | null;
+          photo_consent_at?: string | null;
+          photo_consent_text?: string | null;
           pronouns?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
           snowboard_experience_level_at_event?: string | null;
           tenant_id?: string;
+          waiver_accepted_at?: string | null;
+          waiver_version?: number | null;
         };
         Update: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
           attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
           email?: string;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
           event_id?: string;
           id?: string;
           instagram_handle?: string | null;
           name?: string;
           notes?: string | null;
+          party_includes_minor?: boolean | null;
           party_size?: number;
           person_id?: string | null;
           phone?: string | null;
+          photo_consent?: boolean | null;
+          photo_consent_at?: string | null;
+          photo_consent_text?: string | null;
           pronouns?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
           snowboard_experience_level_at_event?: string | null;
           tenant_id?: string;
+          waiver_accepted_at?: string | null;
+          waiver_version?: number | null;
         };
         Relationships: [
           {
@@ -3155,6 +3185,8 @@ export type Database = {
       };
       gear_requests: {
         Row: {
+          as_is_acknowledged_at: string | null;
+          as_is_text: string | null;
           cancelled_at: string | null;
           created_at: string;
           delivery_method: string;
@@ -3179,6 +3211,8 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          as_is_acknowledged_at?: string | null;
+          as_is_text?: string | null;
           cancelled_at?: string | null;
           created_at?: string;
           delivery_method: string;
@@ -3203,6 +3237,8 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          as_is_acknowledged_at?: string | null;
+          as_is_text?: string | null;
           cancelled_at?: string | null;
           created_at?: string;
           delivery_method?: string;
@@ -6016,6 +6052,81 @@ export type Database = {
           },
         ];
       };
+      person_screenings: {
+        Row: {
+          cleared_on: string;
+          created_at: string;
+          created_by: string | null;
+          expires_on: string | null;
+          id: string;
+          person_id: string;
+          tenant_id: string;
+          tier_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          cleared_on: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_on?: string | null;
+          id?: string;
+          person_id: string;
+          tenant_id?: string;
+          tier_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          cleared_on?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_on?: string | null;
+          id?: string;
+          person_id?: string;
+          tenant_id?: string;
+          tier_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "person_screenings_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_screenings_person_in_tenant";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_screenings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_screenings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_screenings_tier_in_tenant";
+            columns: ["tenant_id", "tier_id"];
+            isOneToOne: false;
+            referencedRelation: "volunteer_screening_tiers";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
       plan_modules: {
         Row: {
           enabled: boolean;
@@ -7840,8 +7951,89 @@ export type Database = {
           },
         ];
       };
+      volunteer_screening_tiers: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          id: string;
+          is_active: boolean;
+          name: string;
+          sort_order: number;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_screening_tiers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "volunteer_screening_tiers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
+      event_registration_minor_contacts: {
+        Row: {
+          accompanying_adult_name: string | null;
+          accompanying_adult_phone: string | null;
+          emergency_contact_name: string | null;
+          emergency_contact_phone: string | null;
+          event_id: string | null;
+          registration_id: string | null;
+        };
+        Insert: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
+          event_id?: string | null;
+          registration_id?: string | null;
+        };
+        Update: {
+          accompanying_adult_name?: string | null;
+          accompanying_adult_phone?: string | null;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
+          event_id?: string | null;
+          registration_id?: string | null;
+        };
+        Relationships: [];
+      };
       inventory_items_with_category: {
         Row: {
           category_group_key: string | null;
@@ -8455,11 +8647,23 @@ export type Database = {
       };
     };
     Functions: {
+      accepted_waiver_version: {
+        Args: {
+          p_accepted: boolean;
+          p_claimed_version: number;
+          p_tenant_id: string;
+        };
+        Returns: number;
+      };
       account_email: {
         Args: { "": Database["public"]["Views"]["people_with_roles"]["Row"] };
         Returns: {
           error: true;
         } & "the function public.account_email with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
+      };
+      acknowledged_as_is: {
+        Args: { p_acknowledged: boolean; p_text: string };
+        Returns: string;
       };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
       approve_event_expense: {
@@ -8621,6 +8825,20 @@ export type Database = {
           p_notes: string;
           p_person_id: string;
           p_support_type: string;
+        };
+        Returns: string;
+      };
+      create_gear_request: {
+        Args: {
+          p_as_is_acknowledged?: boolean;
+          p_as_is_text?: string;
+          p_delivery_method?: string;
+          p_inventory_item_ids: string[];
+          p_notes?: string;
+          p_payment_method?: string;
+          p_person_id: string;
+          p_shipping?: Json;
+          p_tenant_id: string;
         };
         Returns: string;
       };
@@ -9099,6 +9317,15 @@ export type Database = {
         }[];
       };
       my_person_id: { Args: never; Returns: string };
+      my_photo_consent: {
+        Args: { p_registration_id: string };
+        Returns: {
+          asked: boolean;
+          consent: boolean;
+          consent_text: string;
+          consented_at: string;
+        }[];
+      };
       my_public_person_id: { Args: never; Returns: string };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
@@ -9384,30 +9611,46 @@ export type Database = {
       };
       register_for_event: {
         Args: {
+          p_accompanying_adult_name?: string;
+          p_accompanying_adult_phone?: string;
           p_attended_before?: boolean;
           p_email: string;
+          p_emergency_contact_name?: string;
+          p_emergency_contact_phone?: string;
           p_event_id: string;
           p_honeypot?: string;
           p_instagram_handle?: string;
           p_ip_address?: unknown;
           p_name: string;
           p_notes: string;
+          p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone: string;
+          p_photo_consent?: boolean;
           p_pronouns?: string;
+          p_waiver_accepted?: boolean;
+          p_waiver_version?: number;
         };
         Returns: string;
       };
       register_myself_for_event: {
         Args: {
+          p_accompanying_adult_name?: string;
+          p_accompanying_adult_phone?: string;
           p_attended_before?: boolean;
+          p_emergency_contact_name?: string;
+          p_emergency_contact_phone?: string;
           p_event_id: string;
           p_instagram_handle?: string;
           p_ip_address?: unknown;
           p_notes?: string;
+          p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone?: string;
+          p_photo_consent?: boolean;
           p_pronouns?: string;
+          p_waiver_accepted?: boolean;
+          p_waiver_version?: number;
         };
         Returns: string;
       };
@@ -9543,15 +9786,31 @@ export type Database = {
       };
       request_gear_items: {
         Args: {
+          p_as_is_acknowledged?: boolean;
+          p_as_is_text?: string;
           p_delivery_method?: string;
           p_email: string;
           p_honeypot?: string;
+          p_instagram_handle?: string;
           p_inventory_item_ids: string[];
           p_ip_address?: unknown;
           p_name: string;
           p_notes?: string;
           p_payment_method?: string;
           p_phone: string;
+          p_shipping?: Json;
+        };
+        Returns: string;
+      };
+      request_gear_items_as_me: {
+        Args: {
+          p_as_is_acknowledged?: boolean;
+          p_as_is_text?: string;
+          p_delivery_method?: string;
+          p_inventory_item_ids: string[];
+          p_ip_address?: unknown;
+          p_notes?: string;
+          p_payment_method?: string;
           p_shipping?: Json;
         };
         Returns: string;
@@ -9580,6 +9839,22 @@ export type Database = {
         Args: { p_tenant_id?: string; p_text: string };
         Returns: string;
       };
+      resolve_minor_contacts: {
+        Args: {
+          p_adult_name: string;
+          p_adult_phone: string;
+          p_emergency_name: string;
+          p_emergency_phone: string;
+          p_includes_minor: boolean;
+        };
+        Returns: Database["public"]["CompositeTypes"]["minor_accompaniment_contacts"];
+        SetofOptions: {
+          from: "*";
+          to: "minor_accompaniment_contacts";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       resolve_or_create_person_by_email: {
         Args: {
           p_email: string;
@@ -9601,6 +9876,16 @@ export type Database = {
       resolve_tenant_id_from_slug: {
         Args: { p_slug: string };
         Returns: string;
+      };
+      resolved_photo_consent: {
+        Args: { p_answer: boolean; p_tenant_id: string };
+        Returns: Database["public"]["CompositeTypes"]["photo_consent_record"];
+        SetofOptions: {
+          from: "*";
+          to: "photo_consent_record";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       retention_auth_user_is_referenced: {
         Args: { p_user_id: string };
@@ -9783,6 +10068,16 @@ export type Database = {
         Args: { p_enabled: boolean; p_kind: string };
         Returns: undefined;
       };
+      set_my_photo_consent: {
+        Args: { p_consent: boolean; p_registration_id: string };
+        Returns: Database["public"]["CompositeTypes"]["photo_consent_record"];
+        SetofOptions: {
+          from: "*";
+          to: "photo_consent_record";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       set_my_preferred_name: {
         Args: { p_preferred_name: string };
         Returns: undefined;
@@ -9845,6 +10140,10 @@ export type Database = {
         };
         Returns: string;
       };
+      submit_claim_from_gear_request: {
+        Args: { p_ip_address?: unknown; p_request_id: string };
+        Returns: undefined;
+      };
       submit_claim_from_registration: {
         Args: { p_ip_address?: unknown; p_registration_id: string };
         Returns: undefined;
@@ -9892,6 +10191,7 @@ export type Database = {
         Args: { p_items: Json; p_sponsor_id: string };
         Returns: undefined;
       };
+      tenant_asks_photo_consent: { Args: never; Returns: boolean };
       tenant_data_snapshot: { Args: { p_tenant_id: string }; Returns: Json };
       tenant_isolation_gaps: {
         Args: never;
@@ -9959,7 +10259,17 @@ export type Database = {
       [_ in never]: never;
     };
     CompositeTypes: {
-      [_ in never]: never;
+      minor_accompaniment_contacts: {
+        accompanying_adult_name: string | null;
+        accompanying_adult_phone: string | null;
+        emergency_contact_name: string | null;
+        emergency_contact_phone: string | null;
+      };
+      photo_consent_record: {
+        consent: boolean | null;
+        consented_at: string | null;
+        consent_text: string | null;
+      };
     };
   };
 };

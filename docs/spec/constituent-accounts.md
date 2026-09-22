@@ -75,9 +75,11 @@ Linking that account to a directory record is a **reviewed claim** (#1162), and 
 
 What the claimant types — name, and optionally email, phone, Instagram handle and a note — is stored **as typed, on the claim, and never normalized into `people`**. It is evidence for a reviewer, and a claim that is refused must leave nothing behind in the directory.
 
-### A registration is a claim source
+### A public write is a claim source
 
-A registration is the moment somebody has told the organization who they are, so the confirmation that follows one offers to keep it (#1258). The offer sits in the **post-registration follow-up slot**, after the write and authorized by the returned registration id, and it is **never a gate**: the registration is already saved, the confirmation email is already on its way, and skipping is one click that changes nothing.
+A registration is the moment somebody has told the organization who they are, so the confirmation that follows one offers to keep it (#1258). The offer sits in the **post-write follow-up slot**, after the write and authorized by the returned record id, and it is **never a gate**: the registration is already saved, the confirmation email is already on its way, and skipping is one click that changes nothing.
+
+A **public gear request** is the same moment and carries the same offer (#1359), in its cart receipt. Both render one component and one pair of sentences, which is what stops the two surfaces promising different things about the same situation; only the noun changes.
 
 Three readers, three offers, decided on the server because only the server sees the module and the session:
 
@@ -87,9 +89,11 @@ Three readers, three offers, decided on the server because only the server sees 
 | Signed in, no record linked yet | One button, nothing to retype — the registration row already holds what they typed                             |
 | Signed in and linked            | Nothing. It is already on their record, and the confirmation already links to `/my`                            |
 
-The hand-off is a **route** rather than a query parameter because `safeMyDestination()` only carries a `next` that is a path inside `/my`, and the registration has to survive whatever making an account costs — a password, a Google round trip, or an email confirmation opened tomorrow on another device. That page reads nothing about the registration: an id that names nothing, an id from another tenant and an id belonging to somebody else all render the same thing, because a page that said "we could not find that registration" would be a way to test ids.
+The hand-off is a **route** rather than a query parameter because `safeMyDestination()` only carries a `next` that is a path inside `/my`, and the record has to survive whatever making an account costs — a password, a Google round trip, or an email confirmation opened tomorrow on another device. Those pages read nothing about the record: an id that names nothing, an id from another tenant and an id belonging to somebody else all render the same thing, because a page that said "we could not find that registration" would be a way to test ids.
 
 `submit_claim_from_registration()` is the claimant's half again, with the evidence taken from the registration instead of a form. It copies `stated_name`, `stated_email`, `stated_phone` and `stated_instagram_handle` **as typed** off `event_registrations` and notes which event they came from, so the reviewer gets a claim whose tier-1 candidate is normally the record the registration attached to — `person_claim_candidates()` needs no change. **`claimed_person_id` stays null**: the registration knows which record it matched, but the claimant never picked it from anything they were shown, and a claim that named a record would be the application deciding on self-asserted evidence.
+
+`submit_claim_from_gear_request()` is the same function again with a gear request as its evidence — with one difference, and it is in what the reviewer reads rather than in what the claimant is told. `gear_requests` stores no typed contact fields: #1032 kept that header to facts about the submission, and the requester is a foreign key. So the evidence is read off the `people` row the request attached to. That row was matched **on the typed address**, so `stated_email` is the address that was typed either way, and for a requester the directory had never seen the whole row is what they typed; where it differs is a returning requester whose name or phone a staffer has since corrected, and there the reviewer sees the better version of a record they can already read. `claimed_person_id` stays null here too, so the claim still never names the record.
 
 Everything that makes the form's half safe is kept, because it is the same half. It returns nothing in every branch — matched, unmatched, already linked, a claim already open, module off, no such registration — it is rate-limited (5 per 15 minutes by IP) as the one thing it will say out loud, it carries the module gate in the database rather than only on the page, and it never writes `people.auth_user_id`. The demo tenant is covered by that same gate, permanently (#1177).
 

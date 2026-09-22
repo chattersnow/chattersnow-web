@@ -23,7 +23,7 @@ import {
 } from "./request-detail-view";
 
 const REQUEST_SELECT =
-  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, requester:people(id, name, preferred_name, email, phone), movements:inventory_movements(id, movement_type, inventory_item:inventory_items(id, description, size, status, category_label:inventory_categories(label)))";
+  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, requester:people(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, inventory_item:inventory_items(id, description, size, status, category_label:inventory_categories(label)))";
 
 function requestTitle(row: GearRequestDetailRow | null): string {
   return row

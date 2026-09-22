@@ -5,17 +5,26 @@ import { registerForEventAction } from "./event-registration-actions";
 import { RiderProfileForm } from "./rider-profile-form-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AttendedBeforeField } from "@/components/attended-before-field";
+import {
+  EMPTY_MINOR_CONTACTS,
+  MinorAccompanimentFields,
+  type MinorContactValues,
+} from "@/components/minor-accompaniment-fields";
+import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { PhotoConsentField } from "@/components/photo-consent-field";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
-  RegistrationAccountOffer,
+  RecordAccountOffer,
   type AccountOffer,
-} from "@/components/registration-account-offer";
+} from "@/components/record-account-offer";
+import { PHOTO_CONSENT_FIELD, photoConsentValue } from "@/lib/photo-consent";
 import type { EventViewerAccount } from "./my-registration";
 
 /**
@@ -39,6 +48,10 @@ export function EventRegistrationForm({
   eventId,
   account = null,
   accountOffer = null,
+  waiver = null,
+  waiverBlock = null,
+  minorAccompaniment = [],
+  photoConsent = [],
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -48,6 +61,33 @@ export function EventRegistrationForm({
    * that nothing offers what it cannot deliver by accident.
    */
   accountOffer?: AccountOffer | null;
+  /**
+   * The participant agreement's version, when this organization takes one
+   * (#686). Posted back so the RPC can refuse a submission made against text
+   * that has been republished since it was rendered. Null, and the block
+   * below with it, on a tenant that has adopted no waiver -- which is most of
+   * them, and leaves this form exactly as it was.
+   */
+  waiver?: { version: number } | null;
+  /** The agreement itself, rendered on the server. */
+  waiverBlock?: React.ReactNode;
+  /**
+   * This organization's rule for a party that includes anyone under 18
+   * (#685), from `events.minor_accompaniment`. Empty on a tenant that has
+   * written none, which leaves the revealed block saying only what this form
+   * asks for and what it never asks for.
+   */
+  minorAccompaniment?: string[];
+  /**
+   * This organization's photo and media consent scope (#599), from
+   * `events.photo_consent`. Empty on a tenant that has written none — which
+   * is almost all of them — and empty means the question is not asked at all:
+   * the block renders nothing, there is no box, and all three columns stay
+   * null. The platform writes no scope of its own, because what an
+   * organization does with a photo is off-platform and a default here would
+   * be a commitment a registrant then consented to on its behalf.
+   */
+  photoConsent?: string[];
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -58,8 +98,22 @@ export function EventRegistrationForm({
   // the unanswered state is a real third value and must not default to "no".
   const [attendedBefore, setAttendedBefore] = useState("");
   const [partySize, setPartySize] = useState("1");
+  // #685. No default, for the reason `attendedBefore` has none and a stronger
+  // one: a preselected "no" is how a party with a child arrives unflagged, and
+  // "no" is an answer somebody has to give rather than one the form gives on
+  // their behalf. Unlike that question, this one is required.
+  const [partyIncludesMinor, setPartyIncludesMinor] = useState("");
+  const [minorContacts, setMinorContacts] =
+    useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
   const [company, setCompany] = useState("");
+  // Starts unticked, always. A pre-ticked box is not an acceptance, and this
+  // is the one control on the form where that matters (#686).
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  // Starts unticked too, and for the same reason (#599) — but unlike the
+  // waiver's, leaving this one alone is a valid answer that gets stored as a
+  // decline rather than a refused submission.
+  const [photoConsentGiven, setPhotoConsentGiven] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Holds the new registration's id once saved -- both the "did it work?"
   // flag and the token the rider-profile follow-up needs to authorize itself.
@@ -78,8 +132,27 @@ export function EventRegistrationForm({
     formData.set("pronouns", pronouns);
     formData.set("attendedBefore", attendedBefore);
     formData.set("partySize", partySize);
+    formData.set("partyIncludesMinor", partyIncludesMinor);
+    // Only when the answer is yes. A reader who answered yes, filled these in
+    // and changed their mind must not leave a guardian's number behind them,
+    // and the parser reads them under the same condition.
+    if (partyIncludesMinor === "yes") {
+      for (const [key, value] of Object.entries(minorContacts)) {
+        formData.set(key, value);
+      }
+    }
     formData.set("notes", notes);
     formData.set("company", company);
+    // Only when a scope was rendered, so an absent field means the question
+    // was never put and the row records "not asked". An unticked box that was
+    // on screen submits a real `"off"` and is stored as a decline (#599).
+    if (photoConsent.some((paragraph) => paragraph.trim())) {
+      formData.set(PHOTO_CONSENT_FIELD, photoConsentValue(photoConsentGiven));
+    }
+    if (waiver) {
+      formData.set("waiverAccepted", waiverAccepted ? "on" : "");
+      formData.set("waiverVersion", String(waiver.version));
+    }
 
     startTransition(async () => {
       const result = await registerForEventAction(eventId, formData);
@@ -116,9 +189,9 @@ export function EventRegistrationForm({
             email rather than becoming a third step. */}
         {accountOffer && (
           <div className="mt-6">
-            <RegistrationAccountOffer
+            <RecordAccountOffer
               offer={accountOffer}
-              registrationId={registrationId}
+              record={{ kind: "registration", id: registrationId }}
             />
           </div>
         )}
@@ -215,6 +288,28 @@ export function EventRegistrationForm({
             onChange={(event) => setPartySize(event.target.value)}
           />
         </Field>
+        {/* With the questions about this attendance rather than about the
+            person, and immediately after the head count it qualifies: "four
+            people" and "one of them is twelve" are one answer in two parts
+            (#685). A field on the form rather than a step after the write,
+            for the reason #1259 gives -- a step after the write is one that
+            can be abandoned, and this is the one answer an organizer has to
+            have before the day. */}
+        <PartyIncludesMinorField
+          id="registration-party-includes-minor"
+          value={partyIncludesMinor}
+          onChange={setPartyIncludesMinor}
+          disabled={isPending}
+        />
+        {partyIncludesMinor === "yes" && (
+          <MinorAccompanimentFields
+            idPrefix="registration"
+            paragraphs={minorAccompaniment}
+            values={minorContacts}
+            onChange={setMinorContacts}
+            disabled={isPending}
+          />
+        )}
         <Field>
           <FieldLabel htmlFor="registration-notes">Notes</FieldLabel>
           <Textarea
@@ -246,6 +341,55 @@ export function EventRegistrationForm({
         )}
 
         <PrivacyNotice surface="eventRegistration" />
+
+        {/* #789's order of accumulation: the notice, then the box that can be
+            declined, then the one that cannot. Photo consent sits between them
+            on purpose. It is a real choice, so it belongs after the notice
+            that explains what is collected; and it goes above the agreement
+            because an unticked box next to "I accept" reads as part of the
+            acceptance, which is exactly the confusion the two shapes have to
+            avoid.
+
+            The minors question is not part of this group -- it sits higher,
+            beside the head count it qualifies -- but its answer reaches here,
+            because where a party includes someone under 18 the label says the
+            adult is answering as their parent or guardian. One column, one
+            answer (#685, #599). */}
+        <PhotoConsentField
+          idPrefix="registration"
+          paragraphs={photoConsent}
+          partyIncludesMinor={partyIncludesMinor === "yes"}
+          checked={photoConsentGiven}
+          onChange={setPhotoConsentGiven}
+          disabled={isPending}
+        />
+
+        {/* After the notice and beside the button, which is the order the
+            artwork submission form argues for and for the same reason: the
+            notice is the thing to read first, and the box that carries a real
+            choice belongs next to the button that acts on it.
+
+            Unticked, and `required` rather than a disabled submit, so the
+            browser says which control is missing. The server refuses it
+            independently -- see `accepted_waiver_version()` -- because a
+            client-side `required` is a convenience and never the gate. */}
+        {waiver && (
+          <>
+            {waiverBlock}
+            <Field orientation="horizontal">
+              <Checkbox
+                id="registration-waiver"
+                checked={waiverAccepted}
+                onCheckedChange={(next) => setWaiverAccepted(next === true)}
+                disabled={isPending}
+                required
+              />
+              <FieldLabel htmlFor="registration-waiver" required>
+                I have read the agreement above and I accept it
+              </FieldLabel>
+            </Field>
+          </>
+        )}
 
         {/* Not "Register": that is the disclosure's trigger above the form
             (#1256), and two buttons of the same name in one section are one

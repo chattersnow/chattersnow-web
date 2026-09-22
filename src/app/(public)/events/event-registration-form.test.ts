@@ -3,10 +3,21 @@ import {
   checkRegistrationWindow,
   parseEventRegistrationForm,
 } from "./event-registration-form";
+import {
+  MINOR_CONTACTS_REQUIRED_ERROR,
+  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+} from "@/lib/minors";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 
+/**
+ * The minors question is required (#685), so every case that expects a
+ * *parse* rather than an error has to answer it. Defaulted to "no" here
+ * rather than added to two dozen call sites, and overridable per case — the
+ * cases that are about the question itself pass their own value.
+ */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
 }
@@ -54,6 +65,44 @@ describe("parseEventRegistrationForm", () => {
     ).toEqual({ error: "Party size must be at least 1." });
   });
 
+  test("reads a ticked waiver box and the version it was shown with", () => {
+    const result = parseEventRegistrationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        waiverAccepted: "on",
+        waiverVersion: "4",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      data: { waiver_accepted: true, waiver_version: 4 },
+    });
+  });
+
+  // The parser deliberately refuses nothing here: it cannot know whether this
+  // tenant has a waiver in force, and a second opinion would be one able to
+  // disagree with the RPC's, which is the one that binds.
+  test("an unticked box parses, and is not an error", () => {
+    const result = parseEventRegistrationForm(
+      formData({ name: "Jane", email: "jane@example.com", waiverVersion: "4" }),
+    );
+
+    expect(result).toMatchObject({
+      data: { waiver_accepted: false, waiver_version: 4 },
+    });
+  });
+
+  test("a version that is not a plain positive integer reads as absent", () => {
+    for (const waiverVersion of ["0", "-1", "1.5", "02", "two", ""]) {
+      expect(
+        parseEventRegistrationForm(
+          formData({ name: "Jane", email: "jane@example.com", waiverVersion }),
+        ),
+      ).toMatchObject({ data: { waiver_version: null } });
+    }
+  });
+
   test("parses valid input", () => {
     const result = parseEventRegistrationForm(
       formData({
@@ -77,7 +126,62 @@ describe("parseEventRegistrationForm", () => {
         party_size: 3,
         notes: "Bringing kids",
         attended_before: true,
+        // Nothing was shown, so nothing was ticked. The parser reports what
+        // the form sent and leaves the deciding to the RPC (#686).
+        waiver_accepted: false,
+        waiver_version: null,
+        party_includes_minor: false,
+        accompanying_adult_name: null,
+        accompanying_adult_phone: null,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+        // No scope written, so no box was rendered and the field is absent.
+        // Null is "nobody was asked", which is the only honest reading (#599).
+        photo_consent: null,
       },
+    });
+  });
+
+  // #599. Three states, and the middle one is why the column is nullable: a
+  // box that was on screen and left unticked is a decline, not an absence, and
+  // a field that never existed is an absence, not a decline.
+  describe("photo consent", () => {
+    const base = { name: "Jane", email: "jane@example.com" };
+
+    test("a ticked box is consent", () => {
+      expect(
+        parseEventRegistrationForm(formData({ ...base, photoConsent: "on" })),
+      ).toMatchObject({ data: { photo_consent: true } });
+    });
+
+    test("an unticked box that was rendered is a decline", () => {
+      expect(
+        parseEventRegistrationForm(formData({ ...base, photoConsent: "off" })),
+      ).toMatchObject({ data: { photo_consent: false } });
+    });
+
+    test("an absent field is unasked, and never a decline", () => {
+      expect(parseEventRegistrationForm(formData(base))).toMatchObject({
+        data: { photo_consent: null },
+      });
+    });
+
+    // Anything the form did not send is no answer at all, the same discipline
+    // `attendedBefore` and the minors question apply.
+    test("an unrecognised value is unasked", () => {
+      for (const photoConsent of ["yes", "true", "1", "  "]) {
+        expect(
+          parseEventRegistrationForm(formData({ ...base, photoConsent })),
+        ).toMatchObject({ data: { photo_consent: null } });
+      }
+    });
+
+    // The parser cannot refuse a decline and must not try: declining is a
+    // valid submission, so there is no error branch for it to reach.
+    test("declining never fails the parse", () => {
+      expect(
+        parseEventRegistrationForm(formData({ ...base, photoConsent: "off" })),
+      ).toHaveProperty("data");
     });
   });
 
@@ -145,6 +249,84 @@ describe("parseEventRegistrationForm", () => {
     ).toEqual({
       error:
         "Instagram handle can only contain letters, numbers, periods, and underscores.",
+    });
+  });
+
+  // #685. The question is required here and only here: the column and the RPC
+  // both keep a third "nobody was asked" state, for the rows this form never
+  // wrote.
+  test("requires an answer about anyone under 18", () => {
+    const fd = formData({ name: "Jane", email: "jane@example.com" });
+    fd.set("partyIncludesMinor", "");
+    expect(parseEventRegistrationForm(fd)).toEqual({
+      error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+    });
+  });
+
+  test("a value the form never offered is not an answer", () => {
+    for (const answer of ["maybe", "true", "1", "  "]) {
+      const fd = formData({ name: "Jane", email: "jane@example.com" });
+      fd.set("partyIncludesMinor", answer);
+      expect(parseEventRegistrationForm(fd)).toEqual({
+        error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+      });
+    }
+  });
+
+  test("a yes needs all four contacts", () => {
+    const complete = {
+      name: "Jane",
+      email: "jane@example.com",
+      partyIncludesMinor: "yes",
+      accompanyingAdultName: "Jane Doe",
+      accompanyingAdultPhone: "555-1234",
+      emergencyContactName: "Sam Doe",
+      emergencyContactPhone: "555-9876",
+    };
+    for (const missing of [
+      "accompanyingAdultName",
+      "accompanyingAdultPhone",
+      "emergencyContactName",
+      "emergencyContactPhone",
+    ]) {
+      expect(
+        parseEventRegistrationForm(formData({ ...complete, [missing]: "   " })),
+      ).toEqual({ error: MINOR_CONTACTS_REQUIRED_ERROR });
+    }
+
+    expect(parseEventRegistrationForm(formData(complete))).toMatchObject({
+      data: {
+        party_includes_minor: true,
+        accompanying_adult_name: "Jane Doe",
+        accompanying_adult_phone: "555-1234",
+        emergency_contact_name: "Sam Doe",
+        emergency_contact_phone: "555-9876",
+      },
+    });
+  });
+
+  // Somebody who ticked yes, filled the block in and changed their mind. The
+  // form stops sending the fields, and the parser would not read them anyway:
+  // nobody agreed to give a guardian's number for a party that has none.
+  test("a no stores no contacts, whatever was sent with it", () => {
+    expect(
+      parseEventRegistrationForm(
+        formData({
+          name: "Jane",
+          email: "jane@example.com",
+          partyIncludesMinor: "no",
+          accompanyingAdultName: "Jane Doe",
+          emergencyContactPhone: "555-9876",
+        }),
+      ),
+    ).toMatchObject({
+      data: {
+        party_includes_minor: false,
+        accompanying_adult_name: null,
+        accompanying_adult_phone: null,
+        emergency_contact_name: null,
+        emergency_contact_phone: null,
+      },
     });
   });
 });

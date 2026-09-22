@@ -15,6 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   DELIVERY_METHODS,
+  shippingOffered,
   type DeliveryMethod,
   type PublicGearRequestOptions,
 } from "@/lib/gear-requests";
@@ -40,12 +41,15 @@ export const EMPTY_SHIPPING_FIELDS: ShippingFields = {
   country: "",
 };
 
-// Shared requester fields, used by the cart checkout form
-// (gear-cart-checkout-form.tsx): contact details, then how they want the
-// items (#1032) -- a meetup, or shipping at their own cost, which reveals the
-// address and the postage payment choice. idPrefix keeps input ids unique in
-// case the form is rendered more than once on a page.
-export function GearRequesterFields({
+// Who to reach about the request, asked of a visitor the application knows
+// nothing about. A reader with a record of their own is shown theirs instead
+// (#1359) -- see `RequestingAs` in gear-cart-checkout-form.tsx -- because the
+// request attaches to that record whatever is typed here, and there is no
+// column on `gear_requests` for a correction to travel on.
+//
+// idPrefix keeps input ids unique in case the form is rendered more than once
+// on a page.
+export function GearRequesterContactFields({
   idPrefix,
   name,
   onNameChange,
@@ -53,15 +57,8 @@ export function GearRequesterFields({
   onEmailChange,
   phone,
   onPhoneChange,
-  notes,
-  onNotesChange,
-  options,
-  deliveryMethod,
-  onDeliveryMethodChange,
-  shipping,
-  onShippingChange,
-  paymentMethod,
-  onPaymentMethodChange,
+  instagramHandle,
+  onInstagramHandleChange,
 }: {
   idPrefix: string;
   name: string;
@@ -70,28 +67,9 @@ export function GearRequesterFields({
   onEmailChange: (value: string) => void;
   phone: string;
   onPhoneChange: (value: string) => void;
-  notes: string;
-  onNotesChange: (value: string) => void;
-  options: PublicGearRequestOptions;
-  deliveryMethod: DeliveryMethod;
-  onDeliveryMethodChange: (value: DeliveryMethod) => void;
-  shipping: ShippingFields;
-  onShippingChange: (value: ShippingFields) => void;
-  paymentMethod: string;
-  onPaymentMethodChange: (value: string) => void;
+  instagramHandle: string;
+  onInstagramHandleChange: (value: string) => void;
 }) {
-  // Shipping needs somewhere to send the postage bill, so a tenant that has
-  // turned shipping on but configured no payment method is not offering it.
-  const shippingOffered =
-    options.shippingEnabled && options.paymentMethods.length > 0;
-  const methods = DELIVERY_METHODS.filter(
-    (method) => method.value !== "shipping" || shippingOffered,
-  );
-  const shippingChosen = shippingOffered && deliveryMethod === "shipping";
-
-  const setShipping = (patch: Partial<ShippingFields>) =>
-    onShippingChange({ ...shipping, ...patch });
-
   return (
     <>
       <Field>
@@ -131,7 +109,63 @@ export function GearRequesterFields({
           />
         </Field>
       </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}-instagram`}>Instagram</FieldLabel>
+        <Input
+          id={`${idPrefix}-instagram`}
+          // normalize_instagram_handle() strips a leading @, so the
+          // placeholder says so rather than asking for a form the code does
+          // not care about (#1182).
+          placeholder="handle, with or without the @"
+          value={instagramHandle}
+          onChange={(event) => onInstagramHandleChange(event.target.value)}
+        />
+        <FieldDescription>
+          Optional. Often the quickest way for us to reach you about a handover.
+        </FieldDescription>
+      </Field>
+    </>
+  );
+}
 
+// How the requester wants the items (#1032) -- a meetup, or shipping at their
+// own cost, which reveals the address and the postage payment choice -- and
+// anything they want to say about the request. Every caller asks all of it:
+// it is about this one request rather than about the person making it.
+export function GearDeliveryFields({
+  idPrefix,
+  notes,
+  onNotesChange,
+  options,
+  deliveryMethod,
+  onDeliveryMethodChange,
+  shipping,
+  onShippingChange,
+  paymentMethod,
+  onPaymentMethodChange,
+}: {
+  idPrefix: string;
+  notes: string;
+  onNotesChange: (value: string) => void;
+  options: PublicGearRequestOptions;
+  deliveryMethod: DeliveryMethod;
+  onDeliveryMethodChange: (value: DeliveryMethod) => void;
+  shipping: ShippingFields;
+  onShippingChange: (value: ShippingFields) => void;
+  paymentMethod: string;
+  onPaymentMethodChange: (value: string) => void;
+}) {
+  const offersShipping = shippingOffered(options);
+  const methods = DELIVERY_METHODS.filter(
+    (method) => method.value !== "shipping" || offersShipping,
+  );
+  const shippingChosen = offersShipping && deliveryMethod === "shipping";
+
+  const setShipping = (patch: Partial<ShippingFields>) =>
+    onShippingChange({ ...shipping, ...patch });
+
+  return (
+    <>
       {/* One option is still a choice worth showing: it tells the requester
           what to expect (a meetup), and it is where shipping appears the day
           the organization turns it on. */}

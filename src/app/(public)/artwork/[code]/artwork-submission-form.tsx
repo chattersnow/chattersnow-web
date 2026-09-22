@@ -16,6 +16,7 @@ import {
   ArtworkUploadField,
   type ArtworkItem,
 } from "@/components/public/artwork-upload-field";
+import { PrivacyNotice } from "@/components/privacy-notice";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { submitArtworkAction } from "./artwork-actions";
 
@@ -215,6 +216,11 @@ export function ArtworkSubmissionForm({
             {statement.length} of {STATEMENT_MAX} characters.
           </FieldDescription>
         </Field>
+
+        {/* Above the box rather than below it (#684's order of accumulation):
+            the notice is the thing to read first, and the box that carries a
+            real choice stays next to the button that acts on it. */}
+        <PrivacyNotice surface="artworkSubmission" />
 
         <Field orientation="horizontal">
           <Checkbox

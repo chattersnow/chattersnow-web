@@ -16,8 +16,10 @@ import {
   type RidingDiscipline,
 } from "@/lib/rider-profile";
 import { parsePronouns } from "@/lib/pronouns";
-
-const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
+import {
+  INSTAGRAM_HANDLE_ERROR,
+  INSTAGRAM_HANDLE_PATTERN,
+} from "@/lib/instagram-handle";
 
 /**
  * The shape `my_contact_details()` returns, and what the form renders.
@@ -91,8 +93,8 @@ export type ParsedMyContactForm =
 export const MULTIPLE_CONTACT_PROBLEMS_ERROR =
   "Some of what you entered cannot be saved. Check the fields marked below.";
 
-export const INSTAGRAM_HANDLE_ERROR =
-  "An Instagram handle can only contain letters, numbers, periods and underscores.";
+/** Re-exported so this module stays the one place a contact form imports. */
+export { INSTAGRAM_HANDLE_ERROR };
 
 export const RIDING_DISCIPLINE_ERROR = "Select a valid riding discipline.";
 

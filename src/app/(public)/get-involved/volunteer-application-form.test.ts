@@ -74,6 +74,34 @@ describe("parseVolunteerApplicationForm", () => {
     });
   });
 
+  // The form tells applicants it does not ask for a date of birth, a home
+  // address or a government identification number (#690). That sentence is a
+  // claim about this software, so it is tested here rather than only written in
+  // prose: the day somebody adds one of these fields, this fails and the copy
+  // has to change with it.
+  test("takes no date of birth, address or government ID, however they are sent", () => {
+    const result = parseVolunteerApplicationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        dateOfBirth: "1990-01-01",
+        date_of_birth: "1990-01-01",
+        address: "1 Example Street",
+        ssn: "000-00-0000",
+      }),
+    );
+    expect(result).toEqual({
+      data: {
+        name: "Jane",
+        email: "jane@example.com",
+        phone: null,
+        pronouns: null,
+        role_interest: null,
+        availability: null,
+      },
+    });
+  });
+
   test("parses valid input", () => {
     const result = parseVolunteerApplicationForm(
       formData({

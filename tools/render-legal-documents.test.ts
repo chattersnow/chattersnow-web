@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { PLATFORM_LEGAL_LAST_UPDATED } from "@/lib/legal-defaults";
+import {
+  PLATFORM_LEGAL_LAST_UPDATED,
+  PLATFORM_LEGAL_SLOT_KEYS,
+} from "@/lib/legal-defaults";
 import {
   ALL_OFF,
   ALL_ON,
@@ -8,12 +11,13 @@ import {
 } from "./render-legal-documents";
 
 describe("rendering the platform's legal documents", () => {
-  test("renders all three, in footer order, with the platform date", () => {
+  test("renders every document, in footer order, with the platform date", () => {
     const markdown = renderLegalDocuments(ALL_ON);
     for (const heading of [
       "# Privacy Policy",
       "# Terms of Use",
       "# Code of Conduct",
+      "# Accessibility",
     ]) {
       expect(markdown).toContain(heading);
     }
@@ -26,9 +30,11 @@ describe("rendering the platform's legal documents", () => {
   });
 
   // The slot keys are strings, and a typo in one would throw rather than
-  // silently skip -- but only if something renders all three.
+  // silently skip -- but only if something renders them all. A count would let
+  // a fifth document ship unreviewable, which is the thing this tool exists to
+  // stop, so the list is compared against the registry itself.
   test("covers every slot the registry has", () => {
-    expect(SLOTS).toHaveLength(3);
+    expect([...SLOTS].sort()).toEqual([...PLATFORM_LEGAL_SLOT_KEYS].sort());
   });
 
   /**
