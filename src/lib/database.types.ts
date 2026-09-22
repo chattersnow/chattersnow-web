@@ -2518,6 +2518,9 @@ export type Database = {
           party_size: number;
           person_id: string | null;
           phone: string | null;
+          photo_consent: boolean | null;
+          photo_consent_at: string | null;
+          photo_consent_text: string | null;
           pronouns: string | null;
           riding_discipline_at_event: string | null;
           ski_experience_level_at_event: string | null;
@@ -2544,6 +2547,9 @@ export type Database = {
           party_size?: number;
           person_id?: string | null;
           phone?: string | null;
+          photo_consent?: boolean | null;
+          photo_consent_at?: string | null;
+          photo_consent_text?: string | null;
           pronouns?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
@@ -2570,6 +2576,9 @@ export type Database = {
           party_size?: number;
           person_id?: string | null;
           phone?: string | null;
+          photo_consent?: boolean | null;
+          photo_consent_at?: string | null;
+          photo_consent_text?: string | null;
           pronouns?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
@@ -9296,6 +9305,15 @@ export type Database = {
         }[];
       };
       my_person_id: { Args: never; Returns: string };
+      my_photo_consent: {
+        Args: { p_registration_id: string };
+        Returns: {
+          asked: boolean;
+          consent: boolean;
+          consent_text: string;
+          consented_at: string;
+        }[];
+      };
       my_public_person_id: { Args: never; Returns: string };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
@@ -9596,6 +9614,7 @@ export type Database = {
           p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone: string;
+          p_photo_consent?: boolean;
           p_pronouns?: string;
           p_waiver_accepted?: boolean;
           p_waiver_version?: number;
@@ -9616,6 +9635,7 @@ export type Database = {
           p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone?: string;
+          p_photo_consent?: boolean;
           p_pronouns?: string;
           p_waiver_accepted?: boolean;
           p_waiver_version?: number;
@@ -9841,6 +9861,16 @@ export type Database = {
         Args: { p_slug: string };
         Returns: string;
       };
+      resolved_photo_consent: {
+        Args: { p_answer: boolean; p_tenant_id: string };
+        Returns: Database["public"]["CompositeTypes"]["photo_consent_record"];
+        SetofOptions: {
+          from: "*";
+          to: "photo_consent_record";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       retention_auth_user_is_referenced: {
         Args: { p_user_id: string };
         Returns: boolean;
@@ -10022,6 +10052,16 @@ export type Database = {
         Args: { p_enabled: boolean; p_kind: string };
         Returns: undefined;
       };
+      set_my_photo_consent: {
+        Args: { p_consent: boolean; p_registration_id: string };
+        Returns: Database["public"]["CompositeTypes"]["photo_consent_record"];
+        SetofOptions: {
+          from: "*";
+          to: "photo_consent_record";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       set_my_preferred_name: {
         Args: { p_preferred_name: string };
         Returns: undefined;
@@ -10135,6 +10175,7 @@ export type Database = {
         Args: { p_items: Json; p_sponsor_id: string };
         Returns: undefined;
       };
+      tenant_asks_photo_consent: { Args: never; Returns: boolean };
       tenant_data_snapshot: { Args: { p_tenant_id: string }; Returns: Json };
       tenant_isolation_gaps: {
         Args: never;
@@ -10207,6 +10248,11 @@ export type Database = {
         accompanying_adult_phone: string | null;
         emergency_contact_name: string | null;
         emergency_contact_phone: string | null;
+      };
+      photo_consent_record: {
+        consent: boolean | null;
+        consented_at: string | null;
+        consent_text: string | null;
       };
     };
   };

@@ -1952,6 +1952,33 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default: [],
   },
   {
+    key: "events.photo_consent",
+    page: "events",
+    section: "events:registration",
+    label: "Photo and video consent",
+    description:
+      "What you do with photos and video of the people at your events — your own site and social accounts, press, sponsors, funder reports — shown on the registration form above a box somebody can leave unticked. Write this and the form asks; leave it blank and it asks nothing and records nothing. Say what you never do with a photo as well: this is the text a registrant's answer is kept against.",
+    type: "paragraphs",
+    // Blank, like `events.minor_accompaniment` above it, and one step further
+    // (#599). There the platform still prints what the form collects, because
+    // it collects a guardian's number whatever a tenant has written. Here an
+    // unwritten slot means the question is not asked at all: the component
+    // renders nothing, the box does not exist and all three columns stay null.
+    //
+    // The reason is `docs/legal-basis.md` rule 2 at its sharpest. What an
+    // organization does with a photo of somebody's face is off-platform and
+    // unknowable from this codebase, and a scope invented here would be a
+    // commitment made on a tenant's behalf -- the most consequential kind,
+    // since a registrant would be consenting to it. Almost every tenant is in
+    // the blank state and it is the one that must never break.
+    //
+    // Unlike the slot above, what this one carries *is* collected: an unticked
+    // box is a decline, stored as one, and the paragraphs are snapshotted onto
+    // the registration as the text that answer was given against (#1319's
+    // shape, not #686's -- there is no version table and no permalink here).
+    default: [],
+  },
+  {
     key: "events.community_heading",
     page: "events",
     section: "events:community",

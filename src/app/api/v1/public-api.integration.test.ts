@@ -738,6 +738,100 @@ describe("a participant waiver over the API", () => {
   });
 });
 
+describe("photo consent over the API", () => {
+  // #599, and the only configuration-dependent field that is never a gate: a
+  // decline is a valid answer and the registration is still taken. A caller
+  // that omits the field records that nobody was asked, which is what almost
+  // every caller of almost every organization does.
+  const SCOPE = [
+    "We use photos and video from our events in our own newsletters, on this site, and on our social media accounts.",
+  ];
+
+  async function register(body: Record<string, unknown>) {
+    const response = await postRegistration(
+      apiRequest(`/api/v1/t/${SLUG}/events/${eventId}/registrations`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: "API Photo Registrant",
+          email: uniqueEmail("api-photo"),
+          party_size: 1,
+          ...body,
+        }),
+      }),
+      params({ tenant: SLUG, event: eventId }),
+    );
+    expect(response.status).toBe(201);
+    const { id } = (await response.json()) as { id: string };
+    const [row] = await must(
+      service
+        .from("event_registrations")
+        .select("photo_consent, photo_consent_text")
+        .eq("id", id),
+      "registration",
+    );
+    return row;
+  }
+
+  async function writeScope() {
+    await must(
+      service.from("site_content").upsert(
+        {
+          tenant_id: tenantId,
+          key: "events.photo_consent",
+          value: SCOPE,
+          published_at: new Date().toISOString(),
+        },
+        { onConflict: "tenant_id,key" },
+      ),
+      "photo consent scope",
+    );
+  }
+
+  afterAll(async () => {
+    await service
+      .from("site_content")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("key", "events.photo_consent");
+  });
+
+  test("an organization that asks nothing records nothing, whatever is sent", async () => {
+    expect(await register({ photo_consent: true })).toEqual({
+      photo_consent: null,
+      photo_consent_text: null,
+    });
+  });
+
+  test("GET /content is where an integrator reads the scope", async () => {
+    await writeScope();
+    const response = await getContent(
+      apiRequest(`/api/v1/t/${SLUG}/content`),
+      tenantParams(),
+    );
+
+    expect(response.status).toBe(200);
+    const body = contentResponse.parse(await response.json());
+    expect(body.content["events.photo_consent"]).toEqual(SCOPE);
+  });
+
+  test("a decline is recorded as one, and the registration is still taken", async () => {
+    await writeScope();
+    const row = await register({ photo_consent: false });
+
+    expect(row.photo_consent).toBe(false);
+    // The text comes from the organization's own row, never from the body.
+    expect(row.photo_consent_text).toBe(SCOPE.join("\n\n"));
+  });
+
+  test("omitting it records that nobody was asked, not a no", async () => {
+    await writeScope();
+    expect(await register({})).toEqual({
+      photo_consent: null,
+      photo_consent_text: null,
+    });
+  });
+});
+
 describe("a disabled module is a 404, not a hint", () => {
   test("registration is refused, and says nothing about modules", async () => {
     await must(

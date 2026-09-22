@@ -126,7 +126,13 @@ const PRIVACY: DocumentProse = {
           // "this organization has adopted a waiver" would have to feed
           // `legal_surface.*`, and every tenant with its own published
           // documents would be told they had drifted the day they adopted one.
-          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts.",
+          //
+          // The photo sentence is conditional in the same way and for the same
+          // reason (#599). It is also the one place this bullet promises a
+          // control rather than describing a field: `set_my_photo_consent()`
+          // is what makes "you can change it at any time" true, and a consent
+          // that cannot be withdrawn is not consent.
+          "**Event registration** — your name, email address, party size, and, optionally, your phone number, social handle and any notes you add. If you fill in a participant profile, we also store what it asks for: which activity you do, your experience level, and where you prefer to go. We use it to hold your spot, plan the event around who is coming, and send you the details. Where we ask you to accept a participant agreement before you register, we keep a record that you accepted it, when, and which version of it you were shown. We ask whether anyone in your party is under 18, and if you say yes we ask for the name and number of the adult coming with them and for an emergency contact — we never ask anyone's date of birth or age. The people running the event see that your party includes someone under 18; only the people who run the organization see those two contacts. Where we ask whether you're happy to be photographed or recorded, we keep your answer — including a no, so that the people running the event know — with the date and a copy of what you were asked, and you can change it at any time from your registration page.",
         surfaces.gearRequests &&
           "**Gear requests** — your name, email address, and, optionally, your phone number and any notes about what you need. We use it to match you with what you asked for and arrange a time to hand it over.",
         surfaces.artworkSubmissions &&

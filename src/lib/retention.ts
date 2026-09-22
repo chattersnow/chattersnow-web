@@ -80,6 +80,12 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // minor gives (#685) -- the emergency contact especially, since they never
     // visited the site. Whether the party included a minor is kept, like the
     // party size: it describes the party, not the people in it.
+    //
+    // Photo and media consent goes too (#599), which is the opposite of what
+    // happens to the participant agreement on the same row. An acceptance is a
+    // fact about an act and stands without a name; a photo consent is a fact
+    // about a face, and an anonymized "declined" protects nobody because there
+    // is no longer a name to check a photograph against.
     howLong: "3 years after the event.",
     period: "3 years",
     surface: "eventRegistrations",

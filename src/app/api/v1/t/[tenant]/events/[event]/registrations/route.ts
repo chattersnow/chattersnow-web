@@ -43,6 +43,12 @@ const route = publicWrite<
         // the agreement it says governs taking part.
         p_waiver_accepted: body.waiver_accepted ?? undefined,
         p_waiver_version: body.waiver_version ?? undefined,
+        // #599, and `undefined` here is load-bearing rather than tidy: it is
+        // how "this caller did not ask" reaches the RPC, which records null
+        // instead of inventing either answer. A `false` is a decline and is
+        // stored as one. The words the answer is recorded against come from
+        // the organization's own row, never from this body.
+        p_photo_consent: body.photo_consent ?? undefined,
         p_ip_address: clientIp,
       }),
     );

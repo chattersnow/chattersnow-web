@@ -151,6 +151,19 @@ export const eventRegistrationSchema = z
       description:
         "The agreement version the person was shown, if you track it. Sending one that is no longer in force is refused rather than accepted against text nobody read; omitting it accepts whatever is in force now.",
     }),
+    // #599, and optional for the same reason as the minors question: an
+    // omitted field records that nobody was asked, which is both correct for
+    // a caller written before the question existed and correct for the
+    // overwhelming majority of organizations, which have written no scope.
+    //
+    // A `false` is a real decline and is stored as one; it never refuses the
+    // registration. The scope the answer is recorded against is read from the
+    // organization's own row server-side, never from this body, so sending
+    // `true` is an assertion that the person was shown it.
+    photo_consent: z.boolean().optional().meta({
+      description:
+        "Whether the person agreed to be photographed or recorded. Show them the events.photo_consent paragraphs from GET /content first; send false for a decline, which is recorded as one, and omit it entirely if you did not ask. It is never read as a no.",
+    }),
   })
   .meta({ id: "EventRegistration" });
 

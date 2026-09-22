@@ -120,6 +120,16 @@ registration accepts whatever is in force at the moment it lands.
 Where no waiver is in force — which is almost every organization — omit both
 and nothing changes.
 
+`photo_consent` is the other field that depends on configuration, and it is
+never a gate (#599). Where `GET /content` returns a non-empty
+`events.photo_consent`, that organization asks its registrants whether they are
+happy to be photographed: show those paragraphs and send `true` or `false`.
+**A `false` is recorded as a decline and the registration is still taken** —
+declining is a valid answer, and the record exists so that whoever is holding a
+camera can check. Omitting the field records that nobody was asked, which is
+never read as a no. The text the answer is filed against is read from the
+organization's own row, so sending `true` asserts that the person saw it.
+
 ## Caching
 
 Reads answer `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`

@@ -37,12 +37,22 @@ export function ClaimHandoff({
   lede,
   record,
   personId,
+  after = null,
 }: {
   title: string;
   lede: string;
   record: ClaimableRecord;
   /** The reader's own `people.id`, or null when no claim is approved yet. */
   personId: string | null;
+  /**
+   * Anything this particular record lets its owner change, below the offer
+   * (#599 uses it for photo consent).
+   *
+   * A slot rather than a second `PageShell` beside this one, because
+   * `docs/public-page-widths.md` gives a public page one column and this
+   * component owns it.
+   */
+  after?: React.ReactNode;
 }) {
   return (
     <PageShell>
@@ -81,6 +91,8 @@ export function ClaimHandoff({
             )}
           </CardContent>
         </Card>
+
+        {after}
       </div>
     </PageShell>
   );

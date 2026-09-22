@@ -131,6 +131,8 @@ export function RegistrantsTab({
   // False while the tab is still loading, which is the right default: it only
   // suppresses a row, and the row reappears with the data behind it (#686).
   const waiverInForce = data?.waiverInForce ?? false;
+  // Same default and same reasoning (#599).
+  const photoConsentInForce = data?.photoConsentInForce ?? false;
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -249,6 +251,21 @@ export function RegistrantsTab({
             {registrant.party_includes_minor === true && (
               <StatusBadge tone="info" className="mt-1 font-normal">
                 Includes a minor
+              </StatusBadge>
+            )}
+            {/* Same place, same argument, and the condition is inverted (#599).
+                For the minors flag the notable state is `true`; here it is
+                `false` -- somebody who declined being photographed is the one
+                registrant a camera has to know about, and "agreed" is the
+                ordinary case that would only add noise. Null renders nothing
+                because nobody asked, and a badge saying so would put a gap in
+                the organization's own configuration in front of the door shift.
+
+                This is also the check-in surface: `check-in-modal.tsx` renders
+                this same table, so the badge is there without a second copy. */}
+            {registrant.photo_consent === false && (
+              <StatusBadge tone="warning" className="mt-1 font-normal">
+                No photos
               </StatusBadge>
             )}
           </>
@@ -539,6 +556,7 @@ export function RegistrantsTab({
           replyTo={messaging?.replyTo ?? null}
           orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
           waiverInForce={waiverInForce}
+          photoConsentInForce={photoConsentInForce}
           onClosed={() => setDetailId(null)}
           onSent={refreshRegistrants}
         />
