@@ -7,6 +7,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
+import { modal } from "./helpers/dialog";
 import { settledBox } from "./helpers/measure";
 
 async function useShell(page: Page, device: "mobile" | "desktop") {
@@ -47,7 +48,7 @@ test.describe("the portal's two shells", () => {
     await page.goto("/portal/home");
 
     await page.getByRole("button", { name: "More" }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(sheet).toBeVisible();
 
     // Sections arrive collapsed, so the sheet opens on a list of sections
@@ -73,7 +74,7 @@ test.describe("the portal's two shells", () => {
     await page.goto("/portal/home");
 
     await page.getByRole("button", { name: "More" }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     const logOut = sheet.getByRole("button", { name: "Log out" });
     await expect(logOut).toBeInViewport();
 
@@ -97,7 +98,7 @@ test.describe("the portal's two shells", () => {
     await page.goto("/portal/home");
 
     await page.getByRole("button", { name: "More" }).click();
-    const sheet = page.getByRole("dialog");
+    const sheet = modal(page);
     await expect(sheet).toBeVisible();
 
     const close = sheet.getByRole("button", { name: "Close menu" });
@@ -281,7 +282,7 @@ test.describe("portal tables on a phone", () => {
     // Only one button carries this name until the surface opens; the submit
     // button inside it shares the label, so every assertion below is scoped.
     await page.getByRole("button", { name: "Record distribution" }).click();
-    const surface = page.getByRole("dialog");
+    const surface = modal(page);
     await expect(surface).toBeVisible();
 
     // Polled rather than read once: the sheet enters on a 200ms transition

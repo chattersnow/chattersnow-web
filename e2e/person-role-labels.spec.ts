@@ -13,6 +13,7 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
 import { initialTenantId } from "./helpers/tenant";
 
 const SETTING_KEY = "people.role_labels";
@@ -116,7 +117,7 @@ test.describe("person role labels", () => {
     // getByLabel matches both and trips strict mode.
     await newStudent.click();
     await expect(
-      page.getByRole("dialog").getByRole("checkbox", { name: "Student" }),
+      modal(page).getByRole("checkbox", { name: "Student" }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
 

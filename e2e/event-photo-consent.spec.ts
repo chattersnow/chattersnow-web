@@ -20,6 +20,7 @@
 // exactly one box and that it is the waiver's.
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
 import { sayNoMinors } from "./helpers/registration";
 
 const SLOT_KEY = "events.photo_consent";
@@ -65,7 +66,7 @@ async function openRegistrationForm(page: import("@playwright/test").Page) {
   await page.goto("/events");
   const card = page.locator('a[href^="/events/e/"]').first();
   await card.click();
-  const dialog = page.getByRole("dialog").first();
+  const dialog = modal(page);
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Register", exact: true }).click();
   return dialog;
