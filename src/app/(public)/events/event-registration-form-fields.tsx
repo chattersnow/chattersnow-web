@@ -357,6 +357,14 @@ export function EventRegistrationForm({
         {waiver && (
           <>
             {waiverBlock}
+            {/* No `scroll-mb-*` against the pinned submit below (#1375). The
+                thought was that the browser scrolls an unticked required box
+                into view and anchors its bubble there, so the button could
+                cover it -- but `Checkbox` is base-ui, whose real input is a
+                1px `position: fixed` element parked at the viewport corner.
+                That is what constraint validation sees, so nothing scrolls
+                and the bubble never comes near this row. Verified in Chrome:
+                submitting unticked leaves `scrollY` untouched. */}
             <Field orientation="horizontal">
               <Checkbox
                 id="registration-waiver"
@@ -375,12 +383,23 @@ export function EventRegistrationForm({
         {/* Not "Register": that is the disclosure's trigger above the form
             (#1256), and two buttons of the same name in one section are one
             for the reader to disambiguate and one for a test to pick the
-            wrong one of. */}
+            wrong one of.
+
+            Sticky on the button itself, not on a wrapper bar (#1375). A
+            sticky element is bounded by its containing block, so this only
+            travels because its containing block is the tall `FieldGroup`
+            spanning the whole form -- putting it inside any wrapper of its
+            own shrinks that box to the button and it stops pinning. It is
+            also the last child, so nothing in flow sits below it and it
+            settles back into place, `gap-5` above it, at full scroll. The
+            `rainbow` background is opaque, so it needs no bar, border or
+            blur to keep text from reading through it. The `env()` resolves
+            to 0 until a layout exports `viewport-fit=cover`. */}
         <Button
           type="submit"
           variant="rainbow"
           disabled={isPending}
-          className="w-full sm:w-fit"
+          className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-10 w-full shadow-lg sm:w-fit"
         >
           {isPending ? "Registering..." : "Complete registration"}
         </Button>

@@ -275,6 +275,14 @@ export function MyEventRegistrationForm({
         {waiver && (
           <>
             {waiverBlock}
+            {/* No `scroll-mb-*` against the pinned submit below (#1375). The
+                thought was that the browser scrolls an unticked required box
+                into view and anchors its bubble there, so the button could
+                cover it -- but `Checkbox` is base-ui, whose real input is a
+                1px `position: fixed` element parked at the viewport corner.
+                That is what constraint validation sees, so nothing scrolls
+                and the bubble never comes near this row. Verified in Chrome:
+                submitting unticked leaves `scrollY` untouched. */}
             <Field orientation="horizontal">
               <Checkbox
                 id="my-registration-waiver"
@@ -290,13 +298,26 @@ export function MyEventRegistrationForm({
           </>
         )}
 
-        <Field orientation="horizontal">
-          {/* Named apart from the disclosure's "Register" trigger above it
-              (#1256), the same way the anonymous form's submit is. */}
-          <Button type="submit" disabled={isPending}>
-            {isPending ? "Registering…" : "Complete registration"}
-          </Button>
-        </Field>
+        {/* Named apart from the disclosure's "Register" trigger above it
+            (#1256), the same way the anonymous form's submit is.
+
+            Sticky on the button itself, with no wrapper (#1375). A sticky
+            element is bounded by its containing block, so this only travels
+            because its containing block is the tall `FieldGroup` spanning
+            the whole form -- the `Field` that used to wrap it would have
+            shrunk that box to the button and stopped it pinning. It is also
+            the last child, so nothing in flow sits below it and it settles
+            back into place, `gap-5` above it, at full scroll. `bg-primary`
+            is opaque, so it needs no bar, border or blur to keep text from
+            reading through it. The `env()` resolves to 0 until a layout
+            exports `viewport-fit=cover`. */}
+        <Button
+          type="submit"
+          disabled={isPending}
+          className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-10 w-full shadow-lg sm:w-fit"
+        >
+          {isPending ? "Registering…" : "Complete registration"}
+        </Button>
       </FieldGroup>
     </form>
   );
