@@ -99,6 +99,27 @@ RPCs refuse when the module that owns them is off, reusing each RPC's existing
 not something its public API should tell a stranger, and "this organization
 does not have this" is the truthful answer either way.
 
+## Registering where an organization takes a participant agreement
+
+`POST /events/{event}/registrations` is the one write whose requirements depend
+on what the organization has adopted, so a consumer that ignores this breaks
+the day its customer adopts a waiver (#1366).
+
+`GET /legal` reports each document with an `in_force` flag and a `url` on the
+organization's own site. When `waiver` is in force, a registration is refused
+with `invalid_request` and a `waiver_accepted` field message until the body
+carries `waiver_accepted: true` — the agreement is a release of legal rights,
+and the platform will not record a registration as having accepted one that
+nobody was shown. **Show the document at that `url`, then send the flag.**
+
+`waiver_version` is optional. Send it if you track which version the person
+read, and a version that is no longer in force is refused with `conflict`
+rather than quietly accepted against text nobody saw. Omit it and the
+registration accepts whatever is in force at the moment it lands.
+
+Where no waiver is in force — which is almost every organization — omit both
+and nothing changes.
+
 ## Caching
 
 Reads answer `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`

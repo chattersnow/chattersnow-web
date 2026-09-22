@@ -556,6 +556,188 @@ describe("writes", () => {
   });
 });
 
+describe("a participant waiver over the API", () => {
+  // #1366. `register_for_event()` gained `p_waiver_accepted` in #686 and this
+  // route did not pass it, so the parameter fell through to its `false`
+  // default and adopting a waiver broke headless registration for that tenant
+  // silently. No tenant has one in force today, which is exactly why it was
+  // cheap to fix now and expensive to find later.
+  //
+  // This tenant is provisioned by this file, so a waiver adopted here reaches
+  // nothing else. It is still taken away afterwards, because every later test
+  // in this run registers for the same event.
+  const WAIVER = {
+    title: "Participant Waiver",
+    last_updated: "September 22, 2026",
+    summary: ["Please read this before you register."],
+    sections: [
+      {
+        id: "risks",
+        title: "Risks of taking part",
+        paragraphs: ["Snow sports are dangerous."],
+      },
+    ],
+  };
+
+  async function register(body: Record<string, unknown>) {
+    return postRegistration(
+      apiRequest(`/api/v1/t/${SLUG}/events/${eventId}/registrations`, {
+        method: "POST",
+        body: JSON.stringify({
+          name: "API Waiver Registrant",
+          email: uniqueEmail("api-waiver"),
+          party_size: 1,
+          ...body,
+        }),
+      }),
+      params({ tenant: SLUG, event: eventId }),
+    );
+  }
+
+  beforeAll(async () => {
+    // Both halves, in the order `publish_site_content()` writes them. Text
+    // without a version is an agreement in force with nothing to cite, which
+    // is WAIVER_UNAVAILABLE rather than anything a caller can act on.
+    await must(
+      service.from("site_content").insert({
+        tenant_id: tenantId,
+        key: "legal.waiver",
+        value: WAIVER,
+        published_at: new Date().toISOString(),
+      }),
+      "waiver text",
+    );
+    await must(
+      service.from("legal_document_versions").insert({
+        tenant_id: tenantId,
+        document: "waiver",
+        version: 1,
+        content: WAIVER,
+        effective_at: new Date().toISOString(),
+        time_zone: "UTC",
+      }),
+      "waiver version",
+    );
+    await must(
+      service.from("app_settings").insert({
+        tenant_id: tenantId,
+        key: "legal_publication.waiver",
+        value: true,
+      }),
+      "waiver adoption",
+    );
+  });
+
+  afterAll(async () => {
+    await service
+      .from("app_settings")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("key", "legal_publication.waiver");
+    await service
+      .from("legal_document_versions")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("document", "waiver");
+    await service
+      .from("site_content")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("key", "legal.waiver");
+  });
+
+  test("GET /legal reports the document a caller has to accept", async () => {
+    const response = await listLegal(
+      apiRequest(`/api/v1/t/${SLUG}/legal`),
+      tenantParams(),
+    );
+
+    expect(response.status).toBe(200);
+    const body = legalResponse.parse(await response.json());
+    const waiver = body.documents.find((doc) => doc.key === "waiver");
+    // Where to read it, and that it is in force. Deliberately not the version:
+    // serving that is out of scope for #1366, and it is why `waiver_version`
+    // is optional rather than required -- a caller with nowhere to read one
+    // from omits it and accepts whatever is in force.
+    expect(waiver?.in_force).toBe(true);
+    expect(waiver?.url).toBeTruthy();
+  });
+
+  test("a registration that accepts it is taken, and records the version", async () => {
+    const response = await register({
+      waiver_accepted: true,
+      waiver_version: 1,
+    });
+
+    expect(response.status).toBe(201);
+    const { id } = (await response.json()) as { id: string };
+
+    const [row] = await must(
+      service
+        .from("event_registrations")
+        .select("waiver_accepted_at, waiver_version")
+        .eq("id", id),
+      "registration",
+    );
+    expect(row.waiver_version).toBe(1);
+    expect(row.waiver_accepted_at).not.toBeNull();
+  });
+
+  test("omitting the version accepts whatever is in force", async () => {
+    const response = await register({ waiver_accepted: true });
+
+    expect(response.status).toBe(201);
+    const { id } = (await response.json()) as { id: string };
+    const [row] = await must(
+      service.from("event_registrations").select("waiver_version").eq("id", id),
+      "registration",
+    );
+    expect(row.waiver_version).toBe(1);
+  });
+
+  test("a registration that does not accept it is a 422 naming the field", async () => {
+    const response = await register({});
+
+    expect(response.status).toBe(422);
+    const body = errorResponseSchema.parse(await response.json());
+    expect(body.error.code).toBe("invalid_request");
+    // What the website says here -- "tick the box" -- is advice a headless
+    // caller cannot act on, so the message names where to read the document.
+    expect(body.error.message).toContain("/legal");
+    expect(body.error.fields?.waiver_accepted).toBeTruthy();
+  });
+
+  test("accepting a version no longer in force is a 409, not a silent upgrade", async () => {
+    await must(
+      service.from("legal_document_versions").insert({
+        tenant_id: tenantId,
+        document: "waiver",
+        version: 2,
+        content: WAIVER,
+        effective_at: new Date().toISOString(),
+        time_zone: "UTC",
+      }),
+      "second waiver version",
+    );
+
+    const response = await register({
+      waiver_accepted: true,
+      waiver_version: 1,
+    });
+
+    expect(response.status).toBe(409);
+    const body = errorResponseSchema.parse(await response.json());
+    expect(body.error.code).toBe("conflict");
+
+    await service
+      .from("legal_document_versions")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("document", "waiver")
+      .eq("version", 2);
+  });
+});
+
 describe("a disabled module is a 404, not a hint", () => {
   test("registration is refused, and says nothing about modules", async () => {
     await must(
