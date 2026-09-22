@@ -78,6 +78,15 @@ describe("the site content registry", () => {
     // Still unset: the legal pages render their own document until a tenant
     // publishes one deliberately.
     expect(DEFAULT_SITE_CONTENT.document("legal.privacy")).toBeNull();
+    // Blank rather than a prompt, and for a stronger reason than the slots
+    // above (#690): a prompt renders on the public volunteer application, so a
+    // default here would have the platform hinting that an organization it has
+    // never met screens its volunteers. The form's own sentence -- what it
+    // asks for, and what it does not -- is a fact about the software and lives
+    // in the component instead.
+    expect(
+      DEFAULT_SITE_CONTENT.paragraphs("get_involved.volunteer_screening"),
+    ).toEqual([]);
   });
 
   // The public pages look a photo up by its short name (`urls.learn_photo`),

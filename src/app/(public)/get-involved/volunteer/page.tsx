@@ -66,7 +66,11 @@ export default async function VolunteerPage() {
           </p>
         )}
         <div className="mt-10 flex flex-wrap items-center gap-4">
-          <VolunteerApplicationSheet />
+          <VolunteerApplicationSheet
+            screeningNotes={content.paragraphs(
+              "get_involved.volunteer_screening",
+            )}
+          />
           <Link
             href="/get-involved/volunteer/status"
             className="app-muted text-sm underline underline-offset-4"

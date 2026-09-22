@@ -1584,6 +1584,12 @@ insert into public.site_content (key, value, published_at) values
   ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
   ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
   ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),
+  -- Blank by default, like org.security_note above: the platform does not
+  -- describe a screening process on a tenant's behalf (#690). Seeded so local
+  -- and CI have a tenant that has written one, which is what e2e/legal.spec.ts
+  -- asserts; the unwritten case is covered by the unit tests, since a seeded
+  -- row is exactly what it is not.
+  ('get_involved.volunteer_screening', '["Example Nonprofit reads every application and emails you about next steps, usually within a week — expect a conversation about what you would like to do and when you are free.","For roles working one-to-one with a participant, Example Nonprofit asks for two references and talks it through with you before anything is agreed. Nobody is screened without being told first, and none of this is real: this is a development environment for a fictional organization."]', now()),
   ('support.intro', '"Sample support copy. No donation on this site goes anywhere -- it is a development environment."', now()),
   ('support.donations_intro', '"Explaining what donations would pay for, if Example Nonprofit were real."', now()),
   ('support.monetary_body', '"Online giving is not wired up in local development."', now()),

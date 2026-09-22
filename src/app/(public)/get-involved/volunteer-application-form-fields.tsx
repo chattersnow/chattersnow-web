@@ -11,8 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
+import { VolunteerScreeningNotice } from "@/components/volunteer-screening-notice";
 
-export function VolunteerApplicationForm() {
+export function VolunteerApplicationForm({
+  screeningNotes,
+}: {
+  screeningNotes: string[];
+}) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,6 +83,13 @@ export function VolunteerApplicationForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
+        {/* Before the first field, not beside the submit button where the
+            privacy sentence sits (#690). #1256 put the event form behind a
+            disclosure because "Name" arrived before the reader had been told
+            what they were signing up for, and being told what you are applying
+            to has to precede being asked for your name. Nothing here is being
+            accepted (#1318), so nothing here needs to be next to the button. */}
+        <VolunteerScreeningNotice paragraphs={screeningNotes} />
         <RequiredFieldsNote />
         <Field>
           <FieldLabel htmlFor="volunteer-name" required>
