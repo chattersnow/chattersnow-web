@@ -19,11 +19,7 @@ import {
 } from "@/lib/constituent/guard";
 import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { servesPublicApp, surfaceAtRoot } from "@/lib/pwa/host";
-import {
-  APPLE_TOUCH_ICON_SIZE,
-  APP_ICON_PATH,
-  PUBLIC_MANIFEST_PATH,
-} from "@/lib/pwa/manifest";
+import { APP_ICONS_METADATA, PUBLIC_MANIFEST_PATH } from "@/lib/pwa/manifest";
 import { serviceWorkerScope } from "@/lib/pwa/service-worker";
 import { MY_PATH_PREFIX, MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
 import { SiteNav } from "./site-nav";
@@ -76,11 +72,11 @@ export async function generateMetadata(): Promise<Metadata> {
     // manifest on every page of every host, so an Add to Home Screen from the
     // website installed the staff portal.
     manifest: await publicManifestPath(requestHeaders.get("host") ?? ""),
-    // iOS ignores the manifest's icons when adding a page to the home screen,
-    // so without this the supporter app installs as a screenshot of whatever
-    // page was open. The same route the portal points at, already resolved
-    // from the host.
-    icons: { apple: `${APP_ICON_PATH}/${APPLE_TOUCH_ICON_SIZE}` },
+    // The tab icon and the home-screen icon, both resolved from the host.
+    // The same shared constant the portal declares, and for the same reason:
+    // naming only `apple` here replaces the `app/icon.png` file convention
+    // and leaves the site with no favicon (#1398).
+    icons: APP_ICONS_METADATA,
   };
 }
 
