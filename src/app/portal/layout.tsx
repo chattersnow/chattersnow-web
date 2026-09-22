@@ -2,11 +2,7 @@ import type { Metadata } from "next";
 import { BrandStyle } from "@/components/brand-style";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
-import {
-  APPLE_TOUCH_ICON_SIZE,
-  APP_ICON_PATH,
-  PORTAL_MANIFEST_PATH,
-} from "@/lib/pwa/manifest";
+import { APP_ICONS_METADATA, PORTAL_MANIFEST_PATH } from "@/lib/pwa/manifest";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PortalUrlCanonicalizer } from "./portal-url-canonicalizer";
 
@@ -29,12 +25,12 @@ export async function generateMetadata(): Promise<Metadata> {
     // `<link rel="manifest">` for this subtree alone; the public site links
     // its own manifest the same way.
     manifest: PORTAL_MANIFEST_PATH,
-    // iOS reads `apple-touch-icon` rather than the manifest's icons when it
-    // adds a page to the home screen, so the manifest alone would install the
-    // portal as a screenshot of the page (#1083). The route composes whatever
-    // the tenant has into the same padded square the manifest points at, so
-    // both platforms install the same mark.
-    icons: { apple: `${APP_ICON_PATH}/${APPLE_TOUCH_ICON_SIZE}` },
+    // The tab icon and the home-screen icon, both composed from what the
+    // tenant has uploaded (#1083). Declared through the shared constant
+    // because the `icon` half is load-bearing: `metadata.icons` here replaces
+    // the `app/icon.png` file convention wholesale, so an object naming only
+    // `apple` leaves the portal with no favicon at all (#1398).
+    icons: APP_ICONS_METADATA,
   };
 }
 

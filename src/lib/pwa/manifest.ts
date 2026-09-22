@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+import type { Metadata, MetadataRoute } from "next";
 import { BRAND_COLOR_TOKENS, type Branding } from "@/lib/branding";
 import type { PublicTenantResult } from "@/lib/branding";
 
@@ -69,6 +69,39 @@ export const APP_ICON_SIZES: readonly number[] = [
   APPLE_TOUCH_ICON_SIZE,
   ...MANIFEST_ICON_SIZES,
 ];
+
+/** What a browser tab renders. One of `APP_ICON_SIZES`, so it needs no size of its own. */
+export const FAVICON_SIZE = 192;
+
+/**
+ * The `icons` every surface layout declares (#1398).
+ *
+ * It has to name `icon` and not only `apple`. Next applies the `app/icon.png`
+ * file convention only when *no* segment of the route declared
+ * `metadata.icons` at all -- `accumulateMetadata` merges the static icons
+ * under `if (!resolvedMetadata.icons)` -- so declaring `apple` on its own, as
+ * the two layouts did from #1083 and #1171, dropped `<link rel="icon">` from
+ * every page of the public site and the portal. Browsers then asked for
+ * `/favicon.ico`, which this app does not serve, and showed the default blank
+ * page icon on `www.`, `portal.` and the demo alike.
+ *
+ * Pointing it at the generated route rather than the committed `icon.png`
+ * keeps the mark per tenant, which is the same reason the manifest and the
+ * apple-touch icon point there: one fixed file would put the platform's icon
+ * in every tenant's tab. `app/icon.png` still answers for routes outside
+ * both layouts -- the unresolved-host 404 and `/links` -- where naming no
+ * organization is the point.
+ */
+export const APP_ICONS_METADATA = {
+  icon: [
+    {
+      url: `${APP_ICON_PATH}/${FAVICON_SIZE}`,
+      type: "image/png",
+      sizes: `${FAVICON_SIZE}x${FAVICON_SIZE}`,
+    },
+  ],
+  apple: `${APP_ICON_PATH}/${APPLE_TOUCH_ICON_SIZE}`,
+} satisfies Metadata["icons"];
 
 /** A home-screen label is truncated by the launcher at roughly this length. */
 const SHORT_NAME_MAX = 12;
