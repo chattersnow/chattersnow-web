@@ -294,18 +294,43 @@ describe("who can read a request's messages", () => {
     });
     expect(error).not.toBeNull();
 
-    // Nor amend one. There is no update grant either, so what the seeded
-    // message says is what was sent.
+    // Nor amend one. There is no update grant either, so what the message says
+    // is what was sent.
+    //
+    // Against a row this test writes itself, not the seeded one (#1294). The
+    // seeded message is shared mutable state: `retention.integration.test.ts`
+    // runs `run_retention_purge` over the same tenant, and rule K of
+    // 20260919040000 blanks `subject` on every message past its period -- so
+    // whether this assertion saw "About your gear request" or "" came down to
+    // which file the runner reached first. It read "" on development at
+    // 4708612d and passed at a2e78861 on the same code.
+    const ownId = crypto.randomUUID();
+    const { error: seedError } = await service
+      .from("outbound_messages")
+      .insert({
+        tenant_id: tenantId,
+        id: ownId,
+        to_email: "someone@example.test",
+        module: "inventory",
+        record_type: GEAR_REQUEST_RECORD_TYPE,
+        record_id: request.id,
+        subject: "As sent",
+        body: "As sent",
+        kind: "staff_message",
+        status: "sent",
+      });
+    expect(seedError).toBeNull();
+
     await admin
       .from("outbound_messages")
       .update({ subject: "Rewritten" })
-      .eq("id", "eeeeeeee-0000-4000-8000-000000003001");
-    const { data: seeded } = await service
+      .eq("id", ownId);
+    const { data: unchanged } = await service
       .from("outbound_messages")
       .select("subject")
-      .eq("id", "eeeeeeee-0000-4000-8000-000000003001")
+      .eq("id", ownId)
       .single();
-    expect(seeded!.subject).toBe("About your gear request");
+    expect(unchanged!.subject).toBe("As sent");
   });
 
   test("the sender's name is readable only through the gated lookup", async () => {

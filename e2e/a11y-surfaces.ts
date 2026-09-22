@@ -64,7 +64,17 @@ async function firstEventHref(page: Page): Promise<string | null> {
   return hrefs.find((href) => EVENT_DETAIL_HREF.test(href)) ?? null;
 }
 
-/** Clicks a control if it's there, and reports whether it was. */
+/**
+ * Clicks a control if it's there, and reports whether the surface opened.
+ *
+ * `waitFor` deciding the answer is the point (#1294). It used to be allowed to
+ * fail and this still returned `true`, so a surface that never opened was
+ * scanned closed and banked a clean baseline entry -- which is exactly the
+ * "scanned, clean" vs "never opened" distinction this file exists to make.
+ * Reporting `false` instead drops the surface from the run honestly; it cannot
+ * introduce a violation, and `--check` only reports a baselined violation as
+ * fixed for keys the run actually scanned.
+ */
 async function clickIfPresent(
   page: Page,
   selector: () => ReturnType<Page["getByRole"]>,
@@ -74,8 +84,11 @@ async function clickIfPresent(
   if ((await control.count()) === 0) return false;
   if (!(await control.isVisible().catch(() => false))) return false;
   await control.click({ timeout: 5_000 }).catch(() => {});
-  if (waitFor) await waitFor().catch(() => {});
-  return true;
+  if (!waitFor) return true;
+  return await waitFor().then(
+    () => true,
+    () => false,
+  );
 }
 
 export const SURFACES: Surface[] = [
@@ -114,7 +127,11 @@ export const SURFACES: Surface[] = [
             .getByRole("button", { name: "More" })
             .or(page.getByRole("button", { name: /toggle sidebar/i }))
             .first(),
-        () => page.waitForTimeout(300),
+        // Waits for the sheet, not for 300ms (#1294). Base UI's longest open
+        // animation is 0.35s (see SURFACE_MOTION_CAP_MS in a11y-scan.ts), so
+        // the old timeout was under the documented worst case and axe could
+        // scan a page that had not opened anything.
+        () => modal(page).first().waitFor({ state: "visible", timeout: 5_000 }),
       ),
     close: pressEscape,
   },
@@ -131,7 +148,8 @@ export const SURFACES: Surface[] = [
       clickIfPresent(
         page,
         () => page.getByRole("button", { name: /^(Sections|Pages) · / }),
-        () => page.waitForTimeout(300),
+        // The rail's sheet, rather than a timeout under Base UI's 0.35s (#1294).
+        () => modal(page).first().waitFor({ state: "visible", timeout: 5_000 }),
       ),
     close: pressEscape,
   },
@@ -142,7 +160,12 @@ export const SURFACES: Surface[] = [
       clickIfPresent(
         page,
         () => page.getByRole("button", { name: /notification/i }),
-        () => page.waitForTimeout(300),
+        // A DropdownMenu, so role="menu" -- waited for rather than timed (#1294).
+        () =>
+          page
+            .getByRole("menu")
+            .first()
+            .waitFor({ state: "visible", timeout: 5_000 }),
       ),
     close: pressEscape,
   },
@@ -343,12 +366,24 @@ export const SURFACES: Surface[] = [
     open: async (page) => {
       const tabs = page.getByRole("tab");
       if ((await tabs.count()) < position) return false;
-      await tabs
-        .nth(position - 1)
-        .click({ timeout: 5_000 })
-        .catch(() => {});
-      await page.waitForTimeout(400);
-      return true;
+      const tab = tabs.nth(position - 1);
+      await tab.click({ timeout: 5_000 }).catch(() => {});
+      // Waits for this tab to actually be the selected one, rather than for
+      // 400ms (#1294). A URL-backed tab reloads the route, so the panel can
+      // arrive well after a fixed pause -- and a pause that ends early has
+      // axe scanning the panel the reader was leaving.
+      return await tab
+        .waitFor({ state: "visible", timeout: 5_000 })
+        .then(() =>
+          page
+            .getByRole("tabpanel")
+            .first()
+            .waitFor({ state: "visible", timeout: 5_000 }),
+        )
+        .then(
+          () => true,
+          () => false,
+        );
     },
     // Selecting a tab is a view change, not state the next surface can
     // trust: some tabs are URL-backed, so the route is reloaded after.

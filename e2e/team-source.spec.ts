@@ -122,6 +122,11 @@ test.describe("where Meet the Team gets its members", () => {
     // The person with no biography gets the copy's placeholder, as a copy
     // row without one does.
     await expect(page.getByText("Bio coming soon.").first()).toBeVisible();
+    // Anchored before the snapshot below is taken (#1294). Jamie and Alex are
+    // each proven visible above; Priya was not, so a card that had not landed
+    // yet gave `indexOf` a -1 and the ordering assertion failed on a page that
+    // was merely still arriving.
+    await expect(page.getByText("Priya Natarajan")).toBeVisible();
     // The unordered person sorts after the ordered ones. Read off the page
     // text rather than headings: the card grid names people in plain text.
     const text = await page.locator("main").innerText();
