@@ -2,33 +2,60 @@ import { MINOR_CONTACTS_REQUIRED_CODE } from "@/lib/minors";
 import { REGISTRATION_OPTION_ERROR_CODES } from "@/lib/registration-options";
 
 /**
- * The two halves of a registration form (#1403): the questions about the
- * registrant and their party, then the notices and the agreement that sit
- * beside the button. On a phone they are two steps; on a wider screen, one
- * page under two headings.
+ * The three steps of a registration form (#1413), at every width: the
+ * questions about the registrant, the questions about this attendance, then a
+ * summary of both beside the notices, the agreement and the button.
  *
  * A plain module rather than part of `registration-steps.tsx`, because the
  * server actions need the codes below and a `"use client"` module would hand
  * them a client reference instead of the value.
  */
-export type RegistrationStep = "details" | "confirm";
+export type RegistrationStep = "about" | "event" | "review";
 
-/**
- * RPC error codes that are about something typed on the first step. Anything
- * else -- capacity, a closed window, the agreement -- is shown on the step the
- * button is on, since there is nothing further back to correct.
- */
-const DETAILS_ERROR_CODES = new Set([
+export const REGISTRATION_STEPS: readonly RegistrationStep[] = [
+  "about",
+  "event",
+  "review",
+];
+
+/** RPC error codes about something typed on "About you". */
+const ABOUT_ERROR_CODES = new Set([
   "ALREADY_REGISTERED",
   "NAME_REQUIRED",
-  "INVALID_PARTY_SIZE",
   "PRONOUNS_TOO_LONG",
+]);
+
+/** RPC error codes about something typed on "This event". */
+const EVENT_ERROR_CODES = new Set([
+  "INVALID_PARTY_SIZE",
   MINOR_CONTACTS_REQUIRED_CODE,
   // #1407. The question sits beside the party size, and a full option is
   // corrected there too.
   ...REGISTRATION_OPTION_ERROR_CODES,
 ]);
 
+/**
+ * The step that owns an RPC error. Anything not about a typed field --
+ * capacity, a closed window, the agreement -- is shown on the step the button
+ * is on, since there is nothing further back to correct.
+ */
 export function registrationErrorStep(code: string): RegistrationStep {
-  return DETAILS_ERROR_CODES.has(code) ? "details" : "confirm";
+  if (ABOUT_ERROR_CODES.has(code)) return "about";
+  if (EVENT_ERROR_CODES.has(code)) return "event";
+  return "review";
+}
+
+/**
+ * The form fields `parseEventRegistrationForm` can refuse that belong to
+ * "This event". Every other field it checks is on "About you".
+ */
+const EVENT_FIELDS = new Set([
+  "partySize",
+  "partyIncludesMinor",
+  "minorContacts",
+]);
+
+/** The step that owns a field the form parser refused. */
+export function registrationFieldStep(field?: string): RegistrationStep {
+  return field && EVENT_FIELDS.has(field) ? "event" : "about";
 }

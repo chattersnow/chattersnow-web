@@ -1,0 +1,86 @@
+import type { MinorContactValues } from "@/components/minor-accompaniment-fields";
+import { ATTENDED_BEFORE_OPTIONS } from "@/lib/attended-before";
+import { PARTY_INCLUDES_MINOR_OPTIONS } from "@/lib/minors";
+import type {
+  OptionCounts,
+  RegistrationOptionsQuestion,
+} from "@/lib/registration-options";
+import type { RegistrationSummaryRow } from "./registration-steps";
+
+/**
+ * The rows the review step (#1413) shows for answers both registration forms
+ * share, so the two summaries read the same. An unanswered question is left
+ * out rather than listed as blank: the summary is what they told us.
+ */
+
+function optionLabel(
+  options: readonly { value: string; label: string }[],
+  value: string,
+): string | null {
+  return options.find((option) => option.value === value)?.label ?? null;
+}
+
+/** "Have you been before?", or nothing when it was skipped. */
+export function attendedBeforeRows(value: string): RegistrationSummaryRow[] {
+  const label = optionLabel(ATTENDED_BEFORE_OPTIONS, value);
+  return label ? [{ label: "Been before", value: label }] : [];
+}
+
+/** Party size, the under-18 answer and its contacts, options, and notes. */
+export function eventSummaryRows({
+  partySize,
+  partyIncludesMinor,
+  minorContacts,
+  registrationOptions,
+  optionCounts,
+  notes,
+}: {
+  partySize: string;
+  partyIncludesMinor: string;
+  minorContacts: MinorContactValues;
+  registrationOptions: RegistrationOptionsQuestion | null;
+  optionCounts: OptionCounts;
+  notes: string;
+}): RegistrationSummaryRow[] {
+  const rows: RegistrationSummaryRow[] = [
+    { label: "Number attending", value: partySize.trim() || "1" },
+  ];
+
+  const minor = optionLabel(PARTY_INCLUDES_MINOR_OPTIONS, partyIncludesMinor);
+  if (minor) rows.push({ label: "Anyone under 18", value: minor });
+  if (partyIncludesMinor === "yes") {
+    const contact = (name: string, phone: string) =>
+      [name.trim(), phone.trim()].filter(Boolean).join(", ");
+    rows.push(
+      {
+        label: "Accompanying adult",
+        value: contact(
+          minorContacts.accompanyingAdultName,
+          minorContacts.accompanyingAdultPhone,
+        ),
+      },
+      {
+        label: "Emergency contact",
+        value: contact(
+          minorContacts.emergencyContactName,
+          minorContacts.emergencyContactPhone,
+        ),
+      },
+    );
+  }
+
+  if (registrationOptions) {
+    const chosen = registrationOptions.options
+      .filter((option) => (optionCounts[option.id] ?? 0) > 0)
+      .map((option) => `${optionCounts[option.id]} × ${option.label}`);
+    if (chosen.length > 0) {
+      rows.push({
+        label: registrationOptions.prompt,
+        value: chosen.join(", "),
+      });
+    }
+  }
+
+  if (notes.trim()) rows.push({ label: "Notes", value: notes.trim() });
+  return rows;
+}

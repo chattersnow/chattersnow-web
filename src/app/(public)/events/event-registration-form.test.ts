@@ -28,18 +28,20 @@ describe("parseEventRegistrationForm", () => {
       parseEventRegistrationForm(formData({ email: "jane@example.com" })),
     ).toEqual({
       error: "Name is required.",
+      field: "name",
     });
   });
 
   test("requires a valid email", () => {
     expect(parseEventRegistrationForm(formData({ name: "Jane" }))).toEqual({
       error: "A valid email is required.",
+      field: "email",
     });
     expect(
       parseEventRegistrationForm(
         formData({ name: "Jane", email: "not-an-email" }),
       ),
-    ).toEqual({ error: "A valid email is required." });
+    ).toEqual({ error: "A valid email is required.", field: "email" });
   });
 
   test("defaults party size to 1", () => {
@@ -54,7 +56,10 @@ describe("parseEventRegistrationForm", () => {
       parseEventRegistrationForm(
         formData({ name: "Jane", email: "jane@example.com", partySize: "0" }),
       ),
-    ).toEqual({ error: "Party size must be at least 1." });
+    ).toEqual({
+      error: "Party size must be at least 1.",
+      field: "partySize",
+    });
   });
 
   test("rejects a non-integer party size", () => {
@@ -62,7 +67,10 @@ describe("parseEventRegistrationForm", () => {
       parseEventRegistrationForm(
         formData({ name: "Jane", email: "jane@example.com", partySize: "2.5" }),
       ),
-    ).toEqual({ error: "Party size must be at least 1." });
+    ).toEqual({
+      error: "Party size must be at least 1.",
+      field: "partySize",
+    });
   });
 
   test("reads a ticked waiver box and the version it was shown with", () => {
@@ -232,7 +240,7 @@ describe("parseEventRegistrationForm", () => {
           pronouns: "x".repeat(41),
         }),
       ),
-    ).toEqual({ error: PRONOUNS_TOO_LONG_ERROR });
+    ).toEqual({ error: PRONOUNS_TOO_LONG_ERROR, field: "pronouns" });
   });
 
   test("rejects an invalid Instagram handle", () => {
@@ -247,6 +255,7 @@ describe("parseEventRegistrationForm", () => {
     ).toEqual({
       error:
         "Instagram handle can only contain letters, numbers, periods, and underscores.",
+      field: "instagramHandle",
     });
   });
 
@@ -258,6 +267,7 @@ describe("parseEventRegistrationForm", () => {
     fd.set("partyIncludesMinor", "");
     expect(parseEventRegistrationForm(fd)).toEqual({
       error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+      field: "partyIncludesMinor",
     });
   });
 
@@ -267,6 +277,7 @@ describe("parseEventRegistrationForm", () => {
       fd.set("partyIncludesMinor", answer);
       expect(parseEventRegistrationForm(fd)).toEqual({
         error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+        field: "partyIncludesMinor",
       });
     }
   });
@@ -289,7 +300,10 @@ describe("parseEventRegistrationForm", () => {
     ]) {
       expect(
         parseEventRegistrationForm(formData({ ...complete, [missing]: "   " })),
-      ).toEqual({ error: MINOR_CONTACTS_REQUIRED_ERROR });
+      ).toEqual({
+        error: MINOR_CONTACTS_REQUIRED_ERROR,
+        field: "minorContacts",
+      });
     }
 
     expect(parseEventRegistrationForm(formData(complete))).toMatchObject({

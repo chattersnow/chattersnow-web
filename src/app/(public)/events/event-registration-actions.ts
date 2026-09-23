@@ -17,12 +17,13 @@ import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventPath } from "./event-path";
 import {
   registrationErrorStep,
+  registrationFieldStep,
   type RegistrationStep,
 } from "./registration-step";
 
 /**
- * `step` says which half of the form the error belongs to (#1403), so a
- * phone showing the second step can send the reader back to the field.
+ * `step` says which step of the form the error belongs to (#1403, #1413), so
+ * a reader on the last step can be sent back to the field.
  */
 export type RegisterForEventResult =
   | { error: string; step: RegistrationStep }
@@ -66,9 +67,10 @@ export async function registerForEventAction(
   eventId: string,
   formData: FormData,
 ): Promise<RegisterForEventResult> {
-  // Every check the parser makes is on a field of the first step.
   const parsed = parseEventRegistrationForm(formData);
-  if ("error" in parsed) return { error: parsed.error, step: "details" };
+  if ("error" in parsed) {
+    return { error: parsed.error, step: registrationFieldStep(parsed.field) };
+  }
 
   const honeypot = String(formData.get("company") ?? "");
   const ipAddress = await getClientIp();

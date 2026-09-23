@@ -23,8 +23,9 @@ import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import {
   completeRegistration,
-  continueToBeforeYouGo,
+  continueToReview,
   sayNoMinors,
+  continueToThisEvent,
 } from "./helpers/registration";
 
 const SLOT_KEY = "events.photo_consent";
@@ -93,9 +94,10 @@ test.describe("photos and video at registration", () => {
     await dialog
       .getByLabel("Email")
       .fill(`photo-reader-${Date.now()}@example.test`);
+    await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
-    // The notices are on the second step on a phone (#1403).
-    await continueToBeforeYouGo(dialog);
+    // The notices are on the review step (#1413).
+    await continueToReview(dialog);
 
     const heading = dialog.getByRole("heading", { name: "Photos and video" });
     await expect(heading).toBeVisible();
@@ -127,6 +129,7 @@ test.describe("photos and video at registration", () => {
     const dialog = await openRegistrationForm(page);
     await dialog.getByLabel("Name").fill("Photo Notice");
     await dialog.getByLabel("Email").fill(email);
+    await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
     await completeRegistration(dialog);
 

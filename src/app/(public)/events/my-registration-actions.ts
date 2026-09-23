@@ -79,7 +79,7 @@ export async function registerMyselfForEventAction(
 ): Promise<RegisterMyselfResult> {
   const partySize = Number(String(formData.get("partySize") ?? "1"));
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE, step: "details" };
+    return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE, step: "event" };
   }
 
   // #685. Required on this form as on the anonymous one, and validated here
@@ -91,11 +91,11 @@ export async function registerMyselfForEventAction(
     formData.get("partyIncludesMinor"),
   );
   if (partyIncludesMinor === null) {
-    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR, step: "details" };
+    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR, step: "event" };
   }
   const minorContacts = parseMinorContacts(partyIncludesMinor, formData);
   if ("error" in minorContacts) {
-    return { error: minorContacts.error, step: "details" };
+    return { error: minorContacts.error, step: "event" };
   }
 
   const supabase = await createSupabaseServerClient();

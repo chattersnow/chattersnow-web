@@ -91,26 +91,34 @@ export function parseEventRegistrationForm(
     ? Number(waiverVersionRaw)
     : null;
 
-  if (!name) return { error: "Name is required." };
+  // `field` names what was refused, so the form can take the reader back to
+  // the step it is on (#1413).
+  if (!name) return { error: "Name is required.", field: "name" };
   if (!email || !email.includes("@"))
-    return { error: "A valid email is required." };
-  if ("error" in pronouns) return pronouns;
+    return { error: "A valid email is required.", field: "email" };
+  if ("error" in pronouns) return { ...pronouns, field: "pronouns" };
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
     return {
       error:
         "Instagram handle can only contain letters, numbers, periods, and underscores.",
+      field: "instagramHandle",
     };
   }
 
   const party_size = partySizeRaw ? Number(partySizeRaw) : 1;
   if (!Number.isInteger(party_size) || party_size < 1) {
-    return { error: "Party size must be at least 1." };
+    return { error: "Party size must be at least 1.", field: "partySize" };
   }
 
   if (party_includes_minor === null) {
-    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR };
+    return {
+      error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+      field: "partyIncludesMinor",
+    };
   }
-  if ("error" in minorContacts) return minorContacts;
+  if ("error" in minorContacts) {
+    return { ...minorContacts, field: "minorContacts" };
+  }
 
   return {
     data: {

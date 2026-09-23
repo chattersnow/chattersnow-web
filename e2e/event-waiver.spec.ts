@@ -13,8 +13,9 @@ import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import {
   completeRegistration,
-  continueToBeforeYouGo,
+  continueToReview,
   sayNoMinors,
+  continueToThisEvent,
 } from "./helpers/registration";
 
 const PUBLICATION_KEY = "legal_publication.waiver";
@@ -116,9 +117,10 @@ test.describe("the participant agreement at registration", () => {
     const dialog = await openRegistrationForm(page);
     await dialog.getByLabel("Name").fill("Waiver Tester");
     await dialog.getByLabel("Email").fill(`waiver-${Date.now()}@example.test`);
+    await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
-    // The agreement is on the second step on a phone (#1403).
-    await continueToBeforeYouGo(dialog);
+    // The agreement is on the review step (#1413).
+    await continueToReview(dialog);
 
     // The summary where the box is (#1402); the body behind the button.
     await expect(
@@ -169,6 +171,7 @@ test.describe("the participant agreement at registration", () => {
       .getByLabel("Email")
       .fill(`waiver-refused-${Date.now()}@example.test`);
     // Answered, so the box is unambiguously what stops this submission.
+    await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
     await completeRegistration(dialog);
 

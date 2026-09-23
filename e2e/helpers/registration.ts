@@ -1,4 +1,5 @@
 import type { Locator } from "@playwright/test";
+import { expect } from "./test";
 
 /**
  * Answers the registration form's minors question with "no" (#685).
@@ -21,18 +22,28 @@ export async function sayNoMinors(scope: Locator) {
 }
 
 /**
- * On a phone the registration form is two steps (#1403) and "Next" leads to
- * the one with the notices, the agreement and the button; on a wider screen
- * both are on one page and there is no "Next" to press. Shared so every spec
- * that registers works in both projects without asking which it is in.
+ * Registration is three steps at every width (#1413): "About you", "This
+ * event", then "Review and agree" with the notices, the agreement and the
+ * button. These move through them, so a spec says where it is going rather
+ * than how many times to press Next.
  */
-export async function continueToBeforeYouGo(scope: Locator) {
-  const next = scope.getByRole("button", { name: "Next", exact: true });
-  if (await next.isVisible()) await next.click();
+export async function continueToThisEvent(scope: Locator) {
+  await scope.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(scope.getByRole("group", { name: /This event/ })).toBeVisible();
 }
 
-/** Moves past the first step if there is one, then submits. */
+/** From either earlier step to "Review and agree". */
+export async function continueToReview(scope: Locator) {
+  const next = scope.getByRole("button", { name: "Next", exact: true });
+  const review = scope.getByRole("group", { name: /Review and agree/ });
+  for (let press = 0; press < 2 && (await next.isVisible()); press++) {
+    await next.click();
+  }
+  await expect(review).toBeVisible();
+}
+
+/** Moves on to the review step if it is not there already, then submits. */
 export async function completeRegistration(scope: Locator) {
-  await continueToBeforeYouGo(scope);
+  await continueToReview(scope);
   await scope.getByRole("button", { name: "Complete registration" }).click();
 }

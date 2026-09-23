@@ -508,7 +508,7 @@ describe("registerForEventAction (integration)", () => {
 
     expect(result).toEqual({
       error: "Registration is not open for this event.",
-      step: "confirm",
+      step: "review",
     });
     expect(await countEventRegistrations(id, email)).toBe(0);
   });
@@ -527,7 +527,7 @@ describe("registerForEventAction (integration)", () => {
 
     expect(result).toEqual({
       error: "The registration deadline for this event has passed.",
-      step: "confirm",
+      step: "review",
     });
   });
 
@@ -553,7 +553,7 @@ describe("registerForEventAction (integration)", () => {
     );
     expect(second).toEqual({
       error: "This event has reached capacity.",
-      step: "confirm",
+      step: "review",
     });
     expect(await countEventRegistrations(id, secondEmail)).toBe(0);
   });
@@ -575,7 +575,7 @@ describe("registerForEventAction (integration)", () => {
     );
     expect(second).toEqual({
       error: "This email is already registered for this event.",
-      step: "details",
+      step: "about",
     });
     expect(await countEventRegistrations(id, email)).toBe(1);
   });
@@ -592,7 +592,7 @@ describe("registerForEventAction (integration)", () => {
 
     expect(result).toEqual({
       error: "This event could not be found.",
-      step: "confirm",
+      step: "review",
     });
   });
 
@@ -633,7 +633,7 @@ describe("registerForEventAction (integration)", () => {
     );
     expect(limited).toEqual({
       error: "Too many attempts — please try again in a few minutes.",
-      step: "confirm",
+      step: "review",
     });
   });
 
@@ -748,7 +748,7 @@ describe("registerForEventAction under concurrency", () => {
     for (const result of refused) {
       expect(result).toEqual({
         error: "This event has reached capacity.",
-        step: "confirm",
+        step: "review",
       });
     }
 

@@ -29,6 +29,7 @@ import { registerMyselfForEventAction } from "./my-registration-actions";
 import type { WaiverOnFile } from "./my-registration";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
+import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
 
 /**
  * Registering as yourself (#1165).
@@ -134,7 +135,7 @@ export function MyEventRegistrationForm({
     if (registrationOptions) {
       const message = optionCountsError(optionCounts, Number(partySize));
       if (message) {
-        setError({ message, step: "details" });
+        setError({ message, step: "event" });
         return;
       }
     }
@@ -191,10 +192,10 @@ export function MyEventRegistrationForm({
     );
   }
 
-  // Something to agree to or be told, or the agreement already on file:
-  // either way there is a second step. With neither -- a tenant with no
-  // agreement and no photo paragraphs -- the form is short enough as one.
-  const hasConfirm =
+  // Something to agree to or be told, or the agreement already on file. With
+  // neither -- a tenant with no agreement and no photo paragraphs -- the last
+  // step is the summary alone.
+  const hasReview =
     waiver !== null || photoConsent.some((paragraph) => paragraph.trim());
 
   return (
@@ -202,7 +203,7 @@ export function MyEventRegistrationForm({
       error={error}
       isPending={isPending}
       onSubmit={handleSubmit}
-      details={
+      about={
         <>
           <p className="app-muted text-sm leading-relaxed">
             Registering as {displayName || "yourself"}
@@ -211,20 +212,6 @@ export function MyEventRegistrationForm({
               Not you, or out of date?
             </Link>
           </p>
-
-          <Field>
-            <FieldLabel htmlFor="my-registration-party">
-              How many of you?
-            </FieldLabel>
-            <Input
-              id="my-registration-party"
-              type="number"
-              min="1"
-              inputMode="numeric"
-              value={partySize}
-              onChange={(event) => setPartySize(event.target.value)}
-            />
-          </Field>
 
           <Field orientation="responsive">
             <Field>
@@ -268,6 +255,23 @@ export function MyEventRegistrationForm({
             value={attendedBefore}
             onChange={setAttendedBefore}
           />
+        </>
+      }
+      event={
+        <>
+          <Field>
+            <FieldLabel htmlFor="my-registration-party">
+              How many of you?
+            </FieldLabel>
+            <Input
+              id="my-registration-party"
+              type="number"
+              min="1"
+              inputMode="numeric"
+              value={partySize}
+              onChange={(event) => setPartySize(event.target.value)}
+            />
+          </Field>
 
           {/* The same question the anonymous form asks, in the same words, from
                 the same component (#685). A signed-in caller is not exempt: an
@@ -313,8 +317,30 @@ export function MyEventRegistrationForm({
           </Field>
         </>
       }
-      confirm={
-        hasConfirm ? (
+      summary={{
+        about: [
+          ...(displayName ? [{ label: "Name", value: displayName }] : []),
+          ...(person.email ? [{ label: "Email", value: person.email }] : []),
+          ...(phone.trim() ? [{ label: "Phone", value: phone.trim() }] : []),
+          ...(pronouns.trim()
+            ? [{ label: "Pronouns", value: pronouns.trim() }]
+            : []),
+          ...(instagramHandle.trim()
+            ? [{ label: "Instagram", value: instagramHandle.trim() }]
+            : []),
+          ...attendedBeforeRows(attendedBefore),
+        ],
+        event: eventSummaryRows({
+          partySize,
+          partyIncludesMinor,
+          minorContacts,
+          registrationOptions,
+          optionCounts,
+          notes,
+        }),
+      }}
+      review={
+        hasReview ? (
           <>
             {/* Above the agreement, the same order the anonymous form uses and
                 for the same reason: prose sitting beneath "I accept" reads as
