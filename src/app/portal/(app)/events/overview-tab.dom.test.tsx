@@ -163,3 +163,40 @@ describe("OverviewTab programs", () => {
     ).toBeNull();
   });
 });
+
+// The parser expects instants (#1063); a naive wall-clock string reaching the
+// server is read in UTC, which moved a 2:00 PM Eastern event to 10:00 AM on
+// every save.
+describe("OverviewTab start and end times", () => {
+  beforeEach(() => {
+    updateEventActionMock.mockClear();
+    updateEventActionMock.mockImplementation(async () => ({ success: true }));
+  });
+
+  test("saves the stored instants unchanged when the times aren't edited", async () => {
+    const user = userEvent.setup();
+    renderTab(
+      makeEvent({
+        starts_at: "2026-10-10T18:00:00.000Z",
+        ends_at: "2026-10-10T23:00:00.000Z",
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateEventActionMock).toHaveBeenCalledTimes(1));
+    const submitted = updateEventActionMock.mock.calls[0][1];
+    expect(submitted.get("startsAt")).toBe("2026-10-10T18:00:00.000Z");
+    expect(submitted.get("endsAt")).toBe("2026-10-10T23:00:00.000Z");
+  });
+
+  test("submits an empty end when the event has none", async () => {
+    const user = userEvent.setup();
+    renderTab(makeEvent({ ends_at: null }));
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateEventActionMock).toHaveBeenCalledTimes(1));
+    expect(updateEventActionMock.mock.calls[0][1].get("endsAt")).toBe("");
+  });
+});
