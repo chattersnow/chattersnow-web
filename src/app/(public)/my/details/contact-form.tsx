@@ -446,7 +446,7 @@ export function ContactForm({
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="my-preferredMountain">
-                    Preferred mountain
+                    Home mountain
                   </FieldLabel>
                   <Input
                     id="my-preferredMountain"

@@ -225,7 +225,7 @@ export function OverviewTab({
         </ReadOnlyField>
 
         <ReadOnlyField label="Description" htmlFor="details-description">
-          {form.description || "—"}
+          <span className="whitespace-pre-line">{form.description || "—"}</span>
         </ReadOnlyField>
 
         <ReadOnlyField label="Flier image URL" htmlFor="details-flierUrl">

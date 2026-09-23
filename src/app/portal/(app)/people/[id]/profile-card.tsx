@@ -293,7 +293,7 @@ export function ProfileCard({
                   </p>
                 )}
                 <p>
-                  <span className="app-muted">Preferred mountain:</span>{" "}
+                  <span className="app-muted">Home mountain:</span>{" "}
                   {person.preferred_mountain ?? "—"}
                 </p>
                 {/* /privacy keeps a rider profile "until you ask us to delete your
@@ -307,7 +307,7 @@ export function ProfileCard({
                     <ConfirmDeleteButton
                       label="Delete rider profile"
                       title={`Delete ${person.name ?? "this person"}'s rider profile?`}
-                      description="Clears their riding discipline, experience levels and preferred mountain. Events they were checked in to keep the level recorded on the day, so past impact figures don't change. The rest of their record is untouched. This can't be undone."
+                      description="Clears their riding discipline, experience levels and home mountain. Events they were checked in to keep the level recorded on the day, so past impact figures don't change. The rest of their record is untouched. This can't be undone."
                       confirmLabel="Delete rider profile"
                       pending={isDeletingRiderProfile}
                       onConfirm={deleteRiderProfile}

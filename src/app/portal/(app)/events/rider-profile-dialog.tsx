@@ -146,7 +146,7 @@ export function RiderProfileDialog({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="registrant-rider-discipline">
-            Do they ski or ride?
+            Do they ski or snowboard?
           </FieldLabel>
           <Select
             value={discipline}
@@ -219,7 +219,7 @@ export function RiderProfileDialog({
 
         <Field>
           <FieldLabel htmlFor="registrant-rider-mountain">
-            Preferred mountain
+            Home mountain
           </FieldLabel>
           <Select
             value={mountain}

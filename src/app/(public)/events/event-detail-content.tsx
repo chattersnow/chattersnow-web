@@ -130,7 +130,7 @@ function EventDetailBody({
         <p className="app-muted text-sm sm:text-base">{event.location}</p>
       )}
       {event.description && (
-        <p className="mt-6 max-w-2xl text-sm leading-relaxed sm:text-base">
+        <p className="mt-6 max-w-2xl text-sm leading-relaxed whitespace-pre-line sm:text-base">
           {event.description}
         </p>
       )}
