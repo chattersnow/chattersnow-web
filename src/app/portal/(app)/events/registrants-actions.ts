@@ -66,6 +66,12 @@ import {
   EVENTS_MODULE,
   REGISTRANT_MESSAGE_ERRORS,
 } from "./registrant-messaging";
+import {
+  CANCELLATION_ERRORS,
+  isCancellationReason,
+  type CancellationReason,
+} from "@/lib/registration-cancellation";
+import { sendRegistrationCancellationNotice } from "@/lib/notifications/registration-cancellation";
 
 /**
  * The rider level recorded when this registrant was checked in, alongside the
@@ -190,6 +196,13 @@ export type EventRegistrant = {
    * tickets a party needs is what the door hands out.
    */
   option_counts: OptionCountRow[];
+  /**
+   * When and why this registration was cancelled (#1418). Null on every row
+   * of `registrants`; only `cancelled` carries them.
+   */
+  cancelled_at: string | null;
+  cancellation_reason: CancellationReason | null;
+  cancellation_note: string | null;
   rider: RegistrantRiderProfile | null;
   /** See `RegistrantMinorContacts`. Null unless `events: manage`. */
   minorContacts: RegistrantMinorContacts | null;
@@ -222,7 +235,13 @@ export type RegistrantMessagingContext = {
  * saves the round trip.
  */
 export type EventRegistrantsData = {
+  /** Active registrations: what capacity, check-in and announcements see. */
   registrants: EventRegistrant[];
+  /**
+   * Cancelled ones (#1418), kept apart so nothing that reads `registrants`
+   * has to remember to leave them out. Shown behind "Show cancelled".
+   */
+  cancelled: EventRegistrant[];
   messages: RecordMessages;
   messaging: RegistrantMessagingContext | null;
   /**
@@ -347,7 +366,9 @@ export async function listEventRegistrantsAction(
     return { error: "Could not load registrants. Please try again." };
   }
 
-  const registrants = (data ?? []).map((row) => toRegistrant(row, canSeeRider));
+  const rows = (data ?? []).map((row) => toRegistrant(row, canSeeRider));
+  const registrants = rows.filter((row) => row.cancelled_at === null);
+  const cancelled = rows.filter((row) => row.cancelled_at !== null);
   // Read for both readers, including the `events: view` door shift: whether
   // the organization takes a waiver at all is what turns an empty cell from
   // ambiguous into "nobody was asked" (#686).
@@ -370,6 +391,7 @@ export async function listEventRegistrantsAction(
     return {
       data: {
         registrants,
+        cancelled,
         messages: NO_RECORD_MESSAGES,
         messaging: null,
         waiverInForce,
@@ -434,6 +456,7 @@ export async function listEventRegistrantsAction(
         ...registrant,
         minorContacts: contactsById.get(registrant.id) ?? null,
       })),
+      cancelled,
       messages,
       messaging: {
         orgName:
@@ -458,7 +481,7 @@ export async function listEventRegistrantsAction(
 //
 // `option_counts` is an embed, not a column of this table (#1407).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order)";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
@@ -794,10 +817,11 @@ type RegistrationRow = {
   name: string | null;
   email: string | null;
   person_id: string | null;
+  cancelled_at: string | null;
 };
 
 const REGISTRATION_MESSAGE_SELECT =
-  "id, tenant_id, event_id, name, email, person_id";
+  "id, tenant_id, event_id, name, email, person_id, cancelled_at";
 
 /**
  * Write to one registrant, about the event they registered for.
@@ -838,6 +862,8 @@ export async function sendEventRegistrantMessageAction(input: {
 
   if (error) return { error: RECORD_MESSAGE_ERRORS.FAILED };
   if (!data) return { error: REGISTRANT_MESSAGE_ERRORS.NOT_FOUND };
+  // #1418. A cancelled registration has dropped out of messaging.
+  if (data.cancelled_at) return { error: REGISTRANT_MESSAGE_ERRORS.CANCELLED };
   const toEmail = data.email?.trim();
   if (!toEmail) return { error: REGISTRANT_MESSAGE_ERRORS.NO_EMAIL };
 
@@ -888,6 +914,8 @@ export async function resendEventRegistrationConfirmationAction(
 
   if (error) return { error: RECORD_MESSAGE_ERRORS.FAILED };
   if (!data) return { error: REGISTRANT_MESSAGE_ERRORS.NOT_FOUND };
+  // #1418. A cancelled registration has dropped out of messaging.
+  if (data.cancelled_at) return { error: REGISTRANT_MESSAGE_ERRORS.CANCELLED };
   // The sender answers `skipped` for both of these, which would read to the
   // organizer as "already sent". Say what is actually wrong instead.
   const toEmail = data.email?.trim();
@@ -999,6 +1027,8 @@ export async function sendEventAnnouncementAction(input: {
       .from("event_registrations")
       .select("id, name, email, person_id, checked_in_at")
       .eq("event_id", input.eventId)
+      // #1418. Nobody who cancelled hears about the event again.
+      .is("cancelled_at", null)
       .order("created_at", { ascending: true }),
   ]);
 
@@ -1048,4 +1078,82 @@ export async function sendEventAnnouncementAction(input: {
   });
 
   return { success: true, recipients: resolved.recipients.length };
+}
+
+export type CancelRegistrationInput = {
+  registrationId: string;
+  reason: CancellationReason;
+  note: string;
+  /** Email the registrant that it was cancelled. */
+  notify: boolean;
+};
+
+/**
+ * Cancel a registration from the Registrants tab (#1418). The row stays; its
+ * seats, option counts and unsent discount code are released by
+ * `cancel_event_registration()`, which also refuses a checked-in row.
+ */
+export async function cancelRegistrationAction(
+  input: CancelRegistrationInput,
+): Promise<RegistrantActionResult> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return fromGuard("forbidden", guard);
+
+  if (!isCancellationReason(input.reason)) {
+    return actionError(
+      "invalid_input",
+      CANCELLATION_ERRORS.CANCELLATION_REASON_INVALID,
+    );
+  }
+
+  const { error } = await guard.supabase.rpc("cancel_event_registration", {
+    p_registration_id: input.registrationId,
+    p_reason: input.reason,
+    p_note: input.note,
+  });
+  if (error) return cancellationFailure(error.message);
+
+  if (input.notify) {
+    const fallbackOrigin = await getRequestOrigin();
+    const sentBy = guard.user.id;
+    after(async () => {
+      await sendRegistrationCancellationNotice(createSupabaseAdminClient(), {
+        registrationId: input.registrationId,
+        sentBy,
+        fallbackOrigin,
+      });
+    });
+  }
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true };
+}
+
+/**
+ * Undo a cancellation (#1418). Refused where the seats or an option's cap have
+ * been taken since, or where the person has registered again.
+ */
+export async function restoreRegistrationAction(
+  registrationId: string,
+): Promise<RegistrantActionResult> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return fromGuard("forbidden", guard);
+
+  const { error } = await guard.supabase.rpc("restore_event_registration", {
+    p_registration_id: registrationId,
+  });
+  if (error) return cancellationFailure(error.message);
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true };
+}
+
+function cancellationFailure(code: string): ActionFailure {
+  const message = CANCELLATION_ERRORS[code];
+  return message
+    ? actionError("conflict", message)
+    : actionError(
+        "server_error",
+        "Could not update this registration. Please try again.",
+      );
 }

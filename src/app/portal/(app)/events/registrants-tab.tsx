@@ -8,14 +8,17 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Eye, Snowflake, Undo2 } from "lucide-react";
+import { Ban, Check, Eye, RotateCcw, Snowflake, Undo2 } from "lucide-react";
 import {
   checkInRegistrantAction,
+  restoreRegistrationAction,
   undoCheckInAction,
   type EventRegistrant,
   type EventRegistrantsData,
 } from "./registrants-actions";
 import { RiderProfileDialog } from "./rider-profile-dialog";
+import { CancelRegistrationDialog } from "./cancel-registration-dialog";
+import { cancellationReasonLabel } from "@/lib/registration-cancellation";
 import {
   REGISTRANT_PARAM,
   RegistrantDetailSheet,
@@ -150,6 +153,11 @@ export function RegistrantsTab({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
+  // #1418
+  const [cancelTarget, setCancelTarget] = useState<EventRegistrant | null>(
+    null,
+  );
+  const [showCancelled, setShowCancelled] = useState(false);
   const [query, setQuery] = useState("");
 
   // A notification can link straight at one registration (#742's shape). The
@@ -203,7 +211,22 @@ export function RegistrantsTab({
     [refreshAll],
   );
 
+  const handleRestore = useCallback(
+    (registrant: EventRegistrant) => {
+      setPendingId(registrant.id);
+      startTransition(async () => {
+        await runAction(() => restoreRegistrationAction(registrant.id), {
+          success: `Restored ${registrant.name}'s registration.`,
+          onSuccess: refreshAll,
+        });
+        setPendingId(null);
+      });
+    },
+    [refreshAll],
+  );
+
   const list = useMemo(() => registrants ?? [], [registrants]);
+  const cancelledList = useMemo(() => data?.cancelled ?? [], [data]);
   const totalAttending = list.reduce(
     (sum, registrant) => sum + registrant.party_size,
     0,
@@ -431,6 +454,19 @@ export function RegistrantsTab({
                 >
                   {registrant.checked_in_at ? <Undo2 /> : <Check />}
                 </Button>
+                {/* #1418. Not once they are through the door: undo the
+                    check-in first, which the database insists on too. */}
+                {canManage && registrant.checked_in_at === null && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Cancel registration for ${registrant.name}`}
+                    onClick={() => setCancelTarget(registrant)}
+                  >
+                    <Ban />
+                  </Button>
+                )}
               </>
             )}
           </>
@@ -442,10 +478,82 @@ export function RegistrantsTab({
       showAttendedBefore,
       showRides,
       mode,
+      canManage,
       isPending,
       pendingId,
       handleToggleCheckIn,
     ],
+  );
+
+  const cancelledColumns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (registrant) => registrant.name,
+        cellClassName: "max-w-xs font-medium",
+        render: (registrant) => (
+          <span className="block truncate" title={registrant.name}>
+            {registrant.name}
+          </span>
+        ),
+      },
+      {
+        key: "party_size",
+        label: "Party size",
+        sortValue: (registrant) => registrant.party_size,
+        hideBelow: "sm",
+        render: (registrant) => registrant.party_size,
+      },
+      {
+        key: "reason",
+        label: "Reason",
+        sortValue: (registrant) => registrant.cancellation_reason,
+        cellClassName: "app-muted max-w-56 whitespace-normal",
+        render: (registrant) => (
+          <>
+            {cancellationReasonLabel(registrant.cancellation_reason) ?? "—"}
+            {registrant.cancellation_note && (
+              <span className="block text-xs">
+                {registrant.cancellation_note}
+              </span>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "cancelled_at",
+        label: "Cancelled",
+        sortValue: (registrant) => registrant.cancelled_at,
+        hideBelow: "md",
+        cellClassName: "app-muted whitespace-nowrap",
+        render: (registrant) => formatDateTime(registrant.cancelled_at),
+      },
+      ...(mode === "edit" && canManage
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right whitespace-nowrap",
+              render: (registrant: EventRegistrant) => (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Restore registration for ${registrant.name}`}
+                  disabled={isPending && pendingId === registrant.id}
+                  onClick={() => handleRestore(registrant)}
+                >
+                  <RotateCcw /> Restore
+                </Button>
+              ),
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+    ],
+    [mode, canManage, isPending, pendingId, handleRestore],
   );
 
   // Only the copy that holds every row may claim to order them; see
@@ -583,6 +691,36 @@ export function RegistrantsTab({
         </>
       )}
 
+      {/* #1418. Apart from the list, so a cancelled registration is never
+          mistaken for somebody still coming. */}
+      {cancelledList.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <div>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="px-0"
+              aria-expanded={showCancelled}
+              onClick={() => setShowCancelled((shown) => !shown)}
+            >
+              {showCancelled ? "Hide" : "Show"} cancelled (
+              {cancelledList.length})
+            </Button>
+          </div>
+          {showCancelled && (
+            <PortalDataTable
+              columns={cancelledColumns}
+              rows={cancelledList}
+              getRowKey={(registrant) => registrant.id}
+              defaultSort={{ key: "cancelled_at", dir: "desc" }}
+              emptyMessage="No cancelled registrations."
+              shell="bare"
+            />
+          )}
+        </section>
+      )}
+
       {/* Only once something has gone out. An empty card headed
           "Announcements" on every event would be a permanent reminder of a
           feature most events never need. */}
@@ -619,6 +757,19 @@ export function RegistrantsTab({
           Rendered as a sibling of the sheet, not inside it: the house pattern
           for a second overlay, and it keeps the sheet standing behind the
           dialog so closing the profile returns you to your place in the list. */}
+      {cancelTarget && (
+        <CancelRegistrationDialog
+          key={cancelTarget.id}
+          registrant={cancelTarget}
+          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setCancelTarget(null);
+          }}
+          onCancelled={refreshAll}
+        />
+      )}
+
       {riderTarget && (
         <RiderProfileDialog
           key={riderTarget.id}

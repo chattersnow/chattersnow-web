@@ -21,6 +21,8 @@ import {
   type VolunteerHistory,
 } from "@/lib/constituent/history";
 import { MyEntry, MyGroup, MySection, MyStatus } from "./history-shell";
+import { CantMakeItButton } from "./cant-make-it-button";
+import { canCancelOwnRegistration } from "@/lib/registration-cancellation";
 
 /**
  * A linked constituent's own history (#1163): events, volunteering, giving and
@@ -43,7 +45,8 @@ export function MyHistorySections({
   history: MyHistory;
   vocabulary: Lexicon;
 }) {
-  const events = splitEvents(history.events, new Date());
+  const now = new Date();
+  const events = splitEvents(history.events, now);
   const volunteering = groupVolunteering(history.volunteering);
   const giving = groupGiving(history.giving);
   const gear = groupGear(history.gear);
@@ -61,7 +64,7 @@ export function MyHistorySections({
           gear={gear}
         />
       )}
-      {history.events.length > 0 && <EventsSection events={events} />}
+      {history.events.length > 0 && <EventsSection events={events} now={now} />}
       {history.volunteering.length > 0 && (
         <VolunteeringSection
           volunteering={volunteering}
@@ -106,15 +109,16 @@ function SummaryStrip({
   gear: GearHistory;
 }) {
   const attended = events.past.filter((row) => row.attended).length;
+  const comingUp = activeCount(events.upcoming);
   const openRequests = gear.requests.filter(
     (row) => gearRequestStanding(row.status).tone === "open",
   ).length;
 
   const stats: { section: MySectionId; value: string; label: string }[] = [];
-  if (events.upcoming.length > 0) {
+  if (comingUp > 0) {
     stats.push({
       section: "events",
-      value: formatNumber(events.upcoming.length),
+      value: formatNumber(comingUp),
       label: "Coming up",
     });
   } else if (attended > 0) {
@@ -180,18 +184,21 @@ function SummaryStrip({
  */
 function EventsSection({
   events,
+  now,
 }: {
   events: { upcoming: MyEventRegistration[]; past: MyEventRegistration[] };
+  now: Date;
 }) {
   const attended = events.past.filter((row) => row.attended).length;
+  const comingUp = activeCount(events.upcoming);
 
   return (
     <MySection
       id={mySectionAnchor("events")}
       title="Events"
       summary={
-        events.upcoming.length > 0
-          ? `${formatNumber(events.upcoming.length)} coming up`
+        comingUp > 0
+          ? `${formatNumber(comingUp)} coming up`
           : attended > 0
             ? `${formatNumber(attended)} attended`
             : undefined
@@ -199,7 +206,16 @@ function EventsSection({
     >
       <MyGroup title="Coming up" isEmpty={events.upcoming.length === 0}>
         {events.upcoming.map((row) => (
-          <EventEntry key={row.registration_id} row={row} />
+          <EventEntry
+            key={row.registration_id}
+            row={row}
+            // #1418. Until the event starts; the RPC checks the clock again.
+            cancellable={
+              row.cancelled_at === null &&
+              !row.attended &&
+              canCancelOwnRegistration(row.starts_at, now)
+            }
+          />
         ))}
       </MyGroup>
       <MyGroup title="Past" isEmpty={events.past.length === 0}>
@@ -211,7 +227,18 @@ function EventsSection({
   );
 }
 
-function EventEntry({ row }: { row: MyEventRegistration }) {
+/** #1418. A cancelled registration stays in the list, and is not coming up. */
+function activeCount(rows: readonly MyEventRegistration[]): number {
+  return rows.filter((row) => row.cancelled_at === null).length;
+}
+
+function EventEntry({
+  row,
+  cancellable = false,
+}: {
+  row: MyEventRegistration;
+  cancellable?: boolean;
+}) {
   return (
     <MyEntry
       primary={row.event_name}
@@ -226,7 +253,20 @@ function EventEntry({ row }: { row: MyEventRegistration }) {
         </>
       }
       status={
-        row.attended ? <MyStatus tone="done">Attended</MyStatus> : undefined
+        row.cancelled_at ? (
+          <MyStatus tone="closed">Cancelled</MyStatus>
+        ) : row.attended ? (
+          <MyStatus tone="done">Attended</MyStatus>
+        ) : undefined
+      }
+      action={
+        cancellable ? (
+          <CantMakeItButton
+            registrationId={row.registration_id}
+            eventId={row.event_id}
+            eventName={row.event_name}
+          />
+        ) : undefined
       }
     />
   );

@@ -32,6 +32,8 @@ import {
 import type { AccountOffer } from "@/lib/constituent/account-offer";
 import type { RegistrationOptionsQuestion } from "@/lib/registration-options";
 import { loadRegistrationOptions } from "./registration-options-data";
+import { canCancelOwnRegistration } from "@/lib/registration-cancellation";
+import { CantMakeItButton } from "@/app/(public)/my/cant-make-it-button";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -201,14 +203,10 @@ function EventDetailBody({
                registered" after filling a form in is a worse way to learn
                it.
 
-               There is no "cancel" here, and deliberately not. #1165 made
-               that conditional on the existing model supporting it, and it
-               does not: `event_registrations` has no cancelled state and no
-               delete path anywhere in the application, staff included, so
-               the only thing a button could do is destroy the row -- taking
-               the attendance figure and the discount code with it. Changing
-               your mind is a message to the organization until there is a
-               model for it. */
+               #1418 gave a registration a cancelled state, so changing your
+               mind is a button here until the event starts. A cancelled
+               registration is not returned by `my_event_registration()`, so
+               the form comes back for registering again. */
             <div className="space-y-2">
               <Alert>
                 <div className="rainbow-accent mb-2 w-10" />
@@ -217,9 +215,16 @@ function EventDetailBody({
                   {existingRegistration.party_size > 1
                     ? `, for ${existingRegistration.party_size} of you`
                     : ""}
-                  . If you can no longer make it, let us know.
+                  .
                 </AlertDescription>
               </Alert>
+              {canCancelOwnRegistration(event.starts_at) && (
+                <CantMakeItButton
+                  registrationId={existingRegistration.registration_id}
+                  eventId={event.id}
+                  eventName={event.name}
+                />
+              )}
               <p className="app-muted text-sm">
                 <Link href={MY_PATH_PREFIX} className="underline">
                   See this on your account

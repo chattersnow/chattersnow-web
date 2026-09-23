@@ -11,6 +11,7 @@ type Registration = {
   created_at: string;
   checked_in_at: string | null;
   attended_before: boolean | null;
+  cancelled_at: string | null;
   event: { name: string } | null;
 };
 
@@ -25,7 +26,7 @@ export async function AttendeeCard({
   const { data } = await supabase
     .from("event_registrations")
     .select(
-      "id, party_size, created_at, checked_in_at, attended_before, event:events(name)",
+      "id, party_size, created_at, checked_in_at, attended_before, cancelled_at, event:events(name)",
     )
     .eq("person_id", personId)
     .order("created_at", { ascending: false });
@@ -56,6 +57,10 @@ export async function AttendeeCard({
                   {registration.event?.name ?? "—"}
                   {registration.checked_in_at && (
                     <span className="app-muted font-normal"> · Attended</span>
+                  )}
+                  {/* #1418. Kept in the history, and said so. */}
+                  {registration.cancelled_at && (
+                    <span className="app-muted font-normal"> · Cancelled</span>
                   )}
                 </>
               }

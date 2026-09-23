@@ -2942,6 +2942,10 @@ export type Database = {
           accompanying_adult_phone: string | null;
           adults_only_confirmed_at: string | null;
           attended_before: boolean | null;
+          cancellation_note: string | null;
+          cancellation_reason: string | null;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
           checked_in_at: string | null;
           created_at: string;
           email: string;
@@ -2972,6 +2976,10 @@ export type Database = {
           accompanying_adult_phone?: string | null;
           adults_only_confirmed_at?: string | null;
           attended_before?: boolean | null;
+          cancellation_note?: string | null;
+          cancellation_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
           checked_in_at?: string | null;
           created_at?: string;
           email: string;
@@ -3002,6 +3010,10 @@ export type Database = {
           accompanying_adult_phone?: string | null;
           adults_only_confirmed_at?: string | null;
           attended_before?: boolean | null;
+          cancellation_note?: string | null;
+          cancellation_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
           checked_in_at?: string | null;
           created_at?: string;
           email?: string;
@@ -9219,6 +9231,15 @@ export type Database = {
         Returns: string;
       };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
+      apply_registration_cancellation: {
+        Args: {
+          p_note: string;
+          p_reason: string;
+          p_registration_id: string;
+          p_tenant_id: string;
+        };
+        Returns: undefined;
+      };
       apply_registration_option_counts: {
         Args: {
           p_counts: Json;
@@ -9328,6 +9349,14 @@ export type Database = {
       can_see_conduct_report: {
         Args: { p_report_id: string };
         Returns: boolean;
+      };
+      cancel_event_registration: {
+        Args: { p_note?: string; p_reason: string; p_registration_id: string };
+        Returns: undefined;
+      };
+      cancel_my_event_registration: {
+        Args: { p_registration_id: string };
+        Returns: undefined;
       };
       check_rate_limit: {
         Args: {
@@ -9840,6 +9869,7 @@ export type Database = {
         Args: never;
         Returns: {
           attended: boolean;
+          cancelled_at: string;
           ends_at: string;
           event_id: string;
           event_name: string;
@@ -10534,6 +10564,10 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      restore_event_registration: {
+        Args: { p_registration_id: string };
+        Returns: undefined;
       };
       retention_auth_user_is_referenced: {
         Args: { p_user_id: string };
