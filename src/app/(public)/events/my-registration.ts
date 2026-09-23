@@ -15,6 +15,17 @@ export type MyEventRegistration = {
 };
 
 /**
+ * The caller's acceptance of the participant agreement in force, from
+ * `my_waiver_on_file()` (#1401). Absent when no waiver is in force, when they
+ * have never accepted one, and when the one they accepted has since been
+ * republished -- all three of which mean "show the whole agreement".
+ */
+export type WaiverOnFile = {
+  version: number;
+  accepted_at: string;
+};
+
+/**
  * What a session knows about itself, and nothing more (#1257).
  *
  * Every field here comes off `auth.users`: the address the account verified,
@@ -51,6 +62,12 @@ export type EventViewer =
       person: MyContactDetails;
       /** Their registration, if they already have one. */
       registration: MyEventRegistration | null;
+      /**
+       * The participant agreement they have already accepted, if it is the
+       * version in force (#1401). Only a linked person can have one: the
+       * anonymous path never puts an acceptance on anybody's file.
+       */
+      waiverOnFile: WaiverOnFile | null;
     }
   | {
       kind: "account";
@@ -86,9 +103,10 @@ export async function loadEventViewer(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [details, registration] = await Promise.all([
+  const [details, registration, waiverOnFile] = await Promise.all([
     supabase.rpc("my_contact_details"),
     supabase.rpc("my_event_registration", { p_event_id: eventId }),
+    supabase.rpc("my_waiver_on_file"),
   ]);
 
   const person = ((details.data ?? []) as MyContactDetails[])[0];
@@ -111,6 +129,7 @@ export async function loadEventViewer(
     person,
     registration:
       ((registration.data ?? []) as MyEventRegistration[])[0] ?? null,
+    waiverOnFile: ((waiverOnFile.data ?? []) as WaiverOnFile[])[0] ?? null,
   };
 }
 

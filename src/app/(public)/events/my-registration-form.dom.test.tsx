@@ -92,7 +92,7 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
       <MyEventRegistrationForm
         eventId="event-1"
         person={person}
-        waiver={{ version: 7 }}
+        waiver={{ version: 7, title: "Participant agreement" }}
         waiverBlock={<p>The agreement itself</p>}
       />,
     );
@@ -111,6 +111,58 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
       waiverAccepted: "on",
       waiverVersion: "7",
     });
+  });
+
+  // #1401. A returning, linked registrant who already accepted this version
+  // gets one line instead of the agreement and the box.
+  test("gives way to one line when this version is on file", async () => {
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={person}
+        waiver={{ version: 7, title: "Participant agreement" }}
+        waiverBlock={<p>The agreement itself</p>}
+        waiverOnFile={{ version: 7, accepted_at: "2026-10-04T17:00:00Z" }}
+      />,
+    );
+
+    expect(screen.queryByText("The agreement itself")).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(
+      screen.getByText(/Participant agreement v7 · accepted/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /Participant agreement, version 7/ }),
+    ).toHaveAttribute("href", "/waiver?version=7");
+
+    await sayNoMinors();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    // No tick to send, and the version it relied on still goes so the RPC can
+    // tell a republish from a missing tick.
+    expect(lastSubmission()).toMatchObject({
+      waiverAccepted: "",
+      waiverVersion: "7",
+    });
+  });
+
+  test("asks in full when what is on file is an older version", () => {
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={person}
+        waiver={{ version: 8, title: "Participant agreement" }}
+        waiverBlock={<p>The agreement itself</p>}
+        waiverOnFile={{ version: 7, accepted_at: "2026-10-04T17:00:00Z" }}
+      />,
+    );
+
+    expect(screen.getByText("The agreement itself")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: /I have read the/ }),
+    ).not.toBeChecked();
   });
 });
 

@@ -18,6 +18,12 @@
  * `src/app/portal/(app)/administration/site-content/articles/packs/actions.integration.test.ts`,
  * which provisions the second tenant that makes adoption possible at all.
  *
+ * `person_waiver_acceptances` (#1401) is absent for the same reason: a row
+ * exists only once a linked person accepts a waiver the tenant has adopted,
+ * and the seed adopts none. Nothing but two SECURITY DEFINER functions can
+ * read it at all -- it has no policies and no grants -- which
+ * `src/lib/constituent/actions.integration.test.ts` asserts directly.
+ *
  * A table added later with a `tenant_id` column belongs here too. The catalog
  * side of that -- its policies carrying the tenant predicate, its foreign
  * keys being composite -- is asserted by `tenant_isolation_gaps()` regardless

@@ -27,6 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
   adminClient,
+  anonClient,
   createPublishedEvent,
   enableModule,
   seededTenantId,
@@ -248,6 +249,142 @@ describe("registering as yourself", () => {
         .single();
       expect(registration!.waiver_version).toBe(5);
       expect(registration!.waiver_accepted_at).not.toBeNull();
+    } finally {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("key", "legal_publication.waiver");
+      await service
+        .from("legal_document_versions")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("document", "waiver");
+    }
+  });
+
+  // #1401. A version accepted once is on file for the next registration, until
+  // the organization republishes -- and only a linked person ever gets a file.
+  test("keeps an accepted waiver on file until it is republished", async () => {
+    const events = await Promise.all([
+      createPublishedEvent(),
+      createPublishedEvent(),
+      createPublishedEvent(),
+    ]);
+    for (const event of events) cleanups.push(event.cleanup);
+    const [first, second, third] = events;
+
+    const publishVersion = async (version: number) => {
+      const { error } = await service.from("legal_document_versions").insert({
+        tenant_id: tenantId,
+        document: "waiver",
+        version,
+        content: {
+          title: "Participant Waiver",
+          last_updated: "x",
+          summary: [],
+          sections: [],
+        },
+        effective_at: new Date().toISOString(),
+        time_zone: "UTC",
+      });
+      if (error) throw new Error(`waiver v${version}: ${error.message}`);
+    };
+    const registration = async (id: string) => {
+      const { data } = await service
+        .from("event_registrations")
+        .select("waiver_version, waiver_accepted_at")
+        .eq("id", id)
+        .single();
+      return data!;
+    };
+
+    await publishVersion(1);
+    await service
+      .from("app_settings")
+      .upsert(
+        { tenant_id: tenantId, key: "legal_publication.waiver", value: true },
+        { onConflict: "tenant_id,key" },
+      );
+
+    try {
+      // Nothing on file yet.
+      expect((await bob.client.rpc("my_waiver_on_file")).data).toEqual([]);
+
+      const accepted = await bob.client.rpc("register_myself_for_event", {
+        p_event_id: first.id,
+        p_party_size: 1,
+        p_ip_address: uniqueIp(),
+        p_waiver_accepted: true,
+        p_waiver_version: 1,
+      });
+      expect(accepted.error).toBeNull();
+      const acceptedAt = (await registration(accepted.data as string))
+        .waiver_accepted_at;
+
+      const onFile = await bob.client.rpc("my_waiver_on_file");
+      expect(onFile.data).toHaveLength(1);
+      expect(onFile.data![0].version).toBe(1);
+      expect(Date.parse(onFile.data![0].accepted_at)).toBe(
+        Date.parse(acceptedAt!),
+      );
+
+      // No box ticked, and none needed: the registration copies the file.
+      const reused = await bob.client.rpc("register_myself_for_event", {
+        p_event_id: second.id,
+        p_party_size: 1,
+        p_ip_address: uniqueIp(),
+        p_waiver_version: 1,
+      });
+      expect(reused.error).toBeNull();
+      const copied = await registration(reused.data as string);
+      expect(copied.waiver_version).toBe(1);
+      expect(Date.parse(copied.waiver_accepted_at!)).toBe(
+        Date.parse(acceptedAt!),
+      );
+
+      // A republish makes the file stale at once.
+      await publishVersion(2);
+      expect((await bob.client.rpc("my_waiver_on_file")).data).toEqual([]);
+
+      // The page showed the v1 summary; the agreement changed underneath it.
+      const raced = await bob.client.rpc("register_myself_for_event", {
+        p_event_id: third.id,
+        p_party_size: 1,
+        p_ip_address: uniqueIp(),
+        p_waiver_version: 1,
+      });
+      expect(raced.error?.message).toContain("WAIVER_CHANGED");
+
+      const unticked = await bob.client.rpc("register_myself_for_event", {
+        p_event_id: third.id,
+        p_party_size: 1,
+        p_ip_address: uniqueIp(),
+        p_waiver_version: 2,
+      });
+      expect(unticked.error?.message).toContain("WAIVER_REQUIRED");
+
+      // An anonymous acceptance under Bob's address is not Bob's: an email
+      // match is not identity, so it never reaches his file.
+      const anonymous = await anonClient().rpc("register_for_event", {
+        p_event_id: third.id,
+        p_name: "Bob",
+        p_email: bob.email,
+        p_phone: "",
+        p_party_size: 1,
+        p_notes: "",
+        p_ip_address: uniqueIp(),
+        p_waiver_accepted: true,
+        p_waiver_version: 2,
+      });
+      expect(anonymous.error).toBeNull();
+      expect((await bob.client.rpc("my_waiver_on_file")).data).toEqual([]);
+
+      // And the file itself is reachable only through the functions.
+      const direct = await bob.client
+        .from("person_waiver_acceptances")
+        .select("version");
+      expect(direct.error).not.toBeNull();
     } finally {
       await service
         .from("app_settings")

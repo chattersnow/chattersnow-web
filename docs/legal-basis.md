@@ -154,6 +154,17 @@ submitted and worded by the organization for that purpose:
   link. `event_registrations.waiver_accepted_at` and `waiver_version` record
   when, and which version, both resolved server-side. Taken on the signed-in
   registration path too: holding an account is not agreement to anything.
+  **On file for a linked person** (#1401): a signed-in registrant whose account
+  is linked to a directory record, and who has already accepted the version in
+  force, sees one line naming that version, the date they accepted it and a
+  link to it, in place of the agreement and its box.
+  `person_waiver_acceptances` holds those acceptances per tenant, person and
+  version; only `register_myself_for_event()` writes it, and each registration
+  still copies the version and date it relied on into its own pair. A republish
+  makes every file stale and the full agreement and box return. Anonymous and
+  unlinked registrants always see it in full, because an email match is not
+  identity — anyone can type anyone's address — so an anonymous acceptance is
+  never put on anybody's file.
 - **Items given as-is** (#1367) — an unticked box on the public request form,
   beneath a summary in the platform's own words of what taking a donated item
   means. Declining it is declining the item, which is what makes it a gate
