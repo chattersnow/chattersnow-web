@@ -175,6 +175,7 @@ test.describe("photos and video at registration", () => {
     await dialog.getByLabel(/Accompanying adult's mobile/).fill("555-0101");
     await dialog.getByLabel(/Emergency contact's name/).fill("Sam Guardian");
     await dialog.getByLabel(/Emergency contact's phone/).fill("555-0102");
+    await answerRiding(dialog);
     await continueToReview(dialog);
 
     await expect(
