@@ -42,10 +42,9 @@ export function eventProgramsLabel(programs: PublicEventProgram[]) {
 }
 
 /**
- * A card is a link to the event's own page. From the listing that URL is
- * intercepted into a sheet over the list, and everywhere else it is a full
- * navigation -- but either way it is a real anchor, so the event is
- * shareable, crawlable, and reachable by keyboard without a hand-rolled
+ * A card is a link to the event's own page, a full navigation from the
+ * listing and the home page alike (#1427). It is a real anchor, so the event
+ * is shareable, crawlable, and reachable by keyboard without a hand-rolled
  * key handler (#847).
  *
  * The anchor is the title, stretched over the whole card by its ::after: the

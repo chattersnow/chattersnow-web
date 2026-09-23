@@ -5,8 +5,8 @@ import { EventCard, type PublicEvent } from "./event-card";
  *
  * Opening one used to be local state here -- a detail sheet, and a second
  * sheet on top of it for registration -- which left every event without a URL.
- * The sheet is now the intercepted route in `@modal`, so this component holds
- * no state and needs no client boundary (#847).
+ * Each card is a plain link to the event's page now (#847, #1427), so this
+ * component holds no state and needs no client boundary.
  */
 export function EventList({
   events,

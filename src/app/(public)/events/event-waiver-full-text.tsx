@@ -21,8 +21,8 @@ import {
  * so this adds a trigger and a sheet to the browser bundle and nothing else --
  * `parseLegalBlocks` and the document stay out of it, as #686 arranged.
  *
- * Full width on a phone, where a three-quarter panel over an event sheet that
- * is already three quarters wide would leave the reader a column. The popup
+ * Full width on a phone, where a three-quarter panel would leave the reader a
+ * narrow column beside a sliver of the page. The popup
  * itself scrolls rather than a frame inside it: the reason #1402 exists is
  * that a scroll box inside a scrolling surface takes over the finger, and the
  * Close button that takes focus on open is then inside the thing the arrow

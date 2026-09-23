@@ -259,13 +259,14 @@ export const SURFACES: Surface[] = [
     },
   },
   {
-    // The intercepted /events/e/[id] (#847). The route scan reaches that URL by
-    // loading it, which renders the full page; the sheet is a different DOM --
-    // the same event over the listing, registration form and all -- and only a
-    // client-side click renders it. Scoped by href rather than by card position
-    // so /events/community, which shares the prefix, reports "never opened"
-    // instead of clicking through to somebody else's calendar.
-    name: "event-detail-sheet",
+    // The open registration form on an event's page (#1427). The route scan
+    // reaches /events/e/[id] by following a card, but the form waits behind
+    // the Register button, so only this opener scans it -- the card, its
+    // stepped fields and the pinned bar with Cancel and Next. Scoped by href
+    // rather than by card position so /events/community, which shares the
+    // prefix, reports "never opened" instead of clicking through to the
+    // calendar.
+    name: "event-registration-form",
     routes: ["/events"],
     open: async (page) => {
       const href = await firstEventHref(page);
@@ -275,15 +276,22 @@ export const SURFACES: Surface[] = [
         .first()
         .click({ timeout: 5_000 })
         .catch(() => {});
-      await modal(page)
-        .first()
+      const trigger = page.getByRole("button", {
+        name: "Register",
+        exact: true,
+      });
+      await trigger
         .waitFor({ state: "visible", timeout: 10_000 })
         .catch(() => {});
-      return (await modal(page).count()) > 0;
+      if ((await trigger.count()) === 0) return false;
+      await trigger.click({ timeout: 5_000 }).catch(() => {});
+      const form = page.getByRole("region", { name: /^Register for / });
+      await form.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+      return (await form.count()) > 0;
     },
     close: pressEscape,
-    // Opening it pushes /events/e/[id] and closing it steps back, so the route
-    // is reloaded rather than trusted to be where the next surface expects.
+    // Opening it navigates to the event's page, so the route is reloaded
+    // rather than trusted to be where the next surface expects.
     mutates: true,
   },
   {
