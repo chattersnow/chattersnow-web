@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import { DEFAULT_LEXICON } from "@/lib/lexicon";
 import { DEFAULT_VOCABULARY } from "@/lib/person-roles";
@@ -10,7 +10,14 @@ import {
   type MyHistory,
   type MyVolunteerEntry,
 } from "@/lib/constituent/history";
-import { MyHistorySections } from "./history";
+mock.module("next/navigation", () => ({
+  useRouter: () => ({ refresh: () => {} }),
+}));
+mock.module("./registration-cancel-actions", () => ({
+  cancelMyRegistrationAction: async () => ({ success: true }),
+}));
+
+const { MyHistorySections } = await import("./history");
 import { MyNextSteps } from "./next-steps";
 
 /**
@@ -32,6 +39,7 @@ const registration: MyEventRegistration = {
   party_size: 2,
   attended: false,
   registered_at: "2026-05-01T17:00:00Z",
+  cancelled_at: null,
 };
 
 const hours: MyVolunteerEntry = {
@@ -278,5 +286,36 @@ describe("next steps on an empty record", () => {
       />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("an upcoming registration (#1418)", () => {
+  test('offers "I can\'t make it" while it is active', () => {
+    render(
+      <MyHistorySections
+        history={{ ...EMPTY_HISTORY, events: [registration] }}
+        vocabulary={DEFAULT_VOCABULARY}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "I can't make it" }),
+    ).toBeTruthy();
+  });
+
+  test("once cancelled, says so, offers nothing and is not coming up", () => {
+    render(
+      <MyHistorySections
+        history={{
+          ...EMPTY_HISTORY,
+          events: [{ ...registration, cancelled_at: "2026-05-02T17:00:00Z" }],
+        }}
+        vocabulary={DEFAULT_VOCABULARY}
+      />,
+    );
+    expect(screen.getByText("Cancelled")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "I can't make it" }),
+    ).toBeNull();
+    expect(screen.queryByText(/coming up/)).toBeNull();
   });
 });

@@ -7,20 +7,34 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
+import {
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE,
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
+  parseAdultsOnlyConfirmed,
+} from "@/lib/adults-only";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
+import {
+  parseOptionCounts,
+  REGISTRATION_OPTION_ERROR_MESSAGES,
+} from "@/lib/registration-options";
 import { parseAttendedBefore } from "@/lib/attended-before";
+import { parseRegistrationRiding } from "@/lib/rider-profile-form";
 import {
   MINOR_CONTACTS_REQUIRED_CODE,
   MINOR_CONTACTS_REQUIRED_ERROR,
-  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
-  parseMinorContacts,
-  parsePartyIncludesMinor,
+  parseRegistrationMinors,
 } from "@/lib/minors";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
+import {
+  registrationErrorStep,
+  type RegistrationStep,
+} from "./registration-step";
 
+/** `step` as on `RegisterForEventResult` (#1403). */
 export type RegisterMyselfResult =
-  { error: string } | { success: true; registrationId: string };
+  | { error: string; step: RegistrationStep }
+  | { success: true; registrationId: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
@@ -35,6 +49,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   // #685. The form asks for the four the moment somebody answers yes, so this
   // is the belt to that braces.
   [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
+  // #1417, as on the anonymous path.
+  [ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE]:
+    ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
   // #686. Three ways a waiver can stop a registration, and they are three
   // different things to say. The first is the reader's to fix; the second is
   // nobody's fault and asks them to read again; the third is the
@@ -44,7 +61,12 @@ const ERROR_MESSAGES: Record<string, string> = {
     "The agreement was updated while you were filling this in. Reload the page, read it again, and register.",
   WAIVER_UNAVAILABLE:
     "This organization's participant agreement could not be loaded, so we can't take your registration right now. Please try again shortly.",
+  // #1415. The form checks these before sending, so reaching this means a
+  // client that did not.
+  INVALID_RIDER_PROFILE: "Please check your riding answers and try again.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
+  // #1407
+  ...REGISTRATION_OPTION_ERROR_MESSAGES,
 };
 
 /**
@@ -67,22 +89,24 @@ export async function registerMyselfForEventAction(
 ): Promise<RegisterMyselfResult> {
   const partySize = Number(String(formData.get("partySize") ?? "1"));
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE };
+    return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE, step: "event" };
   }
 
-  // #685. Required on this form as on the anonymous one, and validated here
-  // rather than left to the RPC: the RPC has to keep accepting an unanswered
-  // question, because the public API's published contract predates it, so
-  // "the question was asked and skipped" is a distinction only the two forms
-  // can draw.
-  const partyIncludesMinor = parsePartyIncludesMinor(
-    formData.get("partyIncludesMinor"),
-  );
-  if (partyIncludesMinor === null) {
-    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR };
+  // #685. Required on this form as on the anonymous one wherever it was
+  // asked (#1416), and validated here rather than left to the RPC: the RPC
+  // has to keep accepting an unanswered question, because the public API's
+  // published contract predates it, so "the question was asked and skipped"
+  // is a distinction only the two forms can draw.
+  const minors = parseRegistrationMinors(formData);
+  if ("error" in minors) return { error: minors.error, step: "event" };
+  const minorContacts = minors.data;
+
+  // #1415, and parsed as the anonymous form parses it.
+  const parsedRiding = parseRegistrationRiding(formData);
+  if ("error" in parsedRiding) {
+    return { error: parsedRiding.error, step: "event" };
   }
-  const minorContacts = parseMinorContacts(partyIncludesMinor, formData);
-  if ("error" in minorContacts) return minorContacts;
+  const riding = parsedRiding.data;
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("register_myself_for_event", {
@@ -112,15 +136,25 @@ export async function registerMyselfForEventAction(
     )
       ? Number(formData.get("waiverVersion"))
       : undefined,
-    p_party_includes_minor: partyIncludesMinor,
+    p_party_includes_minor: minorContacts.party_includes_minor ?? undefined,
     p_accompanying_adult_name:
-      minorContacts.data.accompanying_adult_name ?? undefined,
+      minorContacts.accompanying_adult_name ?? undefined,
     p_accompanying_adult_phone:
-      minorContacts.data.accompanying_adult_phone ?? undefined,
-    p_emergency_contact_name:
-      minorContacts.data.emergency_contact_name ?? undefined,
+      minorContacts.accompanying_adult_phone ?? undefined,
+    p_emergency_contact_name: minorContacts.emergency_contact_name ?? undefined,
     p_emergency_contact_phone:
-      minorContacts.data.emergency_contact_phone ?? undefined,
+      minorContacts.emergency_contact_phone ?? undefined,
+    // #1407, as on the anonymous path.
+    p_option_counts: parseOptionCounts(formData) ?? undefined,
+    // #1417. The RPC ignores it on an event that is not 18+.
+    p_adults_only_confirmed: parseAdultsOnlyConfirmed(formData),
+    // #1415. `undefined` when the form did not ask, so nothing is written;
+    // the RPC ignores them on a tenant without the rider_profile module.
+    p_riding_discipline: riding?.riding_discipline,
+    p_ski_experience_level: riding?.ski_experience_level ?? undefined,
+    p_snowboard_experience_level:
+      riding?.snowboard_experience_level ?? undefined,
+    p_preferred_mountain: riding?.preferred_mountain ?? undefined,
     // No `p_photo_consent` (#1376). The parameter is still there, declared
     // `default null`, and the RPC is unchanged -- but this form has no box, so
     // there is no answer to send and `null` is the correct resting state: no
@@ -136,6 +170,7 @@ export async function registerMyselfForEventAction(
       error:
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
+      step: registrationErrorStep(error.message),
     };
   }
 

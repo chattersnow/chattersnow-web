@@ -9,7 +9,6 @@ import {
 import {
   EXPERIENCE_LEVELS,
   OTHER_MOUNTAIN,
-  PREFERRED_MOUNTAINS,
   RIDING_DISCIPLINES,
   ridesSki,
   ridesSnowboard,
@@ -46,11 +45,14 @@ function labelFor(
  */
 export function RiderProfileDialog({
   registrant,
+  mountains,
   open,
   onOpenChange,
   onSaved,
 }: {
   registrant: EventRegistrant | null;
+  /** This organization's preferred-mountain list (#1408). */
+  mountains: readonly string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
@@ -66,9 +68,7 @@ export function RiderProfileDialog({
     rider?.snowboard_experience_level ?? "",
   );
   const storedMountain = rider?.preferred_mountain ?? "";
-  const isListedMountain = (PREFERRED_MOUNTAINS as readonly string[]).includes(
-    storedMountain,
-  );
+  const isListedMountain = mountains.includes(storedMountain);
   const [mountain, setMountain] = useState(
     storedMountain === ""
       ? ""
@@ -146,7 +146,7 @@ export function RiderProfileDialog({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="registrant-rider-discipline">
-            Do they ski or ride?
+            Do they ski or snowboard?
           </FieldLabel>
           <Select
             value={discipline}
@@ -219,7 +219,7 @@ export function RiderProfileDialog({
 
         <Field>
           <FieldLabel htmlFor="registrant-rider-mountain">
-            Preferred mountain
+            Home mountain
           </FieldLabel>
           <Select
             value={mountain}
@@ -229,7 +229,7 @@ export function RiderProfileDialog({
               <SelectValue placeholder="Optional" />
             </SelectTrigger>
             <SelectContent>
-              {PREFERRED_MOUNTAINS.map((name) => (
+              {mountains.map((name) => (
                 <SelectItem key={name} value={name}>
                   {name}
                 </SelectItem>

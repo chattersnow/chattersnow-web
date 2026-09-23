@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AdultsOnlyBadge } from "@/components/adults-only-badge";
 import {
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
 import { formatDateTimeInZone } from "@/lib/time";
 import { publicGiveawayRulesPath } from "@/lib/giveaway-rules-path";
 import { getEventGiveawayRulesLink } from "@/lib/giveaway-rules-publication";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite } from "@/lib/public-site";
+import type { PublicRiderProfile } from "@/lib/rider-profile";
+import { getPublicRiderProfile } from "@/lib/rider-profile-settings";
+import { getPublicAsksAboutMinors } from "@/lib/registration-settings";
 import { loadEventWaiver } from "./event-waiver-data";
 import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
@@ -26,6 +34,10 @@ import {
   type EventViewer,
 } from "./my-registration";
 import type { AccountOffer } from "@/lib/constituent/account-offer";
+import type { RegistrationOptionsQuestion } from "@/lib/registration-options";
+import { loadRegistrationOptions } from "./registration-options-data";
+import { canCancelOwnRegistration } from "@/lib/registration-cancellation";
+import { CantMakeItButton } from "@/app/(public)/my/cant-make-it-button";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -43,9 +55,6 @@ const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   timeZoneName: "short",
 };
 
-/** Where a detail view is being rendered: its own page, or the sheet over the listing. */
-export type EventDetailVariant = "page" | "sheet";
-
 /** The start (and end, when there is one) in the event's own zone. */
 function formatWhen(event: PublicEvent): string {
   const starts = formatDateTimeInZone(
@@ -58,51 +67,24 @@ function formatWhen(event: PublicEvent): string {
   return `${starts} – ${formatDateTimeInZone(event.ends_at, event.timezone, DATE_FORMAT_OPTIONS, "en-US")}`;
 }
 
-function EventFlier({
-  event,
-  variant,
-}: {
-  event: PublicEvent;
-  variant: EventDetailVariant;
-}) {
-  const page = variant === "page";
-
-  return (
-    <EventFlierFull
-      flierUrl={event.flier_url}
-      alt={event.name}
-      sizes={
-        page
-          ? "(min-width: 768px) 768px, 100vw"
-          : "(min-width: 640px) 32rem, 100vw"
-      }
-      // The page's flier is its hero image and the largest paint on it; the
-      // sheet's arrives with an overlay that is already on screen.
-      priority={page}
-      className={page ? "mb-6" : "mb-4"}
-    />
-  );
-}
-
 /**
  * Everything below the title: where and what it is, who is sponsoring it, and
- * how to register. The two presentations differ only in type scale and
- * spacing, which is what `variant` picks -- the content itself is one tree, so
- * a change to what an event says shows up in both places at once.
+ * how to register.
  */
 function EventDetailBody({
   event,
-  variant,
   viewer,
   accountOffer,
   giveawayRulesId,
   waiver,
   waiverBlock,
+  asksAboutMinors,
   minorAccompaniment,
   photoConsent,
+  registrationOptions,
+  riderProfile,
 }: {
   event: PublicEvent;
-  variant: EventDetailVariant;
   viewer: EventViewer | null;
   accountOffer: AccountOffer | null;
   /** The promotion whose official rules this event serves, if any (#1322). */
@@ -112,7 +94,7 @@ function EventDetailBody({
    * posts back so the RPC can refuse a submission made against text that has
    * since been republished (#686). Null where the tenant takes no waiver.
    */
-  waiver: { version: number } | null;
+  waiver: { version: number; title: string } | null;
   /** That agreement, already rendered on the server. Null with `waiver`. */
   waiverBlock: React.ReactNode;
   /**
@@ -120,6 +102,7 @@ function EventDetailBody({
    * (#685), shown once somebody answers yes. Empty on a tenant that has
    * written none, which is the state every tenant starts in.
    */
+  asksAboutMinors: boolean;
   minorAccompaniment: string[];
   /**
    * This organization's photos-and-video paragraphs (#599, #1376), shown as a
@@ -129,8 +112,11 @@ function EventDetailBody({
    * exactly what it rendered before #599 shipped.
    */
   photoConsent: string[];
+  /** The event's registration question (#1407), or null. */
+  registrationOptions: RegistrationOptionsQuestion | null;
+  /** The riding questions on step 2 (#1415), or null without the module. */
+  riderProfile: PublicRiderProfile | null;
 }) {
-  const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
   // Only a linked constituent can have one to find: `my_event_registration()`
   // looks the caller up through their `people` row, so an account without one
@@ -141,18 +127,10 @@ function EventDetailBody({
   return (
     <>
       {event.location && (
-        <p className={`app-muted ${page ? "text-sm sm:text-base" : "text-sm"}`}>
-          {event.location}
-        </p>
+        <p className="app-muted text-sm sm:text-base">{event.location}</p>
       )}
       {event.description && (
-        <p
-          className={
-            page
-              ? "mt-6 max-w-2xl text-sm leading-relaxed sm:text-base"
-              : "mt-4 text-sm leading-relaxed"
-          }
-        >
+        <p className="mt-6 max-w-2xl text-sm leading-relaxed whitespace-pre-line sm:text-base">
           {event.description}
         </p>
       )}
@@ -163,7 +141,7 @@ function EventDetailBody({
         /* In the flow the rules govern, not only in a footer: somebody about
            to enter a promotion has to be able to read what they are entering
            before they do (#666, #1322). */
-        <p className={page ? "mt-8 text-sm" : "mt-6 text-sm"}>
+        <p className="mt-8 text-sm">
           <Link
             href={publicGiveawayRulesPath(giveawayRulesId)}
             className="underline underline-offset-4"
@@ -178,7 +156,7 @@ function EventDetailBody({
            the heading's job now, and a heading over a status sentence
            ("you're registered", "the deadline has passed") only announced a
            form that is not there. */
-        <section className={page ? "mt-10 max-w-lg" : "mt-6"}>
+        <section className="mt-10 max-w-2xl">
           {existingRegistration ? (
             /* Already signed up. Showing the state instead of a second form
                is the point of knowing who is reading: the database would
@@ -186,14 +164,10 @@ function EventDetailBody({
                registered" after filling a form in is a worse way to learn
                it.
 
-               There is no "cancel" here, and deliberately not. #1165 made
-               that conditional on the existing model supporting it, and it
-               does not: `event_registrations` has no cancelled state and no
-               delete path anywhere in the application, staff included, so
-               the only thing a button could do is destroy the row -- taking
-               the attendance figure and the discount code with it. Changing
-               your mind is a message to the organization until there is a
-               model for it. */
+               #1418 gave a registration a cancelled state, so changing your
+               mind is a button here until the event starts. A cancelled
+               registration is not returned by `my_event_registration()`, so
+               the form comes back for registering again. */
             <div className="space-y-2">
               <Alert>
                 <div className="rainbow-accent mb-2 w-10" />
@@ -202,9 +176,16 @@ function EventDetailBody({
                   {existingRegistration.party_size > 1
                     ? `, for ${existingRegistration.party_size} of you`
                     : ""}
-                  . If you can no longer make it, let us know.
+                  .
                 </AlertDescription>
               </Alert>
+              {canCancelOwnRegistration(event.starts_at) && (
+                <CantMakeItButton
+                  registrationId={existingRegistration.registration_id}
+                  eventId={event.id}
+                  eventName={event.name}
+                />
+              )}
               <p className="app-muted text-sm">
                 <Link href={MY_PATH_PREFIX} className="underline">
                   See this on your account
@@ -214,15 +195,20 @@ function EventDetailBody({
           ) : !registrationWindow.open ? (
             <p className="app-muted text-sm">{registrationWindow.reason}</p>
           ) : (
-            <EventRegistrationDisclosure variant={variant}>
+            <EventRegistrationDisclosure eventName={event.name}>
               {viewer?.kind === "linked" ? (
                 <MyEventRegistrationForm
                   eventId={event.id}
                   person={viewer.person}
                   waiver={waiver}
                   waiverBlock={waiverBlock}
+                  waiverOnFile={viewer.waiverOnFile}
+                  asksAboutMinors={asksAboutMinors}
+                  adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  registrationOptions={registrationOptions}
+                  riderProfile={riderProfile}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -235,8 +221,12 @@ function EventDetailBody({
                   accountOffer={accountOffer}
                   waiver={waiver}
                   waiverBlock={waiverBlock}
+                  asksAboutMinors={asksAboutMinors}
+                  adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  registrationOptions={registrationOptions}
+                  riderProfile={riderProfile}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -248,34 +238,24 @@ function EventDetailBody({
 }
 
 /**
- * One event, rendered either as `/events/e/[id]`'s own page or as the sheet that
- * intercepts that URL over the listing (#847). A server component in both
- * cases: the client parts it reaches for (the registration form, sponsor
+ * One event, as `/events/e/[id]`'s own page inside a `PageShell`. A server
+ * component: the client parts it reaches for (the registration form, sponsor
  * logos) draw their own boundaries.
  *
- * The `page` variant expects to be inside a `PageShell`; the `sheet` variant
- * expects to be inside a `SheetContent`, which is where `SheetTitle` gets the
- * dialog context it needs to become the sheet's accessible name.
+ * It used to render in a sheet over the listing as well (#847). #1427 dropped
+ * the sheet: a flier beside the details and a carded, stepped form do not fit
+ * in a 32rem panel, and keeping two presentations in step cost more than the
+ * sheet gave back. A card on the listing now navigates here, and the
+ * breadcrumb leads back.
  */
-export async function EventDetailContent({
-  event,
-  variant,
-}: {
-  event: PublicEvent;
-  variant: EventDetailVariant;
-}) {
-  // Loaded here rather than by each caller, so the page and the sheet cannot
-  // drift into showing a signed-in visitor two different things about the same
-  // registration. Null for everyone with no session at all, which is most
-  // visitors and costs them one `getUser()`.
+export async function EventDetailContent({ event }: { event: PublicEvent }) {
+  // Who is reading, for "you're registered" instead of a second form. Null for
+  // everyone with no session at all, which is most visitors and costs them one
+  // `getUser()`.
   const viewer = await loadEventViewer(event.id);
-  // What the registration can offer afterwards (#1258), decided here for the
-  // same reason the viewer is: the page and the sheet must not drift into two
-  // different answers about the same registration.
+  // What the registration can offer afterwards (#1258).
   const accountOffer = await loadRegistrationAccountOffer(viewer);
-  // Whether this event's promotion has published rules to point at. Loaded
-  // here for the same reason the viewer is: the page and the sheet must not
-  // drift into two different answers.
+  // Whether this event's promotion has published rules to point at.
   const supabase = await createSupabaseServerClient();
   const giveawayRules = await getEventGiveawayRulesLink(supabase, event.id);
   // The participant agreement, if this organization takes one (#686). Rendered
@@ -297,6 +277,23 @@ export async function EventDetailContent({
   // component for the reason the waiver is: a block of tenant prose has no
   // business in the browser bundle of the tenants that have none.
   const photoConsent = content.paragraphs("events.photo_consent");
+  // The event's own registration question (#1407). Only where registration
+  // is on at all, so the events that take none pay no query for it.
+  const registrationOptions = event.registration_enabled
+    ? await loadRegistrationOptions(supabase, event.id)
+    : null;
+  // The riding questions on registration's step 2 (#1408, #1415), only for a
+  // tenant with the module and only where there is a registration form.
+  const riderProfile = event.registration_enabled
+    ? await getPublicRiderProfile(supabase)
+    : null;
+  // Whether registration asks about under-18s (#1416). Only where there is a
+  // registration form, like the riding questions, and never on an 18+ event
+  // (#1417), which asks for its confirmation instead.
+  const asksAboutMinors =
+    event.registration_enabled && !event.adults_only
+      ? await getPublicAsksAboutMinors(supabase)
+      : !event.adults_only;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -305,56 +302,83 @@ export async function EventDetailContent({
     />
   ) : null;
 
-  if (variant === "sheet") {
-    return (
-      <>
-        <SheetHeader>
-          <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
-          <SheetTitle className="text-xl">{event.name}</SheetTitle>
-          <SheetDescription>{formatWhen(event)}</SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <EventFlier event={event} variant="sheet" />
-          <EventDetailBody
-            event={event}
-            variant="sheet"
-            viewer={viewer}
-            accountOffer={accountOffer}
-            giveawayRulesId={giveawayRules?.giveawayId ?? null}
-            waiver={waiver ? { version: waiver.version } : null}
-            waiverBlock={waiverBlock}
-            minorAccompaniment={minorAccompaniment}
-            photoConsent={photoConsent}
-          />
-        </div>
-      </>
-    );
-  }
+  const flierUrl = resolveImageUrl(event.flier_url);
+  const hasFlier = isRenderableImageSrc(flierUrl);
 
   return (
     <>
-      <EventFlier event={event} variant="page" />
-      <section>
-        <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
-        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
-          {event.name}
-        </h1>
-        <p className="app-muted mt-4 text-sm sm:text-base">
-          {formatWhen(event)}
-        </p>
-      </section>
-      <EventDetailBody
-        event={event}
-        variant="page"
-        viewer={viewer}
-        accountOffer={accountOffer}
-        giveawayRulesId={giveawayRules?.giveawayId ?? null}
-        waiver={waiver ? { version: waiver.version } : null}
-        waiverBlock={waiverBlock}
-        minorAccompaniment={minorAccompaniment}
-        photoConsent={photoConsent}
-      />
+      <Breadcrumb className="mb-6">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link href="/events" />}>
+              Events
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="truncate">{event.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* Two columns from `lg` up, the flier on the right; one below it, with
+          the flier first as it always was. The flier comes first in the DOM
+          and `order` moves it, so a phone and a screen reader both meet it
+          before the title, and a desktop reads the details on the left where
+          the page's other headings start. Sticky, so a portrait flier stays
+          beside a long description and the form as they scroll by. Without a
+          flier there is no grid at all rather than an empty column. */}
+      <div
+        className={
+          hasFlier
+            ? "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-12"
+            : undefined
+        }
+      >
+        {hasFlier && (
+          <div className="mb-6 lg:sticky lg:top-8 lg:order-2 lg:mb-0 lg:self-start">
+            <EventFlierFull
+              flierUrl={event.flier_url}
+              alt={event.name}
+              sizes="(min-width: 1024px) 22rem, 100vw"
+              // The flier is the page's largest paint.
+              priority
+            />
+          </div>
+        )}
+        <div className="min-w-0 lg:order-1">
+          <section>
+            <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
+            <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
+              {event.name}
+              <AdultsOnlyBadge
+                adultsOnly={event.adults_only}
+                className="ml-3 text-sm"
+              />
+            </h1>
+            <p className="app-muted mt-4 text-sm sm:text-base">
+              {formatWhen(event)}
+            </p>
+          </section>
+          <EventDetailBody
+            event={event}
+            viewer={viewer}
+            accountOffer={accountOffer}
+            giveawayRulesId={giveawayRules?.giveawayId ?? null}
+            waiver={
+              waiver
+                ? { version: waiver.version, title: waiver.content.title }
+                : null
+            }
+            waiverBlock={waiverBlock}
+            asksAboutMinors={asksAboutMinors}
+            minorAccompaniment={minorAccompaniment}
+            photoConsent={photoConsent}
+            registrationOptions={registrationOptions}
+            riderProfile={riderProfile}
+          />
+        </div>
+      </div>
     </>
   );
 }

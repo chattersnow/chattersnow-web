@@ -265,6 +265,8 @@ const ENDPOINTS: Endpoint[] = [
     method: "post",
     operationId: "saveRiderProfile",
     summary: "Attach a rider profile to a registration made in the last day",
+    description:
+      "Only for an organization with the Rider Profile add-on; everywhere else it is a 404, like any section an organization does not offer.",
     body: riderProfileSchema,
     response: savedResponse,
     status: 201,

@@ -1,6 +1,12 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
+import {
+  continueToReview,
+  sayNoMinors,
+  answerRiding,
+  continueToThisEvent,
+} from "./helpers/registration";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 // The legal notices have to be reachable from anywhere on the site, which is
@@ -184,6 +190,15 @@ test.describe("notice at the point of collection", () => {
     // The form is behind a disclosure (#1256), and the notice belongs with the
     // fields rather than with the trigger.
     await page.getByRole("button", { name: "Register", exact: true }).click();
+
+    // The notices are on the review step (#1413), reached by answering the
+    // two before it.
+    await page.getByLabel("Name").fill("Notice Reader");
+    await page.getByLabel("Email").fill("notice-reader@example.test");
+    await continueToThisEvent(page.locator("form"));
+    await sayNoMinors(page.locator("form"));
+    await answerRiding(page.locator("form"));
+    await continueToReview(page.locator("form"));
 
     await expectPrivacyNotice(page, /hold your spot/);
   });

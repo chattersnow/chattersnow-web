@@ -94,7 +94,8 @@ export async function getEventPreviewAction(
     supabase
       .from("event_registrations")
       .select("party_size")
-      .eq("event_id", id),
+      .eq("event_id", id)
+      .is("cancelled_at", null),
     supabase
       .from("event_volunteers")
       .select("id", { count: "exact", head: true })

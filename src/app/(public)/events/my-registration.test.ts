@@ -16,6 +16,7 @@ type FakeUser = {
 let user: FakeUser | null = null;
 let contactRows: Partial<MyContactDetails>[] = [];
 let registrationRows: unknown[] = [];
+let waiverRows: unknown[] = [];
 
 mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => ({
@@ -23,7 +24,9 @@ mock.module("@/lib/supabase/server", () => ({
     rpc: async (name: string) =>
       name === "my_contact_details"
         ? { data: contactRows }
-        : { data: registrationRows },
+        : name === "my_waiver_on_file"
+          ? { data: waiverRows }
+          : { data: registrationRows },
   }),
 }));
 
@@ -33,6 +36,7 @@ function session(next: FakeUser | null) {
   user = next;
   contactRows = [];
   registrationRows = [];
+  waiverRows = [];
 }
 
 describe("loadEventViewer", () => {
@@ -92,6 +96,29 @@ describe("loadEventViewer", () => {
     expect(await loadEventViewer("event-1")).toMatchObject({
       kind: "linked",
       registration: null,
+    });
+  });
+
+  // #1401. The RPC returns a row only for the version in force, so the loader
+  // has nothing to compare -- it passes the row on, or null.
+  test("a linked person carries the agreement they have on file", async () => {
+    session({ email: "jane@example.com" });
+    contactRows = [{ person_id: "p1" }];
+    waiverRows = [{ version: 3, accepted_at: "2026-10-04T17:00:00Z" }];
+
+    expect(await loadEventViewer("event-1")).toMatchObject({
+      kind: "linked",
+      waiverOnFile: { version: 3, accepted_at: "2026-10-04T17:00:00Z" },
+    });
+  });
+
+  test("a linked person with nothing on file is asked in full", async () => {
+    session({ email: "jane@example.com" });
+    contactRows = [{ person_id: "p1" }];
+
+    expect(await loadEventViewer("event-1")).toMatchObject({
+      kind: "linked",
+      waiverOnFile: null,
     });
   });
 });

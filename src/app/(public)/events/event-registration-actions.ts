@@ -11,12 +11,27 @@ import {
   MINOR_CONTACTS_REQUIRED_CODE,
   MINOR_CONTACTS_REQUIRED_ERROR,
 } from "@/lib/minors";
+import {
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE,
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
+} from "@/lib/adults-only";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
+import { REGISTRATION_OPTION_ERROR_MESSAGES } from "@/lib/registration-options";
 import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventPath } from "./event-path";
+import {
+  registrationErrorStep,
+  registrationFieldStep,
+  type RegistrationStep,
+} from "./registration-step";
 
+/**
+ * `step` says which step of the form the error belongs to (#1403, #1413), so
+ * a reader on the last step can be sent back to the field.
+ */
 export type RegisterForEventResult =
-  { error: string } | { success: true; registrationId: string };
+  | { error: string; step: RegistrationStep }
+  | { success: true; registrationId: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
@@ -32,6 +47,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   // reaching this means a client that did not -- the public API, or a browser
   // that let a half-filled form through. Worth a sentence either way.
   [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
+  // #1417. The box is required on step 2, so reaching this means a client
+  // that did not ask.
+  [ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE]:
+    ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
   // #686. Three ways a waiver can stop a registration, and they are three
   // different things to say. The first is the reader's to fix; the second is
   // nobody's fault and asks them to read again; the third is the
@@ -41,7 +60,12 @@ const ERROR_MESSAGES: Record<string, string> = {
     "The agreement was updated while you were filling this in. Reload the page, read it again, and register.",
   WAIVER_UNAVAILABLE:
     "This organization's participant agreement could not be loaded, so we can't take your registration right now. Please try again shortly.",
+  // #1415. The form checks these before sending, so reaching this means a
+  // client that did not.
+  INVALID_RIDER_PROFILE: "Please check your riding answers and try again.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
+  // #1407
+  ...REGISTRATION_OPTION_ERROR_MESSAGES,
 };
 
 // Public, unauthenticated action: anyone can register for a published event
@@ -55,12 +79,15 @@ export async function registerForEventAction(
   formData: FormData,
 ): Promise<RegisterForEventResult> {
   const parsed = parseEventRegistrationForm(formData);
-  if ("error" in parsed) return parsed;
+  if ("error" in parsed) {
+    return { error: parsed.error, step: registrationFieldStep(parsed.field) };
+  }
 
   const honeypot = String(formData.get("company") ?? "");
   const ipAddress = await getClientIp();
 
   const supabase = await createSupabaseServerClient();
+  const riding = parsed.data.riding;
 
   const { data, error } = await supabase.rpc("register_for_event", {
     p_event_id: eventId,
@@ -85,15 +112,27 @@ export async function registerForEventAction(
     // unshown waiver leaves the RPC's own default in place.
     p_waiver_accepted: parsed.data.waiver_accepted,
     p_waiver_version: parsed.data.waiver_version ?? undefined,
-    // #685. Sent as answered. The column is three-state and the RPC accepts a
-    // null, but this form requires the question, so a null here would mean
-    // the parser let something through.
-    p_party_includes_minor: parsed.data.party_includes_minor,
+    // #685. Sent as answered, and `undefined` where the form did not ask
+    // (#1416). The RPC ignores it either way on a tenant that has the
+    // question off.
+    p_party_includes_minor: parsed.data.party_includes_minor ?? undefined,
     p_accompanying_adult_name: parsed.data.accompanying_adult_name ?? undefined,
     p_accompanying_adult_phone:
       parsed.data.accompanying_adult_phone ?? undefined,
     p_emergency_contact_name: parsed.data.emergency_contact_name ?? undefined,
     p_emergency_contact_phone: parsed.data.emergency_contact_phone ?? undefined,
+    // #1407. `undefined` when the form showed no question, so the RPC's own
+    // default stands; an event with options then refuses it.
+    p_option_counts: parsed.data.option_counts ?? undefined,
+    // #1417. Sent as ticked; the RPC ignores it on an event that is not 18+.
+    p_adults_only_confirmed: parsed.data.adults_only_confirmed,
+    // #1415. `undefined` when the form did not ask, so nothing is written;
+    // the RPC ignores them on a tenant without the rider_profile module.
+    p_riding_discipline: riding?.riding_discipline,
+    p_ski_experience_level: riding?.ski_experience_level ?? undefined,
+    p_snowboard_experience_level:
+      riding?.snowboard_experience_level ?? undefined,
+    p_preferred_mountain: riding?.preferred_mountain ?? undefined,
     // No `p_photo_consent` (#1376). The parameter is still there, declared
     // `default null`, and the RPC is unchanged -- but the form has no box, so
     // there is nothing to send and `null` is the correct resting state: no
@@ -108,15 +147,16 @@ export async function registerForEventAction(
       error:
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
+      step: registrationErrorStep(error.message),
     };
   }
 
   revalidatePath(publicEventPath(eventId));
   revalidatePath("/portal/events");
 
-  // The new registration id is handed back so the rider-profile follow-up
-  // step (#564) can authorize its own write; it's an unguessable uuid and
-  // reveals nothing about the event or other registrants.
+  // The new registration id is handed back for the account offer (#1258),
+  // which carries it through sign-up; it's an unguessable uuid and reveals
+  // nothing about the event or other registrants.
   const registrationId = String(data);
 
   // After the response, never before it (#742): the registration is already

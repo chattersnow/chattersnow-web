@@ -1,7 +1,4 @@
-import {
-  PHOTO_CONSENT_HEADING,
-  PHOTO_CONSENT_NOTICE,
-} from "@/lib/photo-consent";
+import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,15 +11,12 @@ import { cn } from "@/lib/utils";
  * public form takes by default.
  *
  * **It still renders nothing at all when the organization has written no
- * scope** — not a bare heading, not the platform's own sentence. This is the
+ * scope** — not even a bare heading. This is the
  * one place it diverges from that component, which keeps printing
  * `FORM_ASKS_FOR` on a blank tenant because the form collects those fields
  * either way. Here there is nothing to say: what an organization does with a
  * photo is off-platform and unknowable from this codebase, and the platform
- * writes none of it (`docs/legal-basis.md` rule 2). More than that, the
- * paragraphs are what makes registering carry the agreement at all — the
- * platform's sentence alone would describe a remedy for an implication nobody
- * had made. A tenant that has written nothing renders a form byte-identical to
+ * writes none of it (`docs/legal-basis.md` rule 2). A tenant that has written nothing renders a form byte-identical to
  * the one it had before #599 shipped, which is where almost every tenant is
  * and the state that must never break.
  *
@@ -32,9 +26,21 @@ import { cn } from "@/lib/utils";
  * their party would be a guardianship claim the platform is in no position to
  * make. A tenant's own paragraphs can cover minors if it wants them covered.
  *
+ * **Nothing of the platform's own beneath the paragraphs.** A platform
+ * sentence here used to open "There is no box to tick here" and list the ways
+ * to object. It was dropped: the tenant's paragraphs are the whole notice, and
+ * how to object is the organization's to say in them.
+ *
  * **No link.** The scope is these paragraphs and nothing else — there is no
  * `/photo-consent` route to point at, deliberately, and the DOM test asserts
  * zero anchors for the reason `volunteer-screening-notice.tsx` gives.
+ *
+ * **The first paragraph always shows; the rest fold (#1403).** Registering is
+ * what carries the agreement, so the opening of what is being agreed to can
+ * never be behind a click — but the whole of it, on a phone, was a long way to
+ * scroll to the button. The remainder sits in a native `<details>`, which
+ * keeps this a server component and keeps the text in the DOM for find-in-page
+ * and for anyone who wants it all without asking. One paragraph, no toggle.
  */
 export function PhotoConsentNotice({
   paragraphs,
@@ -47,18 +53,26 @@ export function PhotoConsentNotice({
   const written = paragraphs.filter((paragraph) => paragraph.trim());
   if (written.length === 0) return null;
 
+  const [first, ...rest] = written;
+
   return (
     <div className={cn("space-y-2", className)}>
       {/* h3: the sheet's own title is the h2, and the page's h1 is above it. */}
       <h3 className="text-sm font-medium">{PHOTO_CONSENT_HEADING}</h3>
-      {written.map((paragraph, index) => (
-        <p key={index} className="app-muted text-sm leading-relaxed">
-          {paragraph}
-        </p>
-      ))}
-      <p className="app-muted text-sm leading-relaxed">
-        {PHOTO_CONSENT_NOTICE}
-      </p>
+      <p className="app-muted text-sm leading-relaxed">{first}</p>
+      {rest.length > 0 && (
+        <details className="group space-y-2">
+          <summary className="w-fit cursor-pointer text-sm underline underline-offset-4">
+            <span className="group-open:hidden">More about photos</span>
+            <span className="hidden group-open:inline">Less about photos</span>
+          </summary>
+          {rest.map((paragraph, index) => (
+            <p key={index} className="app-muted text-sm leading-relaxed">
+              {paragraph}
+            </p>
+          ))}
+        </details>
+      )}
     </div>
   );
 }

@@ -29,6 +29,8 @@ export type MyEventRegistration = {
   party_size: number;
   attended: boolean;
   registered_at: string;
+  /** When it was cancelled (#1418); null for an active registration. */
+  cancelled_at: string | null;
 };
 
 export type MyVolunteerEntry = {

@@ -30,6 +30,7 @@ import {
 } from "@/lib/portal/tenants";
 import { deviceClass } from "@/lib/portal/device";
 import { PortalDeviceProvider } from "@/lib/portal/device-context";
+import { PortalRiderProfileProvider } from "@/lib/portal/rider-profile-context";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { surfaceAtRoot } from "@/lib/pwa/host";
 import { serviceWorkerScope } from "@/lib/pwa/service-worker";
@@ -173,6 +174,12 @@ export default async function PortalAppLayout({
     "view",
   );
   const canSeeGearRequests = hasPermission(permissions, "inventory", "view");
+  // Carries the rider_profile module, so both are false for everyone on a
+  // tenant without it (#1408).
+  const riderProfileAccess = {
+    canView: hasPermission(permissions, "rider_profiles", "view"),
+    canManage: hasPermission(permissions, "rider_profiles", "manage"),
+  };
   // Its own resource, and one that carries the constituent_accounts module
   // gate with it -- so this is false for everyone on a tenant without the
   // constituent area (#1162).
@@ -355,13 +362,17 @@ export default async function PortalAppLayout({
           rendered on, and `deviceClass()` is a server function it cannot call
           -- see the note in `@/lib/portal/device-context`. */}
       <PortalDeviceProvider device={device}>
-        <PortalHelpProvider>
-          {device === "mobile" ? (
-            <PortalShellMobile {...shellProps} />
-          ) : (
-            <PortalShellDesktop {...shellProps} />
-          )}
-        </PortalHelpProvider>
+        {/* The rider fields live in the shared person form, which the person
+            picker carries all over the portal (#1408). */}
+        <PortalRiderProfileProvider access={riderProfileAccess}>
+          <PortalHelpProvider>
+            {device === "mobile" ? (
+              <PortalShellMobile {...shellProps} />
+            ) : (
+              <PortalShellDesktop {...shellProps} />
+            )}
+          </PortalHelpProvider>
+        </PortalRiderProfileProvider>
       </PortalDeviceProvider>
       {/* Corrects the shell on the next request when the user-agent got the
           viewport wrong -- a phone in desktop mode, or a narrow window. */}

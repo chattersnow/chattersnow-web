@@ -418,7 +418,8 @@ export async function getOpsInboxSummary(
         .from("event_registrations")
         .select("event_id")
         .in("event_id", todaysEventIds)
-        .is("checked_in_at", null);
+        .is("checked_in_at", null)
+        .is("cancelled_at", null);
 
       const pendingCountByEvent = new Map<string, number>();
       for (const row of (pendingRegistrations ?? []) as {

@@ -1,62 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import {
   PHOTO_CONSENT_HEADING,
-  PHOTO_CONSENT_NOTICE,
   PHOTO_CONSENT_UNAVAILABLE_ERROR,
   PHOTO_OBJECTION_ACTION,
   PHOTO_OBJECTION_NONE,
   PHOTO_OBJECTION_RECORDED,
   PHOTO_OBJECTION_WITHDRAWN,
   PHOTO_OBJECTION_WITHDRAW_ACTION,
+  waiverAcceptanceLabel,
 } from "./photo-consent";
 
 // #599's parser, its form-value helper, its guardian-capacity label and its
 // staff label are gone with the box they served (#1376). What is left is
 // copy, and the copy is the thing with rules -- rule 2 in test form.
-describe("what the platform says beneath a tenant's own paragraphs (#1376)", () => {
-  // The three remedies, in the order the sentence has to name them. The
-  // self-service one is the narrowest -- `set_my_photo_consent()` resolves
-  // through `my_constituent_person_id('events')`, so it reaches only somebody
-  // who has claimed an account, and most registrants have not -- so the
-  // organizer and the email come first and the third is qualified on having
-  // an account rather than promised outright.
-  test("names all three objection routes, and qualifies the self-service one", () => {
-    expect(PHOTO_CONSENT_NOTICE).toMatch(/organizer/i);
-    expect(PHOTO_CONSENT_NOTICE).toMatch(/email us/i);
-    expect(PHOTO_CONSENT_NOTICE).toMatch(/registration page/i);
-
-    const organizer = PHOTO_CONSENT_NOTICE.search(/organizer/i);
-    const email = PHOTO_CONSENT_NOTICE.search(/email us/i);
-    const page = PHOTO_CONSENT_NOTICE.search(/registration page/i);
-    expect(organizer).toBeLessThan(page);
-    expect(email).toBeLessThan(page);
-
-    expect(PHOTO_CONSENT_NOTICE).toMatch(/if you have an account/i);
-  });
-
-  // The absence is the surprising part, and a reader who scans for a control
-  // should be told why they will not find one.
-  test("says outright that there is no box", () => {
-    expect(PHOTO_CONSENT_NOTICE).toMatch(/no box/i);
-  });
-
-  // Rule 2. What an organization does with a photo is off-platform and
-  // unknowable from this codebase, and since #1376 these paragraphs are also
-  // what makes registering carry the agreement -- so the platform's own
-  // sentence may describe the mechanism and the remedy and nothing else.
-  test("asserts nothing about what the organization does with a photo", () => {
-    expect(PHOTO_CONSENT_NOTICE).not.toMatch(
-      /instagram|facebook|social|website|newsletter|press|sponsor|funder|grant|publish|share/i,
-    );
-  });
-
+describe("the platform's reader-facing copy", () => {
   // Not consent, anywhere a human reads. Agreement implied by submitting a
   // form is not an unambiguous affirmative act, and a surface that called it
   // consent would misstate the lawful basis.
   test("the word consent appears on no reader-facing string", () => {
     for (const copy of [
       PHOTO_CONSENT_HEADING,
-      PHOTO_CONSENT_NOTICE,
       PHOTO_CONSENT_UNAVAILABLE_ERROR,
       PHOTO_OBJECTION_NONE,
       PHOTO_OBJECTION_RECORDED,
@@ -100,5 +63,21 @@ describe("what the RPC's refusal turns into", () => {
     expect(PHOTO_CONSENT_UNAVAILABLE_ERROR).not.toMatch(/no longer asking/i);
     expect(PHOTO_CONSENT_UNAVAILABLE_ERROR).toMatch(/email them/i);
     expect(PHOTO_CONSENT_UNAVAILABLE_ERROR).toMatch(/taken down/i);
+  });
+});
+
+describe("waiverAcceptanceLabel", () => {
+  test("names only the waiver when no photo release is written", () => {
+    expect(waiverAcceptanceLabel("Participant Waiver", ["  "])).toBe(
+      "I have read and accept the Participant Waiver",
+    );
+  });
+
+  test("names the photo release too when one is written", () => {
+    expect(
+      waiverAcceptanceLabel("Participant Waiver", ["We take photos."]),
+    ).toBe(
+      "I have read and accept the Participant Waiver and the photo and video release",
+    );
   });
 });

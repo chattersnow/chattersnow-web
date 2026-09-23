@@ -49,6 +49,12 @@ const route = publicWrite<
         // stored as one. The words the answer is recorded against come from
         // the organization's own row, never from this body.
         p_photo_consent: body.photo_consent ?? undefined,
+        // #1407. `undefined` leaves the RPC's default, which an event with
+        // registration options refuses.
+        p_option_counts: body.option_counts ?? undefined,
+        // #1417. `undefined` leaves the RPC's default, which an 18+ event
+        // refuses.
+        p_adults_only_confirmed: body.adults_only_confirmed ?? undefined,
         p_ip_address: clientIp,
       }),
     );

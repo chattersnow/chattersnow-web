@@ -115,7 +115,7 @@ export const eventRegistrationSchema = z
     // is the one rule the organization's own policy rests on.
     party_includes_minor: z.boolean().optional().meta({
       description:
-        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no.",
+        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no. Ignored, with the four contacts, when the organization does not ask about under-18s.",
     }),
     accompanying_adult_name: optionalText(200).meta({
       description:
@@ -132,6 +132,12 @@ export const eventRegistrationSchema = z
     emergency_contact_phone: optionalText(50).meta({
       description:
         "That contact's number. Required when party_includes_minor is true.",
+    }),
+    // #1417. Optional, since most events are not 18+; required by the RPC for
+    // one that is, the way the waiver is.
+    adults_only_confirmed: z.boolean().optional().meta({
+      description:
+        "That the person confirmed everyone in their party is 18 or over. Required when GET /events/{event} reports adults_only; ignored otherwise.",
     }),
     // #1366, closing a gap #686 opened. `register_for_event()` gained these
     // two parameters and this schema did not, so `p_waiver_accepted` fell
@@ -168,6 +174,16 @@ export const eventRegistrationSchema = z
       description:
         "Send false to record that the person asked not to be photographed or recorded; it is stored as an objection and never refuses the registration. Send true only if they told you explicitly that photos are fine, after you showed them the events.photo_consent paragraphs from GET /content. Omit it — which is what this organization's own registration form does — and nothing is recorded; that is never read as an objection.",
     }),
+    // #1407. Optional in the schema, because most events ask nothing and this
+    // contract predates the question; required by the RPC for an event that
+    // does, the way the waiver is.
+    option_counts: z
+      .record(z.string(), z.int().min(0).max(10000))
+      .optional()
+      .meta({
+        description:
+          "How many people in the party chose each of the event's registration options, keyed by option id, adding up to party_size. Required when GET /events/{event} lists registration_options; omit it otherwise.",
+      }),
   })
   .meta({ id: "EventRegistration" });
 

@@ -5,18 +5,22 @@ import {
 } from "./event-registration-form";
 import {
   MINOR_CONTACTS_REQUIRED_ERROR,
+  MINORS_ASKED_FIELD,
   PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
 } from "@/lib/minors";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 
 /**
- * The minors question is required (#685), so every case that expects a
- * *parse* rather than an error has to answer it. Defaulted to "no" here
- * rather than added to two dozen call sites, and overridable per case — the
- * cases that are about the question itself pass their own value.
+ * The minors question is required wherever it is asked (#685), and it is
+ * asked on every tenant that has not turned it off (#1416), so every case
+ * that expects a *parse* rather than an error has to answer it. Defaulted to
+ * asked-and-"no" here rather than added to two dozen call sites, and
+ * overridable per case — the cases that are about the question itself pass
+ * their own value.
  */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set(MINORS_ASKED_FIELD, "on");
   fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
@@ -28,18 +32,20 @@ describe("parseEventRegistrationForm", () => {
       parseEventRegistrationForm(formData({ email: "jane@example.com" })),
     ).toEqual({
       error: "Name is required.",
+      field: "name",
     });
   });
 
   test("requires a valid email", () => {
     expect(parseEventRegistrationForm(formData({ name: "Jane" }))).toEqual({
       error: "A valid email is required.",
+      field: "email",
     });
     expect(
       parseEventRegistrationForm(
         formData({ name: "Jane", email: "not-an-email" }),
       ),
-    ).toEqual({ error: "A valid email is required." });
+    ).toEqual({ error: "A valid email is required.", field: "email" });
   });
 
   test("defaults party size to 1", () => {
@@ -54,7 +60,10 @@ describe("parseEventRegistrationForm", () => {
       parseEventRegistrationForm(
         formData({ name: "Jane", email: "jane@example.com", partySize: "0" }),
       ),
-    ).toEqual({ error: "Party size must be at least 1." });
+    ).toEqual({
+      error: "Party size must be at least 1.",
+      field: "partySize",
+    });
   });
 
   test("rejects a non-integer party size", () => {
@@ -62,7 +71,10 @@ describe("parseEventRegistrationForm", () => {
       parseEventRegistrationForm(
         formData({ name: "Jane", email: "jane@example.com", partySize: "2.5" }),
       ),
-    ).toEqual({ error: "Party size must be at least 1." });
+    ).toEqual({
+      error: "Party size must be at least 1.",
+      field: "partySize",
+    });
   });
 
   test("reads a ticked waiver box and the version it was shown with", () => {
@@ -130,13 +142,67 @@ describe("parseEventRegistrationForm", () => {
         // the form sent and leaves the deciding to the RPC (#686).
         waiver_accepted: false,
         waiver_version: null,
+        adults_only_confirmed: false,
         party_includes_minor: false,
         accompanying_adult_name: null,
         accompanying_adult_phone: null,
         emergency_contact_name: null,
         emergency_contact_phone: null,
+        // No question on the form, so no answer to send (#1407).
+        option_counts: null,
+        // Nor riding questions (#1415).
+        riding: null,
       },
     });
+  });
+
+  // #1415. Required once the form asked, and refused on the step it is on.
+  test("requires the riding answers when the form asked them", () => {
+    const base = {
+      name: "Jane",
+      email: "jane@example.com",
+      partyIncludesMinor: "no",
+      ridingAsked: "on",
+    };
+    expect(parseEventRegistrationForm(formData(base))).toMatchObject({
+      field: "riding",
+    });
+    expect(
+      parseEventRegistrationForm(
+        formData({
+          ...base,
+          ridingDiscipline: "snowboard",
+          snowboardExperienceLevel: "advanced",
+        }),
+      ),
+    ).toMatchObject({
+      data: {
+        riding: {
+          riding_discipline: "snowboard",
+          ski_experience_level: null,
+          snowboard_experience_level: "advanced",
+          preferred_mountain: null,
+        },
+      },
+    });
+  });
+
+  test("collects an answer to the registration question per option (#1407)", () => {
+    const result = parseEventRegistrationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        partySize: "3",
+        partyIncludesMinor: "no",
+        "optionCount.a": "2",
+        "optionCount.b": "1",
+        "optionCount.c": "",
+      }),
+    );
+    if ("error" in result) throw new Error(result.error);
+    // Blank is none, and the sum is left for the RPC, which knows whether
+    // the event asks at all.
+    expect(result.data.option_counts).toEqual({ a: 2, b: 1, c: 0 });
   });
 
   // #1376 removed the box, the parser's `photo_consent` field and
@@ -212,7 +278,7 @@ describe("parseEventRegistrationForm", () => {
           pronouns: "x".repeat(41),
         }),
       ),
-    ).toEqual({ error: PRONOUNS_TOO_LONG_ERROR });
+    ).toEqual({ error: PRONOUNS_TOO_LONG_ERROR, field: "pronouns" });
   });
 
   test("rejects an invalid Instagram handle", () => {
@@ -227,6 +293,7 @@ describe("parseEventRegistrationForm", () => {
     ).toEqual({
       error:
         "Instagram handle can only contain letters, numbers, periods, and underscores.",
+      field: "instagramHandle",
     });
   });
 
@@ -238,6 +305,7 @@ describe("parseEventRegistrationForm", () => {
     fd.set("partyIncludesMinor", "");
     expect(parseEventRegistrationForm(fd)).toEqual({
       error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+      field: "partyIncludesMinor",
     });
   });
 
@@ -247,6 +315,7 @@ describe("parseEventRegistrationForm", () => {
       fd.set("partyIncludesMinor", answer);
       expect(parseEventRegistrationForm(fd)).toEqual({
         error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+        field: "partyIncludesMinor",
       });
     }
   });
@@ -269,7 +338,10 @@ describe("parseEventRegistrationForm", () => {
     ]) {
       expect(
         parseEventRegistrationForm(formData({ ...complete, [missing]: "   " })),
-      ).toEqual({ error: MINOR_CONTACTS_REQUIRED_ERROR });
+      ).toEqual({
+        error: MINOR_CONTACTS_REQUIRED_ERROR,
+        field: "minorContacts",
+      });
     }
 
     expect(parseEventRegistrationForm(formData(complete))).toMatchObject({
@@ -303,6 +375,51 @@ describe("parseEventRegistrationForm", () => {
         accompanying_adult_name: null,
         accompanying_adult_phone: null,
         emergency_contact_name: null,
+        emergency_contact_phone: null,
+      },
+    });
+  });
+});
+
+// #1416. A tenant with the question off: the form sends no marker, nothing
+// is required, and anything sent anyway is dropped.
+describe("parseEventRegistrationForm, question not asked", () => {
+  function notAsked(fields: Record<string, string>) {
+    const fd = formData(fields);
+    fd.delete(MINORS_ASKED_FIELD);
+    fd.delete("partyIncludesMinor");
+    return fd;
+  }
+
+  test("parses without an answer", () => {
+    expect(
+      parseEventRegistrationForm(
+        notAsked({ name: "Jane", email: "jane@example.com" }),
+      ),
+    ).toMatchObject({
+      data: {
+        party_includes_minor: null,
+        accompanying_adult_name: null,
+        emergency_contact_phone: null,
+      },
+    });
+  });
+
+  test("ignores an answer and contacts sent anyway", () => {
+    expect(
+      parseEventRegistrationForm(
+        notAsked({
+          name: "Jane",
+          email: "jane@example.com",
+          partyIncludesMinor: "yes",
+          accompanyingAdultName: "Jane Doe",
+          emergencyContactPhone: "555-9876",
+        }),
+      ),
+    ).toMatchObject({
+      data: {
+        party_includes_minor: null,
+        accompanying_adult_name: null,
         emergency_contact_phone: null,
       },
     });

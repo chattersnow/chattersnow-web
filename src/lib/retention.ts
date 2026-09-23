@@ -88,6 +88,9 @@ export const RETENTION_POLICIES: readonly RetentionPolicy[] = [
     // longer a name to check a photograph against and nobody at a door can be
     // recognised as its subject -- an instruction about a face nobody can
     // identify is no more useful than a permission was.
+    //
+    // A staff note on a cancellation goes with `notes` (#1418); the reason
+    // and when it was cancelled stay.
     howLong: "3 years after the event.",
     period: "3 years",
     surface: "eventRegistrations",

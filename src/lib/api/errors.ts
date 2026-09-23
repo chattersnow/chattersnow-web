@@ -195,6 +195,13 @@ const RPC_ERRORS: Record<
       "A party that includes anyone under 18 needs an accompanying adult and an emergency contact.",
     field: "accompanying_adult_name",
   },
+  // #1417
+  ADULTS_ONLY_CONFIRMATION_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This event is adults only (18+). Send adults_only_confirmed once the person has confirmed everyone in their party is 18 or over.",
+    field: "adults_only_confirmed",
+  },
   // #1366. Names where to find the document, because the website's own wording
   // -- "tick the box" -- is advice a headless caller cannot act on. It names
   // the endpoint rather than a version: GET /legal reports each document's
@@ -205,6 +212,29 @@ const RPC_ERRORS: Record<
     message:
       "This organization requires its participant agreement to be accepted before registering. GET /api/v1/t/{tenant}/legal reports where to read it; send waiver_accepted once the person has.",
     field: "waiver_accepted",
+  },
+  // #1407
+  EVENT_OPTIONS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This event asks each person what they need. GET /api/v1/t/{tenant}/events/{event} lists its registration_options; send option_counts.",
+    field: "option_counts",
+  },
+  EVENT_OPTIONS_MISMATCH: {
+    code: "invalid_request",
+    message: "option_counts must add up to party_size.",
+    field: "option_counts",
+  },
+  EVENT_OPTIONS_INVALID: {
+    code: "invalid_request",
+    message:
+      "option_counts names an option this event does not have, or a count that is not a whole number of 0 or more.",
+    field: "option_counts",
+  },
+  EVENT_OPTION_FULL: {
+    code: "conflict",
+    message: "One of the chosen registration options is full.",
+    field: "option_counts",
   },
   INVALID_RIDER_PROFILE: {
     code: "invalid_request",

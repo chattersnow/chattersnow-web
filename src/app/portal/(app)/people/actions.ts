@@ -2,10 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parsePersonForm } from "./person-form";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { parsePersonForm, type PersonFormData } from "./person-form";
 import { parsePublicTeamForm } from "./public-team-form";
 import type { PersonType } from "./people-shared";
-import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
+import {
+  checkPermission,
+  checkAnyPermission,
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
 import {
@@ -126,6 +132,28 @@ async function emailConflictError(
   };
 }
 
+/**
+ * The person form's payload, minus the four rider columns for a caller without
+ * rider_profiles:manage (#1408) -- which is everyone on a tenant without the
+ * rider_profile module. Left out rather than nulled, so an update keeps what
+ * is stored ("off" is frozen, never cleared) and an insert takes the column
+ * default. The form hides the fields for the same reader; this is what makes
+ * that more than a convention.
+ */
+async function riderFieldsIfAllowed(
+  supabase: SupabaseClient,
+  data: PersonFormData,
+): Promise<Partial<PersonFormData>> {
+  const permissions = await getCurrentUserPermissions(supabase);
+  if (hasPermission(permissions, "rider_profiles", "manage")) return data;
+  const rest: Partial<PersonFormData> = { ...data };
+  delete rest.riding_discipline;
+  delete rest.ski_experience_level;
+  delete rest.snowboard_experience_level;
+  delete rest.preferred_mountain;
+  return rest;
+}
+
 export async function createPersonAction(
   formData: FormData,
   primaryContactPersonId: string | null = null,
@@ -148,7 +176,7 @@ export async function createPersonAction(
   const { data, error } = await supabase
     .from("people")
     .insert({
-      ...parsed.data,
+      ...(await riderFieldsIfAllowed(supabase, parsed.data)),
       is_anonymous: false,
       source_type: "other",
       primary_contact_person_id: primaryContactPersonId,
@@ -227,7 +255,7 @@ export async function updatePersonAction(
   const { error } = await supabase
     .from("people")
     .update({
-      ...parsed.data,
+      ...(await riderFieldsIfAllowed(supabase, parsed.data)),
       primary_contact_person_id: primaryContactPersonId,
     })
     .eq("id", id);

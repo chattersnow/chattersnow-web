@@ -1,10 +1,11 @@
 /**
  * Where an event lives on the public site.
  *
- * The extra `e` segment is load-bearing, and the reason is #847's intercepting
- * sheet. While the detail page sat at `/events/[id]`, the slot that intercepts
- * it -- `@modal/(.)[id]` -- matched *every* single segment under /events, and
- * it is matched ahead of both `[...catchAll]` and the children slot's own
+ * The extra `e` segment was load-bearing, and the reason was #847's
+ * intercepting sheet, which #1427 removed; the segment stays because the URLs
+ * are out in the world. While the detail page sat at `/events/[id]`, the slot
+ * that intercepted it -- `@modal/(.)[id]` -- matched *every* single segment
+ * under /events, and it was matched ahead of both `[...catchAll]` and the children slot's own
  * static routes. So a client-side navigation from the listing to
  * `/events/community` ran the sheet with id="community", found no such event
  * and `notFound()`, which bubbles to the /events layout and buries both slots

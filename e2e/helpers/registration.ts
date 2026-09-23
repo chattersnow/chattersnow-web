@@ -1,4 +1,14 @@
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { expect } from "./test";
+
+/**
+ * The open registration form on an event's page: the card the Register button
+ * gives way to, named for the event (#1427). Scoping to it keeps a spec's
+ * `getByLabel("Name")` off anything else on the page.
+ */
+export function registrationForm(page: Page): Locator {
+  return page.getByRole("region", { name: /^Register for / });
+}
 
 /**
  * Answers the registration form's minors question with "no" (#685).
@@ -18,4 +28,51 @@ export async function sayNoMinors(scope: Locator) {
     .page()
     .getByRole("option", { name: /everyone is 18 or over/i })
     .click();
+}
+
+/**
+ * Answers the riding questions (#1415), which the seeded tenant asks on step 2
+ * because it has the rider_profile module. Required once shown, so every spec
+ * that submits a registration answers them; one discipline and one level is
+ * the shortest complete answer. The mountain is optional and left alone.
+ */
+export async function answerRiding(scope: Locator) {
+  const page = scope.page();
+  await scope
+    .getByRole("combobox", { name: /Do you ski or snowboard\?/ })
+    .click();
+  await page.getByRole("option", { name: "Snowboard", exact: true }).click();
+  await scope
+    .getByRole("combobox", { name: /Experience on a snowboard/ })
+    .click();
+  await page.getByRole("option", { name: "Beginner" }).click();
+}
+
+/**
+ * Registration is three steps at every width (#1413): "About you", "This
+ * event", then "Review and agree" with the notices, the agreement and the
+ * button. These move through them, so a spec says where it is going rather
+ * than how many times to press Next.
+ */
+export async function continueToThisEvent(scope: Locator) {
+  await scope.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(
+    scope.getByRole("group", { name: /This event|Your riding/ }),
+  ).toBeVisible();
+}
+
+/** From either earlier step to "Review and agree". */
+export async function continueToReview(scope: Locator) {
+  const next = scope.getByRole("button", { name: "Next", exact: true });
+  const review = scope.getByRole("group", { name: /Review and agree/ });
+  for (let press = 0; press < 2 && (await next.isVisible()); press++) {
+    await next.click();
+  }
+  await expect(review).toBeVisible();
+}
+
+/** Moves on to the review step if it is not there already, then submits. */
+export async function completeRegistration(scope: Locator) {
+  await continueToReview(scope);
+  await scope.getByRole("button", { name: "Complete registration" }).click();
 }

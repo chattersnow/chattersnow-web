@@ -17,12 +17,20 @@ import {
   type RegistrantActionResult,
 } from "./registrant-core";
 import { parseRiderProfileForm } from "@/lib/rider-profile-form";
+import { getRiderProfileMountains } from "@/lib/rider-profile-settings";
 import {
   actionError,
   fromGuard,
   fromParseError,
+  type ActionFailure,
 } from "@/lib/portal/action-result";
 import { getRequestOrigin } from "@/lib/request-origin";
+import {
+  hasOptionAnswer,
+  optionCountsError,
+  type OptionCountRow,
+  type OptionCounts,
+} from "@/lib/registration-options";
 import { getTenantContext } from "@/lib/portal/tenants";
 import { getTenantLegalPublication } from "@/lib/legal-publication";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
@@ -58,6 +66,12 @@ import {
   EVENTS_MODULE,
   REGISTRANT_MESSAGE_ERRORS,
 } from "./registrant-messaging";
+import {
+  CANCELLATION_ERRORS,
+  isCancellationReason,
+  type CancellationReason,
+} from "@/lib/registration-cancellation";
+import { sendRegistrationCancellationNotice } from "@/lib/notifications/registration-cancellation";
 
 /**
  * The rider level recorded when this registrant was checked in, alongside the
@@ -151,6 +165,12 @@ export type EventRegistrant = {
    */
   party_includes_minor: boolean | null;
   /**
+   * When the registrant confirmed everyone in their party is 18 or over, on
+   * an adults-only event (#1417). Null everywhere else. Not gated on
+   * `events: manage`, for the reason `party_includes_minor` is not.
+   */
+  adults_only_confirmed_at: string | null;
+  /**
    * What this person said about being photographed or recorded (#599), and the
    * only three-state field here where every state has to be legible.
    *
@@ -169,6 +189,20 @@ export type EventRegistrant = {
   photo_consent: boolean | null;
   photo_consent_at: string | null;
   photo_consent_text: string | null;
+  /**
+   * The answer to the event's registration question (#1407), one row per
+   * option chosen. Empty where the event asks none or nobody was asked -- a
+   * walk-in staff left unanswered. Not gated on `events: manage`: how many
+   * tickets a party needs is what the door hands out.
+   */
+  option_counts: OptionCountRow[];
+  /**
+   * When and why this registration was cancelled (#1418). Null on every row
+   * of `registrants`; only `cancelled` carries them.
+   */
+  cancelled_at: string | null;
+  cancellation_reason: CancellationReason | null;
+  cancellation_note: string | null;
   rider: RegistrantRiderProfile | null;
   /** See `RegistrantMinorContacts`. Null unless `events: manage`. */
   minorContacts: RegistrantMinorContacts | null;
@@ -201,7 +235,13 @@ export type RegistrantMessagingContext = {
  * saves the round trip.
  */
 export type EventRegistrantsData = {
+  /** Active registrations: what capacity, check-in and announcements see. */
   registrants: EventRegistrant[];
+  /**
+   * Cancelled ones (#1418), kept apart so nothing that reads `registrants`
+   * has to remember to leave them out. Shown behind "Show cancelled".
+   */
+  cancelled: EventRegistrant[];
   messages: RecordMessages;
   messaging: RegistrantMessagingContext | null;
   /**
@@ -225,7 +265,77 @@ export type EventRegistrantsData = {
    * table needs `site_content: view` and the reader here is a door shift.
    */
   photoConsentInForce: boolean;
+  /** The event's registration question (#1407), or null where it asks none. */
+  registrationOptions: PortalRegistrationOptions | null;
+  /**
+   * This organization's preferred-mountain list, for the door-side rider
+   * dialog (#1408). Null wherever `rider` is null on every registrant.
+   */
+  riderMountains: string[] | null;
 };
+
+/**
+ * An event's registration question as the portal shows it (#1407): each
+ * option with its cap and how many registrants have taken it, so the tab can
+ * say "7 of 10" before the organizer orders tickets.
+ */
+export type PortalRegistrationOptions = {
+  prompt: string;
+  options: { id: string; label: string; cap: number | null; taken: number }[];
+};
+
+/**
+ * The event's registration question on its own, for the add-registrant and
+ * walk-in dialogs. `taken` is filled in by the tab, which has the counts; the
+ * dialogs only need the choices.
+ */
+export async function listEventRegistrationOptionsAction(
+  eventId: string,
+): Promise<{ data: PortalRegistrationOptions | null } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+  return { data: await loadRegistrationOptions(supabase, eventId, []) };
+}
+
+async function loadRegistrationOptions(
+  supabase: SupabaseClient,
+  eventId: string,
+  registrants: EventRegistrant[],
+): Promise<PortalRegistrationOptions | null> {
+  const [{ data: event }, { data: options }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("registration_options_prompt")
+      .eq("id", eventId)
+      .maybeSingle(),
+    supabase
+      .from("event_registration_options")
+      .select("id, label, cap")
+      .eq("event_id", eventId)
+      .order("sort_order", { ascending: true }),
+  ]);
+  const prompt = event?.registration_options_prompt;
+  if (!prompt || !options || options.length === 0) return null;
+
+  const taken = new Map<string, number>();
+  for (const registrant of registrants) {
+    for (const row of registrant.option_counts) {
+      if (!row.option_id) continue;
+      taken.set(row.option_id, (taken.get(row.option_id) ?? 0) + row.quantity);
+    }
+  }
+
+  return {
+    prompt,
+    options: options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      cap: option.cap,
+      taken: taken.get(option.id) ?? 0,
+    })),
+  };
+}
 
 export async function listEventRegistrantsAction(
   eventId: string,
@@ -235,7 +345,12 @@ export async function listEventRegistrantsAction(
   if (permissionError) return permissionError;
 
   const permissions = await getCurrentUserPermissions(supabase);
-  const canSeeRider = hasPermission(permissions, "events", "manage");
+  const canManage = hasPermission(permissions, "events", "manage");
+  // Rider answers need the rider_profiles permission as well, which carries
+  // the rider_profile module (#1408) -- so on a tenant without it there is no
+  // Rides column, no rider dialog and no rider block in the sheet, for anyone.
+  const canSeeRider =
+    canManage && hasPermission(permissions, "rider_profiles", "view");
 
   const { data, error } = await supabase
     .from("event_registrations")
@@ -251,7 +366,9 @@ export async function listEventRegistrantsAction(
     return { error: "Could not load registrants. Please try again." };
   }
 
-  const registrants = (data ?? []).map((row) => toRegistrant(row, canSeeRider));
+  const rows = (data ?? []).map((row) => toRegistrant(row, canSeeRider));
+  const registrants = rows.filter((row) => row.cancelled_at === null);
+  const cancelled = rows.filter((row) => row.cancelled_at !== null);
   // Read for both readers, including the `events: view` door shift: whether
   // the organization takes a waiver at all is what turns an empty cell from
   // ambiguous into "nobody was asked" (#686).
@@ -264,48 +381,62 @@ export async function listEventRegistrantsAction(
   // shows, because that condition does not depend on this flag.
   const photoConsentInForce =
     (await supabase.rpc("tenant_asks_photo_consent")).data === true;
+  const registrationOptions = await loadRegistrationOptions(
+    supabase,
+    eventId,
+    registrants,
+  );
 
-  if (!canSeeRider) {
+  if (!canManage) {
     return {
       data: {
         registrants,
+        cancelled,
         messages: NO_RECORD_MESSAGES,
         messaging: null,
         waiverInForce,
         photoConsentInForce,
+        registrationOptions,
+        riderMountains: null,
       },
     };
   }
 
-  const [messages, orgEmailEnabled, tenantContext, orgMail, minorContacts] =
-    await Promise.all([
-      loadRecordMessages(
-        supabase,
-        EVENT_REGISTRATION_RECORD_TYPE,
-        registrants.map((registrant) => registrant.id),
-      ),
-      getOrgEmailEnabled(supabase),
-      // Only for what the composer calls the organization in its default
-      // subject. Memoized per request, so the shell has already paid for it.
-      getTenantContext(supabase),
-      // The Reply-To the composer quotes, through the view that exists because
-      // app_settings itself is closed to an events manager.
-      supabase
-        .from("org_notification_settings")
-        .select("reply_to")
-        .maybeSingle(),
-      // The four contacts, through the definer view that is the only way to
-      // them: they are revoked from `authenticated` on the table (#685). One
-      // read for the event, not one per row, and it returns nothing at all for
-      // a reader without `events: manage` — this branch already is one, and
-      // the view checks again anyway.
-      supabase
-        .from("event_registration_minor_contacts")
-        .select(
-          "registration_id, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
-        )
-        .eq("event_id", eventId),
-    ]);
+  const [
+    messages,
+    orgEmailEnabled,
+    tenantContext,
+    orgMail,
+    minorContacts,
+    riderMountains,
+  ] = await Promise.all([
+    loadRecordMessages(
+      supabase,
+      EVENT_REGISTRATION_RECORD_TYPE,
+      registrants.map((registrant) => registrant.id),
+    ),
+    getOrgEmailEnabled(supabase),
+    // Only for what the composer calls the organization in its default
+    // subject. Memoized per request, so the shell has already paid for it.
+    getTenantContext(supabase),
+    // The Reply-To the composer quotes, through the view that exists because
+    // app_settings itself is closed to an events manager.
+    supabase.from("org_notification_settings").select("reply_to").maybeSingle(),
+    // The four contacts, through the definer view that is the only way to
+    // them: they are revoked from `authenticated` on the table (#685). One
+    // read for the event, not one per row, and it returns nothing at all for
+    // a reader without `events: manage` — this branch already is one, and
+    // the view checks again anyway.
+    supabase
+      .from("event_registration_minor_contacts")
+      .select(
+        "registration_id, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+      )
+      .eq("event_id", eventId),
+    // The door dialog's picker (#1408). Only for a reader who sees rider
+    // answers, which is the only reader the dialog opens for.
+    canSeeRider ? getRiderProfileMountains(supabase) : Promise.resolve(null),
+  ]);
 
   const contactsById = new Map(
     (minorContacts.data ?? []).map((row) => [
@@ -325,6 +456,7 @@ export async function listEventRegistrantsAction(
         ...registrant,
         minorContacts: contactsById.get(registrant.id) ?? null,
       })),
+      cancelled,
       messages,
       messaging: {
         orgName:
@@ -336,6 +468,8 @@ export async function listEventRegistrantsAction(
       },
       waiverInForce,
       photoConsentInForce,
+      registrationOptions,
+      riderMountains,
     },
   };
 }
@@ -344,8 +478,10 @@ export async function listEventRegistrantsAction(
 // list: that migration replaced this table's table-level SELECT with a column
 // allow-list so the minor contacts could be carved out of it, and a column
 // missing from the list simply disappears from the portal.
+//
+// `option_counts` is an embed, not a column of this table (#1407).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, photo_consent, photo_consent_at, photo_consent_text";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
@@ -368,8 +504,10 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
     riding_discipline_at_event,
     ski_experience_level_at_event,
     snowboard_experience_level_at_event,
-    ...rest
+    option_counts,
+    ...fields
   } = row as RegistrantRow;
+  const rest = { ...fields, option_counts: option_counts ?? [] };
 
   if (!canSeeRider) return { ...rest, rider: null, minorContacts: null };
 
@@ -441,6 +579,13 @@ export async function setRegistrantRiderProfileAction(
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return fromGuard("forbidden", permissionError);
+  // Carries the rider_profile module (#1408); the RPC checks both again.
+  const riderError = await checkPermission(
+    supabase,
+    "rider_profiles",
+    "manage",
+  );
+  if (riderError) return fromGuard("forbidden", riderError);
 
   const { error } = await supabase.rpc("set_registrant_rider_profile", {
     p_registration_id: registrationId,
@@ -477,6 +622,7 @@ export async function addRegistrantAction(
     phone: string | null;
   },
   partySize: number,
+  optionCounts: OptionCounts | null = null,
 ): Promise<RegistrantActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -492,15 +638,24 @@ export async function addRegistrantAction(
       partySize: "Party size must be at least 1.",
     });
   }
+  // #1407. Optional here, but an answer given has to add up.
+  const optionsError = hasOptionAnswer(optionCounts)
+    ? optionCountsError(optionCounts!, partySize)
+    : null;
+  if (optionsError) return actionError("invalid_input", optionsError);
 
-  const { error } = await supabase.from("event_registrations").insert({
-    event_id: eventId,
-    person_id: person.id,
-    name: person.name ?? "Registrant",
-    email: person.email ?? "",
-    phone: person.phone,
-    party_size: partySize,
-  });
+  const { data: created, error } = await supabase
+    .from("event_registrations")
+    .insert({
+      event_id: eventId,
+      person_id: person.id,
+      name: person.name ?? "Registrant",
+      email: person.email ?? "",
+      phone: person.phone,
+      party_size: partySize,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (error.code === "23505") {
@@ -515,6 +670,13 @@ export async function addRegistrantAction(
     );
   }
 
+  const optionsSaveError = await saveStaffOptionCounts(
+    supabase,
+    created.id,
+    optionCounts,
+  );
+  if (optionsSaveError) return optionsSaveError;
+
   revalidatePath("/portal/events");
   return { success: true };
 }
@@ -528,6 +690,7 @@ export async function createWalkInCheckInAction(
     phone: string | null;
   },
   partySize: number,
+  optionCounts: OptionCounts | null = null,
 ): Promise<RegistrantActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -543,16 +706,25 @@ export async function createWalkInCheckInAction(
       partySize: "Party size must be at least 1.",
     });
   }
+  // #1407. Optional here, but an answer given has to add up.
+  const optionsError = hasOptionAnswer(optionCounts)
+    ? optionCountsError(optionCounts!, partySize)
+    : null;
+  if (optionsError) return actionError("invalid_input", optionsError);
 
-  const { error } = await supabase.from("event_registrations").insert({
-    event_id: eventId,
-    person_id: person.id,
-    name: person.name ?? "Walk-in",
-    email: person.email ?? "",
-    phone: person.phone,
-    party_size: partySize,
-    checked_in_at: new Date().toISOString(),
-  });
+  const { data: created, error } = await supabase
+    .from("event_registrations")
+    .insert({
+      event_id: eventId,
+      person_id: person.id,
+      name: person.name ?? "Walk-in",
+      email: person.email ?? "",
+      phone: person.phone,
+      party_size: partySize,
+      checked_in_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (error.code === "23505") {
@@ -567,8 +739,39 @@ export async function createWalkInCheckInAction(
     );
   }
 
+  const optionsSaveError = await saveStaffOptionCounts(
+    supabase,
+    created.id,
+    optionCounts,
+  );
+  if (optionsSaveError) return optionsSaveError;
+
   revalidatePath("/portal/events");
   return { success: true };
+}
+
+/**
+ * The second write of the two staff paths above (#1407). The registration row
+ * is a plain RLS insert and the counts go through a definer function, so the
+ * pair is not atomic -- which is why the sum is checked before the insert,
+ * leaving only a server fault to land here.
+ */
+async function saveStaffOptionCounts(
+  supabase: SupabaseClient,
+  registrationId: string,
+  optionCounts: OptionCounts | null,
+): Promise<ActionFailure | null> {
+  if (!hasOptionAnswer(optionCounts)) return null;
+  const { error } = await supabase.rpc("set_registrant_option_counts", {
+    p_registration_id: registrationId,
+    p_counts: optionCounts!,
+  });
+  if (!error) return null;
+  revalidatePath("/portal/events");
+  return actionError(
+    "server_error",
+    "The registrant was saved, but their options could not be recorded.",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -614,10 +817,11 @@ type RegistrationRow = {
   name: string | null;
   email: string | null;
   person_id: string | null;
+  cancelled_at: string | null;
 };
 
 const REGISTRATION_MESSAGE_SELECT =
-  "id, tenant_id, event_id, name, email, person_id";
+  "id, tenant_id, event_id, name, email, person_id, cancelled_at";
 
 /**
  * Write to one registrant, about the event they registered for.
@@ -658,6 +862,8 @@ export async function sendEventRegistrantMessageAction(input: {
 
   if (error) return { error: RECORD_MESSAGE_ERRORS.FAILED };
   if (!data) return { error: REGISTRANT_MESSAGE_ERRORS.NOT_FOUND };
+  // #1418. A cancelled registration has dropped out of messaging.
+  if (data.cancelled_at) return { error: REGISTRANT_MESSAGE_ERRORS.CANCELLED };
   const toEmail = data.email?.trim();
   if (!toEmail) return { error: REGISTRANT_MESSAGE_ERRORS.NO_EMAIL };
 
@@ -708,6 +914,8 @@ export async function resendEventRegistrationConfirmationAction(
 
   if (error) return { error: RECORD_MESSAGE_ERRORS.FAILED };
   if (!data) return { error: REGISTRANT_MESSAGE_ERRORS.NOT_FOUND };
+  // #1418. A cancelled registration has dropped out of messaging.
+  if (data.cancelled_at) return { error: REGISTRANT_MESSAGE_ERRORS.CANCELLED };
   // The sender answers `skipped` for both of these, which would read to the
   // organizer as "already sent". Say what is actually wrong instead.
   const toEmail = data.email?.trim();
@@ -819,6 +1027,8 @@ export async function sendEventAnnouncementAction(input: {
       .from("event_registrations")
       .select("id, name, email, person_id, checked_in_at")
       .eq("event_id", input.eventId)
+      // #1418. Nobody who cancelled hears about the event again.
+      .is("cancelled_at", null)
       .order("created_at", { ascending: true }),
   ]);
 
@@ -868,4 +1078,82 @@ export async function sendEventAnnouncementAction(input: {
   });
 
   return { success: true, recipients: resolved.recipients.length };
+}
+
+export type CancelRegistrationInput = {
+  registrationId: string;
+  reason: CancellationReason;
+  note: string;
+  /** Email the registrant that it was cancelled. */
+  notify: boolean;
+};
+
+/**
+ * Cancel a registration from the Registrants tab (#1418). The row stays; its
+ * seats, option counts and unsent discount code are released by
+ * `cancel_event_registration()`, which also refuses a checked-in row.
+ */
+export async function cancelRegistrationAction(
+  input: CancelRegistrationInput,
+): Promise<RegistrantActionResult> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return fromGuard("forbidden", guard);
+
+  if (!isCancellationReason(input.reason)) {
+    return actionError(
+      "invalid_input",
+      CANCELLATION_ERRORS.CANCELLATION_REASON_INVALID,
+    );
+  }
+
+  const { error } = await guard.supabase.rpc("cancel_event_registration", {
+    p_registration_id: input.registrationId,
+    p_reason: input.reason,
+    p_note: input.note,
+  });
+  if (error) return cancellationFailure(error.message);
+
+  if (input.notify) {
+    const fallbackOrigin = await getRequestOrigin();
+    const sentBy = guard.user.id;
+    after(async () => {
+      await sendRegistrationCancellationNotice(createSupabaseAdminClient(), {
+        registrationId: input.registrationId,
+        sentBy,
+        fallbackOrigin,
+      });
+    });
+  }
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true };
+}
+
+/**
+ * Undo a cancellation (#1418). Refused where the seats or an option's cap have
+ * been taken since, or where the person has registered again.
+ */
+export async function restoreRegistrationAction(
+  registrationId: string,
+): Promise<RegistrantActionResult> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return fromGuard("forbidden", guard);
+
+  const { error } = await guard.supabase.rpc("restore_event_registration", {
+    p_registration_id: registrationId,
+  });
+  if (error) return cancellationFailure(error.message);
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true };
+}
+
+function cancellationFailure(code: string): ActionFailure {
+  const message = CANCELLATION_ERRORS[code];
+  return message
+    ? actionError("conflict", message)
+    : actionError(
+        "server_error",
+        "Could not update this registration. Please try again.",
+      );
 }

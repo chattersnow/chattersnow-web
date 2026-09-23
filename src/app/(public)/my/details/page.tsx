@@ -6,6 +6,9 @@ import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import type { MyContactDetails } from "@/lib/constituent/contact";
+import { getPublicTenantModules } from "@/lib/page-visibility";
+import { moduleEnabled } from "@/lib/portal/modules";
+import { RIDER_PROFILE_MODULE } from "@/lib/rider-profile";
 import { ContactForm } from "./contact-form";
 import { EmailChangeForm } from "./email-form";
 import { MyPageLayout } from "../my-page-layout";
@@ -68,13 +71,19 @@ export default async function MyDetailsPage() {
   // that is handled once, with a 404.
   if (!details) redirect(MY_PATH_PREFIX);
 
+  // The "What you ride" group is the rider_profile module's (#1408).
+  const modules = await getPublicTenantModules(supabase);
+
   return (
     <MyPageLayout
       current="details"
       title="Your details"
       intro="Keep this current and we will reach you. Everything here is yours to change; the rest of your record is ours to keep."
     >
-      <ContactForm details={details} />
+      <ContactForm
+        details={details}
+        showRider={moduleEnabled(modules, RIDER_PROFILE_MODULE)}
+      />
 
       <Card>
         <CardHeader>

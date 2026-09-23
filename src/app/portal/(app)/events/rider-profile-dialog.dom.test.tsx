@@ -21,6 +21,9 @@ mock.module("./registrants-actions", () => ({
 
 const { RiderProfileDialog } = await import("./rider-profile-dialog");
 
+// The organization's own list (#1408).
+const MOUNTAINS = ["Whistler", "Mount Hood"];
+
 function registrant(
   rider: Partial<NonNullable<EventRegistrant["rider"]>> = {},
 ): EventRegistrant {
@@ -40,9 +43,14 @@ function registrant(
     waiver_accepted_at: null,
     waiver_version: null,
     party_includes_minor: null,
+    adults_only_confirmed_at: null,
+    cancelled_at: null,
+    cancellation_reason: null,
+    cancellation_note: null,
     photo_consent: null,
     photo_consent_at: null,
     photo_consent_text: null,
+    option_counts: [],
     minorContacts: null,
     rider: {
       riding_discipline_at_event: null,
@@ -79,13 +87,14 @@ describe("RiderProfileDialog", () => {
     render(
       <RiderProfileDialog
         registrant={registrant()}
+        mountains={MOUNTAINS}
         open
         onOpenChange={() => {}}
         onSaved={() => {}}
       />,
     );
 
-    await chooseOption(user, "Do they ski or ride?", "Snowboard");
+    await chooseOption(user, "Do they ski or snowboard?", "Snowboard");
 
     expect(
       screen.queryByRole("combobox", { name: "Experience on skis" }),
@@ -95,6 +104,22 @@ describe("RiderProfileDialog", () => {
     ).toBeInTheDocument();
   });
 
+  test("a stored mountain that is not on the list seeds as typed-in", () => {
+    // Removing a mountain from the list never rewrites anybody's answer, so
+    // the dialog has to be able to show one the list no longer has.
+    render(
+      <RiderProfileDialog
+        registrant={registrant({ preferred_mountain: "Camelback" })}
+        mountains={MOUNTAINS}
+        open
+        onOpenChange={() => {}}
+        onSaved={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText("Which mountain?")).toHaveValue("Camelback");
+  });
+
   test("seeds from the person's current profile", () => {
     render(
       <RiderProfileDialog
@@ -102,6 +127,7 @@ describe("RiderProfileDialog", () => {
           riding_discipline: "ski",
           ski_experience_level: "beginner",
         })}
+        mountains={MOUNTAINS}
         open
         onOpenChange={() => {}}
         onSaved={() => {}}
@@ -119,6 +145,7 @@ describe("RiderProfileDialog", () => {
     render(
       <RiderProfileDialog
         registrant={registrant()}
+        mountains={MOUNTAINS}
         open
         onOpenChange={(next) => {
           open = next;
@@ -127,7 +154,7 @@ describe("RiderProfileDialog", () => {
       />,
     );
 
-    await chooseOption(user, "Do they ski or ride?", "Skis");
+    await chooseOption(user, "Do they ski or snowboard?", "Skis");
     await chooseOption(user, "Experience on skis", "Beginner");
     await user.click(
       screen.getByRole("button", { name: "Save rider profile" }),
@@ -154,6 +181,7 @@ describe("RiderProfileDialog", () => {
     render(
       <RiderProfileDialog
         registrant={registrant()}
+        mountains={MOUNTAINS}
         open
         onOpenChange={(next) => {
           open = next;
@@ -162,7 +190,7 @@ describe("RiderProfileDialog", () => {
       />,
     );
 
-    await chooseOption(user, "Do they ski or ride?", "Skis");
+    await chooseOption(user, "Do they ski or snowboard?", "Skis");
     await chooseOption(user, "Experience on skis", "Beginner");
     await user.click(
       screen.getByRole("button", { name: "Save rider profile" }),

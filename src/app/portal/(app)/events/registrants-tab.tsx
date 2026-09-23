@@ -8,14 +8,17 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Eye, Snowflake, Undo2 } from "lucide-react";
+import { Ban, Check, Eye, RotateCcw, Snowflake, Undo2 } from "lucide-react";
 import {
   checkInRegistrantAction,
+  restoreRegistrationAction,
   undoCheckInAction,
   type EventRegistrant,
   type EventRegistrantsData,
 } from "./registrants-actions";
 import { RiderProfileDialog } from "./rider-profile-dialog";
+import { CancelRegistrationDialog } from "./cancel-registration-dialog";
+import { cancellationReasonLabel } from "@/lib/registration-cancellation";
 import {
   REGISTRANT_PARAM,
   RegistrantDetailSheet,
@@ -34,6 +37,7 @@ import {
   hasAnyAttendedBeforeAnswer,
 } from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
+import { formatOptionCounts } from "@/lib/registration-options";
 import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -133,6 +137,12 @@ export function RegistrantsTab({
   const waiverInForce = data?.waiverInForce ?? false;
   // Same default and same reasoning (#599).
   const photoConsentInForce = data?.photoConsentInForce ?? false;
+  // #1407. Null for the events that ask no registration question, which
+  // leaves the tab exactly as it was.
+  const registrationOptions = data?.registrationOptions ?? null;
+  // #1408. The tenant's own list; `?? []` for an older payload, which leaves
+  // "Other" as the one choice rather than a picker with nothing in it.
+  const riderMountains = data?.riderMountains ?? [];
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -143,6 +153,11 @@ export function RegistrantsTab({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
+  // #1418
+  const [cancelTarget, setCancelTarget] = useState<EventRegistrant | null>(
+    null,
+  );
+  const [showCancelled, setShowCancelled] = useState(false);
   const [query, setQuery] = useState("");
 
   // A notification can link straight at one registration (#742's shape). The
@@ -196,7 +211,22 @@ export function RegistrantsTab({
     [refreshAll],
   );
 
+  const handleRestore = useCallback(
+    (registrant: EventRegistrant) => {
+      setPendingId(registrant.id);
+      startTransition(async () => {
+        await runAction(() => restoreRegistrationAction(registrant.id), {
+          success: `Restored ${registrant.name}'s registration.`,
+          onSuccess: refreshAll,
+        });
+        setPendingId(null);
+      });
+    },
+    [refreshAll],
+  );
+
   const list = useMemo(() => registrants ?? [], [registrants]);
+  const cancelledList = useMemo(() => data?.cancelled ?? [], [data]);
   const totalAttending = list.reduce(
     (sum, registrant) => sum + registrant.party_size,
     0,
@@ -300,6 +330,31 @@ export function RegistrantsTab({
         hideBelow: "sm",
         render: (registrant) => registrant.party_size,
       },
+      ...(registrationOptions
+        ? [
+            {
+              key: "options",
+              label: "Options",
+              sortValue: (registrant: EventRegistrant) =>
+                formatOptionCounts(registrant.option_counts),
+              hideBelow: "md",
+              // One line per option, capped: the labels are the tenant's own
+              // sentences and would otherwise widen the table past the screen.
+              cellClassName:
+                "app-muted min-w-40 max-w-56 text-xs whitespace-normal",
+              render: (registrant: EventRegistrant) =>
+                registrant.option_counts.length > 0
+                  ? [...registrant.option_counts]
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((row) => (
+                        <span key={row.label} className="block">
+                          {row.quantity} × {row.label}
+                        </span>
+                      ))
+                  : "—",
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
       {
         key: "created_at",
         label: "Registered",
@@ -399,6 +454,19 @@ export function RegistrantsTab({
                 >
                   {registrant.checked_in_at ? <Undo2 /> : <Check />}
                 </Button>
+                {/* #1418. Not once they are through the door: undo the
+                    check-in first, which the database insists on too. */}
+                {canManage && registrant.checked_in_at === null && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Cancel registration for ${registrant.name}`}
+                    onClick={() => setCancelTarget(registrant)}
+                  >
+                    <Ban />
+                  </Button>
+                )}
               </>
             )}
           </>
@@ -406,13 +474,86 @@ export function RegistrantsTab({
       } satisfies PortalDataTableColumn<EventRegistrant>,
     ],
     [
+      registrationOptions,
       showAttendedBefore,
       showRides,
       mode,
+      canManage,
       isPending,
       pendingId,
       handleToggleCheckIn,
     ],
+  );
+
+  const cancelledColumns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (registrant) => registrant.name,
+        cellClassName: "max-w-xs font-medium",
+        render: (registrant) => (
+          <span className="block truncate" title={registrant.name}>
+            {registrant.name}
+          </span>
+        ),
+      },
+      {
+        key: "party_size",
+        label: "Party size",
+        sortValue: (registrant) => registrant.party_size,
+        hideBelow: "sm",
+        render: (registrant) => registrant.party_size,
+      },
+      {
+        key: "reason",
+        label: "Reason",
+        sortValue: (registrant) => registrant.cancellation_reason,
+        cellClassName: "app-muted max-w-56 whitespace-normal",
+        render: (registrant) => (
+          <>
+            {cancellationReasonLabel(registrant.cancellation_reason) ?? "—"}
+            {registrant.cancellation_note && (
+              <span className="block text-xs">
+                {registrant.cancellation_note}
+              </span>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "cancelled_at",
+        label: "Cancelled",
+        sortValue: (registrant) => registrant.cancelled_at,
+        hideBelow: "md",
+        cellClassName: "app-muted whitespace-nowrap",
+        render: (registrant) => formatDateTime(registrant.cancelled_at),
+      },
+      ...(mode === "edit" && canManage
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right whitespace-nowrap",
+              render: (registrant: EventRegistrant) => (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Restore registration for ${registrant.name}`}
+                  disabled={isPending && pendingId === registrant.id}
+                  onClick={() => handleRestore(registrant)}
+                >
+                  <RotateCcw /> Restore
+                </Button>
+              ),
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+    ],
+    [mode, canManage, isPending, pendingId, handleRestore],
   );
 
   // Only the copy that holds every row may claim to order them; see
@@ -440,6 +581,18 @@ export function RegistrantsTab({
             the difference -- "said" is doing the work. */}
         {showAttendedBefore &&
           ` · ${selfReportedFirstTimers} said it would be their first`}
+        {/* #1407. Per option, against its cap where it has one: the number
+            an organizer orders tickets or gear from. */}
+        {registrationOptions && (
+          <span className="block">
+            {registrationOptions.options
+              .map(
+                (option) =>
+                  `${option.label}: ${option.taken}${option.cap === null ? "" : ` of ${option.cap}`}`,
+              )
+              .join(" · ")}
+          </span>
+        )}
       </>
     );
 
@@ -538,6 +691,36 @@ export function RegistrantsTab({
         </>
       )}
 
+      {/* #1418. Apart from the list, so a cancelled registration is never
+          mistaken for somebody still coming. */}
+      {cancelledList.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <div>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="px-0"
+              aria-expanded={showCancelled}
+              onClick={() => setShowCancelled((shown) => !shown)}
+            >
+              {showCancelled ? "Hide" : "Show"} cancelled (
+              {cancelledList.length})
+            </Button>
+          </div>
+          {showCancelled && (
+            <PortalDataTable
+              columns={cancelledColumns}
+              rows={cancelledList}
+              getRowKey={(registrant) => registrant.id}
+              defaultSort={{ key: "cancelled_at", dir: "desc" }}
+              emptyMessage="No cancelled registrations."
+              shell="bare"
+            />
+          )}
+        </section>
+      )}
+
       {/* Only once something has gone out. An empty card headed
           "Announcements" on every event would be a permanent reminder of a
           feature most events never need. */}
@@ -564,6 +747,7 @@ export function RegistrantsTab({
           orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
           waiverInForce={waiverInForce}
           photoConsentInForce={photoConsentInForce}
+          optionsPrompt={registrationOptions?.prompt ?? null}
           onClosed={() => setDetailId(null)}
           onSent={refreshRegistrants}
         />
@@ -573,10 +757,24 @@ export function RegistrantsTab({
           Rendered as a sibling of the sheet, not inside it: the house pattern
           for a second overlay, and it keeps the sheet standing behind the
           dialog so closing the profile returns you to your place in the list. */}
+      {cancelTarget && (
+        <CancelRegistrationDialog
+          key={cancelTarget.id}
+          registrant={cancelTarget}
+          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setCancelTarget(null);
+          }}
+          onCancelled={refreshAll}
+        />
+      )}
+
       {riderTarget && (
         <RiderProfileDialog
           key={riderTarget.id}
           registrant={riderTarget}
+          mountains={riderMountains}
           open
           onOpenChange={(nextOpen) => {
             if (!nextOpen) setRiderTarget(null);

@@ -8,7 +8,7 @@ const route = publicRead<{ tenant: string; event: string }>(
       await supabase
         .from("public_events")
         .select(
-          "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url",
+          "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url, adults_only",
         )
         .eq("id", params.event)
         .maybeSingle(),
@@ -16,7 +16,7 @@ const route = publicRead<{ tenant: string; event: string }>(
 
     if (!event) throw new ApiError("not_found", "No such published event.");
 
-    const [sponsors, programs] = await Promise.all([
+    const [sponsors, programs, options] = await Promise.all([
       supabase
         .from("public_event_sponsors")
         .select("sponsor_id, name, logo_url, website")
@@ -25,13 +25,32 @@ const route = publicRead<{ tenant: string; event: string }>(
         .from("public_event_programs")
         .select("program_id, name")
         .eq("event_id", params.event),
+      // #1407
+      supabase
+        .from("public_event_registration_options")
+        .select("id, label, prompt, is_full")
+        .eq("event_id", params.event)
+        .order("sort_order", { ascending: true }),
     ]);
+
+    const optionRows = unwrap(options) ?? [];
 
     return {
       event: {
         ...event,
         sponsors: unwrap(sponsors) ?? [],
         programs: unwrap(programs) ?? [],
+        registration_options:
+          optionRows.length > 0 && optionRows[0].prompt
+            ? {
+                prompt: optionRows[0].prompt,
+                options: optionRows.map(({ id, label, is_full }) => ({
+                  id: id as string,
+                  label: label as string,
+                  is_full: is_full === true,
+                })),
+              }
+            : null,
       },
     };
   },

@@ -1,12 +1,20 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { registerForEventAction } from "./event-registration-actions";
-import { RiderProfileForm } from "./rider-profile-form-fields";
+import type { RegistrationStep } from "./registration-step";
+import { RegistrationSteps } from "./registration-steps";
+import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
+import {
+  EMPTY_RIDING,
+  RidingFields,
+  ridingSummaryRows,
+  setRidingFields,
+  type RidingValues,
+} from "./riding-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AttendedBeforeField } from "@/components/attended-before-field";
@@ -16,7 +24,18 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmation-field";
+import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
+import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { waiverAcceptanceLabel } from "@/lib/photo-consent";
+import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
+import {
+  optionCountsError,
+  setOptionCounts,
+  type OptionCounts,
+  type RegistrationOptionsQuestion,
+} from "@/lib/registration-options";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -25,6 +44,7 @@ import {
   type AccountOffer,
 } from "@/components/record-account-offer";
 import type { EventViewerAccount } from "./my-registration";
+import type { PublicRiderProfile } from "@/lib/rider-profile";
 
 /**
  * The anonymous registration form, optionally prefilled from the caller's own
@@ -49,8 +69,12 @@ export function EventRegistrationForm({
   accountOffer = null,
   waiver = null,
   waiverBlock = null,
+  asksAboutMinors = true,
+  adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
+  registrationOptions = null,
+  riderProfile = null,
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -65,11 +89,26 @@ export function EventRegistrationForm({
    * (#686). Posted back so the RPC can refuse a submission made against text
    * that has been republished since it was rendered. Null, and the block
    * below with it, on a tenant that has adopted no waiver -- which is most of
-   * them, and leaves this form exactly as it was.
+   * them, and leaves this form exactly as it was. The title is what the box
+   * names (#1402): an agreement accepted by reference to "the agreement
+   * above" reads less clearly than one accepted by name.
    */
-  waiver?: { version: number } | null;
+  waiver?: { version: number; title: string } | null;
   /** The agreement itself, rendered on the server. */
   waiverBlock?: React.ReactNode;
+  /**
+   * Whether this organization asks about under-18s at registration (#1416).
+   * Off, the question and the contacts it reveals do not render and nothing
+   * about them is sent. On -- the default, and every tenant that has not
+   * turned it off -- is #685's form unchanged.
+   */
+  asksAboutMinors?: boolean;
+  /**
+   * Whether the event is adults only (#1417). On, step 2 asks every registrant
+   * to confirm everyone in their party is 18 or over. The caller turns
+   * `asksAboutMinors` off with it: an 18+ event never asks the question.
+   */
+  adultsOnly?: boolean;
   /**
    * This organization's rule for a party that includes anyone under 18
    * (#685), from `events.minor_accompaniment`. Empty on a tenant that has
@@ -90,10 +129,24 @@ export function EventRegistrationForm({
    * from the registrant's own registration page.
    */
   photoConsent?: string[];
+  /**
+   * The event's registration question (#1407). Null for an event that asks
+   * none, which leaves this form exactly as it was.
+   */
+  registrationOptions?: RegistrationOptionsQuestion | null;
+  /**
+   * The riding questions on step 2 (#1415), and the mountains they offer.
+   * Null -- the default -- on every tenant without the rider_profile module
+   * (#1408), which leaves step 2 "This event" and asks nothing about riding.
+   *
+   * Never prefilled here, even for a signed-in account: this form's reader has
+   * no linked record, and the only other source would be the record a typed
+   * email matches -- which would show anybody's answers to whoever typed it.
+   */
+  riderProfile?: PublicRiderProfile | null;
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
-  const [phone, setPhone] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [pronouns, setPronouns] = useState("");
   // #1259. Starts empty and stays empty unless the registrant picks something:
@@ -107,38 +160,61 @@ export function EventRegistrationForm({
   const [partyIncludesMinor, setPartyIncludesMinor] = useState("");
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
+  // #1417. Unticked, always, for the reason the waiver's box is.
+  const [adultsOnlyConfirmed, setAdultsOnlyConfirmed] = useState(false);
   const [notes, setNotes] = useState("");
+  const [riding, setRiding] = useState<RidingValues>(EMPTY_RIDING);
+  // #1407. Every option starts at nothing: a preselected answer is one the
+  // form gave on their behalf.
+  const [optionCounts, setOptionCountsState] = useState<OptionCounts>({});
   const [company, setCompany] = useState("");
   // Starts unticked, always. A pre-ticked box is not an acceptance, and this
   // is the one control on the form where that matters (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    step: RegistrationStep;
+  } | null>(null);
   // Holds the new registration's id once saved -- both the "did it work?"
-  // flag and the token the rider-profile follow-up needs to authorize itself.
+  // flag and the record the account offer carries through sign-up.
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleSubmit() {
     setError(null);
+
+    if (registrationOptions) {
+      const message = optionCountsError(optionCounts, Number(partySize));
+      if (message) {
+        setError({ message, step: "event" });
+        return;
+      }
+    }
 
     const formData = new FormData();
     formData.set("name", name);
     formData.set("email", email);
-    formData.set("phone", phone);
     formData.set("instagramHandle", instagramHandle);
     formData.set("pronouns", pronouns);
     formData.set("attendedBefore", attendedBefore);
     formData.set("partySize", partySize);
-    formData.set("partyIncludesMinor", partyIncludesMinor);
+    if (asksAboutMinors) {
+      formData.set(MINORS_ASKED_FIELD, "on");
+      formData.set("partyIncludesMinor", partyIncludesMinor);
+    }
     // Only when the answer is yes. A reader who answered yes, filled these in
     // and changed their mind must not leave a guardian's number behind them,
     // and the parser reads them under the same condition.
-    if (partyIncludesMinor === "yes") {
+    if (asksAboutMinors && partyIncludesMinor === "yes") {
       for (const [key, value] of Object.entries(minorContacts)) {
         formData.set(key, value);
       }
     }
+    if (adultsOnly && adultsOnlyConfirmed) {
+      formData.set(ADULTS_ONLY_CONFIRMED_FIELD, "on");
+    }
+    if (riderProfile) setRidingFields(formData, riding);
+    if (registrationOptions) setOptionCounts(formData, optionCounts);
     formData.set("notes", notes);
     formData.set("company", company);
     if (waiver) {
@@ -149,7 +225,7 @@ export function EventRegistrationForm({
     startTransition(async () => {
       const result = await registerForEventAction(eventId, formData);
       if ("error" in result) {
-        setError(result.error);
+        setError({ message: result.error, step: result.step });
         return;
       }
       setRegistrationId(result.registrationId);
@@ -171,14 +247,6 @@ export function EventRegistrationForm({
             </span>
           </AlertDescription>
         </Alert>
-        {/* Two follow-ups want this slot, and the order is decided rather
-            than incidental (#1258): the account offer is the one with a
-            deadline, since the reader is about to close the sheet and the
-            registration it carries is only claimable for a week. The rider
-            profile keeps as long as the person does. Both are skippable in
-            one click, neither is a gate, and if this ever stops reading
-            calmly as two the rider profile moves into the confirmation
-            email rather than becoming a third step. */}
         {accountOffer && (
           <div className="mt-6">
             <RecordAccountOffer
@@ -187,34 +255,41 @@ export function EventRegistrationForm({
             />
           </div>
         )}
-        <RiderProfileForm registrationId={registrationId} />
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <FieldGroup>
-        {account?.email && (
-          // One line, and no more than that. It says which session is filling
-          // the fields in, so a shared browser can correct them; it says
-          // nothing about what the organization knows.
-          <p className="app-muted text-sm">Signed in as {account.email}.</p>
-        )}
-        <RequiredFieldsNote />
-        <Field>
-          <FieldLabel htmlFor="registration-name" required>
-            Name
-          </FieldLabel>
-          <Input
-            id="registration-name"
-            required
-            autoComplete="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </Field>
-        <Field orientation="responsive">
+    <RegistrationSteps
+      error={error}
+      isPending={isPending}
+      onSubmit={handleSubmit}
+      submitVariant="rainbow"
+      eventLegend={riderProfile ? "Your riding" : undefined}
+      about={
+        <>
+          {account?.email && (
+            // One line, and no more than that. It says which session is
+            // filling the fields in, so a shared browser can correct them; it
+            // says nothing about what the organization knows.
+            <p className="app-muted text-sm">Signed in as {account.email}.</p>
+          )}
+          <RequiredFieldsNote />
+          <Field>
+            <FieldLabel htmlFor="registration-name" required>
+              Name
+            </FieldLabel>
+            <Input
+              id="registration-name"
+              required
+              autoComplete="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </Field>
+          {/* No phone number (#1413). The column stays, and staff can still
+              fill it in from the portal; the numbers for a party with anyone
+              under 18 are asked on "This event", as before. */}
           <Field>
             <FieldLabel htmlFor="registration-email" required>
               Email
@@ -228,182 +303,199 @@ export function EventRegistrationForm({
               onChange={(event) => setEmail(event.target.value)}
             />
           </Field>
+          {/* Instagram and pronouns stay here (#1403): they are about the
+              person, and "Your riding" (#1415) is about how they ride. */}
           <Field>
-            <FieldLabel htmlFor="registration-phone">Phone</FieldLabel>
+            <FieldLabel htmlFor="registration-instagram">
+              Instagram handle
+            </FieldLabel>
             <Input
-              id="registration-phone"
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              id="registration-instagram"
+              placeholder="e.g. yourhandle"
+              autoComplete="off"
+              value={instagramHandle}
+              onChange={(event) => setInstagramHandle(event.target.value)}
             />
           </Field>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="registration-instagram">
-            Instagram handle
-          </FieldLabel>
-          <Input
-            id="registration-instagram"
-            placeholder="e.g. yourhandle"
-            autoComplete="off"
-            value={instagramHandle}
-            onChange={(event) => setInstagramHandle(event.target.value)}
+          <PronounsField
+            id="registration-pronouns"
+            value={pronouns}
+            onChange={setPronouns}
           />
-        </Field>
-        <PronounsField
-          id="registration-pronouns"
-          value={pronouns}
-          onChange={setPronouns}
-        />
-        {/* Asked of everyone, unconditionally (#1259). It is not gated on the
-            email matching a directory record and it is not moved into the
-            post-registration step: a question only some people see answers
-            "do you have a record of me?", and a step after the write is one
-            that can be abandoned. Placed with the questions about the person
-            rather than with the ones about this attendance. */}
-        <AttendedBeforeField
-          id="registration-attended-before"
-          value={attendedBefore}
-          onChange={setAttendedBefore}
-        />
-        <Field>
-          <FieldLabel htmlFor="registration-party-size">
-            Number attending
-          </FieldLabel>
-          <Input
-            id="registration-party-size"
-            type="number"
-            min={1}
-            step={1}
-            value={partySize}
-            onChange={(event) => setPartySize(event.target.value)}
+          {/* Asked of everyone, unconditionally (#1259). It is not gated on
+              the email matching a directory record and it is not moved into
+              the post-registration step: a question only some people see
+              answers "do you have a record of me?", and a step after the
+              write is one that can be abandoned. Placed with the questions
+              about the person rather than with the ones about this
+              attendance. */}
+          <AttendedBeforeField
+            id="registration-attended-before"
+            value={attendedBefore}
+            onChange={setAttendedBefore}
           />
-        </Field>
-        {/* With the questions about this attendance rather than about the
-            person, and immediately after the head count it qualifies: "four
-            people" and "one of them is twelve" are one answer in two parts
-            (#685). A field on the form rather than a step after the write,
-            for the reason #1259 gives -- a step after the write is one that
-            can be abandoned, and this is the one answer an organizer has to
-            have before the day. */}
-        <PartyIncludesMinorField
-          id="registration-party-includes-minor"
-          value={partyIncludesMinor}
-          onChange={setPartyIncludesMinor}
-          disabled={isPending}
-        />
-        {partyIncludesMinor === "yes" && (
-          <MinorAccompanimentFields
-            idPrefix="registration"
-            paragraphs={minorAccompaniment}
-            values={minorContacts}
-            onChange={setMinorContacts}
-            disabled={isPending}
-          />
-        )}
-        <Field>
-          <FieldLabel htmlFor="registration-notes">Notes</FieldLabel>
-          <Textarea
-            id="registration-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
-        </Field>
 
-        {/* Honeypot: hidden from sighted/keyboard users, but bots that
-            autofill every field will fill this and get silently rejected
-            server-side. Not type="hidden" -- bots skip those. */}
-        <div className="sr-only" aria-hidden="true">
-          <label htmlFor="registration-company">Company</label>
-          <input
-            id="registration-company"
-            name="company"
-            tabIndex={-1}
-            autoComplete="off"
-            value={company}
-            onChange={(event) => setCompany(event.target.value)}
-          />
-        </div>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <PrivacyNotice surface="eventRegistration" />
-
-        {/* #789's order of accumulation, and since #1376 it is two notices
-            and then the one agreement the form actually takes. A notice
-            belongs with the other notice: both say what happens to what you
-            give us, neither asks for anything back, and putting them together
-            leaves the box beneath them as the only control on the form
-            carrying a real choice. Above the agreement rather than below it,
-            because prose sitting under "I accept" reads as part of what is
-            being accepted -- which is exactly the confusion the two shapes
-            have to avoid (#686). */}
-        <PhotoConsentNotice paragraphs={photoConsent} />
-
-        {/* After the notice and beside the button, which is the order the
-            artwork submission form argues for and for the same reason: the
-            notice is the thing to read first, and the box that carries a real
-            choice belongs next to the button that acts on it.
-
-            Unticked, and `required` rather than a disabled submit, so the
-            browser says which control is missing. The server refuses it
-            independently -- see `accepted_waiver_version()` -- because a
-            client-side `required` is a convenience and never the gate. */}
-        {waiver && (
-          <>
-            {waiverBlock}
-            {/* No `scroll-mb-*` against the pinned submit below (#1375). The
-                thought was that the browser scrolls an unticked required box
-                into view and anchors its bubble there, so the button could
-                cover it -- but `Checkbox` is base-ui, whose real input is a
-                1px `position: fixed` element parked at the viewport corner.
-                That is what constraint validation sees, so nothing scrolls
-                and the bubble never comes near this row. Verified in Chrome:
-                submitting unticked leaves `scrollY` untouched. */}
-            <Field orientation="horizontal">
-              <Checkbox
-                id="registration-waiver"
-                checked={waiverAccepted}
-                onCheckedChange={(next) => setWaiverAccepted(next === true)}
+          {/* Honeypot: hidden from sighted/keyboard users, but bots that
+              autofill every field will fill this and get silently rejected
+              server-side. Not type="hidden" -- bots skip those. On the first
+              step, beside the fields a bot fills first. */}
+          <div className="sr-only" aria-hidden="true">
+            <label htmlFor="registration-company">Company</label>
+            <input
+              id="registration-company"
+              name="company"
+              tabIndex={-1}
+              autoComplete="off"
+              value={company}
+              onChange={(event) => setCompany(event.target.value)}
+            />
+          </div>
+        </>
+      }
+      event={
+        <>
+          <Field>
+            <FieldLabel htmlFor="registration-party-size">
+              Number attending
+            </FieldLabel>
+            <Input
+              id="registration-party-size"
+              type="number"
+              min={1}
+              step={1}
+              value={partySize}
+              onChange={(event) => setPartySize(event.target.value)}
+            />
+          </Field>
+          {/* With the questions about this attendance rather than about the
+              person, and immediately after the head count it qualifies: "four
+              people" and "one of them is twelve" are one answer in two parts
+              (#685). A field on the form rather than a step after the write,
+              for the reason #1259 gives -- a step after the write is one that
+              can be abandoned, and this is the one answer an organizer has to
+              have before the day. */}
+          {asksAboutMinors && (
+            <>
+              <PartyIncludesMinorField
+                id="registration-party-includes-minor"
+                value={partyIncludesMinor}
+                onChange={setPartyIncludesMinor}
                 disabled={isPending}
-                required
               />
-              <FieldLabel htmlFor="registration-waiver" required>
-                I have read the agreement above and I accept it
-              </FieldLabel>
-            </Field>
-          </>
-        )}
+              {partyIncludesMinor === "yes" && (
+                <MinorAccompanimentFields
+                  idPrefix="registration"
+                  paragraphs={minorAccompaniment}
+                  values={minorContacts}
+                  onChange={setMinorContacts}
+                  disabled={isPending}
+                />
+              )}
+            </>
+          )}
+          {adultsOnly && (
+            <AdultsOnlyConfirmationField
+              id="registration-adults-only"
+              checked={adultsOnlyConfirmed}
+              onChange={setAdultsOnlyConfirmed}
+              disabled={isPending}
+            />
+          )}
+          {riderProfile && (
+            <RidingFields
+              idPrefix="registration"
+              mountains={riderProfile.mountains}
+              values={riding}
+              onChange={setRiding}
+              disabled={isPending}
+            />
+          )}
+          {registrationOptions && (
+            <RegistrationOptionCountsField
+              idPrefix="registration"
+              question={registrationOptions}
+              counts={optionCounts}
+              onChange={setOptionCountsState}
+              partySize={Number(partySize)}
+              disabled={isPending}
+            />
+          )}
+          <Field>
+            <FieldLabel htmlFor="registration-notes">Notes</FieldLabel>
+            <Textarea
+              id="registration-notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </Field>
+        </>
+      }
+      summary={{
+        about: [
+          { label: "Name", value: name.trim() },
+          { label: "Email", value: email.trim() },
+          ...(instagramHandle.trim()
+            ? [{ label: "Instagram", value: instagramHandle.trim() }]
+            : []),
+          ...(pronouns.trim()
+            ? [{ label: "Pronouns", value: pronouns.trim() }]
+            : []),
+          ...attendedBeforeRows(attendedBefore),
+        ],
+        event: eventSummaryRows({
+          partySize,
+          partyIncludesMinor,
+          minorContacts,
+          adultsOnlyConfirmed: adultsOnly && adultsOnlyConfirmed,
+          riding: riderProfile ? ridingSummaryRows(riding) : [],
+          registrationOptions,
+          optionCounts,
+          notes,
+        }),
+      }}
+      review={
+        <>
+          <PrivacyNotice surface="eventRegistration" />
 
-        {/* Not "Register": that is the disclosure's trigger above the form
-            (#1256), and two buttons of the same name in one section are one
-            for the reader to disambiguate and one for a test to pick the
-            wrong one of.
+          {/* #789's order of accumulation, and since #1376 it is two notices
+              and then the one agreement the form actually takes. A notice
+              belongs with the other notice: both say what happens to what you
+              give us, neither asks for anything back, and putting them
+              together leaves the box beneath them as the only control on the
+              form carrying a real choice. Above the agreement rather than
+              below it, because prose sitting under "I accept" reads as part
+              of what is being accepted -- which is exactly the confusion the
+              two shapes have to avoid (#686). */}
+          <PhotoConsentNotice paragraphs={photoConsent} />
 
-            Sticky on the button itself, not on a wrapper bar (#1375). A
-            sticky element is bounded by its containing block, so this only
-            travels because its containing block is the tall `FieldGroup`
-            spanning the whole form -- putting it inside any wrapper of its
-            own shrinks that box to the button and it stops pinning. It is
-            also the last child, so nothing in flow sits below it and it
-            settles back into place, `gap-5` above it, at full scroll. The
-            `rainbow` background is opaque, so it needs no bar, border or
-            blur to keep text from reading through it. The `env()` resolves
-            to 0 until a layout exports `viewport-fit=cover`. */}
-        <Button
-          type="submit"
-          variant="rainbow"
-          disabled={isPending}
-          className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-10 w-full shadow-lg sm:w-fit"
-        >
-          {isPending ? "Registering..." : "Complete registration"}
-        </Button>
-      </FieldGroup>
-    </form>
+          {/* After the notice and beside the button, which is the order the
+              artwork submission form argues for and for the same reason: the
+              notice is the thing to read first, and the box that carries a
+              real choice belongs next to the button that acts on it.
+
+              Unticked, and `required` rather than a disabled submit, so the
+              form can say which control is missing. The server refuses it
+              independently -- see `accepted_waiver_version()` -- because a
+              client-side `required` is a convenience and never the gate. */}
+          {waiver && (
+            <>
+              {waiverBlock}
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="registration-waiver"
+                  checked={waiverAccepted}
+                  onCheckedChange={(next) => setWaiverAccepted(next === true)}
+                  disabled={isPending}
+                  required
+                />
+                <FieldLabel htmlFor="registration-waiver" required>
+                  {waiverAcceptanceLabel(waiver.title, photoConsent)}
+                </FieldLabel>
+              </Field>
+            </>
+          )}
+        </>
+      }
+    />
   );
 }

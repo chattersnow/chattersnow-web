@@ -41,7 +41,8 @@ export async function getUpcomingSummary(
     supabase
       .from("event_registrations")
       .select("party_size, events!inner(starts_at)")
-      .gte("events.starts_at", nowIso),
+      .gte("events.starts_at", nowIso)
+      .is("cancelled_at", null),
     supabase
       .from("event_volunteers")
       .select("id, events!inner(starts_at)")

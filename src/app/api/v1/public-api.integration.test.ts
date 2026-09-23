@@ -491,17 +491,34 @@ describe("writes", () => {
     expect(registered.status).toBe(201);
     const { id } = (await registered.json()) as { id: string };
 
-    const profile = await postRiderProfile(
-      apiRequest(`/api/v1/t/${SLUG}/rider-profile`, {
-        method: "POST",
-        body: JSON.stringify({
-          registration_id: id,
-          riding_discipline: "ski",
-          ski_experience_level: "intermediate",
+    const riderProfile = () =>
+      postRiderProfile(
+        apiRequest(`/api/v1/t/${SLUG}/rider-profile`, {
+          method: "POST",
+          body: JSON.stringify({
+            registration_id: id,
+            riding_discipline: "ski",
+            ski_experience_level: "intermediate",
+          }),
         }),
-      }),
-      tenantParams(),
+        tenantParams(),
+      );
+
+    // A tenant provisioned on any plan starts without the rider_profile
+    // add-on (#1408), and a section it does not offer is a 404.
+    expect((await riderProfile()).status).toBe(404);
+
+    await must(
+      service
+        .from("tenant_modules")
+        .upsert(
+          { tenant_id: tenantId, module_key: "rider_profile", enabled: true },
+          { onConflict: "tenant_id,module_key" },
+        ),
+      "enable rider_profile",
     );
+
+    const profile = await riderProfile();
 
     expect(profile.status).toBe(201);
     expect(await profile.json()).toEqual({ saved: true });

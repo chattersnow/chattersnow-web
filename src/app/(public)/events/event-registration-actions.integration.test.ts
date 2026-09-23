@@ -52,6 +52,7 @@ const { registerForEventAction } = await import("./event-registration-actions");
  */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("minorsAsked", "on");
   fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
@@ -508,6 +509,7 @@ describe("registerForEventAction (integration)", () => {
 
     expect(result).toEqual({
       error: "Registration is not open for this event.",
+      step: "review",
     });
     expect(await countEventRegistrations(id, email)).toBe(0);
   });
@@ -526,6 +528,7 @@ describe("registerForEventAction (integration)", () => {
 
     expect(result).toEqual({
       error: "The registration deadline for this event has passed.",
+      step: "review",
     });
   });
 
@@ -549,7 +552,10 @@ describe("registerForEventAction (integration)", () => {
         partySize: "1",
       }),
     );
-    expect(second).toEqual({ error: "This event has reached capacity." });
+    expect(second).toEqual({
+      error: "This event has reached capacity.",
+      step: "review",
+    });
     expect(await countEventRegistrations(id, secondEmail)).toBe(0);
   });
 
@@ -570,6 +576,7 @@ describe("registerForEventAction (integration)", () => {
     );
     expect(second).toEqual({
       error: "This email is already registered for this event.",
+      step: "about",
     });
     expect(await countEventRegistrations(id, email)).toBe(1);
   });
@@ -584,7 +591,10 @@ describe("registerForEventAction (integration)", () => {
       formData({ name: "Jamie Rivera", email }),
     );
 
-    expect(result).toEqual({ error: "This event could not be found." });
+    expect(result).toEqual({
+      error: "This event could not be found.",
+      step: "review",
+    });
   });
 
   test("silently no-ops when the honeypot field is filled", async () => {
@@ -624,6 +634,7 @@ describe("registerForEventAction (integration)", () => {
     );
     expect(limited).toEqual({
       error: "Too many attempts — please try again in a few minutes.",
+      step: "review",
     });
   });
 
@@ -736,7 +747,10 @@ describe("registerForEventAction under concurrency", () => {
     const refused = results.filter((result) => "error" in result);
     expect(seated).toHaveLength(2);
     for (const result of refused) {
-      expect(result).toEqual({ error: "This event has reached capacity." });
+      expect(result).toEqual({
+        error: "This event has reached capacity.",
+        step: "review",
+      });
     }
 
     // The invariant, asserted against the table rather than the return

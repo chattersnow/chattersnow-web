@@ -41,6 +41,22 @@ export type EventRow = {
   // load events; an event may count toward any number of programs.
   program_ids: string[];
   flier_url: string | null;
+  /**
+   * The event's registration question (#1407). Loaded by the event detail
+   * page only, which is where the Planning tab edits it; absent elsewhere.
+   */
+  registration_options_prompt?: string | null;
+  /**
+   * Adults only (18+) (#1417). Loaded by the event detail page, where the
+   * Planning tab edits it; absent elsewhere.
+   */
+  adults_only?: boolean;
+  registration_options?: {
+    id: string;
+    label: string;
+    cap: number | null;
+    sort_order: number;
+  }[];
 };
 
 const STATUS_STYLES: Record<string, StatusTone> = {

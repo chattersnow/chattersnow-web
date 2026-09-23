@@ -20,8 +20,14 @@
 // exactly one box and that it is the waiver's.
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
-import { modal } from "./helpers/dialog";
-import { sayNoMinors } from "./helpers/registration";
+import {
+  registrationForm,
+  completeRegistration,
+  continueToReview,
+  sayNoMinors,
+  answerRiding,
+  continueToThisEvent,
+} from "./helpers/registration";
 
 const SLOT_KEY = "events.photo_consent";
 
@@ -66,10 +72,11 @@ async function openRegistrationForm(page: import("@playwright/test").Page) {
   await page.goto("/events");
   const card = page.locator('a[href^="/events/e/"]').first();
   await card.click();
-  const dialog = modal(page);
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Register", exact: true }).click();
-  return dialog;
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Register", exact: true }).click();
+  const registration = registrationForm(page);
+  await expect(registration).toBeVisible();
+  return registration;
 }
 
 test.describe("photos and video at registration", () => {
@@ -84,38 +91,58 @@ test.describe("photos and video at registration", () => {
   }) => {
     await writeScope();
 
-    const dialog = await openRegistrationForm(page);
+    const registration = await openRegistrationForm(page);
+    await registration.getByLabel("Name").fill("Photo Reader");
+    await registration
+      .getByLabel("Email")
+      .fill(`photo-reader-${Date.now()}@example.test`);
+    await continueToThisEvent(registration);
+    await sayNoMinors(registration);
+    await answerRiding(registration);
+    // The notices are on the review step (#1413).
+    await continueToReview(registration);
 
-    const heading = dialog.getByRole("heading", { name: "Photos and video" });
+    const heading = registration.getByRole("heading", {
+      name: "Photos and video",
+    });
     await expect(heading).toBeVisible();
     // The paragraphs themselves are on screen, not a link to them: there is no
     // /photo-consent route, deliberately.
-    await expect(dialog.getByText(SCOPE[0])).toBeVisible();
-    await expect(dialog.getByRole("link", { name: /photo/i })).toHaveCount(0);
+    await expect(registration.getByText(SCOPE[0])).toBeVisible();
+    await expect(
+      registration.getByRole("link", { name: /photo/i }),
+    ).toHaveCount(0);
+    // The first paragraph always shows; the rest fold (#1403).
+    await expect(registration.getByText(SCOPE[1])).toBeHidden();
+    await registration.getByText("More about photos").click();
+    await expect(registration.getByText(SCOPE[1])).toBeVisible();
 
     // #1376's whole point, in the assembled form. Nothing about photos can be
     // ticked -- not a consent box and not a decline box either, which was
     // offered and refused.
     await expect(
-      dialog.getByRole("checkbox", { name: /photograph/i }),
+      registration.getByRole("checkbox", { name: /photograph/i }),
     ).toHaveCount(0);
+    // Nothing of the platform's own under the paragraphs either.
     await expect(
-      dialog.getByText(/There is no box to tick here/),
-    ).toBeVisible();
+      registration.getByText(/There is no box to tick here/),
+    ).toHaveCount(0);
   });
 
   test("registers, and the row records no objection", async ({ page }) => {
     await writeScope();
 
     const email = `photo-notice-${Date.now()}@example.test`;
-    const dialog = await openRegistrationForm(page);
-    await dialog.getByLabel("Name").fill("Photo Notice");
-    await dialog.getByLabel("Email").fill(email);
-    await sayNoMinors(dialog);
-    await dialog.getByRole("button", { name: "Complete registration" }).click();
+    const registration = await openRegistrationForm(page);
+    await registration.getByLabel("Name").fill("Photo Notice");
+    await registration.getByLabel("Email").fill(email);
+    await continueToThisEvent(registration);
+    await sayNoMinors(registration);
+    await answerRiding(registration);
+    await completeRegistration(registration);
 
     await expect(
-      dialog.getByText(/You're registered|registered/i).first(),
+      registration.getByText(/You're registered|registered/i).first(),
     ).toBeVisible();
 
     // Null is the resting state: no objection on record, agreement implied by
@@ -138,17 +165,37 @@ test.describe("photos and video at registration", () => {
   }) => {
     await writeScope();
 
-    const dialog = await openRegistrationForm(page);
-    await dialog.getByLabel(/Is anyone in your party under 18\?/).click();
+    const registration = await openRegistrationForm(page);
+    await registration.getByLabel("Name").fill("Photo Guardian");
+    await registration
+      .getByLabel("Email")
+      .fill(`photo-guardian-${Date.now()}@example.test`);
+    // The question and its contacts are on "This event" (#1413); the contacts
+    // are required once the answer is yes, so they are filled to move on.
+    await continueToThisEvent(registration);
+    await registration.getByLabel(/Is anyone in your party under 18\?/).click();
     await page.getByRole("option", { name: "Yes", exact: true }).click();
+    await expect(registration.getByText(/parent or guardian/i)).toHaveCount(0);
+    await registration
+      .getByLabel(/Accompanying adult's name/)
+      .fill("Pat Guardian");
+    await registration
+      .getByLabel(/Accompanying adult's mobile/)
+      .fill("555-0101");
+    await registration
+      .getByLabel(/Emergency contact's name/)
+      .fill("Sam Guardian");
+    await registration.getByLabel(/Emergency contact's phone/).fill("555-0102");
+    await answerRiding(registration);
+    await continueToReview(registration);
 
     await expect(
-      dialog.getByRole("heading", { name: "Photos and video" }),
+      registration.getByRole("heading", { name: "Photos and video" }),
     ).toBeVisible();
     await expect(
-      dialog.getByRole("checkbox", { name: /photograph/i }),
+      registration.getByRole("checkbox", { name: /photograph/i }),
     ).toHaveCount(0);
-    await expect(dialog.getByText(/parent or guardian/i)).toHaveCount(0);
+    await expect(registration.getByText(/parent or guardian/i)).toHaveCount(0);
   });
 
   // The state almost every tenant is in, and the one that must never break:
@@ -157,16 +204,13 @@ test.describe("photos and video at registration", () => {
   test("says nothing for an organization that has written no paragraphs", async ({
     page,
   }) => {
-    const dialog = await openRegistrationForm(page);
+    const registration = await openRegistrationForm(page);
 
     await expect(
-      dialog.getByRole("checkbox", { name: /photograph/i }),
+      registration.getByRole("checkbox", { name: /photograph/i }),
     ).toHaveCount(0);
     await expect(
-      dialog.getByRole("heading", { name: "Photos and video" }),
+      registration.getByRole("heading", { name: "Photos and video" }),
     ).toHaveCount(0);
-    await expect(dialog.getByText(/There is no box to tick here/)).toHaveCount(
-      0,
-    );
   });
 });

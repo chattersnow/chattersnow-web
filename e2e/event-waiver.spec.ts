@@ -1,6 +1,6 @@
-// Issue #686: an organization's participant agreement, shown in full where it
-// is accepted rather than behind a link, and recorded against the registration
-// with the version that was on screen.
+// Issue #686: an organization's participant agreement, recorded against the
+// registration with the version that was on screen. Since #1402 it is shown as
+// its title and summary beside the box, with the full text in a sheet.
 //
 // The seeded tenant deliberately has no waiver -- the platform ships no text
 // for one, and e2e/legal.spec.ts asserts the state of a tenant that has adopted
@@ -10,8 +10,14 @@
 // e2e/events.spec.ts.
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
-import { modal } from "./helpers/dialog";
-import { sayNoMinors } from "./helpers/registration";
+import {
+  registrationForm,
+  completeRegistration,
+  continueToReview,
+  sayNoMinors,
+  answerRiding,
+  continueToThisEvent,
+} from "./helpers/registration";
 
 const PUBLICATION_KEY = "legal_publication.waiver";
 const SLOT_KEY = "legal.waiver";
@@ -91,10 +97,11 @@ async function openRegistrationForm(page: import("@playwright/test").Page) {
   await page.goto("/events");
   const card = page.locator('a[href^="/events/e/"]').first();
   await card.click();
-  const dialog = modal(page);
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Register", exact: true }).click();
-  return dialog;
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Register", exact: true }).click();
+  const registration = registrationForm(page);
+  await expect(registration).toBeVisible();
+  return registration;
 }
 
 test.describe("the participant agreement at registration", () => {
@@ -104,37 +111,57 @@ test.describe("the participant agreement at registration", () => {
     await withdrawWaiver();
   });
 
-  test("is shown in full, with an unticked box, and recorded when accepted", async ({
+  test("is summarised, opens in full, and is recorded when accepted", async ({
     page,
   }) => {
     await adoptWaiver();
 
-    const dialog = await openRegistrationForm(page);
+    const registration = await openRegistrationForm(page);
+    await registration.getByLabel("Name").fill("Waiver Tester");
+    await registration
+      .getByLabel("Email")
+      .fill(`waiver-${Date.now()}@example.test`);
+    await continueToThisEvent(registration);
+    await sayNoMinors(registration);
+    await answerRiding(registration);
+    // The agreement is on the review step (#1413).
+    await continueToReview(registration);
 
-    // In full: the body of the agreement is on screen, not just its name.
+    // The summary where the box is (#1402); the body behind the button.
     await expect(
-      dialog.getByText(
-        "Snow sports are dangerous and people are seriously hurt doing them.",
-      ),
+      registration.getByText("Please read this before you register."),
     ).toBeVisible();
+    const body =
+      "Snow sports are dangerous and people are seriously hurt doing them.";
+    await expect(registration.getByText(body)).toHaveCount(0);
 
-    const box = dialog.getByRole("checkbox", { name: /I have read the/ });
+    // In full, one tap away: every word, in a sheet over the registration.
+    await registration
+      .getByRole("button", { name: "Read the full agreement" })
+      .click();
+    const fullText = page.getByRole("dialog", { name: "Participant Waiver" });
+    await expect(fullText.getByText(body)).toBeVisible();
+    await fullText
+      .getByRole("button", { name: "Back to registration" })
+      .click();
+    await expect(fullText).toBeHidden();
+
+    const box = registration.getByRole("checkbox", {
+      name: "I have read and accept the Participant Waiver",
+    });
     await expect(box).not.toBeChecked();
 
     // And the exact version is reachable as its own page, which is what the
     // stored pointer resolves to.
     await expect(
-      dialog.getByRole("link", { name: /open this version/i }),
+      registration.getByRole("link", { name: /open this version/i }),
     ).toHaveAttribute("href", "/waiver?version=1");
 
-    await dialog.getByLabel("Name").fill("Waiver Tester");
-    await dialog.getByLabel("Email").fill(`waiver-${Date.now()}@example.test`);
     await box.check();
-    await sayNoMinors(dialog);
-    await dialog.getByRole("button", { name: "Complete registration" }).click();
+    await completeRegistration(registration);
 
     await expect(
-      dialog.getByText(/You're registered|registered/i).first(),
+      registration.getByText(/You're registered|registered/i).first(),
     ).toBeVisible();
   });
 
@@ -143,20 +170,22 @@ test.describe("the participant agreement at registration", () => {
   }) => {
     await adoptWaiver();
 
-    const dialog = await openRegistrationForm(page);
-    await dialog.getByLabel("Name").fill("Waiver Refuser");
-    await dialog
+    const registration = await openRegistrationForm(page);
+    await registration.getByLabel("Name").fill("Waiver Refuser");
+    await registration
       .getByLabel("Email")
       .fill(`waiver-refused-${Date.now()}@example.test`);
     // Answered, so the box is unambiguously what stops this submission.
-    await sayNoMinors(dialog);
-    await dialog.getByRole("button", { name: "Complete registration" }).click();
+    await continueToThisEvent(registration);
+    await sayNoMinors(registration);
+    await answerRiding(registration);
+    await completeRegistration(registration);
 
     // Still on the form. The browser's own `required` stops it here; the RPC
     // refuses the same submission independently, which the integration tests
     // cover and a browser cannot reach.
     await expect(
-      dialog.getByRole("checkbox", { name: /I have read the/ }),
+      registration.getByRole("checkbox", { name: /I have read and accept/ }),
     ).toBeVisible();
   });
 
@@ -194,9 +223,9 @@ test.describe("the participant agreement at registration", () => {
         .getByRole("link", { name: "Participant Waiver" }),
     ).toHaveCount(0);
 
-    const dialog = await openRegistrationForm(page);
+    const registration = await openRegistrationForm(page);
     await expect(
-      dialog.getByRole("checkbox", { name: /I have read the/ }),
+      registration.getByRole("checkbox", { name: /I have read and accept/ }),
     ).toHaveCount(0);
   });
 });

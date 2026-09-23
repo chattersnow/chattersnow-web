@@ -86,11 +86,14 @@ export function MyEntry({
   primary,
   secondary,
   status,
+  action,
 }: {
   primary: ReactNode;
   secondary?: ReactNode;
   /** A `MyStatus`, where the record has somewhere to be. */
   status?: ReactNode;
+  /** Something the person can do about the record, under it. */
+  action?: ReactNode;
 }) {
   return (
     <li className="border-b border-[var(--line)] pb-3 last:border-0 last:pb-0">
@@ -101,6 +104,7 @@ export function MyEntry({
       {secondary && (
         <p className="app-muted mt-1 leading-relaxed">{secondary}</p>
       )}
+      {action && <div className="mt-2">{action}</div>}
     </li>
   );
 }

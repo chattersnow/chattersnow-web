@@ -37,6 +37,9 @@ import {
   UNCATEGORIZED_LABEL,
 } from "@/lib/inventory";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type InventoryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -68,6 +71,11 @@ export default async function InventoryPage({
   const conditionFilter = raw("condition") || "all";
   const statusFilter = raw("status") || "all";
   const intendedUseFilter = raw("intendedUse") || "all";
+  // One item, with its sheet open: where a scanned tag lands (#1420, the
+  // /portal/t/<code> resolver). Anything but a uuid is ignored rather than
+  // sent to Postgres to fail the cast.
+  const itemParam = raw("item") ?? "";
+  const itemFilter = UUID_PATTERN.test(itemParam) ? itemParam : "";
 
   const sortParam = raw("sort");
   const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "description";
@@ -123,6 +131,7 @@ export default async function InventoryPage({
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
   if (intendedUseFilter !== "all")
     query = query.eq("intended_use", intendedUseFilter);
+  if (itemFilter) query = query.eq("id", itemFilter);
 
   const { offset, to } = pageRange(page, perPage);
   const { data: items, count } = await query
@@ -193,10 +202,29 @@ export default async function InventoryPage({
     }
   }
 
+  // The asset-tag code for each item on this page (#1420), for its sheet and
+  // its label. Read beside the view rather than embedded in it, because
+  // PostgREST embeds through a foreign key, and a view has none.
+  const assetTagByItemId = new Map<string, string>();
+  if ((items ?? []).length > 0) {
+    const { data: tags } = await supabase
+      .from("inventory_item_tags")
+      .select("item_id, value")
+      .eq("kind", "asset_tag")
+      .in(
+        "item_id",
+        (items ?? []).map((item) => item.id),
+      );
+    for (const tag of tags ?? []) {
+      if (tag.item_id) assetTagByItemId.set(tag.item_id, tag.value);
+    }
+  }
+
   const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => {
     const hold = holdByItemId.get(item.id);
     return {
       ...item,
+      assetTag: assetTagByItemId.get(item.id) ?? null,
       holdRequester: hold?.requester ?? null,
       holdNotes: hold?.notes ?? null,
       holdRequest: hold?.request ?? null,
@@ -210,6 +238,7 @@ export default async function InventoryPage({
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (intendedUseFilter !== "all")
     filterParams.set("intendedUse", intendedUseFilter);
+  if (itemFilter) filterParams.set("item", itemFilter);
   // On filterParams rather than in each href, so sorting and paging both
   // carry the reader's choice -- including the sort links the table builds
   // from `filterQueryString` below.
@@ -240,7 +269,8 @@ export default async function InventoryPage({
     categoryFilter !== "all" ||
     conditionFilter !== "all" ||
     statusFilter !== "all" ||
-    intendedUseFilter !== "all";
+    intendedUseFilter !== "all" ||
+    !!itemFilter;
   const activeFilterCount = [
     categoryFilter !== "all",
     conditionFilter !== "all",
@@ -264,6 +294,15 @@ export default async function InventoryPage({
   // Named in the toolbar rather than hidden behind the Filters count, so a
   // partially filtered table says why it's short.
   const appliedFilters: ActiveFilter[] = [];
+  if (itemFilter) {
+    appliedFilters.push({
+      param: "item",
+      label: "Item",
+      value:
+        itemsWithHolds.find((item) => item.id === itemFilter)?.description ??
+        "Not found",
+    });
+  }
   if (search) {
     appliedFilters.push({ param: "search", label: "Search", value: search });
   }
@@ -465,6 +504,7 @@ export default async function InventoryPage({
             condition: conditionFilter,
             status: statusFilter,
             intendedUse: intendedUseFilter,
+            item: itemFilter,
             sort,
             dir,
           }}
@@ -478,6 +518,7 @@ export default async function InventoryPage({
             dir={dir}
             filterQueryString={filterParams.toString()}
             hasActiveFilters={hasActiveFilters}
+            openItemId={itemFilter || null}
           />
         </div>
       </InventoryViewProvider>

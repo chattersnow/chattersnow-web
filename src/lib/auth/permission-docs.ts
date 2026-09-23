@@ -59,7 +59,10 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   events: {
     view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18. Also what the Calendar reads to show events alongside calendar items.",
     manage:
-      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen.",
+      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page.",
+    notes: [
+      "A registrant cancels their own registration from their account or the event page with no grant at all, until the event starts. That path reaches only their own registration and records the reason as can't attend; staff cancel, with a reason, and undo from the Registrants tab at Manage.",
+    ],
     excludes: [
       {
         key: "event_expenses",
@@ -145,6 +148,23 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
       },
     ],
   },
+  rider_profiles: {
+    view: "See how a person skis or snowboards, their experience level and home mountain, wherever the surrounding screen is already open to you: the Rides column and rider block on an event's registrants (which also need Events at Manage), the person record, and the Beginner participants figure on an event's Impact card and the program impact report.",
+    manage:
+      "Edit those answers — at the door from an event's registrants, and on the person form — and edit the list of mountains the rider profile offers, from the Mountains button on the Events page.",
+    excludes: [
+      {
+        key: "events",
+        covers: "the registrants list the door dialog opens from",
+      },
+      { key: "people", covers: "the rest of a person's record" },
+    ],
+    notes: [
+      "Belongs to the Rider Profile module, which is off unless the platform turns it on for an organization. Without it this row grants nothing at any level, and the rider questions, columns and figures do not appear anywhere.",
+      "Seeded from each role's existing access so nothing changed when it arrived: Manage where the role managed Events or People, View where it could see Events, People or Impact tracking.",
+      "Deleting a rider profile on request is not gated on this: it stays with People or Events at Manage, so a deletion request can always be honoured.",
+    ],
+  },
   artwork_submissions: {
     view: "Open the Artwork section: the open calls for community artwork and the submissions that have come in.",
     manage:
@@ -173,9 +193,9 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
 
   // ------------------------------------------------------------- Inventory
   inventory: {
-    view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records.",
+    view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records, and print the labels of items that already have a tag code.",
     manage:
-      "Edit the item catalog and categories, and record, correct and delete donation intake and distribution movements.",
+      "Edit the item catalog and categories, give items their tag codes, and record, correct and delete donation intake and distribution movements.",
     excludes: [
       { key: "inventory_reports", covers: "valuation and reporting" },
       {

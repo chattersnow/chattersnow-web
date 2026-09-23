@@ -33,12 +33,17 @@ const registrants: EventRegistrant[] = [
     // #685. The row that carries the flag, so the badge has something to
     // render and the other row proves it renders on that one alone.
     party_includes_minor: true,
+    adults_only_confirmed_at: null,
+    cancelled_at: null,
+    cancellation_reason: null,
+    cancellation_note: null,
     // #599. The row that declined, so the "No photos" badge has something to
     // render and the other row proves it renders on that one alone. Declining
     // is the notable state here, which is the inverse of the minors flag above.
     photo_consent: false,
     photo_consent_at: "2026-08-01T12:00:00Z",
     photo_consent_text: "We use photos on our site and socials.",
+    option_counts: [],
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -74,11 +79,16 @@ const registrants: EventRegistrant[] = [
     waiver_accepted_at: null,
     waiver_version: null,
     party_includes_minor: false,
+    adults_only_confirmed_at: null,
+    cancelled_at: null,
+    cancellation_reason: null,
+    cancellation_note: null,
     // Granted, which renders nothing: the badge is for the decline, and
     // "agreed" on every other row would be noise at the door (#599).
     photo_consent: true,
     photo_consent_at: "2026-08-01T12:05:00Z",
     photo_consent_text: "We use photos on our site and socials.",
+    option_counts: [],
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",
@@ -119,10 +129,15 @@ const undoCheckInActionMock = mock<(id: string) => Promise<ActionResult>>(
   async () => ({ success: true }),
 );
 
+const restoreRegistrationActionMock = mock<
+  (id: string) => Promise<ActionResult>
+>(async () => ({ success: true }));
+
 mock.module("./registrants-actions", () => ({
   ...RegistrantsActions,
   checkInRegistrantAction: checkInRegistrantActionMock,
   undoCheckInAction: undoCheckInActionMock,
+  restoreRegistrationAction: restoreRegistrationActionMock,
 }));
 
 const toastErrorMock = mock<(message: string) => string>(() => "");
@@ -155,10 +170,13 @@ function payload(
 ): EventRegistrantsData {
   return {
     registrants,
+    cancelled: [],
     messages: NO_RECORD_MESSAGES,
     messaging: null,
     waiverInForce: false,
+    registrationOptions: null,
     photoConsentInForce: false,
+    riderMountains: null,
     ...overrides,
   };
 }
@@ -221,6 +239,32 @@ describe("RegistrantsTab", () => {
     // Alex now rides both at advanced, but was a snowboard beginner on the day.
     expect(screen.getByText("Snowboard · Beginner")).toBeInTheDocument();
     expect(screen.queryByText(/Both/)).toBeNull();
+  });
+
+  test("no Rides column where nobody may see rider answers", async () => {
+    // What listEventRegistrantsAction returns on a tenant without the
+    // rider_profile module (#1408): every registrant's `rider` is null.
+    const base = slices();
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="edit"
+        {...base}
+        registrants={{
+          ...base.registrants,
+          data: payload({
+            registrants: registrants.map((row) => ({ ...row, rider: null })),
+          }),
+        }}
+      />,
+    );
+    await screen.findByText("Alex Chen");
+
+    expect(screen.queryByText("Rides")).toBeNull();
+    expect(screen.queryByText("Snowboard · Beginner")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Rider profile for/ }),
+    ).toBeNull();
   });
 
   test("view mode hides check-in controls", async () => {
@@ -558,5 +602,83 @@ describe("RegistrantsTab", () => {
 
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.queryByText("No photos")).toBeNull();
+  });
+});
+
+describe("cancelled registrations (#1418)", () => {
+  const manager = {
+    orgName: "Chatter",
+    replyTo: null,
+    orgEmailEnabled: true,
+  };
+
+  function managerSlices(overrides: Partial<EventRegistrantsData> = {}) {
+    const base = slices();
+    return {
+      ...base,
+      registrants: {
+        ...base.registrants,
+        data: payload({ messaging: manager, ...overrides }),
+      },
+    };
+  }
+
+  test("a manager can cancel a registration that is not checked in", async () => {
+    render(<RegistrantsTab capacity={null} mode="edit" {...managerSlices()} />);
+    await screen.findByText("Jamie Rivera");
+
+    expect(
+      screen.getByRole("button", {
+        name: "Cancel registration for Jamie Rivera",
+      }),
+    ).toBeInTheDocument();
+    // Alex is checked in: undo the check-in first.
+    expect(
+      screen.queryByRole("button", {
+        name: "Cancel registration for Alex Chen",
+      }),
+    ).toBeNull();
+  });
+
+  test("an events: view reader gets no cancel control", async () => {
+    render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
+    await screen.findByText("Jamie Rivera");
+
+    expect(
+      screen.queryByRole("button", { name: /Cancel registration for/ }),
+    ).toBeNull();
+  });
+
+  test("keeps cancelled rows behind Show cancelled, where they can be restored", async () => {
+    const user = userEvent.setup();
+    const cancelled: EventRegistrant = {
+      ...registrants[0],
+      id: "reg-cancelled",
+      name: "Sam Gone",
+      cancelled_at: "2026-09-20T17:00:00Z",
+      cancellation_reason: "duplicate",
+      cancellation_note: "Signed up twice",
+    };
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="edit"
+        {...managerSlices({ cancelled: [cancelled] })}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+    expect(screen.queryByText("Sam Gone")).toBeNull();
+
+    await user.click(
+      screen.getByRole("button", { name: "Show cancelled (1)" }),
+    );
+    expect(screen.getByText("Sam Gone")).toBeInTheDocument();
+    expect(screen.getByText("Duplicate")).toBeInTheDocument();
+    expect(screen.getByText("Signed up twice")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Restore registration for Sam Gone" }),
+    );
+    expect(restoreRegistrationActionMock).toHaveBeenCalledWith("reg-cancelled");
   });
 });

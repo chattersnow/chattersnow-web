@@ -164,6 +164,10 @@ const eventSchema = z
     registration_enabled: z.boolean(),
     registration_deadline: z.union([z.string(), z.null()]),
     flier_url: z.union([z.string(), z.null()]),
+    adults_only: z.boolean().meta({
+      description:
+        "Adults only (18+). Registering for one requires adults_only_confirmed.",
+    }),
     sponsors: z.array(sponsorSchema),
     programs: z.array(programSchema),
   })
@@ -173,8 +177,31 @@ export const eventsResponse = z
   .object({ events: z.array(eventSchema) })
   .meta({ id: "EventsResponse" });
 
+const registrationOptionsSchema = z
+  .object({
+    prompt: z.string(),
+    options: z.array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        is_full: z.boolean().meta({
+          description: "A registration choosing it is refused.",
+        }),
+      }),
+    ),
+  })
+  .meta({
+    id: "EventRegistrationOptions",
+    description:
+      "The event's registration question (#1407). Registering then requires option_counts: how many people in the party chose each option, adding up to party_size.",
+  });
+
 export const eventResponse = z
-  .object({ event: eventSchema })
+  .object({
+    event: eventSchema.extend({
+      registration_options: z.union([registrationOptionsSchema, z.null()]),
+    }),
+  })
   .meta({ id: "EventResponse" });
 
 export const calendarResponse = z

@@ -155,8 +155,19 @@ function valuesOf(details: MyContactDetails): ContactFormValues {
  * `src/components/field-row.tsx`; the short version is that the variant is
  * shadcn's label-beside-control layout, and used as a two-column grid it
  * centred each pair against itself and sized each column to its contents.
+ *
+ * The rider group renders only for a tenant with the rider_profile module
+ * (#1408). The values still travel with the form, as they were loaded, and
+ * `set_my_contact_details()` ignores them without the module -- so hiding the
+ * group can never blank what a person told the organization before.
  */
-export function ContactForm({ details }: { details: MyContactDetails }) {
+export function ContactForm({
+  details,
+  showRider = true,
+}: {
+  details: MyContactDetails;
+  showRider?: boolean;
+}) {
   const [form, setForm] = useState<ContactFormValues>(() => valuesOf(details));
   // What the form last agreed with the record: the values it loaded, and then
   // the values it sent successfully. Save is gated on differing from this, so
@@ -389,129 +400,134 @@ export function ContactForm({ details }: { details: MyContactDetails }) {
         </FieldSet>
       </div>
 
-      <div className={GROUP_CLASS}>
-        <FieldSet className={FIELDSET_CLASS}>
-          <FieldLegend className={LEGEND_CLASS}>What you ride</FieldLegend>
-          <FieldGroup>
-            <FieldRow>
-              <Field>
-                <FieldLabel htmlFor="my-ridingDiscipline">Rides</FieldLabel>
-                <Select
-                  value={form.ridingDiscipline}
-                  onValueChange={(value) =>
-                    update("ridingDiscipline", String(value ?? ""))
-                  }
-                >
-                  <SelectTrigger
-                    id="my-ridingDiscipline"
-                    className="w-full"
-                    aria-invalid={
-                      fieldErrors.ridingDiscipline ? true : undefined
-                    }
-                    aria-describedby={
-                      fieldErrors.ridingDiscipline
-                        ? errorId("ridingDiscipline")
-                        : undefined
+      {showRider && (
+        <div className={GROUP_CLASS}>
+          <FieldSet className={FIELDSET_CLASS}>
+            <FieldLegend className={LEGEND_CLASS}>What you ride</FieldLegend>
+            <FieldGroup>
+              <FieldRow>
+                <Field>
+                  <FieldLabel htmlFor="my-ridingDiscipline">Rides</FieldLabel>
+                  <Select
+                    value={form.ridingDiscipline}
+                    onValueChange={(value) =>
+                      update("ridingDiscipline", String(value ?? ""))
                     }
                   >
-                    <SelectValue placeholder="Not recorded">
-                      {(value: string) => ridingDisciplineLabel(value)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RIDING_DISCIPLINES.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fieldErrors.ridingDiscipline && (
-                  <FieldError id={errorId("ridingDiscipline")}>
-                    {fieldErrors.ridingDiscipline}
-                  </FieldError>
-                )}
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="my-preferredMountain">
-                  Preferred mountain
-                </FieldLabel>
-                <Input
-                  id="my-preferredMountain"
-                  value={form.preferredMountain}
-                  onChange={(event) =>
-                    update("preferredMountain", event.target.value)
-                  }
-                />
-              </Field>
-            </FieldRow>
-
-            {(ridesSki(form.ridingDiscipline) ||
-              ridesSnowboard(form.ridingDiscipline)) && (
-              <FieldRow>
-                {ridesSki(form.ridingDiscipline) && (
-                  <Field>
-                    <FieldLabel htmlFor="my-skiExperienceLevel">
-                      Ski experience
-                    </FieldLabel>
-                    <Select
-                      value={form.skiExperienceLevel}
-                      onValueChange={(value) =>
-                        update("skiExperienceLevel", String(value ?? ""))
+                    <SelectTrigger
+                      id="my-ridingDiscipline"
+                      className="w-full"
+                      aria-invalid={
+                        fieldErrors.ridingDiscipline ? true : undefined
+                      }
+                      aria-describedby={
+                        fieldErrors.ridingDiscipline
+                          ? errorId("ridingDiscipline")
+                          : undefined
                       }
                     >
-                      <SelectTrigger
-                        id="my-skiExperienceLevel"
-                        className="w-full"
-                      >
-                        <SelectValue placeholder="Not recorded">
-                          {(value: string) => experienceLevelLabel(value)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPERIENCE_LEVELS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-                {ridesSnowboard(form.ridingDiscipline) && (
-                  <Field>
-                    <FieldLabel htmlFor="my-snowboardExperienceLevel">
-                      Snowboard experience
-                    </FieldLabel>
-                    <Select
-                      value={form.snowboardExperienceLevel}
-                      onValueChange={(value) =>
-                        update("snowboardExperienceLevel", String(value ?? ""))
-                      }
-                    >
-                      <SelectTrigger
-                        id="my-snowboardExperienceLevel"
-                        className="w-full"
-                      >
-                        <SelectValue placeholder="Not recorded">
-                          {(value: string) => experienceLevelLabel(value)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPERIENCE_LEVELS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
+                      <SelectValue placeholder="Not recorded">
+                        {(value: string) => ridingDisciplineLabel(value)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RIDING_DISCIPLINES.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldErrors.ridingDiscipline && (
+                    <FieldError id={errorId("ridingDiscipline")}>
+                      {fieldErrors.ridingDiscipline}
+                    </FieldError>
+                  )}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="my-preferredMountain">
+                    Home mountain
+                  </FieldLabel>
+                  <Input
+                    id="my-preferredMountain"
+                    value={form.preferredMountain}
+                    onChange={(event) =>
+                      update("preferredMountain", event.target.value)
+                    }
+                  />
+                </Field>
               </FieldRow>
-            )}
-          </FieldGroup>
-        </FieldSet>
-      </div>
+
+              {(ridesSki(form.ridingDiscipline) ||
+                ridesSnowboard(form.ridingDiscipline)) && (
+                <FieldRow>
+                  {ridesSki(form.ridingDiscipline) && (
+                    <Field>
+                      <FieldLabel htmlFor="my-skiExperienceLevel">
+                        Ski experience
+                      </FieldLabel>
+                      <Select
+                        value={form.skiExperienceLevel}
+                        onValueChange={(value) =>
+                          update("skiExperienceLevel", String(value ?? ""))
+                        }
+                      >
+                        <SelectTrigger
+                          id="my-skiExperienceLevel"
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Not recorded">
+                            {(value: string) => experienceLevelLabel(value)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPERIENCE_LEVELS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                  {ridesSnowboard(form.ridingDiscipline) && (
+                    <Field>
+                      <FieldLabel htmlFor="my-snowboardExperienceLevel">
+                        Snowboard experience
+                      </FieldLabel>
+                      <Select
+                        value={form.snowboardExperienceLevel}
+                        onValueChange={(value) =>
+                          update(
+                            "snowboardExperienceLevel",
+                            String(value ?? ""),
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          id="my-snowboardExperienceLevel"
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Not recorded">
+                            {(value: string) => experienceLevelLabel(value)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPERIENCE_LEVELS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                </FieldRow>
+              )}
+            </FieldGroup>
+          </FieldSet>
+        </div>
+      )}
 
       {(error || saved) && (
         <div className="space-y-4">

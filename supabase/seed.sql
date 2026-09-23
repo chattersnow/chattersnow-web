@@ -357,6 +357,16 @@ begin
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
   values (v_item2, 'received', 1, 'Donation intake', v_event_upcoming, v_admin_id);
 
+  -- Scannable tags (#1420): a printed asset-tag code on each, and the jacket's
+  -- manufacturer barcode. Fixed codes so tests and a local /portal/t/<code>
+  -- visit can name them; generated codes never contain 0, 1, I, L or O, so
+  -- these cannot collide with one.
+  insert into public.inventory_item_tags (item_id, kind, value, created_by)
+  values
+    (v_item1, 'asset_tag', 'SEED01', v_admin_id),
+    (v_item2, 'asset_tag', 'SEED02', v_admin_id),
+    (v_item1, 'barcode', '012345678905', v_admin_id);
+
   insert into public.donations (id, donor_id, notes, created_by)
   values (v_donation2, v_person_donor2, 'Dropped off at office', v_admin_id);
 
@@ -2021,6 +2031,26 @@ insert into public.tenant_modules (tenant_id, module_key, enabled)
 select t.id, 'constituent_accounts', true
 from (select id from public.tenants order by created_at limit 1) t
 on conflict (tenant_id, module_key) do update set enabled = excluded.enabled;
+
+-- The rider profile on, for the same reason (#1408). It defaults to off
+-- (20260923120000) because it is one customer's sport, but the local tenant
+-- stands in for that customer too: without it the post-registration prompt,
+-- the door-side dialog and the beginner figure would have no local or e2e
+-- coverage. The mountain list is the one 20260923120000 seeds for Chatter
+-- Snow, which the e2e registration spec picks from.
+insert into public.tenant_modules (tenant_id, module_key, enabled)
+select t.id, 'rider_profile', true
+from (select id from public.tenants order by created_at limit 1) t
+on conflict (tenant_id, module_key) do update set enabled = excluded.enabled;
+
+insert into public.app_settings (tenant_id, key, value)
+select t.id, 'rider_profile.preferred_mountains', jsonb_build_array(
+  'Big Snow (American Dream)', 'Mountain Creek', 'Camelback', 'Blue Mountain',
+  'Shawnee', 'Jack Frost / Big Boulder', 'Hunter', 'Windham', 'Belleayre',
+  'Mount Snow', 'Stratton'
+)
+from (select id from public.tenants order by created_at limit 1) t
+on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Giveaway official rules (#1322). Two things are seeded, and they are the two
 -- layers the feature is made of:

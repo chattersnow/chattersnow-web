@@ -1,12 +1,16 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseAdultsOnlyConfirmed } from "@/lib/adults-only";
 import { parseAttendedBefore } from "@/lib/attended-before";
-import {
-  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
-  parseMinorContacts,
-  parsePartyIncludesMinor,
-  type MinorContacts,
-} from "@/lib/minors";
+import { parseRegistrationMinors, type MinorContacts } from "@/lib/minors";
 import { parsePronouns } from "@/lib/pronouns";
+import {
+  parseRegistrationRiding,
+  type RiderProfileFormData,
+} from "@/lib/rider-profile-form";
+import {
+  parseOptionCounts,
+  type OptionCounts,
+} from "@/lib/registration-options";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
@@ -43,14 +47,31 @@ export type EventRegistrationFormData = {
   /**
    * Whether the party includes anyone under 18 (#685).
    *
-   * Required by this parser, unlike `attended_before`: the accompanying-adult
-   * block, the organizer's flag and the organization's own rule all hang off
-   * it, so an unanswered question here leaves exactly the gap the field
-   * exists to close. The *column* stays three-state — null is "nobody was
-   * asked", which is what a walk-in and a public API caller are — and it is
-   * the RPC, not this parser, that has to keep accepting those.
+   * Required by this parser wherever the form asked it, unlike
+   * `attended_before`: the accompanying-adult block, the organizer's flag and
+   * the organization's own rule all hang off it, so an unanswered question
+   * here leaves exactly the gap the field exists to close. Null where the
+   * form did not ask (#1416) -- the column's "nobody was asked", which is also
+   * what a walk-in and a public API caller are.
    */
-  party_includes_minor: boolean;
+  party_includes_minor: boolean | null;
+  /**
+   * Whether "Everyone in my party is 18 or over" was ticked (#1417). Not
+   * validated here, for the reason `waiver_accepted` is not: whether the event
+   * is adults only is the RPC's to know, and it refuses without it.
+   */
+  adults_only_confirmed: boolean;
+  /**
+   * The answer to the event's registration question (#1407), or null where
+   * the form showed none. Not checked against the party size here: whether
+   * the event asks at all is the RPC's to know.
+   */
+  option_counts: OptionCounts | null;
+  /**
+   * The riding answers (#1415), or null where the form did not ask them.
+   * Written to the person, not the registration.
+   */
+  riding: RiderProfileFormData | null;
 } & MinorContacts;
 
 export function parseEventRegistrationForm(
@@ -66,10 +87,6 @@ export function parseEventRegistrationForm(
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
   const attended_before = parseAttendedBefore(formData.get("attendedBefore"));
-  const party_includes_minor = parsePartyIncludesMinor(
-    formData.get("partyIncludesMinor"),
-  );
-  const minorContacts = parseMinorContacts(party_includes_minor, formData);
   const waiver_accepted = formData.get("waiverAccepted") === "on";
   // Digits only, and no leading zero, the same discipline `selectLegalVersion`
   // applies to `?version=`. Anything else is treated as "not sent" rather than
@@ -81,31 +98,34 @@ export function parseEventRegistrationForm(
     ? Number(waiverVersionRaw)
     : null;
 
-  if (!name) return { error: "Name is required." };
+  // `field` names what was refused, so the form can take the reader back to
+  // the step it is on (#1413).
+  if (!name) return { error: "Name is required.", field: "name" };
   if (!email || !email.includes("@"))
-    return { error: "A valid email is required." };
-  if ("error" in pronouns) return pronouns;
+    return { error: "A valid email is required.", field: "email" };
+  if ("error" in pronouns) return { ...pronouns, field: "pronouns" };
   if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
     return {
       error:
         "Instagram handle can only contain letters, numbers, periods, and underscores.",
+      field: "instagramHandle",
     };
   }
 
   const party_size = partySizeRaw ? Number(partySizeRaw) : 1;
   if (!Number.isInteger(party_size) || party_size < 1) {
-    return { error: "Party size must be at least 1." };
+    return { error: "Party size must be at least 1.", field: "partySize" };
   }
 
-  if (party_includes_minor === null) {
-    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR };
-  }
-  if ("error" in minorContacts) return minorContacts;
+  const minors = parseRegistrationMinors(formData);
+  if ("error" in minors) return minors;
+
+  const riding = parseRegistrationRiding(formData);
+  if ("error" in riding) return riding;
 
   return {
     data: {
-      ...minorContacts.data,
-      party_includes_minor,
+      ...minors.data,
       name,
       email,
       phone: phone || null,
@@ -116,6 +136,9 @@ export function parseEventRegistrationForm(
       attended_before,
       waiver_accepted,
       waiver_version,
+      adults_only_confirmed: parseAdultsOnlyConfirmed(formData),
+      option_counts: parseOptionCounts(formData),
+      riding: riding.data,
     },
   };
 }

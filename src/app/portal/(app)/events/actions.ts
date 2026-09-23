@@ -6,8 +6,10 @@ import {
   parseEventAttendanceForm,
   parseEventForm,
   parseEventPlanningForm,
+  parseEventRegistrationOptionsField,
   parseEventReportForm,
   parseReopenReason,
+  REGISTRATION_OPTIONS_SAVE_ERRORS,
 } from "./event-form";
 import {
   checkPermission,
@@ -244,12 +246,21 @@ export async function updateEventPlanningAction(
     endsAt: eventRow.ends_at,
   });
   if ("error" in parsed) return parsed;
+  // #1407. Parsed up front so a bad question refuses the whole save rather
+  // than half of it.
+  const registrationOptions = parseEventRegistrationOptionsField(
+    formData.get("registrationOptions"),
+  );
+  if (registrationOptions && "error" in registrationOptions) {
+    return registrationOptions;
+  }
   const {
     eventLeadId,
     capacity,
     registrationEnabled,
     registrationDeadline,
     autoAssignDiscountCodes,
+    adultsOnly,
     budgetAmount,
   } = parsed.data;
 
@@ -261,12 +272,31 @@ export async function updateEventPlanningAction(
       registration_enabled: registrationEnabled,
       registration_deadline: registrationDeadline,
       auto_assign_discount_codes: autoAssignDiscountCodes,
+      ...(adultsOnly === null ? {} : { adults_only: adultsOnly }),
       budget_amount: budgetAmount,
     })
     .eq("id", id);
 
   if (error) {
     return { error: "Could not update planning details. Please try again." };
+  }
+
+  if (registrationOptions) {
+    const { error: optionsError } = await supabase.rpc(
+      "save_event_registration_options",
+      {
+        p_event_id: id,
+        p_prompt: registrationOptions.data.prompt ?? "",
+        p_options: registrationOptions.data.options,
+      },
+    );
+    if (optionsError) {
+      return {
+        error:
+          REGISTRATION_OPTIONS_SAVE_ERRORS[optionsError.message] ??
+          "Planning details were saved, but the registration question was not. Please try again.",
+      };
+    }
   }
 
   revalidatePath("/portal/home");

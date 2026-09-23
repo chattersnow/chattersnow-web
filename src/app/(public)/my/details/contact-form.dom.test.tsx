@@ -76,6 +76,23 @@ describe("ContactForm", () => {
     expect(screen.queryByText("Everything else")).toBeNull();
   });
 
+  test("leaves out the rider group without the rider_profile module, and still sends the stored answers", async () => {
+    // #1408. The group is the module's; the values travel as loaded so
+    // set_my_contact_details() -- which ignores them without the module --
+    // never sees a blank it could mistake for a deletion.
+    const user = userEvent.setup();
+    render(<ContactForm details={DETAILS} showRider={false} />);
+
+    expect(screen.queryByRole("group", { name: "What you ride" })).toBeNull();
+    expect(screen.queryByLabelText("Home mountain")).toBeNull();
+
+    await user.type(screen.getByLabelText("Phone"), "9");
+    await user.click(save());
+
+    const formData = saveMock.mock.calls[0]![0] as FormData;
+    expect(formData.get("preferredMountain")).toBe("Hunter");
+  });
+
   // Both boxes used to live in one Field, the second carrying only an
   // aria-label -- a box with no explanation on screen (#1181).
   test("labels both address lines visibly", () => {
@@ -132,7 +149,7 @@ describe("ContactForm", () => {
       const user = userEvent.setup();
       render(<ContactForm details={DETAILS} />);
 
-      const mountain = screen.getByLabelText("Preferred mountain");
+      const mountain = screen.getByLabelText("Home mountain");
       await user.clear(mountain);
       expect(save()).toBeEnabled();
 

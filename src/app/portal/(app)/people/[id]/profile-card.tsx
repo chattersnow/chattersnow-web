@@ -25,6 +25,7 @@ import {
   ridesSnowboard,
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
+import { useRiderProfileAccess } from "@/lib/portal/rider-profile-context";
 import { formatAddress } from "@/lib/postal-address";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -125,6 +126,7 @@ export function ProfileCard({
   sponsorWallPublic?: boolean;
 }) {
   const router = useRouter();
+  const riderAccess = useRiderProfileAccess();
   const formId = `person-profile-form-${person.id}`;
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState<PersonFormState>(() =>
@@ -268,43 +270,51 @@ export function ProfileCard({
                 {person.primary_contact.name ?? "—"}
               </p>
             )}
-            <p>
-              <span className="app-muted">Rides:</span>{" "}
-              {ridingDisciplineLabel(person.riding_discipline) ?? "—"}
-            </p>
-            {ridesSki(person.riding_discipline) && (
-              <p>
-                <span className="app-muted">Ski experience:</span>{" "}
-                {experienceLevelLabel(person.ski_experience_level) ?? "—"}
-              </p>
-            )}
-            {ridesSnowboard(person.riding_discipline) && (
-              <p>
-                <span className="app-muted">Snowboard experience:</span>{" "}
-                {experienceLevelLabel(person.snowboard_experience_level) ?? "—"}
-              </p>
-            )}
-            <p>
-              <span className="app-muted">Preferred mountain:</span>{" "}
-              {person.preferred_mountain ?? "—"}
-            </p>
-            {/* /privacy keeps a rider profile "until you ask us to delete your
-                profile", so somebody has to be able to action that request
-                (#602). Only offered when there is a profile to delete. */}
-            {canDeleteRiderProfile && person.riding_discipline && (
-              <div className="flex items-center gap-1">
-                <span className="app-muted text-sm">
-                  Rider profile requested for deletion?
-                </span>
-                <ConfirmDeleteButton
-                  label="Delete rider profile"
-                  title={`Delete ${person.name ?? "this person"}'s rider profile?`}
-                  description="Clears their riding discipline, experience levels and preferred mountain. Events they were checked in to keep the level recorded on the day, so past impact figures don't change. The rest of their record is untouched. This can't be undone."
-                  confirmLabel="Delete rider profile"
-                  pending={isDeletingRiderProfile}
-                  onConfirm={deleteRiderProfile}
-                />
-              </div>
+            {/* The rider_profile module's (#1408): absent for a reader
+                without rider_profiles:view, which is everyone on a tenant
+                without the module. */}
+            {riderAccess.canView && (
+              <>
+                <p>
+                  <span className="app-muted">Rides:</span>{" "}
+                  {ridingDisciplineLabel(person.riding_discipline) ?? "—"}
+                </p>
+                {ridesSki(person.riding_discipline) && (
+                  <p>
+                    <span className="app-muted">Ski experience:</span>{" "}
+                    {experienceLevelLabel(person.ski_experience_level) ?? "—"}
+                  </p>
+                )}
+                {ridesSnowboard(person.riding_discipline) && (
+                  <p>
+                    <span className="app-muted">Snowboard experience:</span>{" "}
+                    {experienceLevelLabel(person.snowboard_experience_level) ??
+                      "—"}
+                  </p>
+                )}
+                <p>
+                  <span className="app-muted">Home mountain:</span>{" "}
+                  {person.preferred_mountain ?? "—"}
+                </p>
+                {/* /privacy keeps a rider profile "until you ask us to delete your
+                  profile", so somebody has to be able to action that request
+                  (#602). Only offered when there is a profile to delete. */}
+                {canDeleteRiderProfile && person.riding_discipline && (
+                  <div className="flex items-center gap-1">
+                    <span className="app-muted text-sm">
+                      Rider profile requested for deletion?
+                    </span>
+                    <ConfirmDeleteButton
+                      label="Delete rider profile"
+                      title={`Delete ${person.name ?? "this person"}'s rider profile?`}
+                      description="Clears their riding discipline, experience levels and home mountain. Events they were checked in to keep the level recorded on the day, so past impact figures don't change. The rest of their record is untouched. This can't be undone."
+                      confirmLabel="Delete rider profile"
+                      pending={isDeletingRiderProfile}
+                      onConfirm={deleteRiderProfile}
+                    />
+                  </div>
+                )}
+              </>
             )}
             <p>
               <span className="app-muted">Notes:</span> {person.notes ?? "—"}

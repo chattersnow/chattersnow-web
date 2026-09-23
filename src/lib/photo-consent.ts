@@ -58,25 +58,20 @@
 export const PHOTO_CONSENT_HEADING = "Photos and video";
 
 /**
- * What the platform can say beneath a tenant's paragraphs, written scope or
- * not.
- *
- * Every clause is checkable in this repository, and **nothing here asserts
- * what the organization does with a photo** — that is the tenant's own text
- * above it (rule 2). It names all three remedies, because the self-service one
- * is the narrowest: `set_my_photo_consent()` resolves through
- * `my_constituent_person_id('events')`, so the registration-page control
- * reaches only somebody who has claimed an account, which most registrants
- * have not. Under #599 that route was a bonus on top of a box already ticked;
- * here it is one of three, and the only one that does not depend on a person
- * at the other end.
- *
- * It opens by saying there is no box, because the absence is the surprising
- * part and a reader who scans for a control should be told why they will not
- * find one.
+ * The label on a registration form's waiver box. Names the photo release too
+ * when the organization has written one, since the box is the last thing read
+ * before submitting and registering carries that agreement (#1376). Nothing
+ * extra is recorded: ticking it is still only the waiver's acceptance.
  */
-export const PHOTO_CONSENT_NOTICE =
-  "There is no box to tick here. If you'd rather not be photographed, tell any organizer at the event, email us, or — if you have an account here — say so on your registration page at any time, before or after. We keep that on the record so the people running the event know.";
+export function waiverAcceptanceLabel(
+  waiverTitle: string,
+  photoConsent: string[],
+): string {
+  const photoRelease = photoConsent.some((paragraph) => paragraph.trim());
+  return photoRelease
+    ? `I have read and accept the ${waiverTitle} and the photo and video release`
+    : `I have read and accept the ${waiverTitle}`;
+}
 
 /**
  * What the RPC raises when somebody tries to record an objection against an

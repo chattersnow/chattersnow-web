@@ -3,6 +3,7 @@
 import { PERSON_TYPES, type PersonType, type RoleKey } from "./people-shared";
 import { PERSON_ROLES, personRoleLabel } from "@/lib/person-roles";
 import { useLexicon } from "@/components/lexicon-context";
+import { useRiderProfileAccess } from "@/lib/portal/rider-profile-context";
 import {
   EXPERIENCE_LEVELS,
   RIDING_DISCIPLINES,
@@ -143,6 +144,12 @@ export function PersonFormFields({
   // on eight segment pages and inside the profile card's edit mode, and a prop
   // threaded through all of them is one that gets dropped.
   const vocabulary = useLexicon();
+  // The rider fields are the rider_profile module's (#1408), and editing them
+  // takes rider_profiles:manage. Hidden rather than disabled: on a tenant
+  // without the module they are not a thing this form is about. The values
+  // stay in `form` and are sent as loaded, and the server action leaves them
+  // out for this reader anyway.
+  const showRider = useRiderProfileAccess().canManage;
 
   function toggleRole(key: RoleKey, checked: boolean) {
     update("roles", { ...form.roles, [key]: checked });
@@ -376,7 +383,7 @@ export function PersonFormFields({
         </Field>
       )}
 
-      {!isOrganization && (
+      {!isOrganization && showRider && (
         <Field orientation="responsive">
           <Field>
             <FieldLabel htmlFor={`${idPrefix}-ridingDiscipline`}>
@@ -407,7 +414,7 @@ export function PersonFormFields({
           </Field>
           <Field>
             <FieldLabel htmlFor={`${idPrefix}-preferredMountain`}>
-              Preferred mountain
+              Home mountain
             </FieldLabel>
             <Input
               id={`${idPrefix}-preferredMountain`}
@@ -421,6 +428,7 @@ export function PersonFormFields({
       )}
 
       {!isOrganization &&
+        showRider &&
         (ridesSki(form.ridingDiscipline) ||
           ridesSnowboard(form.ridingDiscipline)) && (
           <Field orientation="responsive">
