@@ -4,7 +4,8 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Printer } from "lucide-react";
+import { labelsHref } from "@/lib/inventory-labels";
 import { formatCurrency } from "@/lib/format";
 import {
   deliveryMethodLabel,
@@ -251,6 +252,24 @@ export function EditInventoryModal({
                   : "View this item's details."}
               </SheetDescription>
             </div>
+            {mode === "view" && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Print label"
+                      nativeButton={false}
+                      render={<Link href={labelsHref([item.id])} />}
+                    />
+                  }
+                >
+                  <Printer />
+                </TooltipTrigger>
+                <TooltipContent>Print label</TooltipContent>
+              </Tooltip>
+            )}
             {mode === "view" ? (
               <Tooltip>
                 <TooltipTrigger
@@ -387,6 +406,15 @@ export function EditInventoryModal({
                     </div>
                   </Field>
                 </Field>
+                <ReadOnlyField label="Tag code" htmlFor="edit-assetTag">
+                  {item.assetTag ? (
+                    <span className="font-mono tracking-wider">
+                      {item.assetTag}
+                    </span>
+                  ) : (
+                    "None yet"
+                  )}
+                </ReadOnlyField>
                 <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
                   {formatFaceValue(item.face_value)}
                 </ReadOnlyField>

@@ -22,7 +22,8 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => currentSupabase,
 }));
 
-const { updateInventoryItemAction } = await import("./actions");
+const { createAssetTagsAction, updateInventoryItemAction } =
+  await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -128,5 +129,48 @@ describe("updateInventoryItemAction (integration)", () => {
     );
     expect(result).toEqual(DENIED);
     await cleanup();
+  });
+});
+
+describe("createAssetTagsAction (integration, #1420 part 2)", () => {
+  async function assetTags(itemIds: string[]) {
+    const { data } = await adminClient
+      .from("inventory_item_tags")
+      .select("item_id, value")
+      .eq("kind", "asset_tag")
+      .in("item_id", itemIds);
+    return data ?? [];
+  }
+
+  test("inventory manage gives each uncoded item one code, and only once", async () => {
+    const { itemIds, cleanup } = await createAvailableGearItems(2);
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    expect(await createAssetTagsAction(itemIds)).toEqual({ created: 2 });
+    const first = await assetTags(itemIds);
+    expect(first).toHaveLength(2);
+    for (const tag of first) expect(tag.value).toMatch(/^[A-Z2-9]{6}$/);
+
+    // Printing again reprints the same codes rather than minting new ones.
+    expect(await createAssetTagsAction([...itemIds, "not-a-uuid"])).toEqual({
+      created: 0,
+    });
+    expect(await assetTags(itemIds)).toEqual(first);
+    await cleanup();
+  });
+
+  test("intake alone cannot create codes: tagging is editing the catalog", async () => {
+    const { itemIds, cleanup } = await createAvailableGearItems(1);
+    currentSupabase = await signIn(SEEDED_USERS.volunteer);
+    expect(await createAssetTagsAction(itemIds)).toEqual(DENIED);
+    expect(await assetTags(itemIds)).toEqual([]);
+    await cleanup();
+  });
+
+  test("requires a signed-in user", async () => {
+    currentSupabase = anonClient();
+    expect(await createAssetTagsAction([crypto.randomUUID()])).toEqual({
+      error: "You must be signed in to create tag codes.",
+    });
   });
 });

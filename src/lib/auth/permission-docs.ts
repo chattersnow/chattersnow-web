@@ -193,9 +193,9 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
 
   // ------------------------------------------------------------- Inventory
   inventory: {
-    view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records.",
+    view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records, and print the labels of items that already have a tag code.",
     manage:
-      "Edit the item catalog and categories, and record, correct and delete donation intake and distribution movements.",
+      "Edit the item catalog and categories, give items their tag codes, and record, correct and delete donation intake and distribution movements.",
     excludes: [
       { key: "inventory_reports", covers: "valuation and reporting" },
       {

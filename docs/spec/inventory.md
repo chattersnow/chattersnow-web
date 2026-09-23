@@ -48,7 +48,9 @@ An item can be identified by scanning something attached to it rather than by ty
 
 `/portal/t/<code>` resolves the code on the request host's tenant and redirects to the item (the items list narrowed to it, with its sheet open). Signed out, it goes to the login screen and back. An unknown code, a pre-printed blank, and a reader without `inventory:view` all get the same not-found, so the route never says whether a code exists. The resolver and the in-portal scanners share one lookup (`src/lib/inventory-tags.ts`), which also accepts a bare code or a barcode, and refuses a tag URL on another host.
 
-Label printing, in-page camera and keyboard-wedge scanning, NFC reading and writing, scanning in the event distribution modal, and tagging at intake build on this and are tracked in the same issue.
+**Labels.** An item's sheet and the items table's selection both lead to `/portal/inventory/items/labels?items=<id>,…`, which draws each label — a QR of the tag URL, the item's description and size, the code in large type, and optionally a Code128 of the bare code for 1D-only scanners — for a US Letter sheet of 30 (1 × 2⅝ in, Avery 5160) or of 10 (2 × 4 in, Avery 5163), or a 2¼ × 1¼ in label printer, and prints it through the browser's own dialog. A sheet can start past labels already used. The symbols are drawn server-side (`bwip-js`), so the page ships no barcode code to the browser. Printing an existing label needs `inventory:view`; an item without a code shows as such, and someone with `inventory:manage` creates its code there with one click. Opening the page creates nothing.
+
+In-page camera and keyboard-wedge scanning, NFC reading and writing, scanning in the event distribution modal, and tagging at intake build on this and are tracked in the same issue.
 
 ### Public gear availability
 

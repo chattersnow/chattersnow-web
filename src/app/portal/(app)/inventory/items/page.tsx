@@ -202,10 +202,29 @@ export default async function InventoryPage({
     }
   }
 
+  // The asset-tag code for each item on this page (#1420), for its sheet and
+  // its label. Read beside the view rather than embedded in it, because
+  // PostgREST embeds through a foreign key, and a view has none.
+  const assetTagByItemId = new Map<string, string>();
+  if ((items ?? []).length > 0) {
+    const { data: tags } = await supabase
+      .from("inventory_item_tags")
+      .select("item_id, value")
+      .eq("kind", "asset_tag")
+      .in(
+        "item_id",
+        (items ?? []).map((item) => item.id),
+      );
+    for (const tag of tags ?? []) {
+      if (tag.item_id) assetTagByItemId.set(tag.item_id, tag.value);
+    }
+  }
+
   const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => {
     const hold = holdByItemId.get(item.id);
     return {
       ...item,
+      assetTag: assetTagByItemId.get(item.id) ?? null,
       holdRequester: hold?.requester ?? null,
       holdNotes: hold?.notes ?? null,
       holdRequest: hold?.request ?? null,
