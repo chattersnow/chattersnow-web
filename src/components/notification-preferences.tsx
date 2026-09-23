@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import {
   notificationKindEnabled,
   type NotificationKind,
@@ -99,6 +100,7 @@ export function NotificationPreferenceList({
   orgEmailEnabled,
   save,
   announce,
+  listClassName,
 }: {
   kinds: NotificationKind[];
   /**
@@ -118,6 +120,8 @@ export function NotificationPreferenceList({
   orgEmailEnabled: boolean | null;
   save: SavePreference;
   announce?: (kind: NotificationKind, enabled: boolean) => void;
+  /** Lays out the switches; a wide page can set them two-up. */
+  listClassName?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
 
@@ -142,7 +146,7 @@ export function NotificationPreferenceList({
         </Alert>
       ) : null}
 
-      <div className="space-y-4">
+      <div className={cn("space-y-4", listClassName)}>
         {kinds.map((kind) => (
           <PreferenceRow
             key={kind.key}

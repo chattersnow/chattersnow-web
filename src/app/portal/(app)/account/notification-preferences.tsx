@@ -30,6 +30,7 @@ export function NotificationPreferences({
       enabledByKind={enabledByKind}
       orgEmailEnabled={orgEmailEnabled}
       save={updateMyNotificationPreferenceAction}
+      listClassName="grid gap-x-8 gap-y-4 space-y-0 xl:grid-cols-2"
       announce={(kind: NotificationKind, enabled: boolean) =>
         toast.success(
           enabled ? `${kind.label} are on.` : `${kind.label} are off.`,
