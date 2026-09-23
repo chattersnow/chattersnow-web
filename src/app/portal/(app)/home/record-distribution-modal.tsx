@@ -1,13 +1,27 @@
 "use client";
 
 import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
+import { List, ScanLine } from "lucide-react";
+import type { DistributionDraft } from "@/lib/inventory-distribution-draft";
 import {
   listAvailableInventoryItemsAction,
   recordEventDistributionAction,
   type AvailableInventoryItem,
 } from "./distribution-actions";
+import {
+  discardDistributionDraftAction,
+  getDistributionDraftAction,
+  recordDistributionDraftAction,
+} from "./distribution-draft-actions";
+import { ScannedDistributionList } from "./scanned-distribution-list";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -69,9 +83,28 @@ export function RecordDistributionModal({
   const [markDistributed, setMarkDistributed] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Scan mode (#1420 part 3) builds a server-side list, one piece per scan,
+  // and records it in one submit. The list outlives the modal, so reopening it
+  // -- or adding from a tag opened in another tab -- picks up where it was.
+  const [mode, setMode] = useState<"pick" | "scan">("pick");
+  const [draft, setDraft] = useState<DistributionDraft | null>(null);
+  const [conflictItemId, setConflictItemId] = useState<string | null>(null);
+  const draftEventId = eventId ?? null;
+
+  const loadDraft = useCallback(async () => {
+    const result = await getDistributionDraftAction(draftEventId);
+    if ("error" in result) return null;
+    setDraft(result.data);
+    return result.data;
+  }, [draftEventId]);
 
   useEffect(() => {
     if (!open) return;
+    getDistributionDraftAction(draftEventId).then((result) => {
+      if ("error" in result) return;
+      setDraft(result.data);
+      if (result.data && result.data.items.length > 0) setMode("scan");
+    });
     listAvailableInventoryItemsAction().then((result) => {
       if (!("error" in result)) setAvailableItems(result.data);
     });
@@ -83,6 +116,17 @@ export function RecordDistributionModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // An iPhone NFC tap adds to the list from a new Safari tab; coming back to
+  // this one shows what it added.
+  useEffect(() => {
+    if (!open || mode !== "scan") return;
+    function onVisible() {
+      if (document.visibilityState === "visible") void loadDraft();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [open, mode, loadDraft]);
+
   function reset() {
     setInventoryItemId("");
     setQuantity("1");
@@ -91,6 +135,8 @@ export function RecordDistributionModal({
     setMarkDistributed(true);
     setRecipient(null);
     setError(null);
+    setMode("pick");
+    setConflictItemId(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -101,6 +147,36 @@ export function RecordDistributionModal({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (mode === "scan") {
+      startTransition(async () => {
+        const result = await recordDistributionDraftAction({
+          eventId: draftEventId,
+          occurredAt: occurredAt
+            ? new Date(occurredAt).toISOString()
+            : undefined,
+          reason,
+          recipientPersonId: recipient?.id,
+          markDistributed,
+        });
+        if ("error" in result) {
+          setError(result.error);
+          setConflictItemId(result.itemId ?? null);
+          await loadDraft();
+          return;
+        }
+        setDraft(null);
+        handleOpenChange(false);
+        toast.success(
+          result.count === 1
+            ? "Distribution recorded."
+            : `${result.count} distributions recorded.`,
+        );
+        router.refresh();
+        onSaved?.();
+      });
+      return;
+    }
 
     const quantityNumber = Number(quantity);
 
@@ -127,6 +203,20 @@ export function RecordDistributionModal({
     });
   }
 
+  function clearList() {
+    startTransition(async () => {
+      const result = await discardDistributionDraftAction(draftEventId);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setDraft(null);
+      setConflictItemId(null);
+    });
+  }
+
+  const scannedCount = draft?.items.length ?? 0;
+
   return (
     <PortalFormSurface
       open={open}
@@ -146,18 +236,38 @@ export function RecordDistributionModal({
       onSubmit={handleSubmit}
       footer={
         <>
+          {mode === "scan" && scannedCount > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="sm:mr-auto"
+              disabled={isPending}
+              onClick={clearList}
+            >
+              Clear list
+            </Button>
+          )}
           <Button
             type="button"
             variant="secondary"
             onClick={() => handleOpenChange(false)}
           >
-            Cancel
+            {mode === "scan" && scannedCount > 0 ? "Close" : "Cancel"}
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button
+            type="submit"
+            disabled={isPending || (mode === "scan" && scannedCount === 0)}
+          >
             {isPending ? (
               <>
                 <Spinner /> Saving...
               </>
+            ) : mode === "scan" ? (
+              scannedCount === 1 ? (
+                "Record 1 item"
+              ) : (
+                `Record ${scannedCount} items`
+              )
             ) : (
               "Record distribution"
             )}
@@ -166,56 +276,87 @@ export function RecordDistributionModal({
       }
     >
       <FieldGroup>
-        <RequiredFieldsNote />
-        <Field>
-          <FieldLabel htmlFor="dist-item" required>
-            Inventory item
-          </FieldLabel>
-          <Select
-            value={inventoryItemId || null}
-            onValueChange={(value) => setInventoryItemId(value ?? "")}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <RequiredFieldsNote />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setError(null);
+              setMode(mode === "scan" ? "pick" : "scan");
+            }}
           >
-            <SelectTrigger
-              id="dist-item"
-              aria-required="true"
-              className="w-full"
-            >
-              <SelectValue placeholder="Select an available item">
-                {(value: string) => {
-                  const item = availableItems.find(
-                    (candidate) => candidate.id === value,
-                  );
-                  return item
-                    ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
-                    : "Select an available item";
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {availableItems.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.description} ({categoryLabelFor(flattenCategory(item))})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+            {mode === "scan" ? <List /> : <ScanLine />}
+            {mode === "scan" ? "Pick from a list" : "Scan tags"}
+          </Button>
+        </div>
+        {mode === "scan" ? (
+          <ScannedDistributionList
+            eventId={draftEventId}
+            draft={draft}
+            conflictItemId={conflictItemId}
+            onChanged={async () => {
+              setConflictItemId(null);
+              await loadDraft();
+            }}
+          />
+        ) : (
+          <>
+            <Field>
+              <FieldLabel htmlFor="dist-item" required>
+                Inventory item
+              </FieldLabel>
+              <Select
+                value={inventoryItemId || null}
+                onValueChange={(value) => setInventoryItemId(value ?? "")}
+              >
+                <SelectTrigger
+                  id="dist-item"
+                  aria-required="true"
+                  className="w-full"
+                >
+                  <SelectValue placeholder="Select an available item">
+                    {(value: string) => {
+                      const item = availableItems.find(
+                        (candidate) => candidate.id === value,
+                      );
+                      return item
+                        ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
+                        : "Select an available item";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {availableItems.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.description} (
+                      {categoryLabelFor(flattenCategory(item))})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </>
+        )}
 
         <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="dist-quantity" required>
-              Quantity
-            </FieldLabel>
-            <Input
-              id="dist-quantity"
-              required
-              type="number"
-              min={1}
-              step={1}
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-            />
-          </Field>
+          {mode === "pick" && (
+            <Field>
+              <FieldLabel htmlFor="dist-quantity" required>
+                Quantity
+              </FieldLabel>
+              <Input
+                id="dist-quantity"
+                required
+                type="number"
+                min={1}
+                step={1}
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
+              />
+            </Field>
+          )}
           <Field>
             <FieldLabel htmlFor="dist-occurredAt">Date &amp; time</FieldLabel>
             <Input

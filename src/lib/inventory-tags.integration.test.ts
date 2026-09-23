@@ -42,7 +42,10 @@ const GENERATED_CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6}$/;
 async function resolve(code: string, as: SupabaseClient) {
   currentSupabase = as;
   try {
-    await InventoryTagPage({ params: Promise.resolve({ code }) });
+    await InventoryTagPage({
+      params: Promise.resolve({ code }),
+      searchParams: Promise.resolve({}),
+    });
   } catch (error) {
     if (error instanceof Redirect) return { redirect: error.url };
     if (error instanceof NotFound) return { notFound: true };

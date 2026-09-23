@@ -20,6 +20,7 @@ import {
   type InventoryCategory,
 } from "@/lib/inventory";
 import { updateInventoryItemAction } from "./actions";
+import { WriteNfcTagButton } from "./write-nfc-tag-button";
 import {
   CONDITIONS,
   GENDERS,
@@ -415,6 +416,7 @@ export function EditInventoryModal({
                     "None yet"
                   )}
                 </ReadOnlyField>
+                {item.assetTag && <WriteNfcTagButton code={item.assetTag} />}
                 <ReadOnlyField label="Face value" htmlFor="edit-faceValue">
                   {formatFaceValue(item.face_value)}
                 </ReadOnlyField>
