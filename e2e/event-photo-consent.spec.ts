@@ -21,7 +21,11 @@
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
-import { sayNoMinors } from "./helpers/registration";
+import {
+  completeRegistration,
+  continueToBeforeYouGo,
+  sayNoMinors,
+} from "./helpers/registration";
 
 const SLOT_KEY = "events.photo_consent";
 
@@ -85,6 +89,13 @@ test.describe("photos and video at registration", () => {
     await writeScope();
 
     const dialog = await openRegistrationForm(page);
+    await dialog.getByLabel("Name").fill("Photo Reader");
+    await dialog
+      .getByLabel("Email")
+      .fill(`photo-reader-${Date.now()}@example.test`);
+    await sayNoMinors(dialog);
+    // The notices are on the second step on a phone (#1403).
+    await continueToBeforeYouGo(dialog);
 
     const heading = dialog.getByRole("heading", { name: "Photos and video" });
     await expect(heading).toBeVisible();
@@ -92,6 +103,10 @@ test.describe("photos and video at registration", () => {
     // /photo-consent route, deliberately.
     await expect(dialog.getByText(SCOPE[0])).toBeVisible();
     await expect(dialog.getByRole("link", { name: /photo/i })).toHaveCount(0);
+    // The first paragraph always shows; the rest fold (#1403).
+    await expect(dialog.getByText(SCOPE[1])).toBeHidden();
+    await dialog.getByText("More about photos").click();
+    await expect(dialog.getByText(SCOPE[1])).toBeVisible();
 
     // #1376's whole point, in the assembled form. Nothing about photos can be
     // ticked -- not a consent box and not a decline box either, which was
@@ -113,7 +128,7 @@ test.describe("photos and video at registration", () => {
     await dialog.getByLabel("Name").fill("Photo Notice");
     await dialog.getByLabel("Email").fill(email);
     await sayNoMinors(dialog);
-    await dialog.getByRole("button", { name: "Complete registration" }).click();
+    await completeRegistration(dialog);
 
     await expect(
       dialog.getByText(/You're registered|registered/i).first(),

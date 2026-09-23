@@ -11,7 +11,11 @@
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
-import { sayNoMinors } from "./helpers/registration";
+import {
+  completeRegistration,
+  continueToBeforeYouGo,
+  sayNoMinors,
+} from "./helpers/registration";
 
 const PUBLICATION_KEY = "legal_publication.waiver";
 const SLOT_KEY = "legal.waiver";
@@ -110,6 +114,11 @@ test.describe("the participant agreement at registration", () => {
     await adoptWaiver();
 
     const dialog = await openRegistrationForm(page);
+    await dialog.getByLabel("Name").fill("Waiver Tester");
+    await dialog.getByLabel("Email").fill(`waiver-${Date.now()}@example.test`);
+    await sayNoMinors(dialog);
+    // The agreement is on the second step on a phone (#1403).
+    await continueToBeforeYouGo(dialog);
 
     // The summary where the box is (#1402); the body behind the button.
     await expect(
@@ -141,11 +150,8 @@ test.describe("the participant agreement at registration", () => {
       dialog.getByRole("link", { name: /open this version/i }),
     ).toHaveAttribute("href", "/waiver?version=1");
 
-    await dialog.getByLabel("Name").fill("Waiver Tester");
-    await dialog.getByLabel("Email").fill(`waiver-${Date.now()}@example.test`);
     await box.check();
-    await sayNoMinors(dialog);
-    await dialog.getByRole("button", { name: "Complete registration" }).click();
+    await completeRegistration(dialog);
 
     await expect(
       dialog.getByText(/You're registered|registered/i).first(),
@@ -164,7 +170,7 @@ test.describe("the participant agreement at registration", () => {
       .fill(`waiver-refused-${Date.now()}@example.test`);
     // Answered, so the box is unambiguously what stops this submission.
     await sayNoMinors(dialog);
-    await dialog.getByRole("button", { name: "Complete registration" }).click();
+    await completeRegistration(dialog);
 
     // Still on the form. The browser's own `required` stops it here; the RPC
     // refuses the same submission independently, which the integration tests

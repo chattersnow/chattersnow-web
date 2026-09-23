@@ -8,7 +8,8 @@ import userEvent from "@testing-library/user-event";
 mock.module("server-only", () => ({}));
 
 type RegisterForEventResult =
-  { error: string } | { success: true; registrationId: string };
+  | { error: string; step: "details" | "confirm" }
+  | { success: true; registrationId: string };
 
 const registerForEventActionMock = mock<
   (eventId: string, formData: FormData) => Promise<RegisterForEventResult>

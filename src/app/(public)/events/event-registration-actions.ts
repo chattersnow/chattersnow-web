@@ -14,9 +14,18 @@ import {
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventPath } from "./event-path";
+import {
+  registrationErrorStep,
+  type RegistrationStep,
+} from "./registration-step";
 
+/**
+ * `step` says which half of the form the error belongs to (#1403), so a
+ * phone showing the second step can send the reader back to the field.
+ */
 export type RegisterForEventResult =
-  { error: string } | { success: true; registrationId: string };
+  | { error: string; step: RegistrationStep }
+  | { success: true; registrationId: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
@@ -54,8 +63,9 @@ export async function registerForEventAction(
   eventId: string,
   formData: FormData,
 ): Promise<RegisterForEventResult> {
+  // Every check the parser makes is on a field of the first step.
   const parsed = parseEventRegistrationForm(formData);
-  if ("error" in parsed) return parsed;
+  if ("error" in parsed) return { error: parsed.error, step: "details" };
 
   const honeypot = String(formData.get("company") ?? "");
   const ipAddress = await getClientIp();
@@ -108,6 +118,7 @@ export async function registerForEventAction(
       error:
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
+      step: registrationErrorStep(error.message),
     };
   }
 

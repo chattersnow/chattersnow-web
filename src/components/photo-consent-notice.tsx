@@ -34,6 +34,13 @@ import { cn } from "@/lib/utils";
  * **No link.** The scope is these paragraphs and nothing else — there is no
  * `/photo-consent` route to point at, deliberately, and the DOM test asserts
  * zero anchors for the reason `volunteer-screening-notice.tsx` gives.
+ *
+ * **The first paragraph always shows; the rest fold (#1403).** Registering is
+ * what carries the agreement, so the opening of what is being agreed to can
+ * never be behind a click — but the whole of it, on a phone, was a long way to
+ * scroll to the button. The remainder sits in a native `<details>`, which
+ * keeps this a server component and keeps the text in the DOM for find-in-page
+ * and for anyone who wants it all without asking. One paragraph, no toggle.
  */
 export function PhotoConsentNotice({
   paragraphs,
@@ -46,15 +53,26 @@ export function PhotoConsentNotice({
   const written = paragraphs.filter((paragraph) => paragraph.trim());
   if (written.length === 0) return null;
 
+  const [first, ...rest] = written;
+
   return (
     <div className={cn("space-y-2", className)}>
       {/* h3: the sheet's own title is the h2, and the page's h1 is above it. */}
       <h3 className="text-sm font-medium">{PHOTO_CONSENT_HEADING}</h3>
-      {written.map((paragraph, index) => (
-        <p key={index} className="app-muted text-sm leading-relaxed">
-          {paragraph}
-        </p>
-      ))}
+      <p className="app-muted text-sm leading-relaxed">{first}</p>
+      {rest.length > 0 && (
+        <details className="group space-y-2">
+          <summary className="w-fit cursor-pointer text-sm underline underline-offset-4">
+            <span className="group-open:hidden">More about photos</span>
+            <span className="hidden group-open:inline">Less about photos</span>
+          </summary>
+          {rest.map((paragraph, index) => (
+            <p key={index} className="app-muted text-sm leading-relaxed">
+              {paragraph}
+            </p>
+          ))}
+        </details>
+      )}
     </div>
   );
 }

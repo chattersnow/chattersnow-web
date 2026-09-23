@@ -1,16 +1,10 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
@@ -26,6 +20,8 @@ import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
 import type { WaiverOnFile } from "./my-registration";
+import type { RegistrationStep } from "./registration-step";
+import { RegistrationSteps } from "./registration-steps";
 
 /**
  * Registering as yourself (#1165).
@@ -104,7 +100,10 @@ export function MyEventRegistrationForm({
   const [notes, setNotes] = useState("");
   // Unticked, always (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    step: RegistrationStep;
+  } | null>(null);
   const [registered, setRegistered] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -114,8 +113,7 @@ export function MyEventRegistrationForm({
   const displayName =
     person.preferred_name?.trim() || person.name?.trim() || "";
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleSubmit() {
     setError(null);
 
     const formData = new FormData();
@@ -142,7 +140,7 @@ export function MyEventRegistrationForm({
     startTransition(async () => {
       const result = await registerMyselfForEventAction(eventId, formData);
       if ("error" in result) {
-        setError(result.error);
+        setError({ message: result.error, step: result.step });
         return;
       }
       setRegistered(true);
@@ -169,199 +167,183 @@ export function MyEventRegistrationForm({
     );
   }
 
+  // Something to agree to or be told, or the agreement already on file:
+  // either way there is a second step. With neither -- a tenant with no
+  // agreement and no photo paragraphs -- the form is short enough as one.
+  const hasConfirm =
+    waiver !== null || photoConsent.some((paragraph) => paragraph.trim());
+
   return (
-    <form onSubmit={handleSubmit}>
-      <FieldGroup>
-        <p className="app-muted text-sm leading-relaxed">
-          Registering as {displayName || "yourself"}
-          {person.email ? ` (${person.email})` : ""}.{" "}
-          <Link href={`${MY_PATH_PREFIX}/details`} className="underline">
-            Not you, or out of date?
-          </Link>
-        </p>
-
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Field>
-          <FieldLabel htmlFor="my-registration-party">
-            How many of you?
-          </FieldLabel>
-          <Input
-            id="my-registration-party"
-            type="number"
-            min="1"
-            inputMode="numeric"
-            value={partySize}
-            onChange={(event) => setPartySize(event.target.value)}
-          />
-        </Field>
-
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="my-registration-phone">Phone</FieldLabel>
-            <Input
-              id="my-registration-phone"
-              type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-            />
-            <FieldDescription>
-              For this event only. We keep what is on your record.
-            </FieldDescription>
-          </Field>
-          <PronounsField
-            id="my-registration-pronouns"
-            value={pronouns}
-            onChange={setPronouns}
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="my-registration-instagram">Instagram</FieldLabel>
-          <Input
-            id="my-registration-instagram"
-            value={instagramHandle}
-            onChange={(event) => setInstagramHandle(event.target.value)}
-          />
-        </Field>
-
-        {/* The same question the anonymous form asks, in the same words, from
-            the same component (#1259). This reader is the one place the ticket
-            allows it to be skipped or prefilled from their own history, and it
-            is neither: a self-reported answer is a different fact from the
-            check-in ledger, and the ledger only knows the events this tenant
-            ran here. */}
-        <AttendedBeforeField
-          id="my-registration-attended-before"
-          value={attendedBefore}
-          onChange={setAttendedBefore}
-        />
-
-        {/* The same question the anonymous form asks, in the same words, from
-            the same component (#685). A signed-in caller is not exempt: an
-            account says who is registering and nothing about who is coming
-            with them. */}
-        <PartyIncludesMinorField
-          id="my-registration-party-includes-minor"
-          value={partyIncludesMinor}
-          onChange={setPartyIncludesMinor}
-          disabled={isPending}
-        />
-        {partyIncludesMinor === "yes" && (
-          <MinorAccompanimentFields
-            idPrefix="my-registration"
-            paragraphs={minorAccompaniment}
-            values={minorContacts}
-            onChange={setMinorContacts}
-            disabled={isPending}
-          />
-        )}
-
-        <Field>
-          <FieldLabel htmlFor="my-registration-notes">
-            Anything we should know?
-          </FieldLabel>
-          <Textarea
-            id="my-registration-notes"
-            rows={3}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
-        </Field>
-
-        {/* Above the agreement, the same order the anonymous form uses and for
-            the same reason: prose sitting beneath "I accept" reads as part of
-            what is being accepted. This form carries no privacy notice of its
-            own -- that is #684's territory and a signed-in caller has already
-            been told -- so this is the only notice here, and the waiver's box
-            below it is the only control taking anything (#1376). */}
-        <PhotoConsentNotice paragraphs={photoConsent} />
-
-        {/* Immediately above the button that acts on it, the same placement
-            the anonymous form uses. This form carries no privacy notice --
-            that is #684's territory and a signed-in caller has already been
-            told -- so the agreement is the last thing read before submitting.
-            The server refuses an unticked box independently of the `required`
-            here; see `accepted_waiver_version()`. */}
-        {waiver && onFile && (
-          /* Already accepted, this version (#1401). One line in place of the
-             longest block on the form, and still a link to the words, since
-             having agreed to something is no reason not to be able to read
-             it again. A republish makes this disappear on its own: the RPC
-             behind `onFile` only answers for the version in force. */
-          <p className="app-muted text-sm">
-            {waiver.title} v{waiver.version} · accepted{" "}
-            {/* The browser's own zone, like every date a reader is shown
-                about themselves, so the server's rendering of it can differ
-                by a day at the edges. */}
-            <time dateTime={onFile.accepted_at} suppressHydrationWarning>
-              {formatAcceptedDay(onFile.accepted_at)}
-            </time>{" "}
-            ·{" "}
-            <Link
-              href={`/waiver?version=${waiver.version}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`View ${waiver.title}, version ${waiver.version}, in a new tab`}
-              className="hover:text-foreground underline underline-offset-4"
-            >
-              view
+    <RegistrationSteps
+      error={error}
+      isPending={isPending}
+      onSubmit={handleSubmit}
+      details={
+        <>
+          <p className="app-muted text-sm leading-relaxed">
+            Registering as {displayName || "yourself"}
+            {person.email ? ` (${person.email})` : ""}.{" "}
+            <Link href={`${MY_PATH_PREFIX}/details`} className="underline">
+              Not you, or out of date?
             </Link>
           </p>
-        )}
 
-        {waiver && !onFile && (
-          <>
-            {waiverBlock}
-            {/* No `scroll-mb-*` against the pinned submit below (#1375). The
-                thought was that the browser scrolls an unticked required box
-                into view and anchors its bubble there, so the button could
-                cover it -- but `Checkbox` is base-ui, whose real input is a
-                1px `position: fixed` element parked at the viewport corner.
-                That is what constraint validation sees, so nothing scrolls
-                and the bubble never comes near this row. Verified in Chrome:
-                submitting unticked leaves `scrollY` untouched. */}
-            <Field orientation="horizontal">
-              <Checkbox
-                id="my-registration-waiver"
-                checked={waiverAccepted}
-                onCheckedChange={(next) => setWaiverAccepted(next === true)}
-                disabled={isPending}
-                required
+          <Field>
+            <FieldLabel htmlFor="my-registration-party">
+              How many of you?
+            </FieldLabel>
+            <Input
+              id="my-registration-party"
+              type="number"
+              min="1"
+              inputMode="numeric"
+              value={partySize}
+              onChange={(event) => setPartySize(event.target.value)}
+            />
+          </Field>
+
+          <Field orientation="responsive">
+            <Field>
+              <FieldLabel htmlFor="my-registration-phone">Phone</FieldLabel>
+              <Input
+                id="my-registration-phone"
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
               />
-              <FieldLabel htmlFor="my-registration-waiver" required>
-                I have read and accept the {waiver.title}
-              </FieldLabel>
+              <FieldDescription>
+                For this event only. We keep what is on your record.
+              </FieldDescription>
             </Field>
+            <PronounsField
+              id="my-registration-pronouns"
+              value={pronouns}
+              onChange={setPronouns}
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="my-registration-instagram">
+              Instagram
+            </FieldLabel>
+            <Input
+              id="my-registration-instagram"
+              value={instagramHandle}
+              onChange={(event) => setInstagramHandle(event.target.value)}
+            />
+          </Field>
+
+          {/* The same question the anonymous form asks, in the same words, from
+                the same component (#1259). This reader is the one place the ticket
+                allows it to be skipped or prefilled from their own history, and it
+                is neither: a self-reported answer is a different fact from the
+                check-in ledger, and the ledger only knows the events this tenant
+                ran here. */}
+          <AttendedBeforeField
+            id="my-registration-attended-before"
+            value={attendedBefore}
+            onChange={setAttendedBefore}
+          />
+
+          {/* The same question the anonymous form asks, in the same words, from
+                the same component (#685). A signed-in caller is not exempt: an
+                account says who is registering and nothing about who is coming
+                with them. */}
+          <PartyIncludesMinorField
+            id="my-registration-party-includes-minor"
+            value={partyIncludesMinor}
+            onChange={setPartyIncludesMinor}
+            disabled={isPending}
+          />
+          {partyIncludesMinor === "yes" && (
+            <MinorAccompanimentFields
+              idPrefix="my-registration"
+              paragraphs={minorAccompaniment}
+              values={minorContacts}
+              onChange={setMinorContacts}
+              disabled={isPending}
+            />
+          )}
+
+          <Field>
+            <FieldLabel htmlFor="my-registration-notes">
+              Anything we should know?
+            </FieldLabel>
+            <Textarea
+              id="my-registration-notes"
+              rows={3}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </Field>
+        </>
+      }
+      confirm={
+        hasConfirm ? (
+          <>
+            {/* Above the agreement, the same order the anonymous form uses and
+                for the same reason: prose sitting beneath "I accept" reads as
+                part of what is being accepted. This form carries no privacy
+                notice of its own -- that is #684's territory and a signed-in
+                caller has already been told -- so this is the only notice here,
+                and the waiver's box below it is the only control taking
+                anything (#1376). */}
+            <PhotoConsentNotice paragraphs={photoConsent} />
+
+            {/* Immediately above the button that acts on it, the same placement
+                the anonymous form uses. This form carries no privacy notice --
+                that is #684's territory and a signed-in caller has already been
+                told -- so the agreement is the last thing read before
+                submitting. The server refuses an unticked box independently of
+                the `required` here; see `accepted_waiver_version()`. */}
+            {waiver && onFile && (
+              /* Already accepted, this version (#1401). One line in place of
+                 the longest block on the form, and still a link to the words,
+                 since having agreed to something is no reason not to be able to
+                 read it again. A republish makes this disappear on its own: the
+                 RPC behind `onFile` only answers for the version in force. */
+              <p className="app-muted text-sm">
+                {waiver.title} v{waiver.version} · accepted{" "}
+                {/* The browser's own zone, like every date a reader is shown
+                    about themselves, so the server's rendering of it can differ
+                    by a day at the edges. */}
+                <time dateTime={onFile.accepted_at} suppressHydrationWarning>
+                  {formatAcceptedDay(onFile.accepted_at)}
+                </time>{" "}
+                ·{" "}
+                <Link
+                  href={`/waiver?version=${waiver.version}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`View ${waiver.title}, version ${waiver.version}, in a new tab`}
+                  className="hover:text-foreground underline underline-offset-4"
+                >
+                  view
+                </Link>
+              </p>
+            )}
+
+            {waiver && !onFile && (
+              <>
+                {waiverBlock}
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="my-registration-waiver"
+                    checked={waiverAccepted}
+                    onCheckedChange={(next) => setWaiverAccepted(next === true)}
+                    disabled={isPending}
+                    required
+                  />
+                  <FieldLabel htmlFor="my-registration-waiver" required>
+                    I have read and accept the {waiver.title}
+                  </FieldLabel>
+                </Field>
+              </>
+            )}
           </>
-        )}
-
-        {/* Named apart from the disclosure's "Register" trigger above it
-            (#1256), the same way the anonymous form's submit is.
-
-            Sticky on the button itself, with no wrapper (#1375). A sticky
-            element is bounded by its containing block, so this only travels
-            because its containing block is the tall `FieldGroup` spanning
-            the whole form -- the `Field` that used to wrap it would have
-            shrunk that box to the button and stopped it pinning. It is also
-            the last child, so nothing in flow sits below it and it settles
-            back into place, `gap-5` above it, at full scroll. `bg-primary`
-            is opaque, so it needs no bar, border or blur to keep text from
-            reading through it. The `env()` resolves to 0 until a layout
-            exports `viewport-fit=cover`. */}
-        <Button
-          type="submit"
-          disabled={isPending}
-          className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-10 w-full shadow-lg sm:w-fit"
-        >
-          {isPending ? "Registering…" : "Complete registration"}
-        </Button>
-      </FieldGroup>
-    </form>
+        ) : null
+      }
+    />
   );
 }
 

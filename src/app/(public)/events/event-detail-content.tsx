@@ -316,23 +316,30 @@ export async function EventDetailContent({
           <SheetDescription>{formatWhen(event)}</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <EventFlier event={event} variant="sheet" />
-          <EventDetailBody
-            event={event}
-            variant="sheet"
-            viewer={viewer}
-            accountOffer={accountOffer}
-            giveawayRulesId={giveawayRules?.giveawayId ?? null}
-            waiver={
-              waiver
-                ? { version: waiver.version, title: waiver.content.title }
-                : null
-            }
-            waiverBlock={waiverBlock}
-            minorAccompaniment={minorAccompaniment}
-            photoConsent={photoConsent}
-          />
+        {/* The bottom padding is on the inner wrapper, not the scroller: a
+            sticky element's offset is measured inside its scroller's padding,
+            so `pb-4` here left the registration form's pinned bar floating
+            16px above the sheet's edge with the form showing beneath it
+            (#1404). */}
+        <div className="flex-1 overflow-y-auto px-4">
+          <div className="pb-4">
+            <EventFlier event={event} variant="sheet" />
+            <EventDetailBody
+              event={event}
+              variant="sheet"
+              viewer={viewer}
+              accountOffer={accountOffer}
+              giveawayRulesId={giveawayRules?.giveawayId ?? null}
+              waiver={
+                waiver
+                  ? { version: waiver.version, title: waiver.content.title }
+                  : null
+              }
+              waiverBlock={waiverBlock}
+              minorAccompaniment={minorAccompaniment}
+              photoConsent={photoConsent}
+            />
+          </div>
         </div>
       </>
     );

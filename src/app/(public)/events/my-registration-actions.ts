@@ -18,9 +18,15 @@ import {
 } from "@/lib/minors";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
+import {
+  registrationErrorStep,
+  type RegistrationStep,
+} from "./registration-step";
 
+/** `step` as on `RegisterForEventResult` (#1403). */
 export type RegisterMyselfResult =
-  { error: string } | { success: true; registrationId: string };
+  | { error: string; step: RegistrationStep }
+  | { success: true; registrationId: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
@@ -67,7 +73,7 @@ export async function registerMyselfForEventAction(
 ): Promise<RegisterMyselfResult> {
   const partySize = Number(String(formData.get("partySize") ?? "1"));
   if (!Number.isInteger(partySize) || partySize < 1) {
-    return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE };
+    return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE, step: "details" };
   }
 
   // #685. Required on this form as on the anonymous one, and validated here
@@ -79,10 +85,12 @@ export async function registerMyselfForEventAction(
     formData.get("partyIncludesMinor"),
   );
   if (partyIncludesMinor === null) {
-    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR };
+    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR, step: "details" };
   }
   const minorContacts = parseMinorContacts(partyIncludesMinor, formData);
-  if ("error" in minorContacts) return minorContacts;
+  if ("error" in minorContacts) {
+    return { error: minorContacts.error, step: "details" };
+  }
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("register_myself_for_event", {
@@ -136,6 +144,7 @@ export async function registerMyselfForEventAction(
       error:
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
+      step: registrationErrorStep(error.message),
     };
   }
 
