@@ -162,6 +162,7 @@ function payload(
     waiverInForce: false,
     registrationOptions: null,
     photoConsentInForce: false,
+    riderMountains: null,
     ...overrides,
   };
 }
@@ -224,6 +225,32 @@ describe("RegistrantsTab", () => {
     // Alex now rides both at advanced, but was a snowboard beginner on the day.
     expect(screen.getByText("Snowboard · Beginner")).toBeInTheDocument();
     expect(screen.queryByText(/Both/)).toBeNull();
+  });
+
+  test("no Rides column where nobody may see rider answers", async () => {
+    // What listEventRegistrantsAction returns on a tenant without the
+    // rider_profile module (#1408): every registrant's `rider` is null.
+    const base = slices();
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="edit"
+        {...base}
+        registrants={{
+          ...base.registrants,
+          data: payload({
+            registrants: registrants.map((row) => ({ ...row, rider: null })),
+          }),
+        }}
+      />,
+    );
+    await screen.findByText("Alex Chen");
+
+    expect(screen.queryByText("Rides")).toBeNull();
+    expect(screen.queryByText("Snowboard · Beginner")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Rider profile for/ }),
+    ).toBeNull();
   });
 
   test("view mode hides check-in controls", async () => {

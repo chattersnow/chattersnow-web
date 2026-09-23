@@ -2,6 +2,10 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import {
   computeEventImpactDerived,
   type CheckinCountRow,
   type DiscountCodeRow,
@@ -32,15 +36,21 @@ type DerivedData = {
  * the role that opens this card to report. The RPC is security definer and does
  * its own permission check; it returns null for the discount and rider-profile
  * keys when the caller only has events:view.
+ *
+ * The rider-profile keys are also dropped here for a caller without
+ * rider_profiles:view, which carries the rider_profile module (#1408): on a
+ * tenant without it there is no "Beginner participants" figure for anyone.
  */
 export async function getEventImpactDerivedAction(
   eventId: string,
 ): Promise<{ data: EventImpactDerived } | { error: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase.rpc("get_event_impact_derived_data", {
-    p_event_id: eventId,
-  });
+  const [{ data, error }, permissions] = await Promise.all([
+    supabase.rpc("get_event_impact_derived_data", { p_event_id: eventId }),
+    getCurrentUserPermissions(supabase),
+  ]);
+  const canSeeRider = hasPermission(permissions, "rider_profiles", "view");
 
   if (error) {
     return { error: "Could not load the computed figures. Please try again." };
@@ -56,8 +66,12 @@ export async function getEventImpactDerivedAction(
       eventVolunteers: result.event_volunteers ?? [],
       volunteerHourPeople: result.volunteer_hour_people ?? [],
       discountCodes: result.discount_codes ?? null,
-      beginnerAttendees: result.beginner_attendees ?? null,
-      profiledAttendees: result.profiled_attendees ?? null,
+      beginnerAttendees: canSeeRider
+        ? (result.beginner_attendees ?? null)
+        : null,
+      profiledAttendees: canSeeRider
+        ? (result.profiled_attendees ?? null)
+        : null,
       autoAssignDiscountCodes: result.auto_assign_discount_codes ?? false,
     }),
   };

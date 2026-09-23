@@ -137,6 +137,9 @@ export function RegistrantsTab({
   // #1407. Null for the events that ask no registration question, which
   // leaves the tab exactly as it was.
   const registrationOptions = data?.registrationOptions ?? null;
+  // #1408. The tenant's own list; `?? []` for an older payload, which leaves
+  // "Other" as the one choice rather than a picker with nothing in it.
+  const riderMountains = data?.riderMountains ?? [];
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -620,6 +623,7 @@ export function RegistrantsTab({
         <RiderProfileDialog
           key={riderTarget.id}
           registrant={riderTarget}
+          mountains={riderMountains}
           open
           onOpenChange={(nextOpen) => {
             if (!nextOpen) setRiderTarget(null);

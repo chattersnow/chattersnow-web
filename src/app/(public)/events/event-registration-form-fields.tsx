@@ -33,6 +33,7 @@ import {
   type AccountOffer,
 } from "@/components/record-account-offer";
 import type { EventViewerAccount } from "./my-registration";
+import type { PublicRiderProfile } from "@/lib/rider-profile";
 
 /**
  * The anonymous registration form, optionally prefilled from the caller's own
@@ -60,6 +61,7 @@ export function EventRegistrationForm({
   minorAccompaniment = [],
   photoConsent = [],
   registrationOptions = null,
+  riderProfile = null,
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -106,6 +108,12 @@ export function EventRegistrationForm({
    * none, which leaves this form exactly as it was.
    */
   registrationOptions?: RegistrationOptionsQuestion | null;
+  /**
+   * The post-registration rider profile step (#564), and the mountains it
+   * offers. Null -- the default -- on every tenant without the rider_profile
+   * module (#1408), which leaves the confirmation with no follow-up question.
+   */
+  riderProfile?: PublicRiderProfile | null;
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -217,7 +225,12 @@ export function EventRegistrationForm({
             />
           </div>
         )}
-        <RiderProfileForm registrationId={registrationId} />
+        {riderProfile && (
+          <RiderProfileForm
+            registrationId={registrationId}
+            mountains={riderProfile.mountains}
+          />
+        )}
       </div>
     );
   }

@@ -28,6 +28,7 @@ import {
   anonClient,
   enableModule,
   seededTenantId,
+  setModule as setSharedModule,
   serviceRoleClient,
   signIn,
   uniqueEmail,
@@ -114,6 +115,11 @@ async function readPerson(personId: string) {
     .single();
   if (error) throw new Error(error.message);
   return data;
+}
+
+/** The rider module for the seeded tenant, handing back the undo. */
+function withRiderModule(enabled: boolean): Promise<() => Promise<void>> {
+  return setSharedModule(tenantId, "rider_profile", enabled);
 }
 
 async function setModule(key: string, enabled: boolean) {
@@ -244,6 +250,42 @@ describe("the allowlist", () => {
       p_preferred_name: "Nobody",
     });
     expect(result.error).not.toBeNull();
+  });
+
+  test("without the rider_profile module, the rider answers are left as stored (#1408)", async () => {
+    const { error: seedError } = await alice.client.rpc(
+      "set_my_contact_details",
+      {
+        ...EMPTY_ARGS,
+        p_preferred_name: "Al",
+        p_riding_discipline: "ski",
+        p_ski_experience_level: "beginner",
+        p_preferred_mountain: "Hunter",
+      },
+    );
+    expect(seedError).toBeNull();
+
+    const restore = await withRiderModule(false);
+    try {
+      // What /my/details sends with the group hidden is the stored values,
+      // but a blank -- or a value the module would refuse -- must not land
+      // either: "off" is frozen, and the rest of the form still saves.
+      const { error } = await alice.client.rpc("set_my_contact_details", {
+        ...EMPTY_ARGS,
+        p_preferred_name: "Al",
+        p_phone: "555-0199",
+        p_riding_discipline: "unicycle",
+      });
+      expect(error).toBeNull();
+
+      const person = await readPerson(alice.personId);
+      expect(person.phone).toBe("555-0199");
+      expect(person.riding_discipline).toBe("ski");
+      expect(person.ski_experience_level).toBe("beginner");
+      expect(person.preferred_mountain).toBe("Hunter");
+    } finally {
+      await restore();
+    }
   });
 
   test("the area being off is refused at the database, not at the page", async () => {

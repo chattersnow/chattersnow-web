@@ -30,6 +30,8 @@ import { NewEventDialog } from "./new-event-dialog";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { OutstandingTasksSheet } from "./outstanding-tasks-sheet";
+import { RiderMountainsSheet } from "./rider-mountains-sheet";
+import { getRiderProfileMountains } from "@/lib/rider-profile-settings";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
@@ -84,6 +86,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "events", "manage");
+  const canManageRiderMountains = hasPermission(
+    permissions,
+    "rider_profiles",
+    "manage",
+  );
   // Events stays a top-level module rather than nesting under Calendar (#530);
   // this is the cross-link that replaces that nesting.
   const canViewCalendar = hasPermission(
@@ -154,9 +161,14 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   const { offset, to } = pageRange(page, perPage);
   const { data: events, error, count } = await query.range(offset, to);
-  const [programsResult, eventTasks] = await Promise.all([
+  const [programsResult, eventTasks, riderMountains] = await Promise.all([
     listProgramsAction(),
     getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
+    // The rider profile's mountain list (#1408). rider_profiles carries the
+    // rider_profile module, so on a tenant without it nobody pays the read.
+    canManageRiderMountains
+      ? getRiderProfileMountains(supabase)
+      : Promise.resolve(null),
   ]);
   const programs = "data" in programsResult ? programsResult.data : [];
   const taskGroups = groupEventTasksByEvent(eventTasks.items);
@@ -320,6 +332,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
             <LinkPendingPulse>View on Calendar</LinkPendingPulse>
           </Button>
         )}
+
+        {riderMountains && <RiderMountainsSheet mountains={riderMountains} />}
 
         {canManage && <NewEventDialog programs={programs} />}
       </div>

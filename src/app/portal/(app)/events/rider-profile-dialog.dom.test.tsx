@@ -21,6 +21,9 @@ mock.module("./registrants-actions", () => ({
 
 const { RiderProfileDialog } = await import("./rider-profile-dialog");
 
+// The organization's own list (#1408).
+const MOUNTAINS = ["Whistler", "Mount Hood"];
+
 function registrant(
   rider: Partial<NonNullable<EventRegistrant["rider"]>> = {},
 ): EventRegistrant {
@@ -80,6 +83,7 @@ describe("RiderProfileDialog", () => {
     render(
       <RiderProfileDialog
         registrant={registrant()}
+        mountains={MOUNTAINS}
         open
         onOpenChange={() => {}}
         onSaved={() => {}}
@@ -96,6 +100,22 @@ describe("RiderProfileDialog", () => {
     ).toBeInTheDocument();
   });
 
+  test("a stored mountain that is not on the list seeds as typed-in", () => {
+    // Removing a mountain from the list never rewrites anybody's answer, so
+    // the dialog has to be able to show one the list no longer has.
+    render(
+      <RiderProfileDialog
+        registrant={registrant({ preferred_mountain: "Camelback" })}
+        mountains={MOUNTAINS}
+        open
+        onOpenChange={() => {}}
+        onSaved={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText("Which mountain?")).toHaveValue("Camelback");
+  });
+
   test("seeds from the person's current profile", () => {
     render(
       <RiderProfileDialog
@@ -103,6 +123,7 @@ describe("RiderProfileDialog", () => {
           riding_discipline: "ski",
           ski_experience_level: "beginner",
         })}
+        mountains={MOUNTAINS}
         open
         onOpenChange={() => {}}
         onSaved={() => {}}
@@ -120,6 +141,7 @@ describe("RiderProfileDialog", () => {
     render(
       <RiderProfileDialog
         registrant={registrant()}
+        mountains={MOUNTAINS}
         open
         onOpenChange={(next) => {
           open = next;
@@ -155,6 +177,7 @@ describe("RiderProfileDialog", () => {
     render(
       <RiderProfileDialog
         registrant={registrant()}
+        mountains={MOUNTAINS}
         open
         onOpenChange={(next) => {
           open = next;

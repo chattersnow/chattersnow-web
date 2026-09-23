@@ -7,8 +7,10 @@ import {
   adminClient,
   anonClient,
   createPublishedEvent,
+  seededTenantId,
   uniqueEmail,
   uniqueIp,
+  withModule,
 } from "../../../../test/integration-setup";
 
 mock.module("next/cache", () => ({ revalidatePath: () => {} }));
@@ -131,6 +133,50 @@ describe("saveRiderProfileAction (integration)", () => {
       ski_experience_level: "advanced",
       snowboard_experience_level: null,
     });
+  });
+
+  test("refuses, and writes nothing, for a tenant without the rider_profile module (#1408)", async () => {
+    currentIp = uniqueIp();
+    const { registrationId, personId } = await registration();
+
+    await withModule(
+      await seededTenantId(),
+      "rider_profile",
+      false,
+      async () => {
+        const result = await saveRiderProfileAction(
+          registrationId,
+          formData({
+            ridingDiscipline: "ski",
+            skiExperienceLevel: "beginner",
+            preferredMountain: "Hunter",
+          }),
+        );
+        expect(result).toHaveProperty("error");
+      },
+    );
+
+    expect((await riderProfile(personId)).riding_discipline).toBeNull();
+
+    // And the public API's route calls the same RPC, which answers with the
+    // code the API maps to a 404.
+    await withModule(
+      await seededTenantId(),
+      "rider_profile",
+      false,
+      async () => {
+        const { error } = await anonClient().rpc(
+          "save_registrant_rider_profile",
+          {
+            p_registration_id: registrationId,
+            p_riding_discipline: "ski",
+            p_ski_experience_level: "beginner",
+            p_ip_address: uniqueIp(),
+          },
+        );
+        expect(error?.message).toBe("SECTION_UNAVAILABLE");
+      },
+    );
   });
 
   test("rejects an unknown registration id", async () => {

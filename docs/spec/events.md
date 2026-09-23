@@ -130,6 +130,14 @@ It appears nowhere public, and deliberately not on the person record: the answer
 
 Out of scope: gear sizing (the rider profile add-on, #1408), named party members, payment.
 
+### Rider profile (add-on module)
+
+The post-registration "Do you ski or ride?" step, its door-side counterpart on the registrants tab, the "What you ride" group on `/my/details`, the rider fields on the person record and form, and the Impact "Beginner participants" figure are one add-on, the `rider_profile` module (#1408). It is off by default on every plan and on only for Chatter Snow; the generic replacement is designed in #1409.
+
+**One gate per audience.** In the portal the module's resource, `rider_profiles`, is asked for beside each screen's own permission (the registrants list still needs `events: manage`), so `has_permission()` turns every rider surface off with the module. On the public site, `save_registrant_rider_profile()` (and `POST /rider-profile`, which calls it) refuses with `SECTION_UNAVAILABLE`, a 404 in the public API. `set_my_contact_details()` ignores the four rider arguments without the module and leaves the stored answers alone — off is frozen, never cleared.
+
+**The mountain list is the tenant's.** `app_settings` key `rider_profile.preferred_mountains` (a JSON array of names, in picker order), edited from the **Mountains** button on the Events page (`rider_profiles: manage`, through `set_rider_profile_mountains()`), read by the public step through `public_rider_profile_settings` and by the portal through `rider_profile_mountains()`. "Other" is never stored in the list: both pickers add it with a free-text box, and what lands on `people.preferred_mountain` is the chosen or typed name, so editing the list never rewrites an answer. Chatter Snow's list is seeded (`20260923120000`).
+
 ### Sponsor and partner selection
 
 Event sponsors/partners are people or organizations that already live in the shared `people` directory (the same table backing donors and volunteers, see [§6](../technical-spec.md#6-proposed-data-model)) rather than free text typed per event. Managing an event's sponsors shall work as follows:

@@ -5,7 +5,6 @@ import { saveRiderProfileAction } from "./rider-profile-actions";
 import {
   EXPERIENCE_LEVELS,
   OTHER_MOUNTAIN,
-  PREFERRED_MOUNTAINS,
   RIDING_DISCIPLINES,
   ridesSki,
   ridesSnowboard,
@@ -28,11 +27,14 @@ function experienceLabel(value: string) {
 
 // Follow-up step shown after a successful registration (issue #564). It is
 // never a gate: the registration is already saved by the time this renders,
-// and skipping or abandoning it changes nothing.
+// and skipping or abandoning it changes nothing. Rendered only for a tenant
+// with the rider_profile module (#1408); `mountains` is that tenant's list.
 export function RiderProfileForm({
   registrationId,
+  mountains,
 }: {
   registrationId: string;
+  mountains: readonly string[];
 }) {
   const [discipline, setDiscipline] = useState("");
   const [skiLevel, setSkiLevel] = useState("");
@@ -180,7 +182,7 @@ export function RiderProfileForm({
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {PREFERRED_MOUNTAINS.map((name) => (
+              {mountains.map((name) => (
                 <SelectItem key={name} value={name}>
                   {name}
                 </SelectItem>

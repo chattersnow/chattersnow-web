@@ -236,11 +236,14 @@ export function ImpactTab({
           <AlertTitle>How these numbers are calculated</AlertTitle>
           <AlertDescription>
             Participation and discount-code figures are computed live from
-            attendance, check-ins, volunteer records and rider profiles — there
-            is nothing to type. Only the figures below them have no system
-            source and are still entered by staff. Events that predate check-in
-            tracking will show low computed figures; their original hand-entered
-            numbers were archived, not discarded.
+            attendance, check-ins,{" "}
+            {derived?.beginnerParticipants != null
+              ? "volunteer records and rider profiles"
+              : "and volunteer records"}{" "}
+            — there is nothing to type. Only the figures below them have no
+            system source and are still entered by staff. Events that predate
+            check-in tracking will show low computed figures; their original
+            hand-entered numbers were archived, not discarded.
           </AlertDescription>
         </Alert>
 

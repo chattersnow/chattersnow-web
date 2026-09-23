@@ -16,6 +16,10 @@ mock.module("./rider-profile-actions", () => ({
 
 const { RiderProfileForm } = await import("./rider-profile-form-fields");
 
+// A tenant's own list (#1408), deliberately not Chatter Snow's: the form must
+// offer whatever it is handed and nothing it was not.
+const MOUNTAINS = ["Whistler", "Mount Hood"];
+
 async function chooseOption(
   user: ReturnType<typeof userEvent.setup>,
   triggerName: string,
@@ -35,7 +39,7 @@ describe("RiderProfileForm", () => {
 
   test("asks for both levels when the visitor rides both", async () => {
     const user = userEvent.setup();
-    render(<RiderProfileForm registrationId="reg-1" />);
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
 
     expect(
       screen.queryByRole("combobox", { name: "Experience on skis" }),
@@ -53,7 +57,7 @@ describe("RiderProfileForm", () => {
 
   test("asks for only the snowboard level when they only snowboard", async () => {
     const user = userEvent.setup();
-    render(<RiderProfileForm registrationId="reg-1" />);
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
 
     await chooseOption(user, "Do you ski or ride?", "Snowboard");
 
@@ -65,9 +69,23 @@ describe("RiderProfileForm", () => {
     ).toBeInTheDocument();
   });
 
+  test("offers the organization's own mountains, then Other", async () => {
+    const user = userEvent.setup();
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Preferred mountain for meetups" }),
+    );
+
+    const options = (await screen.findAllByRole("option")).map(
+      (option) => option.textContent,
+    );
+    expect(options).toEqual(["Whistler", "Mount Hood", "Other"]);
+  });
+
   test("reveals a free-text box when the mountain is 'Other'", async () => {
     const user = userEvent.setup();
-    render(<RiderProfileForm registrationId="reg-1" />);
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
 
     expect(screen.queryByLabelText("Which mountain?")).not.toBeInTheDocument();
 
@@ -78,7 +96,7 @@ describe("RiderProfileForm", () => {
 
   test("submits the answers and confirms", async () => {
     const user = userEvent.setup();
-    render(<RiderProfileForm registrationId="reg-1" />);
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
 
     await chooseOption(user, "Do you ski or ride?", "Skis");
     await chooseOption(user, "Experience on skis", "Advanced");
@@ -99,7 +117,7 @@ describe("RiderProfileForm", () => {
 
   test("skipping dismisses the step without calling the action", async () => {
     const user = userEvent.setup();
-    render(<RiderProfileForm registrationId="reg-1" />);
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
 
     await user.click(screen.getByRole("button", { name: "Skip" }));
 
@@ -114,7 +132,7 @@ describe("RiderProfileForm", () => {
       error: "Too many attempts — please try again in a few minutes.",
     }));
     const user = userEvent.setup();
-    render(<RiderProfileForm registrationId="reg-1" />);
+    render(<RiderProfileForm registrationId="reg-1" mountains={MOUNTAINS} />);
 
     await chooseOption(user, "Do you ski or ride?", "Skis");
     await chooseOption(user, "Experience on skis", "Beginner");

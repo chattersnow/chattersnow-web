@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,6 +56,11 @@ export default async function ProgramImpactReportPage({
   searchParams,
 }: ProgramImpactReportPageProps) {
   const supabase = await createSupabaseServerClient();
+  const canSeeRider = hasPermission(
+    await getCurrentUserPermissions(supabase),
+    "rider_profiles",
+    "view",
+  );
   const params = await searchParams;
   const raw = (key: string) => {
     const value = params[key];
@@ -114,17 +123,25 @@ export default async function ProgramImpactReportPage({
           label: "First-time participants",
           value: formatNumber(rollup.firstTimeParticipants),
         },
-        {
-          label: "Beginner participants",
-          // Qualified only while rider-profile coverage is short of the
-          // checked-in headcount; at full coverage it is simply the number.
-          value:
-            rollup.profiledAttendees < rollup.checkedIn
-              ? `${formatNumber(rollup.beginnerParticipants)} of ${formatNumber(
-                  rollup.profiledAttendees,
-                )} with a rider profile`
-              : formatNumber(rollup.beginnerParticipants),
-        },
+        // The rider_profile module's figure (#1408): absent for a reader
+        // without rider_profiles:view, which is everyone on a tenant without
+        // the module.
+        ...(canSeeRider
+          ? [
+              {
+                label: "Beginner participants",
+                // Qualified only while rider-profile coverage is short of the
+                // checked-in headcount; at full coverage it is simply the
+                // number.
+                value:
+                  rollup.profiledAttendees < rollup.checkedIn
+                    ? `${formatNumber(rollup.beginnerParticipants)} of ${formatNumber(
+                        rollup.profiledAttendees,
+                      )} with a rider profile`
+                    : formatNumber(rollup.beginnerParticipants),
+              },
+            ]
+          : []),
         {
           label: "Participants with a discount code or rental subsidy",
           value: formatNumber(rollup.assistedParticipants),
@@ -163,13 +180,14 @@ export default async function ProgramImpactReportPage({
       <p className="app-muted mt-2 max-w-2xl text-sm">
         Season/program rollup across every event tagged to the selected program.
         Every figure here is computed live from attendance, check-ins, discount
-        codes, rider profiles, inventory and volunteer records — only rental
-        subsidies and assistance dollars are still staff-entered per event,
-        because nothing in the system records them. Two caveats worth knowing
-        when quoting these numbers: internally-granted scholarships and fee
-        waivers aren&apos;t modelled anywhere, so assistance undercounts; and
-        &ldquo;Volunteers on site&rdquo; counts each person once per event, so
-        someone who volunteered three times counts three times.
+        codes, {canSeeRider ? "rider profiles, " : ""}inventory and volunteer
+        records — only rental subsidies and assistance dollars are still
+        staff-entered per event, because nothing in the system records them. Two
+        caveats worth knowing when quoting these numbers: internally-granted
+        scholarships and fee waivers aren&apos;t modelled anywhere, so
+        assistance undercounts; and &ldquo;Volunteers on site&rdquo; counts each
+        person once per event, so someone who volunteered three times counts
+        three times.
       </p>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
