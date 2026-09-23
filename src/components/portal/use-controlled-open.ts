@@ -29,8 +29,11 @@ export type ControlledOpenProps = {
 export function useControlledOpen(
   controlledOpen: boolean | undefined,
   onOpenChange?: (open: boolean) => void,
+  /** Uncontrolled only: open on first render, for a page reached by a link
+   *  that means "start this now". */
+  initialOpen = false,
 ) {
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(initialOpen);
   const open = controlledOpen ?? uncontrolledOpen;
 
   const setOpen = useCallback(

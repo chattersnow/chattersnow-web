@@ -45,8 +45,18 @@ export type DonationGiveawayGrant = {
   untieredItemIds: string[];
 };
 
+/** A received item and the asset-tag code it was given at intake (#1420). */
+export type ReceivedItemCode = { itemId: string; code: string };
+
 export type CreateDonationResult =
-  ActionFailure | { success: true; giveaway: DonationGiveawayGrant | null };
+  | ActionFailure
+  | {
+      success: true;
+      donationId: string;
+      /** In the order the items were entered. */
+      codes: ReceivedItemCode[];
+      giveaway: DonationGiveawayGrant | null;
+    };
 
 export async function createDonation(
   supabase: SupabaseClient,
@@ -72,6 +82,14 @@ export async function createDonation(
   );
 
   if (error) {
+    // A scanned label that is not (or is no longer) an unused one: somebody
+    // else bound it a moment ago, or it was mistyped. Nothing was saved.
+    if (error.hint === "asset_tag_unavailable") {
+      return actionError(
+        "invalid_input",
+        `${error.message}. Scan a different label, or clear it to have a new code created.`,
+      );
+    }
     return actionError(
       "server_error",
       "Could not save the donation. Please try again.",
@@ -82,14 +100,26 @@ export async function createDonation(
     | {
         donation_id: string;
         giveaway_id: string | null;
+        inventory_item_ids?: string[] | null;
         untiered_item_ids: string[] | null;
+        asset_tags?: string[] | null;
       }
     | undefined;
+
+  const itemIds = row?.inventory_item_ids ?? [];
+  const tags = row?.asset_tags ?? [];
+  const saved = {
+    success: true as const,
+    donationId: row?.donation_id ?? "",
+    codes: itemIds.flatMap((itemId, index) =>
+      tags[index] ? [{ itemId, code: tags[index] }] : [],
+    ),
+  };
 
   // The donation itself is saved either way, so a failure to read back the
   // ticket totals must not read as a failed donation. Fall back to no grant
   // and let the staffer check the giveaway tab.
-  if (!row?.giveaway_id) return { success: true, giveaway: null };
+  if (!row?.giveaway_id) return { ...saved, giveaway: null };
 
   const { data: totals } = await supabase.rpc("giveaway_ticket_totals", {
     p_giveaway_id: row.giveaway_id,
@@ -98,7 +128,7 @@ export async function createDonation(
   });
 
   return {
-    success: true,
+    ...saved,
     giveaway: {
       giveawayId: row.giveaway_id,
       totals: (totals ?? []) as GiveawayTicketTotal[],

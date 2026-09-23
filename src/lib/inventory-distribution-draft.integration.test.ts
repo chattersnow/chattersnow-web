@@ -65,11 +65,13 @@ async function resolve(code: string, as: SupabaseClient) {
   }
 }
 
+// The code intake gave the item (#1420 part 4).
 async function assetTag(itemId: string) {
   const { data, error } = await adminClient
     .from("inventory_item_tags")
-    .insert({ item_id: itemId, kind: "asset_tag", value: "" })
     .select("value")
+    .eq("item_id", itemId)
+    .eq("kind", "asset_tag")
     .single();
   if (error) throw error;
   return data.value;

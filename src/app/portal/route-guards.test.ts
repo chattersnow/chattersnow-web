@@ -41,7 +41,9 @@ const REDIRECT_STUBS = new Set([
  * must not reveal whether a code exists: both get the same not-found, and the
  * destination page keeps its own guard. Since #1420 part 3 the tag resolver
  * may render an "add to your distribution" offer instead of redirecting, but
- * only once the lookup has found the item under the reader's RLS -- checked
+ * only once the lookup has found the item under the reader's RLS; since part
+ * 4 an unused pre-printed label offers "receive a donation with this label",
+ * but only to a reader the intake function admits -- checked
  * below as: it looks the code up, answers a miss with `notFound()`, and names
  * no permission guard of its own.
  */

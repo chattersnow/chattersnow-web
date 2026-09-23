@@ -215,7 +215,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   inventory_intake: {
     view: "Read the inventory category vocabulary, so the intake and distribution pickers have labels in them. Nothing else.",
     manage:
-      "Record donation intake and distribution movements, including their photos, from the dashboard's quick actions and from the Inventory → Donations and → Distribution pages -- without any access to the item catalog or the reports.",
+      "Record donation intake and distribution movements, including their photos, from the dashboard's quick actions and from the Inventory → Donations and → Distribution pages -- without any access to the item catalog or the reports. Intake tags what it receives: each item gets a code, a pre-printed blank label or a manufacturer barcode can be scanned onto it (a known barcode fills in the name and category of an item already carrying it), and the received items' labels, or a batch of blank labels, print from Inventory → Donations.",
     excludes: [
       {
         key: "inventory",
@@ -232,7 +232,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   finance: {
     view: "Open the Finance section and see its landing figures. Enough to reach the section, not to read a ledger.",
     manage:
-      "Work the donation ledger, the expense ledger and event revenue: record, edit and delete entries, record a donation from the dashboard's quick actions, import a giving provider's CSV export into the donation ledger, and set the giving path the public site points at — which giving page it opens, and the amounts it offers.",
+      "Work the donation ledger, the expense ledger and event revenue: record, edit and delete entries, record a donation from the dashboard's quick actions (tagging its items as intake does), import a giving provider's CSV export into the donation ledger, and set the giving path the public site points at — which giving page it opens, and the amounts it offers.",
     excludes: [
       {
         key: "finance_approvals",

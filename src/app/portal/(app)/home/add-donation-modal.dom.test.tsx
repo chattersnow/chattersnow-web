@@ -5,13 +5,33 @@ import type { CreateDonationInput } from "./donation-form";
 import * as HomeActions from "./actions";
 import { labelText } from "../../../../../test/labels";
 
-type CreateDonationResult =
-  | HomeActions.CreateDonationResult
-  | { success: true; giveaway: HomeActions.DonationGiveawayGrant | null };
+type CreateDonationResult = HomeActions.CreateDonationResult & {
+  labelsHref?: string | null;
+};
+
+const SAVED: CreateDonationResult = {
+  success: true,
+  donationId: "donation-1",
+  codes: [{ itemId: "item-1", code: "K7M2QX" }],
+  giveaway: null,
+  labelsHref: "/portal/inventory/donations/labels?donation=donation-1",
+};
 
 const createDonationActionMock = mock<
   (input: CreateDonationInput) => Promise<CreateDonationResult>
->(async () => ({ success: true, giveaway: null }));
+>(async () => SAVED);
+
+const classifyIntakeScanActionMock = mock<
+  (
+    scanned: string,
+  ) => Promise<
+    { data: import("./intake-scan-actions").IntakeScan } | { error: string }
+  >
+>(async () => ({ error: "unset" }));
+
+mock.module("./intake-scan-actions", () => ({
+  classifyIntakeScanAction: classifyIntakeScanActionMock,
+}));
 
 // Events without a tiered giveaway return no tiers, which is the default the
 // existing cases exercise -- the per-item tier picker stays hidden.
@@ -114,10 +134,8 @@ async function fillDonorAndContinue(
 describe("AddDonationModal", () => {
   beforeEach(() => {
     createDonationActionMock.mockClear();
-    createDonationActionMock.mockImplementation(async () => ({
-      success: true,
-      giveaway: null,
-    }));
+    createDonationActionMock.mockImplementation(async () => SAVED);
+    classifyIntakeScanActionMock.mockClear();
     listEventGiveawayTiersActionMock.mockClear();
     listEventGiveawayTiersActionMock.mockImplementation(async () => ({
       data: [],
@@ -207,7 +225,7 @@ describe("AddDonationModal", () => {
     await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
-    await screen.findByRole("button", { name: "Record donation" });
+    await screen.findByText("Donation recorded");
     expect(createDonationActionMock).toHaveBeenCalledTimes(1);
 
     const payload = createDonationActionMock.mock.calls[0][0];
@@ -258,7 +276,7 @@ describe("AddDonationModal", () => {
     await screen.findByRole("button", { name: "Remove photo" });
 
     await user.click(screen.getByRole("button", { name: "Save donation" }));
-    await screen.findByRole("button", { name: "Record donation" });
+    await screen.findByText("Donation recorded");
 
     const payload = createDonationActionMock.mock.calls[0][0];
     expect(payload.items[0].photoUrl).toBeUndefined();
@@ -335,8 +353,84 @@ describe("AddDonationModal", () => {
     await selectItemCategory(user, "Jacket");
     await user.click(screen.getByRole("button", { name: "Save donation" }));
 
-    await screen.findByRole("button", { name: "Record donation" });
+    await screen.findByText("Donation recorded");
     const payload = createDonationActionMock.mock.calls[0][0];
     expect(payload.eventId).toBe("event-2");
+  });
+
+  test("the confirmation lists each item's code and offers its labels (#1420)", async () => {
+    const user = userEvent.setup();
+    await openModal(user);
+    await fillDonorAndContinue(user, "Jane Donor");
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
+    await selectItemCategory(user, "Jacket");
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+
+    await screen.findByText("Donation recorded");
+    expect(screen.getByText("K7M2QX")).toBeInTheDocument();
+    expect(
+      screen.getByText("Winter jacket", { selector: "span" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Print label/).closest("a")).toHaveAttribute(
+      "href",
+      "/portal/inventory/donations/labels?donation=donation-1",
+    );
+  });
+
+  test("a scanned barcode is recorded and prefills an empty item (#1420)", async () => {
+    classifyIntakeScanActionMock.mockImplementation(async () => ({
+      data: {
+        kind: "barcode" as const,
+        value: "012345678905",
+        prefill: { description: "Burton gloves", categoryKey: "jacket" },
+      },
+    }));
+    const user = userEvent.setup();
+    await openModal(user);
+    await fillDonorAndContinue(user, "Jane Donor");
+
+    await user.click(
+      screen.getByRole("button", { name: "Scan label or barcode" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: /scan/i }),
+      "012345678905{Enter}",
+    );
+
+    expect(await screen.findByText(/Barcode 012345678905/)).toBeInTheDocument();
+    expect(screen.getByLabelText(labelText("Item description"))).toHaveValue(
+      "Burton gloves",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+    await screen.findByText("Donation recorded");
+    const payload = createDonationActionMock.mock.calls[0][0];
+    expect(payload.items[0]).toMatchObject({
+      barcode: "012345678905",
+      categoryKey: "jacket",
+    });
+    expect(payload.items[0].assetTag).toBeUndefined();
+  });
+
+  test("a scanned blank label goes on the item, and opening with one prefills it (#1420)", async () => {
+    const user = userEvent.setup();
+    render(<AddDonationModal initialAssetTag="B7K2QX" />);
+
+    await fillDonorAndContinue(user, "Jane Donor");
+    expect(screen.getByText(/Pre-printed label B7K2QX/)).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
+    await selectItemCategory(user, "Jacket");
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+    await screen.findByText("Donation recorded");
+    expect(createDonationActionMock.mock.calls[0][0].items[0].assetTag).toBe(
+      "B7K2QX",
+    );
   });
 });

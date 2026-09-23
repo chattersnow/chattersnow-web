@@ -348,6 +348,20 @@ export async function createAvailableGearItems(
   };
 }
 
+/**
+ * Takes the asset-tag codes intake gave these items (#1420 part 4) back off,
+ * so they stand in for an item received before intake coded anything -- the
+ * case the on-demand "Create codes" path on the label page exists for.
+ */
+export async function removeAssetTags(itemIds: string[]) {
+  const { error } = await adminClient
+    .from("inventory_item_tags")
+    .delete()
+    .eq("kind", "asset_tag")
+    .in("item_id", itemIds);
+  if (error) throw error;
+}
+
 // A single fresh `donations` row (with its one backing item and donor
 // `people` row), for tests exercising `donations` table access directly --
 // unlike createAvailableGearItems, this exposes the donation id itself

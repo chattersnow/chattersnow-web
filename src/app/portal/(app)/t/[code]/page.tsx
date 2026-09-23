@@ -15,6 +15,38 @@ import { addTagToCurrentDistributionAction } from "./actions";
 
 export const metadata: Metadata = { title: "Scanned tag" };
 
+function BlankTag({ code }: { code: string }) {
+  return (
+    <>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
+          Label {code}
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
+      <Card className="mt-6 max-w-xl">
+        <CardContent className="flex flex-col gap-4">
+          <p>
+            This label is not on an item yet. Receive the donation it is stuck
+            to, and the item takes this code.
+          </p>
+          <Button
+            className="self-start"
+            nativeButton={false}
+            render={
+              <Link
+                href={`/portal/inventory/donations?receive=${encodeURIComponent(code)}`}
+              />
+            }
+          >
+            Receive a donation with this label
+          </Button>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
 /**
  * The URL an asset-tag label carries (#1420): a QR code scanned with a phone's
  * own camera, or an NFC tag tapped on an iPhone, lands here in the browser
@@ -61,7 +93,20 @@ export default async function InventoryTagPage({
   if (error) throw new Error("Could not look up that tag.");
 
   const found = matches[0]?.item;
-  if (!found) notFound();
+  if (!found) {
+    // A pre-printed blank (#1420 part 4) is offered to whoever may receive a
+    // donation with it -- and to nobody else, who gets the same not-found as
+    // an unknown code. The lookup above cannot see it for an intake volunteer,
+    // who reads no tags under RLS, so the intake function answers instead; it
+    // refuses a caller without the grant, which lands here as not-found too.
+    const { data: scan } = await supabase.rpc("inventory_intake_scan", {
+      p_asset_tag: code,
+      p_barcode: "",
+    });
+    const status = (Array.isArray(scan) ? scan[0] : scan)?.asset_tag_status;
+    if (status !== "blank") notFound();
+    return <BlankTag code={code.toUpperCase()} />;
+  }
 
   const itemHref = `/portal/inventory/items?item=${encodeURIComponent(found.id)}`;
   // RLS returns no draft to a reader who may not record a distribution.

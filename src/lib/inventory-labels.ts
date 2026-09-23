@@ -159,6 +159,35 @@ export function paginateLabels<T>(
   return pages;
 }
 
+/**
+ * The intake label page (#1420 part 4), under Inventory -> Donations so the
+ * intake volunteer can open it: one donation's items, or a batch of blank
+ * codes printed ahead of time.
+ */
+export const INTAKE_LABELS_PATH = "/portal/inventory/donations/labels";
+
+export function donationLabelsHref(donationId: string): string {
+  return `${INTAKE_LABELS_PATH}?donation=${encodeURIComponent(donationId)}`;
+}
+
+export function blankLabelsHref(codes: readonly string[]): string {
+  return `${INTAKE_LABELS_PATH}?codes=${codes.map(encodeURIComponent).join(",")}`;
+}
+
+const LABEL_CODE_PATTERN = /^[A-Z0-9]{4,16}$/;
+
+/** `?codes=` read defensively, like `?items=`. */
+export function parseLabelCodes(raw: string | undefined): string[] {
+  return [
+    ...new Set(
+      (raw ?? "")
+        .split(",")
+        .map((code) => code.trim().toUpperCase())
+        .filter((code) => LABEL_CODE_PATTERN.test(code)),
+    ),
+  ].slice(0, MAX_LABEL_ITEMS);
+}
+
 /** The print page for these items, from anywhere in the portal. */
 export function labelsHref(itemIds: readonly string[]): string {
   return `/portal/inventory/items/labels?items=${itemIds.join(",")}`;
