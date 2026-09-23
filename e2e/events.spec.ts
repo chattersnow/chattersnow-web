@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { clickNavLink } from "./helpers/nav";
+import { modal } from "./helpers/dialog";
 import {
   completeRegistration,
   continueToReview,
@@ -73,7 +74,7 @@ test.describe("public events", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: EVENT_NAME }),
     ).toBeVisible();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(modal(page)).toHaveCount(0);
 
     await page
       .getByRole("navigation", { name: "breadcrumb" })

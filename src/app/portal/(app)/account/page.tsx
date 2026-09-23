@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { ensureCurrentPerson } from "@/lib/auth/current-person";
 import { personDisplayName } from "@/lib/format";
 import { AccountForm } from "./account-form";
@@ -100,8 +101,12 @@ export default async function AccountPage() {
         <div className="rainbow-accent mt-3 w-full" />
       </div>
 
-      <div className="mt-6 max-w-xl space-y-6">
-        <Card>
+      {/* Notifications are the one long list here, so they take the wide
+          column; the short, rarely-touched blocks sit beside them. DOM order
+          is the phone's (and the tab order): profile, notifications, the
+          rest. The last row takes the slack so the side cards stay packed. */}
+      <div className="mt-6 grid max-w-6xl items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_auto_1fr]">
+        <Card className="lg:col-start-2">
           <CardContent className="space-y-4">
             <div>
               <p className="app-eyebrow">Signed in as</p>
@@ -115,7 +120,7 @@ export default async function AccountPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-start-1 lg:row-span-3 lg:row-start-1">
           <CardContent className="space-y-4">
             <div>
               <p className="app-eyebrow">Email notifications</p>
@@ -143,6 +148,7 @@ export default async function AccountPage() {
               signInEmail={user.email ?? ""}
               orgEmailEnabled={orgEmailEnabled}
             />
+            <Separator />
             <NotificationPreferences
               kinds={kinds}
               enabledByKind={enabledByKind}
@@ -152,7 +158,7 @@ export default async function AccountPage() {
         </Card>
 
         {policies.length > 0 && (
-          <Card>
+          <Card className="lg:col-start-2">
             <CardContent className="space-y-3">
               <div>
                 <p className="app-eyebrow">Policies</p>
@@ -179,7 +185,7 @@ export default async function AccountPage() {
           </Card>
         )}
 
-        <Card>
+        <Card className="lg:col-start-2">
           <CardContent className="space-y-4">
             <div>
               <p className="app-eyebrow">Portal introduction</p>

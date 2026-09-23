@@ -45,6 +45,9 @@ const EXEMPT: Record<string, string> = {
   "governance/meetings/minutes-approval-dialog.tsx":
     "The previous meeting's minutes, read, then approved with one action. " +
     "The approval is a button, not a field.",
+  "inventory/items/scan-tag-dialog.tsx":
+    "Scan a tag (#1420): a scanner, not a form. Each scan looks the tag up " +
+    "and opens the item; there is nothing to fill in and no submit.",
   "people/[id]/merge-dialog.tsx":
     "Picks the other half of a merge and opens the review. The review " +
     "itself is a route, and this dialog collects no values of its own.",

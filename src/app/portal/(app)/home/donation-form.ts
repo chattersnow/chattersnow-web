@@ -19,6 +19,11 @@ export type DonationItemInput = {
   /** Full URL of the item's photo (issue #781) -- a gear-photos object uploaded
    *  from the device, or a pasted external link. */
   photoUrl?: string;
+  /** A pre-printed blank label scanned at intake (#1420), bound to the item
+   *  instead of generating a code. Absent, the item gets a new code. */
+  assetTag?: string;
+  /** A manufacturer UPC/EAN read off the item as it arrived (#1420). */
+  barcode?: string;
 };
 
 export type CreateDonationInput = {
@@ -45,6 +50,10 @@ const SOURCE_TYPES = [
 ] as const;
 const CONDITIONS = ["new", "like_new", "good", "fair", "poor"] as const;
 const INTENDED_USES = ["gear_library", "giveaway", "internal"] as const;
+// The shapes parseScannedTag (src/lib/inventory-tags.ts) accepts as a bare
+// code and as a manufacturer barcode.
+const ASSET_TAG_PATTERN = /^[A-Za-z0-9]{4,16}$/;
+const BARCODE_PATTERN = /^[0-9]{8,14}$/;
 
 export type DonationRpcArgs = {
   p_donor_name: string | null;
@@ -65,6 +74,8 @@ export type DonationRpcArgs = {
     intended_use: string;
     giveaway_tier: string | null;
     photo_url: string | null;
+    asset_tag: string | null;
+    barcode: string | null;
   }[];
   p_event_id: string | null;
   p_donated_at: string | null;
@@ -89,6 +100,7 @@ export function parseDonationInput(
     return { error: "Add at least one item to the donation.", field: "items" };
   }
 
+  const assetTags = new Set<string>();
   for (let i = 0; i < input.items.length; i++) {
     const item = input.items[i];
     const label = `Item ${i + 1}`;
@@ -152,6 +164,30 @@ export function parseDonationInput(
         field: `items.${i}.photoUrl`,
       };
     }
+    const assetTag = item.assetTag?.trim().toUpperCase();
+    if (assetTag) {
+      if (!ASSET_TAG_PATTERN.test(assetTag)) {
+        return {
+          error: `${label}: “${assetTag}” is not a label code.`,
+          field: `items.${i}.assetTag`,
+        };
+      }
+      // One label, one piece. The RPC refuses the second bind too, but only
+      // after the first item is written; this names the item.
+      if (assetTags.has(assetTag)) {
+        return {
+          error: `${label}: label ${assetTag} is already on another item.`,
+          field: `items.${i}.assetTag`,
+        };
+      }
+      assetTags.add(assetTag);
+    }
+    if (item.barcode?.trim() && !BARCODE_PATTERN.test(item.barcode.trim())) {
+      return {
+        error: `${label}: a barcode is 8 to 14 digits.`,
+        field: `items.${i}.barcode`,
+      };
+    }
   }
 
   return {
@@ -174,6 +210,8 @@ export function parseDonationInput(
         intended_use: item.intendedUse || "gear_library",
         giveaway_tier: item.giveawayTier?.trim() || null,
         photo_url: item.photoUrl?.trim() || null,
+        asset_tag: item.assetTag?.trim().toUpperCase() || null,
+        barcode: item.barcode?.trim() || null,
       })),
       p_event_id: input.eventId ?? null,
       p_donated_at: input.donatedOn?.trim() || null,

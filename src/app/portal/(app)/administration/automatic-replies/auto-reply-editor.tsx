@@ -9,7 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Info, MailWarning } from "lucide-react";
+import { MailWarning } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -380,28 +380,6 @@ export function AutoReplyEditor({
               emailEnabled={emailEnabled}
             />
           </div>
-
-          <Alert>
-            <Info />
-            <AlertDescription>
-              The logo, the colours and the footer around these words are your
-              branding, not fields here.{" "}
-              <Link
-                href="/portal/administration/organization-settings?tab=branding"
-                className="underline underline-offset-4"
-              >
-                Change those under Branding
-              </Link>
-              . Who these emails come from, and where a reply goes, is in{" "}
-              <Link
-                href="/portal/administration/organization-settings?tab=notifications"
-                className="underline underline-offset-4"
-              >
-                Notifications
-              </Link>
-              .
-            </AlertDescription>
-          </Alert>
         </div>
       </div>
 

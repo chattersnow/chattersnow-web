@@ -22,7 +22,7 @@ import { loadRemoteIcon, MASKABLE_SAFE_FRACTION } from "./icon-source";
  * still installs with a real icon rather than a default naming somebody else.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ size: string }> },
 ) {
   const { size: rawSize } = await context.params;
@@ -46,7 +46,7 @@ export async function GET(
     BRAND_COLOR_TOKENS.find((token) => token.key === "primary_deep")!
       .defaultValue;
   const inner = Math.round(size * MASKABLE_SAFE_FRACTION);
-  const uploaded = await loadRemoteIcon(branding.appIconUrl);
+  const uploaded = await loadRemoteIcon(branding.appIconUrl, request.url);
 
   return new ImageResponse(
     <div

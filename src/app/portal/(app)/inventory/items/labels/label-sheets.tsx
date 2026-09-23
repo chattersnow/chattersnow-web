@@ -1,6 +1,7 @@
 import { paginateLabels, type LabelLayout } from "@/lib/inventory-labels";
 
 export type PrintableLabel = {
+  /** The item's id, or the tag's for a blank label. */
   itemId: string;
   code: string;
   description: string;
@@ -149,15 +150,19 @@ function LabelCell({
         style={{ width: `${qrSize}in`, height: `${qrSize}in` }}
       />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 self-stretch leading-tight">
-        <p
-          className={
-            large
-              ? "line-clamp-3 text-[11pt] font-medium break-words"
-              : "line-clamp-2 text-[7pt] font-medium break-words"
-          }
-        >
-          {label.description}
-        </p>
+        {/* Empty on a blank label printed ahead of intake (#1420 part 4):
+            it is not on an item yet. */}
+        {label.description && (
+          <p
+            className={
+              large
+                ? "line-clamp-3 text-[11pt] font-medium break-words"
+                : "line-clamp-2 text-[7pt] font-medium break-words"
+            }
+          >
+            {label.description}
+          </p>
+        )}
         {label.size && (
           <p className={large ? "text-[9pt]" : "text-[6pt]"}>
             Size {label.size}

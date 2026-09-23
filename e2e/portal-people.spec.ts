@@ -37,7 +37,7 @@ test.describe("portal people directory", () => {
     // the row action is an eye-icon anchor labeled "View <name>", rendered
     // through Base UI's Button with nativeButton={false}, which stamps
     // role="button" on the anchor (same as the Clear control below).
-    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
+    await page.getByRole("link", { name: "View Priya Natarajan" }).click();
 
     await expect(page).toHaveURL(/\/portal\/people\/[0-9a-f-]+$/);
     await expect(
@@ -70,12 +70,12 @@ test.describe("portal people directory", () => {
       page.locator('[data-slot="card"]').filter({ hasText: name });
 
     await page.goto("/portal/people?search=Priya");
-    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
+    await page.getByRole("link", { name: "View Priya Natarajan" }).click();
     await expect(card("Volunteer activity")).toBeVisible();
     await expect(card("Donations")).toHaveCount(0);
 
     await page.goto("/portal/people?search=Jamie");
-    await page.getByRole("button", { name: "View Jamie Rivera" }).click();
+    await page.getByRole("link", { name: "View Jamie Rivera" }).click();
     await expect(card("Donations")).toBeVisible();
     await expect(card("Volunteer activity")).toHaveCount(0);
   });
@@ -87,7 +87,7 @@ test.describe("portal people directory", () => {
     // one that proves the strip actually reaches the roles it no longer gives
     // a card of their own.
     await page.goto("/portal/people?search=Priya");
-    await page.getByRole("button", { name: "View Priya Natarajan" }).click();
+    await page.getByRole("link", { name: "View Priya Natarajan" }).click();
 
     await page.getByRole("tab", { name: "Staff Member" }).click();
 
@@ -209,7 +209,7 @@ test.describe("portal people directory", () => {
     // The detail view is a dedicated /portal/people/[id] page since 575e431;
     // editing happens inline in its Profile card. The row's eye-icon anchor
     // carries role="button" (Base UI Button, nativeButton={false}).
-    await page.getByRole("button", { name: `View ${personName}` }).click();
+    await page.getByRole("link", { name: `View ${personName}` }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: personName }),
     ).toBeVisible();

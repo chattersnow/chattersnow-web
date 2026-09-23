@@ -22,6 +22,11 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Input } from "@/components/ui/input";
@@ -362,28 +367,42 @@ function NotificationEmailRow({
                 }
               }}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              disabled={isPending}
-              onClick={save}
-            >
-              <Check className="size-3.5" />
-              <span className="sr-only">Save notification email</span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              disabled={isPending}
-              onClick={() => setIsEditing(false)}
-            >
-              <X className="size-3.5" />
-              <span className="sr-only">Cancel</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    disabled={isPending}
+                    aria-label="Save notification email"
+                    onClick={save}
+                  />
+                }
+              >
+                <Check className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent>Save notification email</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    disabled={isPending}
+                    aria-label="Cancel editing notification email"
+                    onClick={() => setIsEditing(false)}
+                  />
+                }
+              >
+                <X className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent>Cancel editing notification email</TooltipContent>
+            </Tooltip>
           </>
         ) : (
           <>
@@ -391,17 +410,24 @@ function NotificationEmailRow({
               {value ?? `${signInEmail ?? "—"} (sign-in address)`}
             </span>
             {canManage && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                disabled={isPending}
-                onClick={start}
-              >
-                <Pencil className="size-3.5" />
-                <span className="sr-only">Edit notification email</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      disabled={isPending}
+                      aria-label="Edit notification email"
+                      onClick={start}
+                    />
+                  }
+                >
+                  <Pencil className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Edit notification email</TooltipContent>
+              </Tooltip>
             )}
           </>
         )}

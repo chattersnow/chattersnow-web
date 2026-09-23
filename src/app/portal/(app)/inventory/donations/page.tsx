@@ -18,6 +18,8 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import Link from "next/link";
+import { Tags } from "lucide-react";
+import { INTAKE_LABELS_PATH } from "@/lib/inventory-labels";
 import { DonationsTable } from "./donations-table";
 import {
   SOURCE_TYPES,
@@ -54,6 +56,12 @@ export default async function InventoryDonationsPage({
   const dir: "asc" | "desc" = raw("dir") === "asc" ? "asc" : "desc";
   const page = parsePage(raw("page"));
   const perPage = parsePerPage(raw("perPage"));
+  // "Receive a donation with this label" from the /portal/t resolver (#1420):
+  // the sheet opens with that blank label on the first item. Only its shape
+  // is checked here; the RPC binds it only if it is still an unused label.
+  const receiveTag = /^[A-Za-z0-9]{4,16}$/.test(raw("receive") ?? "")
+    ? raw("receive")!.toUpperCase()
+    : undefined;
 
   const { data: events } = await supabase
     .from("events")
@@ -220,7 +228,18 @@ export default async function InventoryDonationsPage({
           </form>
         </FiltersSheet>
 
-        <AddDonationModal triggerLabel="Add donation" events={eventOptions} />
+        <Button
+          variant="secondary"
+          nativeButton={false}
+          render={<Link href={INTAKE_LABELS_PATH} />}
+        >
+          <Tags /> Blank labels
+        </Button>
+        <AddDonationModal
+          triggerLabel="Add donation"
+          events={eventOptions}
+          initialAssetTag={receiveTag}
+        />
       </div>
 
       <div className="mt-6">

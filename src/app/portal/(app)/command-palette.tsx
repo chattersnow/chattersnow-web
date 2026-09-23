@@ -7,6 +7,11 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { hasPermission, type PermissionMap } from "@/lib/auth/permissions";
 import { visibleNavItems } from "@/lib/portal/nav";
 import { applyLexicon, type Lexicon } from "@/lib/lexicon";
@@ -19,6 +24,7 @@ import {
   selfPersonFor,
   type QuickActionKey,
 } from "./quick-actions";
+import { ScanTagDialog } from "./inventory/items/scan-tag-dialog";
 import type { EnsuredPerson } from "@/lib/auth/current-person";
 
 type PaletteItem = {
@@ -30,6 +36,9 @@ type PaletteItem = {
   /** An action instead: selecting it opens that dialog where the reader
    *  already is, rather than navigating anywhere (#979). */
   actionKey?: QuickActionKey;
+  /** Opens the scanner (#1420): not a quick action, since the sidebar does
+   *  not offer it, and not a page. */
+  scan?: true;
 };
 
 type PaletteGroup = { value: string; items: PaletteItem[] };
@@ -131,6 +140,8 @@ export function CommandPalette({
   const [activeAction, setActiveAction] = React.useState<QuickActionKey | null>(
     null,
   );
+  const [scanOpen, setScanOpen] = React.useState(false);
+  const canScan = hasPermission(permissions, "inventory", "view");
   const [query, setQuery] = React.useState("");
   const [people, setPeople] = React.useState<PaletteItem[]>([]);
   const [isSearching, startSearch] = React.useTransition();
@@ -149,14 +160,25 @@ export function CommandPalette({
     [permissions],
   );
   const actionItems = React.useMemo<PaletteItem[]>(
-    () =>
-      actions.map((action) => ({
+    () => [
+      ...actions.map((action) => ({
         value: `action:${action.key}`,
         label: action.label,
         detail: null,
         actionKey: action.key,
       })),
-    [actions],
+      ...(canScan
+        ? [
+            {
+              value: "action:scan-tag",
+              label: "Scan a tag",
+              detail: null,
+              scan: true as const,
+            },
+          ]
+        : []),
+    ],
+    [actions, canScan],
   );
   const requestRef = React.useRef(0);
 
@@ -220,6 +242,10 @@ export function CommandPalette({
       setActiveAction(item.actionKey);
       return;
     }
+    if (item.scan) {
+      setScanOpen(true);
+      return;
+    }
     if (item.href) router.push(item.href);
   }
 
@@ -246,6 +272,13 @@ export function CommandPalette({
           onOpenChange={(next) => setActiveAction(next ? action.key : null)}
         />
       ))}
+      {canScan && (
+        <ScanTagDialog
+          withTrigger={false}
+          open={scanOpen}
+          onOpenChange={setScanOpen}
+        />
+      )}
       <Dialog.Root
         open={open}
         onOpenChange={(next) => {
@@ -256,19 +289,26 @@ export function CommandPalette({
           }
         }}
       >
-        <Dialog.Trigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Search the portal"
-              className="size-10 rounded-full"
-            />
-          }
-        >
-          <Search />
-        </Dialog.Trigger>
+        <Tooltip>
+          <Dialog.Trigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Search the portal"
+                    className="size-10 rounded-full"
+                  />
+                }
+              />
+            }
+          >
+            <Search />
+          </Dialog.Trigger>
+          <TooltipContent>Search the portal</TooltipContent>
+        </Tooltip>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/30 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden px-3 pt-20 pb-3">

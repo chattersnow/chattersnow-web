@@ -21,6 +21,11 @@ import {
 import { Pencil } from "lucide-react";
 import { DISTRIBUTION_STATUS_LABELS, DISTRIBUTION_STATUSES } from "./format";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 import { formatCalendarDate } from "@/lib/format";
 import { useEventDateDefaults } from "../event-date-defaults";
@@ -218,15 +223,22 @@ export function WinnerSummary({
           </span>
         )}
         {canEdit && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Edit winner"
-            onClick={onEdit}
-          >
-            <Pencil />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit winner"
+                  onClick={onEdit}
+                />
+              }
+            >
+              <Pencil />
+            </TooltipTrigger>
+            <TooltipContent>Edit winner</TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>

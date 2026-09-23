@@ -11,6 +11,7 @@ import {
   adminClient,
   anonClient,
   createAvailableGearItems,
+  removeAssetTags,
   signIn,
 } from "../../../../../../test/integration-setup";
 
@@ -144,6 +145,7 @@ describe("createAssetTagsAction (integration, #1420 part 2)", () => {
 
   test("inventory manage gives each uncoded item one code, and only once", async () => {
     const { itemIds, cleanup } = await createAvailableGearItems(2);
+    await removeAssetTags(itemIds);
     currentSupabase = await signIn(SEEDED_USERS.admin);
 
     expect(await createAssetTagsAction(itemIds)).toEqual({ created: 2 });
@@ -161,6 +163,7 @@ describe("createAssetTagsAction (integration, #1420 part 2)", () => {
 
   test("intake alone cannot create codes: tagging is editing the catalog", async () => {
     const { itemIds, cleanup } = await createAvailableGearItems(1);
+    await removeAssetTags(itemIds);
     currentSupabase = await signIn(SEEDED_USERS.volunteer);
     expect(await createAssetTagsAction(itemIds)).toEqual(DENIED);
     expect(await assetTags(itemIds)).toEqual([]);

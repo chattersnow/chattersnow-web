@@ -8,7 +8,7 @@ import {
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { IconLink } from "@/components/portal/icon-link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   SENSITIVITY_LEVELS,
@@ -140,15 +140,12 @@ export function AssetsTable({
         headClassName: "w-0",
         render: (asset) => (
           <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              nativeButton={false}
-              aria-label={`View ${asset.name}`}
-              render={<Link href={`/portal/technology/assets/${asset.id}`} />}
+            <IconLink
+              href={`/portal/technology/assets/${asset.id}`}
+              label={`View ${asset.name}`}
             >
               <Eye />
-            </Button>
+            </IconLink>
             <DeleteAssetButton
               assetId={asset.id}
               assetName={asset.name}

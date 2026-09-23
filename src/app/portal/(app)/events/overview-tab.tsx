@@ -9,7 +9,11 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { TIMEZONE_OPTIONS, utcIsoToDatetimeLocalInZone } from "@/lib/time";
+import {
+  datetimeLocalToUtcIsoInBrowser,
+  TIMEZONE_OPTIONS,
+  utcIsoToDatetimeLocalInBrowser,
+} from "@/lib/time";
 import { updateEventAction } from "./actions";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
@@ -49,9 +53,11 @@ const STATUSES = [
   { value: "archived", label: "Archived" },
 ];
 
-function toDatetimeLocalValue(iso: string | null, timezone: string) {
-  if (!iso) return "";
-  return utcIsoToDatetimeLocalInZone(iso, timezone);
+function toDatetimeLocalValue(iso: string | null) {
+  // The browser's zone, so the prefill and the save agree (#1063). The
+  // event's own timezone governs public display only, not how a typed time
+  // is read.
+  return utcIsoToDatetimeLocalInBrowser(iso);
 }
 
 function formStateFor(event: EventRow) {
@@ -59,8 +65,8 @@ function formStateFor(event: EventRow) {
     name: event.name,
     description: event.description ?? "",
     location: event.location ?? "",
-    startsAt: toDatetimeLocalValue(event.starts_at, event.timezone),
-    endsAt: toDatetimeLocalValue(event.ends_at, event.timezone),
+    startsAt: toDatetimeLocalValue(event.starts_at),
+    endsAt: toDatetimeLocalValue(event.ends_at),
     timezone: event.timezone,
     visibility: event.visibility,
     status: event.status,
@@ -141,8 +147,14 @@ export function OverviewTab({
     formData.set("name", form.name);
     formData.set("description", form.description);
     formData.set("location", form.location);
-    formData.set("startsAt", form.startsAt);
-    formData.set("endsAt", form.endsAt);
+    // Converted here, in the browser, from the typist's own clock:
+    // `parseEventForm` expects instants, and on the server a naive
+    // wall-clock string would be read as UTC.
+    formData.set(
+      "startsAt",
+      datetimeLocalToUtcIsoInBrowser(form.startsAt) ?? "",
+    );
+    formData.set("endsAt", datetimeLocalToUtcIsoInBrowser(form.endsAt) ?? "");
     formData.set("timezone", form.timezone);
     formData.set("visibility", form.visibility);
     formData.set("status", form.status);

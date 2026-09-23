@@ -1,6 +1,51 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { lookupInventoryTag, TAG_PATH_PREFIX } from "@/lib/inventory-tags";
+import {
+  distributionDraftHref,
+  getCurrentDistributionDraft,
+  scanWarning,
+} from "@/lib/inventory-distribution-draft";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { addTagToCurrentDistributionAction } from "./actions";
+
+export const metadata: Metadata = { title: "Scanned tag" };
+
+function BlankTag({ code }: { code: string }) {
+  return (
+    <>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
+          Label {code}
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
+      <Card className="mt-6 max-w-xl">
+        <CardContent className="flex flex-col gap-4">
+          <p>
+            This label is not on an item yet. Receive the donation it is stuck
+            to, and the item takes this code.
+          </p>
+          <Button
+            className="self-start"
+            nativeButton={false}
+            render={
+              <Link
+                href={`/portal/inventory/donations?receive=${encodeURIComponent(code)}`}
+              />
+            }
+          >
+            Receive a donation with this label
+          </Button>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
 
 /**
  * The URL an asset-tag label carries (#1420): a QR code scanned with a phone's
@@ -12,13 +57,21 @@ import { lookupInventoryTag, TAG_PATH_PREFIX } from "@/lib/inventory-tags";
  * one the reader lacks `inventory:view` for, and a pre-printed blank not yet
  * bound to an item are all the same not-found: the page never says whether a
  * code exists.
+ *
+ * Found, it redirects to the item -- unless the reader has a scanned
+ * distribution in progress (#1420 part 3). An iPhone opens the tag in a new
+ * tab that knows nothing of the list open in the first one, so this page
+ * offers to add the item to that list instead. Nothing here renders before the
+ * lookup has found the item under the reader's own RLS.
  */
 export default async function InventoryTagPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { code } = await params;
+  const [{ code }, query] = await Promise.all([params, searchParams]);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -39,8 +92,107 @@ export default async function InventoryTagPage({
   });
   if (error) throw new Error("Could not look up that tag.");
 
-  const item = matches[0]?.item;
-  if (!item) notFound();
+  const found = matches[0]?.item;
+  if (!found) {
+    // A pre-printed blank (#1420 part 4) is offered to whoever may receive a
+    // donation with it -- and to nobody else, who gets the same not-found as
+    // an unknown code. The lookup above cannot see it for an intake volunteer,
+    // who reads no tags under RLS, so the intake function answers instead; it
+    // refuses a caller without the grant, which lands here as not-found too.
+    const { data: scan } = await supabase.rpc("inventory_intake_scan", {
+      p_asset_tag: code,
+      p_barcode: "",
+    });
+    const status = (Array.isArray(scan) ? scan[0] : scan)?.asset_tag_status;
+    if (status !== "blank") notFound();
+    return <BlankTag code={code.toUpperCase()} />;
+  }
 
-  redirect(`/portal/inventory/items?item=${encodeURIComponent(item.id)}`);
+  const itemHref = `/portal/inventory/items?item=${encodeURIComponent(found.id)}`;
+  // RLS returns no draft to a reader who may not record a distribution.
+  const draft = await getCurrentDistributionDraft(supabase);
+  if (!draft) redirect(itemHref);
+
+  const { data: item } = await supabase
+    .from("inventory_items")
+    .select("description, size, status, intended_use")
+    .eq("id", found.id)
+    .maybeSingle();
+  if (!item) redirect(itemHref);
+
+  const added = typeof query.added === "string" ? query.added : null;
+  const onList = draft.items.some((listed) => listed.id === found.id);
+  const warning = onList
+    ? null
+    : scanWarning({ status: item.status, intendedUse: item.intended_use });
+  const listName = draft.eventName
+    ? `the ${draft.eventName} distribution`
+    : "your distribution";
+  const itemName = item.size
+    ? `${item.description} (${item.size})`
+    : item.description;
+
+  return (
+    <>
+      <div className="w-fit">
+        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
+          {itemName}
+        </h1>
+        <div className="rainbow-accent mt-3 w-full" />
+      </div>
+
+      <Card className="mt-6 max-w-xl">
+        <CardContent className="flex flex-col gap-4">
+          {added === "error" ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Could not add this item to {listName}. Open the list and scan it
+                there.
+              </AlertDescription>
+            </Alert>
+          ) : onList ? (
+            <p role="status">
+              {added === "1" ? "Added to " : "Already on "}
+              {listName}. {draft.items.length}{" "}
+              {draft.items.length === 1 ? "item is" : "items are"} on the list.
+            </p>
+          ) : warning ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {warning} It can&rsquo;t be added to {listName}.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <p>
+              You have {listName} in progress, with {draft.items.length}{" "}
+              {draft.items.length === 1 ? "item" : "items"} scanned.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {!onList && !warning && added !== "error" && (
+              <form action={addTagToCurrentDistributionAction}>
+                <input type="hidden" name="code" value={code} />
+                <Button type="submit">Add to {listName}</Button>
+              </form>
+            )}
+            <Button
+              variant={onList ? "default" : "secondary"}
+              nativeButton={false}
+              render={<Link href={distributionDraftHref(draft.eventId)} />}
+            >
+              Go to the distribution
+            </Button>
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<Link href={itemHref} />}
+            >
+              Open item
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
 }

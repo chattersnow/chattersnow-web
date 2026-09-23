@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { LinkPendingPulse } from "@/components/link-pending";
+import { IconLink } from "@/components/portal/icon-link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -105,21 +103,12 @@ export function DonationsTable({
                     {formatCalendarDate(donation.donated_at)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      nativeButton={false}
-                      aria-label="View donation"
-                      render={
-                        <Link
-                          href={`/portal/inventory/donations/${donation.id}`}
-                        />
-                      }
+                    <IconLink
+                      href={`/portal/inventory/donations/${donation.id}`}
+                      label="View donation"
                     >
-                      <LinkPendingPulse>
-                        <Eye />
-                      </LinkPendingPulse>
-                    </Button>
+                      <Eye />
+                    </IconLink>
                   </TableCell>
                 </TableRow>
               );

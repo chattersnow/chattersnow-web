@@ -5,6 +5,11 @@ import Autoplay from "embla-carousel-autoplay";
 import { PauseIcon, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Carousel,
   CarouselContent,
   CarouselItem,
@@ -112,6 +117,8 @@ export function HomeCarousel({
     else autoplay.stop();
   }, [autoplay]);
 
+  const toggleLabel = playing ? "Pause the slideshow" : "Play the slideshow";
+
   return (
     <Carousel
       className="w-full max-w-5xl"
@@ -144,18 +151,23 @@ export function HomeCarousel({
       {/* Inside the carousel's own region, and visible at every width -- the
           arrows are hidden below sm, and this is the one control that has to
           be there whether or not they are. */}
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggle}
-        className="absolute right-2 bottom-2 touch-manipulation rounded-full"
-      >
-        {playing ? <PauseIcon /> : <PlayIcon />}
-        <span className="sr-only">
-          {playing ? "Pause the slideshow" : "Play the slideshow"}
-        </span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={toggle}
+              className="absolute right-2 bottom-2 touch-manipulation rounded-full"
+              aria-label={toggleLabel}
+            />
+          }
+        >
+          {playing ? <PauseIcon /> : <PlayIcon />}
+        </TooltipTrigger>
+        <TooltipContent>{toggleLabel}</TooltipContent>
+      </Tooltip>
     </Carousel>
   );
 }

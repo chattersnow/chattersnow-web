@@ -25,6 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatShiftRange, NONE_VALUE } from "./shifts";
 import { AddVolunteerDialog } from "./add-volunteer-dialog";
 import { LogHoursDialog } from "./log-hours-dialog";
@@ -298,20 +303,27 @@ export function RosterSection({
                                 createEventVolunteerHoursAction rejects anyone
                                 without one -- so hours-only rows get no
                                 trigger that could only ever fail. */}
-                        <LogHoursDialog
-                          eventId={eventId}
-                          personId={row.personId}
-                          onSaved={onSaved}
-                          triggerLabel={<Clock />}
-                          triggerRender={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Log hours for ${name}`}
-                            />
-                          }
-                        />
+                        <Tooltip>
+                          <LogHoursDialog
+                            eventId={eventId}
+                            personId={row.personId}
+                            onSaved={onSaved}
+                            triggerLabel={<Clock />}
+                            triggerRender={
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Log hours for ${name}`}
+                                  />
+                                }
+                              />
+                            }
+                          />
+                          <TooltipContent>{`Log hours for ${name}`}</TooltipContent>
+                        </Tooltip>
                         <ConfirmDeleteButton
                           label="Remove volunteer"
                           title={`Remove ${name} from this event?`}

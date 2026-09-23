@@ -56,6 +56,9 @@ test.describe("portal inventory distribution", () => {
     await addSheet.getByLabel("Condition").click();
     await page.getByRole("listbox").getByText("Good", { exact: true }).click();
     await addSheet.getByRole("button", { name: "Save donation" }).click();
+    // The sheet stays open on the item codes to label with (#1420).
+    await expect(addSheet.getByText("Item codes")).toBeVisible();
+    await addSheet.getByRole("button", { name: "Done" }).click();
     await expect(addSheet).not.toBeVisible();
 
     // Record a distribution of that item.
@@ -89,7 +92,7 @@ test.describe("portal inventory distribution", () => {
     const row = page.getByRole("row").filter({ hasText: itemDescription });
     await expect(row).toBeVisible();
     await row
-      .getByRole("button", {
+      .getByRole("link", {
         name: `View distribution of ${itemDescription}`,
       })
       .click();
@@ -132,7 +135,7 @@ test.describe("portal inventory distribution", () => {
 
     // Delete from the detail page, confirming the dialog.
     await row
-      .getByRole("button", {
+      .getByRole("link", {
         name: `View distribution of ${itemDescription}`,
       })
       .click();

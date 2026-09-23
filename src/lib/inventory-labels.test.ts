@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   LABEL_LAYOUTS,
   MAX_LABEL_ITEMS,
+  blankLabelsHref,
+  donationLabelsHref,
+  parseLabelCodes,
   labelLayoutFor,
   labelsHref,
   labelsPerPage,
@@ -126,4 +129,30 @@ test("labelsHref lists the ids", () => {
   expect(labelsHref([A, B])).toBe(
     `/portal/inventory/items/labels?items=${A},${B}`,
   );
+});
+
+describe("intake labels (#1420 part 4)", () => {
+  test("parseLabelCodes upper-cases, dedupes and drops anything but a code", () => {
+    expect(parseLabelCodes("k7m2qx, K7M2QX,<script>,ab,B8N3RY")).toEqual([
+      "K7M2QX",
+      "B8N3RY",
+    ]);
+    expect(parseLabelCodes(undefined)).toEqual([]);
+  });
+
+  test("parseLabelCodes caps a run at one print run", () => {
+    const many = Array.from({ length: MAX_LABEL_ITEMS + 5 }, (_, i) =>
+      `CODE${i}`.padEnd(6, "X"),
+    ).join(",");
+    expect(parseLabelCodes(many)).toHaveLength(MAX_LABEL_ITEMS);
+  });
+
+  test("the intake label hrefs live under Donations", () => {
+    expect(donationLabelsHref("d-1")).toBe(
+      "/portal/inventory/donations/labels?donation=d-1",
+    );
+    expect(blankLabelsHref(["K7M2QX", "B8N3RY"])).toBe(
+      "/portal/inventory/donations/labels?codes=K7M2QX,B8N3RY",
+    );
+  });
 });

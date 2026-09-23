@@ -22,14 +22,20 @@ const FETCH_TIMEOUT_MS = 3000;
  * dead link, a slow host or an HTML error page degrades to the generated icon
  * instead of throwing inside `ImageResponse` -- which would 500 the route and
  * leave the install with no icon at all, the one outcome worse than initials.
+ *
+ * `base` is the request's own URL, so a root-relative path to a file in
+ * `public/` -- which the branding panel accepts, like the logo field above it
+ * -- is fetched from the host that asked rather than failing to parse and
+ * silently falling back to initials.
  */
 export async function loadRemoteIcon(
   url: string | null,
+  base: string,
 ): Promise<string | null> {
   if (!url) return null;
   let parsed: URL;
   try {
-    parsed = new URL(url);
+    parsed = new URL(url, base);
   } catch {
     return null;
   }

@@ -3,6 +3,11 @@
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -81,18 +86,25 @@ function missingIdExplanation(row: DeliveryLogRow): string {
 export function DeliveryLogDetailSheet({ row }: { row: DeliveryLogRow }) {
   return (
     <Sheet>
-      <SheetTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="View delivery details"
-          />
-        }
-      >
-        <Eye />
-      </SheetTrigger>
+      <Tooltip>
+        <SheetTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="View delivery details"
+                />
+              }
+            />
+          }
+        >
+          <Eye />
+        </SheetTrigger>
+        <TooltipContent>View delivery details</TooltipContent>
+      </Tooltip>
       <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>

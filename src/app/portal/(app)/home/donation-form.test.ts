@@ -179,6 +179,8 @@ describe("parseDonationInput", () => {
             notes: null,
             giveaway_tier: null,
             photo_url: null,
+            asset_tag: null,
+            barcode: null,
           },
         ],
         p_event_id: "event-1",
@@ -226,6 +228,44 @@ describe("parseDonationInput", () => {
     ).toEqual({
       error: "Item 2: the photo link must start with http:// or https://.",
       field: "items.1.photoUrl",
+    });
+  });
+
+  test("passes a scanned label (upper-cased) and barcode through (#1420)", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      items: [{ ...validItem, assetTag: " k7m2qx ", barcode: "012345678905" }],
+    });
+    expect("data" in result && result.data.p_items[0]).toMatchObject({
+      asset_tag: "K7M2QX",
+      barcode: "012345678905",
+    });
+  });
+
+  test("rejects one label on two items (#1420)", () => {
+    expect(
+      parseDonationInput({
+        ...validInput,
+        items: [
+          { ...validItem, assetTag: "K7M2QX" },
+          { ...validItem, assetTag: "k7m2qx" },
+        ],
+      }),
+    ).toEqual({
+      error: "Item 2: label K7M2QX is already on another item.",
+      field: "items.1.assetTag",
+    });
+  });
+
+  test("rejects a barcode that is not 8 to 14 digits (#1420)", () => {
+    expect(
+      parseDonationInput({
+        ...validInput,
+        items: [{ ...validItem, barcode: "12AB" }],
+      }),
+    ).toEqual({
+      error: "Item 1: a barcode is 8 to 14 digits.",
+      field: "items.0.barcode",
     });
   });
 });

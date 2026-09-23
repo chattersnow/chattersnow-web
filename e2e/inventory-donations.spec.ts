@@ -73,7 +73,9 @@ test.describe("portal inventory donations", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     await addSheet.getByRole("button", { name: "Save donation" }).click();
-
+    // The sheet stays open on the item codes to label with (#1420).
+    await expect(addSheet.getByText("Item codes")).toBeVisible();
+    await addSheet.getByRole("button", { name: "Done" }).click();
     await expect(addSheet).not.toBeVisible();
 
     // Saving triggers a router.refresh() that re-renders the table; a click
@@ -87,7 +89,7 @@ test.describe("portal inventory donations", () => {
 
     // Since #469 the row's View action is a link to the donation's dedicated
     // detail page, with editing kept on a sheet opened from the page.
-    await row.getByRole("button", { name: "View donation" }).click();
+    await row.getByRole("link", { name: "View donation" }).click();
     await expect(page).toHaveURL(
       /\/portal\/inventory\/donations\/[0-9a-f-]{36}$/,
       { timeout: 15_000 },

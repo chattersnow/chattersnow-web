@@ -88,7 +88,7 @@ test.describe("portal governance minutes", () => {
 
       const row = page.getByRole("row").filter({ hasText: location });
       await expect(row).toBeVisible({ timeout: 15_000 });
-      await row.getByRole("button", { name: "View meeting on" }).click();
+      await row.getByRole("link", { name: "View meeting on" }).click();
       await expect(page).toHaveURL(/\/portal\/governance\/meetings\/[^/]+$/, {
         timeout: 15_000,
       });

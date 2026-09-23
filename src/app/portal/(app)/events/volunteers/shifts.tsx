@@ -30,6 +30,11 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -354,15 +359,22 @@ export function ShiftsSection({
                   <TableCell className="text-right whitespace-nowrap">
                     {mode === "edit" && (
                       <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Edit shift"
-                          onClick={() => setEditingShiftId(shift.id)}
-                        >
-                          <Pencil />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Edit shift"
+                                onClick={() => setEditingShiftId(shift.id)}
+                              />
+                            }
+                          >
+                            <Pencil />
+                          </TooltipTrigger>
+                          <TooltipContent>Edit shift</TooltipContent>
+                        </Tooltip>
                         <ConfirmDeleteButton
                           label="Remove shift"
                           title={`Remove the "${shift.label}" shift?`}

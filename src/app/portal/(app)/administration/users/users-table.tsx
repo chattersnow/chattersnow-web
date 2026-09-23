@@ -19,6 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -220,6 +225,7 @@ export function UsersTable({
               ) : (
                 portalUser.roles.map((role) => {
                   const lockedSelfAdmin = isSelf && role === "admin";
+                  const removeLabel = `Remove ${formatRoleLabel(role, roleLabels)}`;
                   return (
                     <Badge
                       key={role}
@@ -227,24 +233,29 @@ export function UsersTable({
                       className="gap-1 pr-1"
                     >
                       {formatRoleLabel(role, roleLabels)}
-                      <button
-                        type="button"
-                        disabled={isPending || lockedSelfAdmin}
-                        title={
-                          lockedSelfAdmin
-                            ? "You can't remove your own admin role."
-                            : undefined
-                        }
-                        onClick={() =>
-                          setRevokeTarget({ user: portalUser, role })
-                        }
-                        className="-mr-1 flex size-6 items-center justify-center rounded-full hover:bg-black/10 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/10"
-                      >
-                        <X className="size-3.5" />
-                        <span className="sr-only">
-                          Remove {formatRoleLabel(role, roleLabels)}
-                        </span>
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              disabled={isPending || lockedSelfAdmin}
+                              title={
+                                lockedSelfAdmin
+                                  ? "You can't remove your own admin role."
+                                  : undefined
+                              }
+                              aria-label={removeLabel}
+                              onClick={() =>
+                                setRevokeTarget({ user: portalUser, role })
+                              }
+                              className="-mr-1 flex size-6 items-center justify-center rounded-full hover:bg-black/10 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-white/10"
+                            />
+                          }
+                        >
+                          <X className="size-3.5" />
+                        </TooltipTrigger>
+                        <TooltipContent>{removeLabel}</TooltipContent>
+                      </Tooltip>
                     </Badge>
                   );
                 })

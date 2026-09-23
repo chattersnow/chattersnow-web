@@ -76,7 +76,7 @@ test.describe("portal access management", () => {
       const row = page.getByRole("row").filter({ hasText: assetName });
       await expect(row).toBeVisible({ timeout: 15_000 });
 
-      await row.getByRole("link", { name: assetName }).click();
+      await row.getByRole("link", { name: assetName, exact: true }).click();
       await expect(
         page.getByRole("heading", { level: 1, name: assetName, exact: true }),
       ).toBeVisible();

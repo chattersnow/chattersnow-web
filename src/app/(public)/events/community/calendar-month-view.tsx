@@ -1,6 +1,11 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateInZone } from "@/lib/time";
 import type { PublicCalendarItem } from "./calendar-shared";
 
@@ -79,25 +84,39 @@ export function CalendarMonthView({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Button
-          variant="secondary"
-          size="icon-sm"
-          onClick={() => onMonthChange(addMonths(month, -1))}
-          aria-label="Previous month"
-        >
-          <ChevronLeft />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                onClick={() => onMonthChange(addMonths(month, -1))}
+                aria-label="Previous month"
+              />
+            }
+          >
+            <ChevronLeft />
+          </TooltipTrigger>
+          <TooltipContent>Previous month</TooltipContent>
+        </Tooltip>
         <p className="brand-display text-lg font-semibold">
           {monthLabel(month)}
         </p>
-        <Button
-          variant="secondary"
-          size="icon-sm"
-          onClick={() => onMonthChange(addMonths(month, 1))}
-          aria-label="Next month"
-        >
-          <ChevronRight />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                onClick={() => onMonthChange(addMonths(month, 1))}
+                aria-label="Next month"
+              />
+            }
+          >
+            <ChevronRight />
+          </TooltipTrigger>
+          <TooltipContent>Next month</TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">

@@ -76,7 +76,12 @@ describe("createDonation", () => {
 
     const result = await createDonation(supabase.client, VALID_INPUT);
 
-    expect(result).toEqual({ success: true, giveaway: null });
+    expect(result).toEqual({
+      success: true,
+      donationId: "d1",
+      codes: [],
+      giveaway: null,
+    });
   });
 
   test("rejects invalid input without calling the RPC", async () => {
@@ -174,6 +179,8 @@ describe("createDonation", () => {
 
     expect(result).toEqual({
       success: true,
+      donationId: "d1",
+      codes: [],
       giveaway: { giveawayId: "g1", totals, untieredItemIds: ["i9"] },
     });
   });
@@ -195,7 +202,58 @@ describe("createDonation", () => {
 
     expect(result).toEqual({
       success: true,
+      donationId: "d1",
+      codes: [],
       giveaway: { giveawayId: "g1", totals: [], untieredItemIds: [] },
+    });
+  });
+
+  test("returns each received item's code in entry order (#1420)", async () => {
+    const supabase = fakeSupabase({
+      permissions: INTAKE_ONLY,
+      rpc: {
+        create_donation_with_items: {
+          data: [
+            {
+              donation_id: "d1",
+              giveaway_id: null,
+              inventory_item_ids: ["i1", "i2"],
+              asset_tags: ["ABC234", "XYZ789"],
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await createDonation(supabase.client, VALID_INPUT);
+
+    expect("codes" in result && result.codes).toEqual([
+      { itemId: "i1", code: "ABC234" },
+      { itemId: "i2", code: "XYZ789" },
+    ]);
+  });
+
+  test("names a scanned label that is no longer unused (#1420)", async () => {
+    const supabase = fakeSupabase({
+      permissions: INTAKE_ONLY,
+      rpc: {
+        create_donation_with_items: {
+          error: {
+            message: "Label ABC234 is not an unused label",
+            hint: "asset_tag_unavailable",
+          },
+        },
+      },
+    });
+
+    const result = await createDonation(supabase.client, VALID_INPUT);
+
+    expect(result).toEqual({
+      error: {
+        code: "invalid_input",
+        message:
+          "Label ABC234 is not an unused label. Scan a different label, or clear it to have a new code created.",
+      },
     });
   });
 });

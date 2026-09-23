@@ -7,6 +7,11 @@ import useEmblaCarousel, {
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 type CarouselApi = UseEmblaCarouselType[1];
@@ -181,28 +186,35 @@ function CarouselPrevious({
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
 
   return (
-    <Button
-      data-slot="carousel-previous"
-      variant={variant}
-      size={size}
-      className={cn(
-        "absolute touch-manipulation rounded-full",
-        orientation === "horizontal"
-          ? // Outside the box only once the viewport is wide enough to hold
-            // it: the arrow sits 48px past the carousel edge, and at lg the
-            // page has only ~40px of padding left, so it poked 8px past the
-            // viewport between 1024 and ~1120px (issue #593).
-            "inset-y-0 left-2 my-auto xl:-left-12"
-          : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
-        className,
-      )}
-      disabled={!canScrollPrev}
-      onClick={scrollPrev}
-      {...props}
-    >
-      <ChevronLeftIcon />
-      <span className="sr-only">Previous slide</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            data-slot="carousel-previous"
+            variant={variant}
+            size={size}
+            className={cn(
+              "absolute touch-manipulation rounded-full",
+              orientation === "horizontal"
+                ? // Outside the box only once the viewport is wide enough to hold
+                  // it: the arrow sits 48px past the carousel edge, and at lg the
+                  // page has only ~40px of padding left, so it poked 8px past the
+                  // viewport between 1024 and ~1120px (issue #593).
+                  "inset-y-0 left-2 my-auto xl:-left-12"
+                : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
+              className,
+            )}
+            disabled={!canScrollPrev}
+            onClick={scrollPrev}
+            {...props}
+          />
+        }
+      >
+        <ChevronLeftIcon />
+        <span className="sr-only">Previous slide</span>
+      </TooltipTrigger>
+      <TooltipContent>Previous slide</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -215,26 +227,33 @@ function CarouselNext({
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (
-    <Button
-      data-slot="carousel-next"
-      variant={variant}
-      size={size}
-      className={cn(
-        "absolute touch-manipulation rounded-full",
-        orientation === "horizontal"
-          ? // See CarouselPrevious: xl, not lg, is the first width with room
-            // for the arrow outside the carousel box (issue #593).
-            "inset-y-0 right-2 my-auto xl:-right-12"
-          : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
-        className,
-      )}
-      disabled={!canScrollNext}
-      onClick={scrollNext}
-      {...props}
-    >
-      <ChevronRightIcon />
-      <span className="sr-only">Next slide</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            data-slot="carousel-next"
+            variant={variant}
+            size={size}
+            className={cn(
+              "absolute touch-manipulation rounded-full",
+              orientation === "horizontal"
+                ? // See CarouselPrevious: xl, not lg, is the first width with room
+                  // for the arrow outside the carousel box (issue #593).
+                  "inset-y-0 right-2 my-auto xl:-right-12"
+                : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
+              className,
+            )}
+            disabled={!canScrollNext}
+            onClick={scrollNext}
+            {...props}
+          />
+        }
+      >
+        <ChevronRightIcon />
+        <span className="sr-only">Next slide</span>
+      </TooltipTrigger>
+      <TooltipContent>Next slide</TooltipContent>
+    </Tooltip>
   );
 }
 

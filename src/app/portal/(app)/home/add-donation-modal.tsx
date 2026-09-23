@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Printer, ScanLine } from "lucide-react";
 import {
   createDonationAction,
   listEventGiveawayTiersAction,
@@ -9,7 +11,10 @@ import {
   type DonationGiveawayGrant,
   type GiveawayTierOption,
 } from "./actions";
+import { classifyIntakeScanAction } from "./intake-scan-actions";
+import type { ReceivedItemCode } from "./donation-core";
 import { GiveawayTicketSummary } from "./giveaway-ticket-summary";
+import { TagScanner } from "@/components/portal/tag-scanner";
 import { listEventOptionsAction } from "../events/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -75,9 +80,15 @@ const CONDITIONS = [
   { value: "poor", label: "Poor" },
 ];
 
-// "tickets" is a terminal step, only reached when the donation was recorded
-// against an event whose giveaway has tiers configured (issue #5).
-type Step = "donor" | "items" | "tickets";
+// "saved" is the terminal step: every received item has a code to label it
+// with (#1420), and, when the donation was recorded against an event whose
+// giveaway has tiers configured, tickets to hand over (issue #5).
+type Step = "donor" | "items" | "saved";
+
+type SavedDonation = {
+  codes: (ReceivedItemCode & { description: string })[];
+  labelsHref: string | null;
+};
 
 const initialDonorState = {
   isAnonymous: false,
@@ -103,9 +114,13 @@ type ItemDraft = {
   intendedUse: string;
   giveawayTier: string;
   photoUrl: string;
+  /** A pre-printed blank label scanned for this item (#1420). */
+  assetTag: string;
+  /** A manufacturer barcode scanned off it. */
+  barcode: string;
 };
 
-function createEmptyItem(): ItemDraft {
+function createEmptyItem(assetTag = ""): ItemDraft {
   return {
     key: crypto.randomUUID(),
     description: "",
@@ -119,6 +134,8 @@ function createEmptyItem(): ItemDraft {
     intendedUse: "gear_library",
     giveawayTier: "",
     photoUrl: "",
+    assetTag,
+    barcode: "",
   };
 }
 
@@ -130,17 +147,31 @@ export function AddDonationModal({
   eventId,
   events,
   onSaved,
+  initialAssetTag,
 }: {
   triggerLabel?: string;
   eventId?: string;
   events?: { id: string; name: string }[];
   onSaved?: () => void;
+  /** A blank label to receive a donation with (#1420): opens the sheet with
+   *  it on the first item. The /portal/t resolver links here with one. */
+  initialAssetTag?: string;
 } & ControlledOpenProps) {
   const router = useRouter();
-  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
+  const [open, setOpen] = useControlledOpen(
+    controlledOpen,
+    onOpenChange,
+    Boolean(initialAssetTag),
+  );
   const [step, setStep] = useState<Step>("donor");
   const [donor, setDonor] = useState<DonorState>(initialDonorState);
-  const [items, setItems] = useState<ItemDraft[]>([createEmptyItem()]);
+  const [items, setItems] = useState<ItemDraft[]>(() => [
+    createEmptyItem(initialAssetTag),
+  ]);
+  const [scanningKey, setScanningKey] = useState<string | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [isScanPending, startScanTransition] = useTransition();
+  const [saved, setSaved] = useState<SavedDonation | null>(null);
   const [sourceEventId, setSourceEventId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -208,6 +239,55 @@ export function AddDonationModal({
     );
   }
 
+  function toggleScanner(itemKey: string) {
+    setScanMessage(null);
+    setScanningKey((current) => (current === itemKey ? null : itemKey));
+  }
+
+  // A scan fills in what it identifies and never overwrites what the staffer
+  // already typed: a barcode prefills a second pair of the same gloves, it
+  // does not rename the first.
+  function handleIntakeScan(itemKey: string, scanned: string) {
+    setScanMessage(null);
+    startScanTransition(async () => {
+      const result = await classifyIntakeScanAction(scanned);
+      if ("error" in result) {
+        setScanMessage(result.error);
+        return;
+      }
+      const scan = result.data;
+      if (
+        scan.kind === "asset_tag" &&
+        items.some(
+          (other) => other.key !== itemKey && other.assetTag === scan.code,
+        )
+      ) {
+        setScanMessage(`Label ${scan.code} is already on another item here.`);
+        return;
+      }
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.key !== itemKey) return item;
+          if (scan.kind === "asset_tag")
+            return { ...item, assetTag: scan.code };
+          const categoryId =
+            item.categoryId ||
+            categories.find(
+              (category) => category.key === scan.prefill?.categoryKey,
+            )?.id ||
+            "";
+          return {
+            ...item,
+            barcode: scan.value,
+            description: item.description || scan.prefill?.description || "",
+            categoryId,
+          };
+        }),
+      );
+      setScanningKey(null);
+    });
+  }
+
   function addItem() {
     setItems((prev) => [...prev, createEmptyItem()]);
   }
@@ -228,6 +308,9 @@ export function AddDonationModal({
       setError(null);
       setGiveawayTiers([]);
       setGrant(null);
+      setSaved(null);
+      setScanningKey(null);
+      setScanMessage(null);
     }
   }
 
@@ -269,6 +352,8 @@ export function AddDonationModal({
         intendedUse: item.intendedUse,
         giveawayTier: item.giveawayTier || undefined,
         photoUrl: item.photoUrl || undefined,
+        assetTag: item.assetTag || undefined,
+        barcode: item.barcode || undefined,
       })),
       eventId: eventId ?? (sourceEventId || undefined),
       // The staffer's own day, not the server's. Gear arrives at an event,
@@ -285,15 +370,23 @@ export function AddDonationModal({
       router.refresh();
       onSaved?.();
 
-      // Tickets are a physical hand-over, so when there are any the sheet stays
-      // open on a summary rather than closing behind a toast.
-      if (result.giveaway) {
-        setGrant(result.giveaway);
-        setStep("tickets");
-        return;
-      }
-
-      handleOpenChange(false);
+      // Codes and tickets are both things to act on at the table -- a label to
+      // stick on each item, tickets to hand over -- so the sheet stays open on
+      // them rather than closing behind a toast.
+      const descriptions = new Map<string, string>();
+      payload.items.forEach((item, index) => {
+        const itemId = result.codes[index]?.itemId;
+        if (itemId) descriptions.set(itemId, item.description.trim());
+      });
+      setSaved({
+        codes: result.codes.map((code) => ({
+          ...code,
+          description: descriptions.get(code.itemId) ?? "",
+        })),
+        labelsHref: result.labelsHref ?? null,
+      });
+      setGrant(result.giveaway);
+      setStep("saved");
       toast.success("Gear donation recorded.");
     });
   }
@@ -317,7 +410,9 @@ export function AddDonationModal({
               ? "Capture who the donation is from."
               : step === "items"
                 ? "Add each item being added to inventory."
-                : "The donation is saved. Hand over the tickets below."}
+                : grant
+                  ? "The donation is saved. Label each item and hand over the tickets below."
+                  : "The donation is saved. Label each item with its code."}
           </SheetDescription>
         </SheetHeader>
 
@@ -330,7 +425,41 @@ export function AddDonationModal({
                 : "Donation recorded"}
           </p>
 
-          {step === "tickets" && grant && (
+          {step === "saved" && saved && saved.codes.length > 0 && (
+            <div className="mt-4 flex flex-col gap-3">
+              <h3 className="text-sm font-medium">Item codes</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {saved.codes.map((code) => (
+                  <li key={code.itemId} className="flex gap-3">
+                    <span className="font-mono font-semibold tracking-wider">
+                      {code.code}
+                    </span>
+                    <span className="min-w-0 truncate">{code.description}</span>
+                  </li>
+                ))}
+              </ul>
+              {saved.labelsHref && (
+                <Button
+                  variant="secondary"
+                  className="self-start"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={saved.labelsHref}
+                      onClick={() => handleOpenChange(false)}
+                    />
+                  }
+                >
+                  <Printer /> Print{" "}
+                  {saved.codes.length === 1
+                    ? "label"
+                    : `${saved.codes.length} labels`}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {step === "saved" && grant && (
             <div className="mt-4">
               <GiveawayTicketSummary
                 grant={grant}
@@ -343,7 +472,7 @@ export function AddDonationModal({
             id="add-donation-form"
             onSubmit={handleSubmit}
             className="mt-4"
-            hidden={step === "tickets"}
+            hidden={step === "saved"}
           >
             {step === "donor" ? (
               <FieldGroup>
@@ -519,6 +648,73 @@ export function AddDonationModal({
                           )
                         }
                       />
+                    </Field>
+
+                    <Field>
+                      {/* Not a <label>: the scanner below has its own, and
+                          is mounted only while scanning. */}
+                      <p className="text-sm font-medium">Label and barcode</p>
+                      <FieldDescription>
+                        {item.assetTag
+                          ? `Pre-printed label ${item.assetTag}.`
+                          : "A new code is created when you save."}
+                        {item.barcode ? ` Barcode ${item.barcode}.` : ""}
+                      </FieldDescription>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          aria-expanded={scanningKey === item.key}
+                          onClick={() => toggleScanner(item.key)}
+                        >
+                          <ScanLine />
+                          {scanningKey === item.key
+                            ? "Stop scanning"
+                            : "Scan label or barcode"}
+                        </Button>
+                        {item.assetTag && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateItem(item.key, "assetTag", "")}
+                          >
+                            Clear label
+                          </Button>
+                        )}
+                        {item.barcode && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => updateItem(item.key, "barcode", "")}
+                          >
+                            Clear barcode
+                          </Button>
+                        )}
+                      </div>
+                      {/* Mounted only while open, so closing stops the camera. */}
+                      {scanningKey === item.key && (
+                        <>
+                          <TagScanner
+                            onScan={(scanned) =>
+                              handleIntakeScan(item.key, scanned)
+                            }
+                            busy={isScanPending}
+                            idPrefix={`intake-${item.key}`}
+                          />
+                          <div aria-live="polite">
+                            {scanMessage && (
+                              <Alert variant="destructive">
+                                <AlertDescription>
+                                  {scanMessage}
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </Field>
 
                     <Field orientation="responsive">
@@ -743,7 +939,7 @@ export function AddDonationModal({
         </div>
 
         <SheetFooter>
-          {step === "tickets" ? (
+          {step === "saved" ? (
             <Button type="button" onClick={() => handleOpenChange(false)}>
               Done
             </Button>

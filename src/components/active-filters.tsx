@@ -1,8 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LinkPendingPulse } from "@/components/link-pending";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type ActiveFilter = {
   /** Query parameter this chip removes. */
@@ -58,15 +65,22 @@ export function ActiveFilters({
         <Badge key={filter.param} variant="secondary" className="gap-1 pr-1">
           <span className="app-muted">{filter.label}:</span>
           <span className="max-w-40 truncate">{filter.value}</span>
-          <Link
-            href={hrefWithout(filter.param)}
-            aria-label={`Remove ${filter.label} filter`}
-            className="-mr-0.5 flex size-5 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
-          >
-            <LinkPendingPulse>
-              <X className="size-3" />
-            </LinkPendingPulse>
-          </Link>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Link
+                  href={hrefWithout(filter.param)}
+                  aria-label={`Remove ${filter.label} filter`}
+                  className="-mr-0.5 flex size-5 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                />
+              }
+            >
+              <LinkPendingPulse>
+                <X className="size-3" />
+              </LinkPendingPulse>
+            </TooltipTrigger>
+            <TooltipContent>Remove {filter.label} filter</TooltipContent>
+          </Tooltip>
         </Badge>
       ))}
       {filters.length > 1 && (

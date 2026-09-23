@@ -4,6 +4,11 @@ import { Link2Off, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type DatedListItem = {
   date: string;
@@ -96,15 +101,22 @@ export function DatedListEditor({
                     updateItem(index, { owner: event.target.value })
                   }
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Remove upcoming date"
-                  onClick={() => removeItem(index)}
-                >
-                  <Trash2 />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Remove upcoming date"
+                        onClick={() => removeItem(index)}
+                      />
+                    }
+                  >
+                    <Trash2 />
+                  </TooltipTrigger>
+                  <TooltipContent>Remove upcoming date</TooltipContent>
+                </Tooltip>
               </div>
 
               {title && (

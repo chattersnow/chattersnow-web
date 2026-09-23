@@ -18,6 +18,11 @@ import {
   type HideBelow,
   type StickyHeader,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
@@ -274,23 +279,34 @@ export function PortalDataTable<T, K extends string = string>({
                         // column gives up.
                         className={cn("w-0 px-1", showBelow(detailBreakpoint))}
                       >
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          aria-expanded={open}
-                          onClick={() => toggleRow(key)}
-                        >
-                          <ChevronDown
-                            className={cn(
-                              "transition-transform motion-reduce:transition-none",
-                              open && "rotate-180",
-                            )}
-                          />
-                          <span className="sr-only">
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-expanded={open}
+                                aria-label={
+                                  open
+                                    ? "Hide more columns"
+                                    : "Show more columns"
+                                }
+                                onClick={() => toggleRow(key)}
+                              />
+                            }
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "transition-transform motion-reduce:transition-none",
+                                open && "rotate-180",
+                              )}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>
                             {open ? "Hide more columns" : "Show more columns"}
-                          </span>
-                        </Button>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                     )}
                   </TableRow>

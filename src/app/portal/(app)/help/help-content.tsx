@@ -1913,6 +1913,137 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  "/portal/administration/automatic-replies": {
+    title: "How automatic replies work",
+    description:
+      "The emails your public forms send straight back to whoever filled them in.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <ol className="list-decimal space-y-2 pl-4">
+            <li>
+              Pick a reply from the list on the left. The grey number beside it
+              is how many of its fields you have written yourself; everything
+              else is the platform&apos;s wording.
+            </li>
+            <li>
+              Rewrite the fields you want and check the preview beside them
+              before saving. The portal keeps adding the details around your
+              words — the event date and its calendar attachment, the reference
+              code and its status link, the list of items requested.
+            </li>
+          </ol>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — this page
+            needs Manage on Administration, like the rest of the section. Every
+            change is recorded in the{" "}
+            <Link href="/portal/administration/audit-log" className="underline">
+              audit log
+            </Link>
+            .
+          </p>
+        </HowToSection>
+        <HowToSection heading="What isn't set here">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Whether any email goes out at all, who it comes from, and where a
+              reply goes are in{" "}
+              <Link
+                href="/portal/administration/organization-settings?tab=notifications"
+                className="underline"
+              >
+                Organization Settings → Notifications
+              </Link>
+              . If email is switched off there, none of these replies is sent,
+              whatever their own switches say.
+            </li>
+            <li>
+              The logo, colours and footer around these words are your branding,
+              not fields here — change those under{" "}
+              <Link
+                href="/portal/administration/organization-settings?tab=branding"
+                className="underline"
+              >
+                Branding
+              </Link>
+              .
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
+  "/portal/administration/delivery-log": {
+    title: "How the email delivery log works",
+    description:
+      "Every email the organization sends automatically, and what became of it.",
+    body: (
+      <>
+        <HowToSection heading="Steps">
+          <p>
+            Filter by status, kind, recipient, record, and date range, then open
+            a row to see what the email provider said about that send. To find
+            all the mail about one submission, application or request, paste its
+            id into the Record filter.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who can do this">
+          <p>
+            Only <strong className="text-foreground">admin</strong> — this page
+            is view-only and needs Manage on Administration, like the rest of
+            the section.
+          </p>
+        </HowToSection>
+        <HowToSection heading="What's logged">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              Everything this organization&apos;s account sends on its own —
+              receipts, notices to staff, the daily digest, the leadership
+              report.
+            </li>
+            <li>
+              Messages a staff member writes by hand appear on the record they
+              are about, not here.
+            </li>
+            <li>
+              No message text is kept — only who, what kind, and what happened.
+            </li>
+          </ul>
+        </HowToSection>
+        <HowToSection heading="When an email is not sent">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              A row marked <strong className="text-foreground">Not sent</strong>{" "}
+              says why it was skipped.
+            </li>
+            <li>
+              Some sends stop before they reach this log and leave no row at
+              all: when email is switched off for the whole organization, when
+              an automatic reply is switched off for its kind, and when the
+              person has no address on file. If a message you expected is
+              missing entirely, check those three in{" "}
+              <Link
+                href="/portal/administration/organization-settings?tab=notifications"
+                className="underline"
+              >
+                Organization Settings
+              </Link>{" "}
+              and{" "}
+              <Link
+                href="/portal/administration/automatic-replies"
+                className="underline"
+              >
+                Automatic Replies
+              </Link>
+              .
+            </li>
+          </ul>
+        </HowToSection>
+      </>
+    ),
+  },
   "/portal/platform": {
     title: "How platform administration works",
     description:

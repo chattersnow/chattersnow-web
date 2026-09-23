@@ -22,6 +22,7 @@ import { InventoryTable } from "./inventory-table";
 import { deviceClass } from "@/lib/portal/device";
 import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
+import { ScanTagDialog } from "./scan-tag-dialog";
 import {
   CONDITIONS,
   INTENDED_USES,
@@ -374,6 +375,7 @@ export default async function InventoryPage({
               dir,
             }}
           />
+          <ScanTagDialog />
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />

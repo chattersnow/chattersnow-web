@@ -148,7 +148,11 @@ describe("UsersTable preferred name", () => {
       screen.getByLabelText("Preferred name for Avery Morgan"),
       "Discarded",
     );
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Cancel editing preferred name for Avery Morgan",
+      }),
+    );
 
     expect(updatePreferredNameMock).not.toHaveBeenCalled();
     expect(

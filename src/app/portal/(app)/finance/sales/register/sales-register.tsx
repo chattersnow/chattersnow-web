@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { Minus, Plus, Receipt, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -271,17 +276,26 @@ export function SalesRegister({
                     <li key={line.lineId} className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-sm font-medium">{label}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Remove ${label}`}
-                          onClick={() =>
-                            setCart((prev) => removeLine(prev, line.lineId))
-                          }
-                        >
-                          <X />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Remove ${label}`}
+                                onClick={() =>
+                                  setCart((prev) =>
+                                    removeLine(prev, line.lineId),
+                                  )
+                                }
+                              />
+                            }
+                          >
+                            <X />
+                          </TooltipTrigger>
+                          <TooltipContent>{`Remove ${label}`}</TooltipContent>
+                        </Tooltip>
                       </div>
 
                       {/* The unit price is a control, not a caption: changing
@@ -368,53 +382,67 @@ export function SalesRegister({
                       )}
 
                       <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          // 44px: the smallest target a thumb hits reliably, and
-                          // these two get pressed more than anything else here.
-                          className="h-11 w-11"
-                          aria-label={`One fewer ${label}`}
-                          onClick={() =>
-                            setCart((prev) =>
-                              setLineQuantity(
-                                prev,
-                                line.lineId,
-                                line.quantity - 1,
-                              ),
-                            )
-                          }
-                        >
-                          <Minus />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="outline"
+                                // 44px: the smallest target a thumb hits reliably, and
+                                // these two get pressed more than anything else here.
+                                className="h-11 w-11"
+                                aria-label={`One fewer ${label}`}
+                                onClick={() =>
+                                  setCart((prev) =>
+                                    setLineQuantity(
+                                      prev,
+                                      line.lineId,
+                                      line.quantity - 1,
+                                    ),
+                                  )
+                                }
+                              />
+                            }
+                          >
+                            <Minus />
+                          </TooltipTrigger>
+                          <TooltipContent>{`One fewer ${label}`}</TooltipContent>
+                        </Tooltip>
                         <span
                           className="min-w-8 text-center text-sm font-semibold"
                           aria-label={`Quantity of ${label}`}
                         >
                           {line.quantity}
                         </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-11 w-11"
-                          aria-label={`One more ${label}`}
-                          // A custom line has no stock to run out of.
-                          disabled={
-                            line.stockOnHand !== null &&
-                            line.quantity >= line.stockOnHand
-                          }
-                          onClick={() =>
-                            setCart((prev) =>
-                              setLineQuantity(
-                                prev,
-                                line.lineId,
-                                line.quantity + 1,
-                              ),
-                            )
-                          }
-                        >
-                          <Plus />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-11 w-11"
+                                aria-label={`One more ${label}`}
+                                // A custom line has no stock to run out of.
+                                disabled={
+                                  line.stockOnHand !== null &&
+                                  line.quantity >= line.stockOnHand
+                                }
+                                onClick={() =>
+                                  setCart((prev) =>
+                                    setLineQuantity(
+                                      prev,
+                                      line.lineId,
+                                      line.quantity + 1,
+                                    ),
+                                  )
+                                }
+                              />
+                            }
+                          >
+                            <Plus />
+                          </TooltipTrigger>
+                          <TooltipContent>{`One more ${label}`}</TooltipContent>
+                        </Tooltip>
                         <span className="ml-auto text-sm font-medium">
                           {formatCurrency(
                             (line.unitPriceCents * line.quantity) / 100,

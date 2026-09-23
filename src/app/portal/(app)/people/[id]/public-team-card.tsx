@@ -17,6 +17,11 @@ import { parseImageCrop, withTypedSrc } from "@/lib/image-crop";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Card,
   CardAction,
   CardContent,
@@ -207,15 +212,22 @@ export function PublicTeamCard({
         </CardTitle>
         {canManage && listed && mode === "view" && (
           <CardAction>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Edit team page listing"
-              onClick={() => setMode("edit")}
-            >
-              <Pencil />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit team page listing"
+                    onClick={() => setMode("edit")}
+                  />
+                }
+              >
+                <Pencil />
+              </TooltipTrigger>
+              <TooltipContent>Edit team page listing</TooltipContent>
+            </Tooltip>
           </CardAction>
         )}
       </CardHeader>

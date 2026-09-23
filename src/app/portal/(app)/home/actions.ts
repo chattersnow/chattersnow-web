@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CreateDonationInput, DonationItemInput } from "./donation-form";
 import { createDonation, type CreateDonationResult } from "./donation-core";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkAnyPermission, checkPermission } from "@/lib/auth/permissions";
+import { donationLabelsHref } from "@/lib/inventory-labels";
 
 export type { CreateDonationInput, DonationItemInput };
 export type {
@@ -20,7 +21,7 @@ export type {
  */
 export async function createDonationAction(
   input: CreateDonationInput,
-): Promise<CreateDonationResult> {
+): Promise<CreateDonationResult & { labelsHref?: string | null }> {
   const supabase = await createSupabaseServerClient();
   const result = await createDonation(supabase, input);
   if ("error" in result) return result;
@@ -29,7 +30,21 @@ export async function createDonationAction(
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/events");
 
-  return result;
+  // The received items' labels (#1420), offered only to a reader who can open
+  // the page they print from -- Inventory -> Donations' own gate. A
+  // finance-only recorder has the codes in the confirmation but no page.
+  const canPrint = !(await checkAnyPermission(supabase, [
+    { resource: "inventory", level: "view" },
+    { resource: "inventory_intake", level: "manage" },
+  ]));
+
+  return {
+    ...result,
+    labelsHref:
+      canPrint && result.codes.length > 0
+        ? donationLabelsHref(result.donationId)
+        : null,
+  };
 }
 
 export type GiveawayTierOption = {

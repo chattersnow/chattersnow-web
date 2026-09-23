@@ -1,9 +1,7 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
-import Link from "next/link";
 import { Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
@@ -19,6 +17,7 @@ import {
 } from "./meeting-badges";
 import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { IconLink } from "@/components/portal/icon-link";
 import {
   PortalDataTable,
   type PortalDataTableColumn,
@@ -81,15 +80,12 @@ export function MeetingsTable({
         srOnlyLabel: true,
         headClassName: "w-0",
         render: (meeting) => (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            nativeButton={false}
-            aria-label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
-            render={<Link href={`/portal/governance/meetings/${meeting.id}`} />}
+          <IconLink
+            href={`/portal/governance/meetings/${meeting.id}`}
+            label={`View meeting on ${formatDateTime(meeting.meeting_date)}`}
           >
             <Eye />
-          </Button>
+          </IconLink>
         ),
       },
     ],

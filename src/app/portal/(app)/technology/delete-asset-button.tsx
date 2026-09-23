@@ -77,7 +77,7 @@ export function DeleteAssetButton({
           >
             <Trash2 />
           </TooltipTrigger>
-          <TooltipContent>Delete</TooltipContent>
+          <TooltipContent>{`Delete ${assetName}`}</TooltipContent>
         </Tooltip>
       ) : (
         <Button

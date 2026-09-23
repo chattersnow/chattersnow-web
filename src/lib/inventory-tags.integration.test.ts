@@ -42,7 +42,10 @@ const GENERATED_CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6}$/;
 async function resolve(code: string, as: SupabaseClient) {
   currentSupabase = as;
   try {
-    await InventoryTagPage({ params: Promise.resolve({ code }) });
+    await InventoryTagPage({
+      params: Promise.resolve({ code }),
+      searchParams: Promise.resolve({}),
+    });
   } catch (error) {
     if (error instanceof Redirect) return { redirect: error.url };
     if (error instanceof NotFound) return { notFound: true };
@@ -58,6 +61,13 @@ beforeAll(async () => {
   const fixture = await createAvailableGearItems(1);
   itemId = fixture.itemIds[0];
   cleanup = fixture.cleanup;
+  // Intake codes every item it creates since #1420 part 4; take this one's off
+  // so the first test can create it the on-demand way.
+  await adminClient
+    .from("inventory_item_tags")
+    .delete()
+    .eq("item_id", itemId)
+    .eq("kind", "asset_tag");
 });
 
 afterAll(async () => {

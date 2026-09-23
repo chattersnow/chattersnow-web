@@ -8,6 +8,11 @@ import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -232,26 +237,42 @@ export function CategoryList({
 
                   {canEdit && (
                     <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Move ${category.body.title || category.slug} up`}
-                        disabled={index === 0 || isPending}
-                        onClick={() => move(index, -1)}
-                      >
-                        <ArrowUp />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Move ${category.body.title || category.slug} down`}
-                        disabled={index === categories.length - 1 || isPending}
-                        onClick={() => move(index, 1)}
-                      >
-                        <ArrowDown />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Move ${category.body.title || category.slug} up`}
+                              disabled={index === 0 || isPending}
+                              onClick={() => move(index, -1)}
+                            />
+                          }
+                        >
+                          <ArrowUp />
+                        </TooltipTrigger>
+                        <TooltipContent>{`Move ${category.body.title || category.slug} up`}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Move ${category.body.title || category.slug} down`}
+                              disabled={
+                                index === categories.length - 1 || isPending
+                              }
+                              onClick={() => move(index, 1)}
+                            />
+                          }
+                        >
+                          <ArrowDown />
+                        </TooltipTrigger>
+                        <TooltipContent>{`Move ${category.body.title || category.slug} down`}</TooltipContent>
+                      </Tooltip>
                       <ConfirmDeleteButton
                         label={`Remove ${category.body.title || category.slug}`}
                         title={`Remove ${category.body.title || category.slug}?`}

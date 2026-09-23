@@ -29,6 +29,11 @@ import { useRiderProfileAccess } from "@/lib/portal/rider-profile-context";
 import { formatAddress } from "@/lib/postal-address";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import {
   Card,
@@ -211,15 +216,22 @@ export function ProfileCard({
                 record's other controls rather than taking a permanent column
                 slot next to the things people came to read (#1108). */}
             <MergeDialog personId={person.id} people={people} />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Edit profile"
-              onClick={() => setMode("edit")}
-            >
-              <Pencil />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit profile"
+                    onClick={() => setMode("edit")}
+                  />
+                }
+              >
+                <Pencil />
+              </TooltipTrigger>
+              <TooltipContent>Edit profile</TooltipContent>
+            </Tooltip>
           </CardAction>
         )}
       </CardHeader>
