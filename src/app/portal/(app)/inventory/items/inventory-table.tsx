@@ -36,6 +36,7 @@ export function InventoryTable({
   dir,
   filterQueryString,
   hasActiveFilters,
+  openItemId = null,
 }: {
   items: InventoryItem[];
   categories: InventoryCategory[];
@@ -43,6 +44,8 @@ export function InventoryTable({
   dir: "asc" | "desc";
   filterQueryString: string;
   hasActiveFilters: boolean;
+  /** The item whose sheet starts open -- a scanned tag's (#1420). */
+  openItemId?: string | null;
 }) {
   const { view } = useInventoryView();
 
@@ -82,7 +85,12 @@ export function InventoryTable({
       {view === "gallery" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (
-            <InventoryCard key={item.id} item={item} categories={categories} />
+            <InventoryCard
+              key={item.id}
+              item={item}
+              categories={categories}
+              defaultOpen={item.id === openItemId}
+            />
           ))}
         </div>
       ) : (
@@ -136,7 +144,11 @@ export function InventoryTable({
                       <IntendedUseBadge intendedUse={item.intended_use} />
                     </TableCell>
                     <TableCell>
-                      <EditInventoryModal item={item} categories={categories} />
+                      <EditInventoryModal
+                        item={item}
+                        categories={categories}
+                        defaultOpen={item.id === openItemId}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

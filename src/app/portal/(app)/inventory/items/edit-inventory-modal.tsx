@@ -106,12 +106,15 @@ function isDirty(form: InventoryFormState, item: InventoryItem) {
 export function EditInventoryModal({
   item,
   categories,
+  defaultOpen = false,
 }: {
   item: InventoryItem;
   categories: InventoryCategory[];
+  /** Start open, in view mode -- the landing for a scanned tag (#1420). */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [form, setForm] = useState(() => formStateFor(item));
   const [error, setError] = useState<string | null>(null);
