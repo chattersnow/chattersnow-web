@@ -1,7 +1,7 @@
-// Rider profile vocabulary (issue #563). Shared by the public post-registration
-// prompt and the portal person form, so it lives here rather than inside either
-// route group. Values must stay in sync with the CHECK constraints in
-// supabase/migrations/20260901050000_add_rider_profile_to_people.sql.
+// Rider profile vocabulary (issue #563). Shared by the public registration
+// forms (#1415) and the portal person form, so it lives here rather than
+// inside either route group. Values must stay in sync with the CHECK
+// constraints in supabase/migrations/20260901050000_add_rider_profile_to_people.sql.
 
 export const RIDING_DISCIPLINES = [
   { value: "ski", label: "Skis" },
@@ -33,7 +33,7 @@ export const RIDER_PROFILE_MODULE = "rider_profile";
 export const MAX_MOUNTAINS = 50;
 export const MAX_MOUNTAIN_NAME_LENGTH = 80;
 
-/** What the public rider profile step needs; null where it is not offered. */
+/** What registration's riding questions need (#1415); null where not asked. */
 export type PublicRiderProfile = { mountains: string[] };
 
 /** A stored mountain list, read defensively: anything but strings is dropped. */

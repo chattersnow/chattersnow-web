@@ -25,6 +25,7 @@ import {
   completeRegistration,
   continueToReview,
   sayNoMinors,
+  answerRiding,
   continueToThisEvent,
 } from "./helpers/registration";
 
@@ -96,6 +97,7 @@ test.describe("photos and video at registration", () => {
       .fill(`photo-reader-${Date.now()}@example.test`);
     await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
+    await answerRiding(dialog);
     // The notices are on the review step (#1413).
     await continueToReview(dialog);
 
@@ -131,6 +133,7 @@ test.describe("photos and video at registration", () => {
     await dialog.getByLabel("Email").fill(email);
     await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
+    await answerRiding(dialog);
     await completeRegistration(dialog);
 
     await expect(
@@ -172,6 +175,7 @@ test.describe("photos and video at registration", () => {
     await dialog.getByLabel(/Accompanying adult's mobile/).fill("555-0101");
     await dialog.getByLabel(/Emergency contact's name/).fill("Sam Guardian");
     await dialog.getByLabel(/Emergency contact's phone/).fill("555-0102");
+    await answerRiding(dialog);
     await continueToReview(dialog);
 
     await expect(

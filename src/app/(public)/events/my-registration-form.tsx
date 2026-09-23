@@ -30,6 +30,15 @@ import type { WaiverOnFile } from "./my-registration";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
 import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
+import {
+  EMPTY_RIDING,
+  RidingFields,
+  ridingSummaryRows,
+  ridingValuesFromPerson,
+  setRidingFields,
+  type RidingValues,
+} from "./riding-fields";
+import type { PublicRiderProfile } from "@/lib/rider-profile";
 
 /**
  * Registering as yourself (#1165).
@@ -44,8 +53,9 @@ import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
  *
  * The rest is about this one attendance and travels on the registration alone:
  * a phone number corrected here reaches the organizer of this event and does
- * not silently rewrite the record. #1164's allowlist is the only thing that
- * edits a person, and a registration form is not it.
+ * not silently rewrite the record. The one exception is the riding answers
+ * (#1415), which describe the person rather than this attendance: they start
+ * from the record and are written back to it.
  */
 export function MyEventRegistrationForm({
   eventId,
@@ -56,6 +66,7 @@ export function MyEventRegistrationForm({
   minorAccompaniment = [],
   photoConsent = [],
   registrationOptions = null,
+  riderProfile = null,
 }: {
   eventId: string;
   person: MyContactDetails;
@@ -93,6 +104,11 @@ export function MyEventRegistrationForm({
    * none, which leaves this form exactly as it was.
    */
   registrationOptions?: RegistrationOptionsQuestion | null;
+  /**
+   * The riding questions on step 2 (#1415), as on the anonymous form. Null on
+   * a tenant without the rider_profile module.
+   */
+  riderProfile?: PublicRiderProfile | null;
 }) {
   const [phone, setPhone] = useState(person.phone ?? "");
   const [pronouns, setPronouns] = useState(person.pronouns ?? "");
@@ -112,6 +128,13 @@ export function MyEventRegistrationForm({
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
+  // #1415. Filled in from their own record -- this reader is signed in and
+  // linked to it, which is the only case where prefilling discloses nothing.
+  const [riding, setRiding] = useState<RidingValues>(() =>
+    riderProfile
+      ? ridingValuesFromPerson(person, riderProfile.mountains)
+      : EMPTY_RIDING,
+  );
   // #1407, starting empty as on the anonymous form.
   const [optionCounts, setOptionCountsState] = useState<OptionCounts>({});
   // Unticked, always (#686).
@@ -142,6 +165,7 @@ export function MyEventRegistrationForm({
 
     const formData = new FormData();
     formData.set("partySize", partySize);
+    if (riderProfile) setRidingFields(formData, riding);
     if (registrationOptions) setOptionCounts(formData, optionCounts);
     formData.set("notes", notes);
     formData.set("phone", phone);
@@ -203,6 +227,7 @@ export function MyEventRegistrationForm({
       error={error}
       isPending={isPending}
       onSubmit={handleSubmit}
+      eventLegend={riderProfile ? "Your riding" : undefined}
       about={
         <>
           <p className="app-muted text-sm leading-relaxed">
@@ -293,6 +318,16 @@ export function MyEventRegistrationForm({
             />
           )}
 
+          {riderProfile && (
+            <RidingFields
+              idPrefix="my-registration"
+              mountains={riderProfile.mountains}
+              values={riding}
+              onChange={setRiding}
+              disabled={isPending}
+            />
+          )}
+
           {registrationOptions && (
             <RegistrationOptionCountsField
               idPrefix="my-registration"
@@ -334,6 +369,7 @@ export function MyEventRegistrationForm({
           partySize,
           partyIncludesMinor,
           minorContacts,
+          riding: riderProfile ? ridingSummaryRows(riding) : [],
           registrationOptions,
           optionCounts,
           notes,

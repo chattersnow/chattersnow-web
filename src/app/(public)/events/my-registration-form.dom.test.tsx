@@ -56,7 +56,7 @@ async function next(user: Clicker = userEvent) {
 
 /** Moves to "This event" unless already there. */
 async function toThisEvent(user: Clicker = userEvent) {
-  if (screen.queryByRole("group", { name: /This event/ })) return;
+  if (screen.queryByRole("group", { name: /This event|Your riding/ })) return;
   await next(user);
 }
 
@@ -391,5 +391,61 @@ describe("MyEventRegistrationForm and the photo notice (#1376)", () => {
     for (const key of Object.keys(lastSubmission())) {
       expect(key).not.toMatch(/photo/i);
     }
+  });
+});
+
+// #1415. A linked registrant is the one reader whose riding answers can be
+// filled in: the record is their own, reached through their session.
+describe("MyEventRegistrationForm and the riding questions", () => {
+  const RIDER_PROFILE = { mountains: ["Whistler", "Mount Hood"] };
+
+  beforeEach(() => {
+    registerMyselfForEventActionMock.mockClear();
+  });
+
+  test("starts from the answers on their record and posts them back", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={{
+          ...person,
+          riding_discipline: "both",
+          ski_experience_level: "beginner",
+          snowboard_experience_level: "advanced",
+          preferred_mountain: "Jay Peak",
+        }}
+        riderProfile={RIDER_PROFILE}
+      />,
+    );
+
+    await toThisEvent(user);
+    expect(screen.getByRole("group", { name: /Your riding/ })).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: /ski or ride/ }),
+    ).toHaveTextContent("Both");
+    // Not on today's list, so it is kept as a typed name under Other.
+    expect(screen.getByLabelText("Which mountain?")).toHaveValue("Jay Peak");
+
+    await sayNoMinors(user);
+    await submitForm(user);
+    expect(lastSubmission()).toMatchObject({
+      ridingAsked: "on",
+      ridingDiscipline: "both",
+      skiExperienceLevel: "beginner",
+      snowboardExperienceLevel: "advanced",
+      preferredMountain: "Other",
+      otherMountain: "Jay Peak",
+    });
+  });
+
+  test("asks nothing about riding without the module", async () => {
+    const user = userEvent.setup();
+    render(<MyEventRegistrationForm eventId="event-1" person={person} />);
+
+    await sayNoMinors(user);
+    expect(screen.getByRole("group", { name: /This event/ })).toBeVisible();
+    await submitForm(user);
+    expect(lastSubmission()).not.toHaveProperty("ridingAsked");
   });
 });

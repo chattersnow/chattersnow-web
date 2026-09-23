@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { parseRiderProfileForm } from "./rider-profile-form";
+import {
+  parseRegistrationRiding,
+  parseRiderProfileForm,
+} from "./rider-profile-form";
 
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
@@ -124,6 +127,45 @@ describe("parseRiderProfileForm", () => {
         riding_discipline: "both",
         ski_experience_level: "beginner",
         snowboard_experience_level: "advanced",
+        preferred_mountain: "Hunter",
+      },
+    });
+  });
+});
+
+describe("parseRegistrationRiding", () => {
+  test("is null when the form did not ask", () => {
+    expect(
+      parseRegistrationRiding(formData({ ridingDiscipline: "ski" })),
+    ).toEqual({ data: null });
+  });
+
+  test("names the riding step when an asked answer is missing", () => {
+    expect(
+      parseRegistrationRiding(
+        formData({ ridingAsked: "on", ridingDiscipline: "ski" }),
+      ),
+    ).toEqual({
+      error: "Pick your experience level on skis.",
+      field: "riding",
+    });
+  });
+
+  test("parses the answers when asked", () => {
+    expect(
+      parseRegistrationRiding(
+        formData({
+          ridingAsked: "on",
+          ridingDiscipline: "ski",
+          skiExperienceLevel: "advanced",
+          preferredMountain: "Hunter",
+        }),
+      ),
+    ).toEqual({
+      data: {
+        riding_discipline: "ski",
+        ski_experience_level: "advanced",
+        snowboard_experience_level: null,
         preferred_mountain: "Hunter",
       },
     });

@@ -2,10 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { registerForEventAction } from "./event-registration-actions";
-import { RiderProfileForm } from "./rider-profile-form-fields";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
 import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
+import {
+  EMPTY_RIDING,
+  RidingFields,
+  ridingSummaryRows,
+  setRidingFields,
+  type RidingValues,
+} from "./riding-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -110,9 +116,13 @@ export function EventRegistrationForm({
    */
   registrationOptions?: RegistrationOptionsQuestion | null;
   /**
-   * The post-registration rider profile step (#564), and the mountains it
-   * offers. Null -- the default -- on every tenant without the rider_profile
-   * module (#1408), which leaves the confirmation with no follow-up question.
+   * The riding questions on step 2 (#1415), and the mountains they offer.
+   * Null -- the default -- on every tenant without the rider_profile module
+   * (#1408), which leaves step 2 "This event" and asks nothing about riding.
+   *
+   * Never prefilled here, even for a signed-in account: this form's reader has
+   * no linked record, and the only other source would be the record a typed
+   * email matches -- which would show anybody's answers to whoever typed it.
    */
   riderProfile?: PublicRiderProfile | null;
 }) {
@@ -132,6 +142,7 @@ export function EventRegistrationForm({
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
+  const [riding, setRiding] = useState<RidingValues>(EMPTY_RIDING);
   // #1407. Every option starts at nothing: a preselected answer is one the
   // form gave on their behalf.
   const [optionCounts, setOptionCountsState] = useState<OptionCounts>({});
@@ -144,7 +155,7 @@ export function EventRegistrationForm({
     step: RegistrationStep;
   } | null>(null);
   // Holds the new registration's id once saved -- both the "did it work?"
-  // flag and the token the rider-profile follow-up needs to authorize itself.
+  // flag and the record the account offer carries through sign-up.
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -175,6 +186,7 @@ export function EventRegistrationForm({
         formData.set(key, value);
       }
     }
+    if (riderProfile) setRidingFields(formData, riding);
     if (registrationOptions) setOptionCounts(formData, optionCounts);
     formData.set("notes", notes);
     formData.set("company", company);
@@ -208,14 +220,6 @@ export function EventRegistrationForm({
             </span>
           </AlertDescription>
         </Alert>
-        {/* Two follow-ups want this slot, and the order is decided rather
-            than incidental (#1258): the account offer is the one with a
-            deadline, since the reader is about to close the sheet and the
-            registration it carries is only claimable for a week. The rider
-            profile keeps as long as the person does. Both are skippable in
-            one click, neither is a gate, and if this ever stops reading
-            calmly as two the rider profile moves into the confirmation
-            email rather than becoming a third step. */}
         {accountOffer && (
           <div className="mt-6">
             <RecordAccountOffer
@@ -223,12 +227,6 @@ export function EventRegistrationForm({
               record={{ kind: "registration", id: registrationId }}
             />
           </div>
-        )}
-        {riderProfile && (
-          <RiderProfileForm
-            registrationId={registrationId}
-            mountains={riderProfile.mountains}
-          />
         )}
       </div>
     );
@@ -240,6 +238,7 @@ export function EventRegistrationForm({
       isPending={isPending}
       onSubmit={handleSubmit}
       submitVariant="rainbow"
+      eventLegend={riderProfile ? "Your riding" : undefined}
       about={
         <>
           {account?.email && (
@@ -277,13 +276,8 @@ export function EventRegistrationForm({
               onChange={(event) => setEmail(event.target.value)}
             />
           </Field>
-          {/* Instagram and pronouns stay here rather than moving to the
-              rider-profile step after registering (#1403). Neither is
-              required, so #1259's objection to a step that can be abandoned
-              does not bind them -- but that step writes only riding fields
-              today, and the linked form has no step after at all, so moving
-              them would mean a new write path to shorten a form the split
-              has already shortened. */}
+          {/* Instagram and pronouns stay here (#1403): they are about the
+              person, and "Your riding" (#1415) is about how they ride. */}
           <Field>
             <FieldLabel htmlFor="registration-instagram">
               Instagram handle
@@ -368,6 +362,15 @@ export function EventRegistrationForm({
               disabled={isPending}
             />
           )}
+          {riderProfile && (
+            <RidingFields
+              idPrefix="registration"
+              mountains={riderProfile.mountains}
+              values={riding}
+              onChange={setRiding}
+              disabled={isPending}
+            />
+          )}
           {registrationOptions && (
             <RegistrationOptionCountsField
               idPrefix="registration"
@@ -404,6 +407,7 @@ export function EventRegistrationForm({
           partySize,
           partyIncludesMinor,
           minorContacts,
+          riding: riderProfile ? ridingSummaryRows(riding) : [],
           registrationOptions,
           optionCounts,
           notes,

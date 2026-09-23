@@ -25,13 +25,15 @@ const ABOUT_ERROR_CODES = new Set([
   "PRONOUNS_TOO_LONG",
 ]);
 
-/** RPC error codes about something typed on "This event". */
+/** RPC error codes about something typed on "This event" ("Your riding"). */
 const EVENT_ERROR_CODES = new Set([
   "INVALID_PARTY_SIZE",
   MINOR_CONTACTS_REQUIRED_CODE,
   // #1407. The question sits beside the party size, and a full option is
   // corrected there too.
   ...REGISTRATION_OPTION_ERROR_CODES,
+  // #1415. The riding questions are asked on this step.
+  "INVALID_RIDER_PROFILE",
 ]);
 
 /**
@@ -53,6 +55,7 @@ const EVENT_FIELDS = new Set([
   "partySize",
   "partyIncludesMinor",
   "minorContacts",
+  "riding",
 ]);
 
 /** The step that owns a field the form parser refused. */

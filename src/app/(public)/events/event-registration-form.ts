@@ -8,6 +8,10 @@ import {
 } from "@/lib/minors";
 import { parsePronouns } from "@/lib/pronouns";
 import {
+  parseRegistrationRiding,
+  type RiderProfileFormData,
+} from "@/lib/rider-profile-form";
+import {
   parseOptionCounts,
   type OptionCounts,
 } from "@/lib/registration-options";
@@ -61,6 +65,11 @@ export type EventRegistrationFormData = {
    * the event asks at all is the RPC's to know.
    */
   option_counts: OptionCounts | null;
+  /**
+   * The riding answers (#1415), or null where the form did not ask them.
+   * Written to the person, not the registration.
+   */
+  riding: RiderProfileFormData | null;
 } & MinorContacts;
 
 export function parseEventRegistrationForm(
@@ -120,6 +129,9 @@ export function parseEventRegistrationForm(
     return { ...minorContacts, field: "minorContacts" };
   }
 
+  const riding = parseRegistrationRiding(formData);
+  if ("error" in riding) return riding;
+
   return {
     data: {
       ...minorContacts.data,
@@ -135,6 +147,7 @@ export function parseEventRegistrationForm(
       waiver_accepted,
       waiver_version,
       option_counts: parseOptionCounts(formData),
+      riding: riding.data,
     },
   };
 }
