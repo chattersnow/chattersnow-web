@@ -67,6 +67,27 @@ describe("RegistrationSteps (#1413)", () => {
     ).toBeNull();
   });
 
+  // Cancel belongs to the disclosure the form sits in (#1427), so a form
+  // rendered outside one offers none -- there is nothing to cancel back to.
+  test("offers Cancel only inside the Register disclosure", async () => {
+    const { EventRegistrationDisclosure } =
+      await import("./event-registration-disclosure");
+    const { unmount } = render(<EventRegistrationForm eventId="event-1" />);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    unmount();
+
+    const user = userEvent.setup();
+    render(
+      <EventRegistrationDisclosure eventName="Winter Gear Swap">
+        <EventRegistrationForm eventId="event-1" />
+      </EventRegistrationDisclosure>,
+    );
+    await user.click(screen.getByRole("button", { name: "Register" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(aboutYou()).toBeNull();
+    expect(screen.getByRole("button", { name: "Register" })).toBeVisible();
+  });
+
   test("does not ask for a phone number", () => {
     render(<EventRegistrationForm eventId="event-1" />);
 

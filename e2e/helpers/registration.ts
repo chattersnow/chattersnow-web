@@ -1,5 +1,14 @@
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect } from "./test";
+
+/**
+ * The open registration form on an event's page: the card the Register button
+ * gives way to, named for the event (#1427). Scoping to it keeps a spec's
+ * `getByLabel("Name")` off anything else on the page.
+ */
+export function registrationForm(page: Page): Locator {
+  return page.getByRole("region", { name: /^Register for / });
+}
 
 /**
  * Answers the registration form's minors question with "no" (#685).

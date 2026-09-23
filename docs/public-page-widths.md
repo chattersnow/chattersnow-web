@@ -88,17 +88,14 @@ and its own `SkipLink`, and ships **no site header or footer**
 is a phone-width bio page opened from Instagram. It does not use `PageShell`
 and is not governed by this rule.
 
-Intercepted routes and sheets (`(public)/events/@modal/…`) are not pages
-either — their width belongs to the overlay component.
-
 ## Why two layouts still leave the shell to their pages
 
-`(public)/events/layout.tsx` and `(public)/my/layout.tsx` are gate-and-slot,
-with no `PageShell`. Until #1218 that was because their routes wanted different
-widths. It is now structural: `/events` has the `@modal` slot, which would end
-up inside a `<main>` of its own on top of the page behind it, and `/my` has the
-`loading.tsx`/`error.tsx` files above, which would nest a second `<main>` inside
-the layout's.
+`(public)/events/layout.tsx` and `(public)/my/layout.tsx` are gates, with no
+`PageShell`. Until #1218 that was because their routes wanted different widths.
+`/my` still needs it structurally: its `loading.tsx`/`error.tsx` files above
+would nest a second `<main>` inside the layout's. `/events` needed it for the
+intercepted sheet `@modal` slot, which #1427 removed; its pages keep their own
+shells so the two layouts stay alike.
 
 ## Related
 

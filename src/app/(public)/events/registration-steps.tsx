@@ -12,6 +12,7 @@ import { flushSync } from "react-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { useCloseRegistration } from "./event-registration-disclosure";
 import { REGISTRATION_STEPS, type RegistrationStep } from "./registration-step";
 
 type Validatable = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -66,6 +67,10 @@ const LEGENDS: Record<RegistrationStep, string> = {
  * good. The fields carry a bottom scroll margin of the bar's height, so a
  * field that focus or a validation message scrolls into view lands above the
  * bar rather than beneath it.
+ *
+ * **The bar's buttons sit on the right** (#1427), the primary action last:
+ * Cancel where the disclosure the form is in can be closed, Back after the
+ * first step, then Next or "Complete registration".
  */
 export function RegistrationSteps({
   about,
@@ -106,6 +111,7 @@ export function RegistrationSteps({
   eventLegend?: string;
 }) {
   const [step, setStep] = useState<RegistrationStep>("about");
+  const close = useCloseRegistration();
   const formRef = useRef<HTMLFormElement>(null);
   const stepRefs = useRef<Record<RegistrationStep, HTMLFieldSetElement | null>>(
     { about: null, event: null, review: null },
@@ -252,6 +258,7 @@ export function RegistrationSteps({
   return (
     <form
       ref={formRef}
+      data-registration-steps=""
       noValidate
       onSubmit={handleSubmit}
       onKeyDown={handleKeyDown}
@@ -273,11 +280,21 @@ export function RegistrationSteps({
 
         {/* The last child of the outer `FieldGroup`, which is its containing
             block and what it travels within -- see the comment above. `-mx-4
-            px-4` carries the backdrop out to the sheet's edges, whose scroll
-            column has that padding, and into the page's gutter, so text
-            does not show at either side of it. The `env()` resolves to 0
-            until a layout exports `viewport-fit=cover`. */}
-        <div className="bg-background sticky bottom-0 z-10 -mx-4 flex gap-3 border-t px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
+            px-4` carries the backdrop out to the edges of the card the form
+            sits in, whose content has that padding, so text does not show at
+            either side of it. The `env()` resolves to 0 until a layout
+            exports `viewport-fit=cover`. */}
+        <div className="bg-card sticky bottom-0 z-10 -mx-4 flex justify-end gap-3 border-t px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
+          {close && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={close}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+          )}
           {index > 0 && (
             <Button
               type="button"

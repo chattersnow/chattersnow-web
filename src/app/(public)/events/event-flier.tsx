@@ -8,7 +8,7 @@ import { isRenderableImageSrc, resolveImageUrl } from "@/lib/inventory";
  * every one of them carries text (the meetup time, the venue, the sponsor
  * logos) right up to its edges. `object-cover` in a fixed 16:9 box therefore
  * cropped the message off the top and bottom of the flier on the listing
- * cards, the home page and both detail views (#1035).
+ * cards, the home page and the detail page (#1035).
  *
  * Nothing here crops. The tile keeps the grid's uniform 16:9 cell but contains
  * the flier inside it over a blurred, enlarged copy of itself, so a portrait
@@ -70,25 +70,18 @@ export function EventFlierTile({
  * The flier on a detail view, at its own aspect ratio. `max-h` keeps a tall
  * poster from pushing the event's date and registration form off the first
  * screen, and `w-auto`/`h-auto` mean a flier smaller than the column keeps
- * its real size rather than being upscaled into mush.
- *
- * `align` is where that narrower flier sits. The sheet centres it; the page
- * starts it on the column's left edge, where its heading, date and form all
- * start -- centred in a `max-w-6xl` column, a portrait flier floated over a
- * page whose every other line was flush left.
+ * its real size rather than being upscaled into mush. A flier narrower than
+ * its column starts on the column's left edge, where the page's heading, date
+ * and form all start.
  */
 export function EventFlierFull({
   flierUrl,
   sizes,
   alt,
   priority,
-  align = "center",
-  className,
 }: FlierProps & {
   alt: string;
   priority?: boolean;
-  align?: "center" | "start";
-  className?: string;
 }) {
   const imageUrl = resolveImageUrl(flierUrl);
   if (!isRenderableImageSrc(imageUrl)) return null;
@@ -98,9 +91,7 @@ export function EventFlierFull({
     // otherwise sit between two grey rails. Letterboxing is what the tile
     // above uses the blurred backdrop to avoid, and here there is nothing to
     // fill -- the flier simply takes the width it needs.
-    <div
-      className={`flex ${align === "start" ? "justify-start" : "justify-center"} ${className ?? ""}`}
-    >
+    <div className="flex justify-start">
       <Image
         src={imageUrl}
         alt={alt}

@@ -25,9 +25,8 @@ export async function generateMetadata({
 }
 
 /**
- * The event's own page: what a shared link, a refresh or a search result
- * renders. A click from the listing gets the same content in a sheet through
- * the intercepting route in `@modal` (#847).
+ * The event's own page: what a card on the listing or the home page, a shared
+ * link, a refresh and a search result all render (#1427).
  */
 export default async function EventDetailPage({
   params,
@@ -41,7 +40,7 @@ export default async function EventDetailPage({
 
   return (
     <PageShell>
-      <EventDetailContent event={event} variant="page" />
+      <EventDetailContent event={event} />
     </PageShell>
   );
 }

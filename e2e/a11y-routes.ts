@@ -85,11 +85,12 @@ function walk(dir: string, urlPath: string, found: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (entry.name.startsWith("_") || entry.name === "api") continue;
-      // Parallel-route slots (@modal) have no URL of their own: what they hold
-      // is another route's pattern, rendered over the page the visitor is
-      // already on. Walking into one would invent paths like
-      // /events/@modal/(.)[id] that no browser can ask for. The overlay itself
-      // is scanned as a transient surface instead -- see a11y-surfaces.ts.
+      // Parallel-route slots (`@name`) have no URL of their own: what they
+      // hold is another route's pattern, rendered over the page the visitor
+      // is already on. Walking into one would invent paths like
+      // /events/@modal/(.)[id] (#847, removed in #1427) that no browser can
+      // ask for; an overlay is scanned as a transient surface instead -- see
+      // a11y-surfaces.ts.
       if (entry.name.startsWith("@")) continue;
       walk(join(dir, entry.name), `${urlPath}/${entry.name}`, found);
     } else if (entry.name === "page.tsx") {
