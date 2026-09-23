@@ -6,6 +6,11 @@ import { usePathname } from "next/navigation";
 import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { type NavGroup, isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import {
@@ -254,14 +259,25 @@ export function SiteNav({
       <AccountMenu account={account} className="hidden sm:inline-flex" />
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger
-          render={
-            <Button variant="ghost" size="icon" className="size-11 lg:hidden" />
-          }
-        >
-          <MenuIcon />
-          <span className="sr-only">Open menu</span>
-        </SheetTrigger>
+        <Tooltip>
+          <SheetTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-11 lg:hidden"
+                    aria-label="Open menu"
+                  />
+                }
+              />
+            }
+          >
+            <MenuIcon />
+          </SheetTrigger>
+          <TooltipContent>Open menu</TooltipContent>
+        </Tooltip>
         <SheetContent side="right" size="sm">
           <SheetHeader>
             <SheetTitle>Menu</SheetTitle>

@@ -108,7 +108,7 @@ export function ScreeningList({
                   >
                     <Trash2 />
                   </TooltipTrigger>
-                  <TooltipContent>Remove this outcome</TooltipContent>
+                  <TooltipContent>{`Remove the ${level} outcome`}</TooltipContent>
                 </Tooltip>
               )}
             </li>

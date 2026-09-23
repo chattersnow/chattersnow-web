@@ -27,6 +27,7 @@ import {
   totalPagesFor,
 } from "@/lib/pagination";
 import { NewEventDialog } from "./new-event-dialog";
+import { IconLink } from "@/components/portal/icon-link";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { OutstandingTasksSheet } from "./outstanding-tasks-sheet";
@@ -408,17 +409,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                       <VisibilityBadge visibility={event.visibility} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        nativeButton={false}
-                        aria-label={`View ${event.name}`}
-                        render={<Link href={`/portal/events/${event.id}`} />}
+                      <IconLink
+                        href={`/portal/events/${event.id}`}
+                        label={`View ${event.name}`}
                       >
-                        <LinkPendingPulse>
-                          <Eye />
-                        </LinkPendingPulse>
-                      </Button>
+                        <Eye />
+                      </IconLink>
                     </TableCell>
                   </TableRow>
                 ))}

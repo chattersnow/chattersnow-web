@@ -3,6 +3,11 @@
 import { LayoutGrid, List } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   useInventoryView,
   type InventoryViewMode,
 } from "./inventory-view-context";
@@ -23,20 +28,34 @@ export function InventoryViewToggle() {
         variant="outline"
         className="h-8"
       >
-        <ToggleGroupItem
-          value="list"
-          aria-label="List view"
-          className="h-8 px-2.5"
-        >
-          <List className="size-4" />
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="gallery"
-          aria-label="Gallery view"
-          className="h-8 px-2.5"
-        >
-          <LayoutGrid className="size-4" />
-        </ToggleGroupItem>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <ToggleGroupItem
+                value="list"
+                aria-label="List view"
+                className="h-8 px-2.5"
+              />
+            }
+          >
+            <List className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>List view</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <ToggleGroupItem
+                value="gallery"
+                aria-label="Gallery view"
+                className="h-8 px-2.5"
+              />
+            }
+          >
+            <LayoutGrid className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>Gallery view</TooltipContent>
+        </Tooltip>
       </ToggleGroup>
     </div>
   );

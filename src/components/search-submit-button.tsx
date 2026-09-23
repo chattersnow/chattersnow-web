@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /**
  * Submit button for the toolbar search form. Same reason FilterSubmitButton
@@ -30,16 +35,23 @@ export function SearchSubmitButton() {
   }, []);
 
   return (
-    <Button
-      ref={ref}
-      type="submit"
-      variant="secondary"
-      size="icon-sm"
-      aria-label="Search"
-      disabled={pending}
-      aria-busy={pending || undefined}
-    >
-      {pending ? <Spinner /> : <Search />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            ref={ref}
+            type="submit"
+            variant="secondary"
+            size="icon-sm"
+            aria-label="Search"
+            disabled={pending}
+            aria-busy={pending || undefined}
+          />
+        }
+      >
+        {pending ? <Spinner /> : <Search />}
+      </TooltipTrigger>
+      <TooltipContent>Search</TooltipContent>
+    </Tooltip>
   );
 }

@@ -12,6 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { MY_PATH_PREFIX, MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
 import type { ConstituentAccountNav } from "@/lib/constituent/account-nav";
@@ -66,42 +71,57 @@ export function AccountMenu({
     // navigates, and a screen reader should be told so. `buttonVariants` is the
     // codebase's existing answer for a link that looks like a button.
     return (
-      <Link
-        href={MY_SIGN_IN_PATH}
-        aria-label="Sign in"
-        className={cn(
-          buttonVariants({ variant: "ghost" }),
-          CONTROL_CLASS,
-          className,
-        )}
-      >
-        <UserRound className="size-4 shrink-0" aria-hidden />
-        <span className="hidden xl:inline">Sign in</span>
-      </Link>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              href={MY_SIGN_IN_PATH}
+              aria-label="Sign in"
+              className={cn(
+                buttonVariants({ variant: "ghost" }),
+                CONTROL_CLASS,
+                className,
+              )}
+            />
+          }
+        >
+          <UserRound className="size-4 shrink-0" aria-hidden />
+          <span className="hidden xl:inline">Sign in</span>
+        </TooltipTrigger>
+        <TooltipContent>Sign in</TooltipContent>
+      </Tooltip>
     );
   }
 
   const { label, email } = account;
+  const triggerLabel = label ? `Your account, ${label}` : "Your account";
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            className={cn(CONTROL_CLASS, className)}
-            // Names the person even where the label is not on screen, which is
-            // every width below `xl` -- a screen reader should not have to open
-            // the menu to learn whose account this is.
-            aria-label={label ? `Your account, ${label}` : "Your account"}
-          />
-        }
-      >
-        <UserRound />
-        <span className="hidden max-w-24 truncate xl:inline">
-          {label ?? "Account"}
-        </span>
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <DropdownMenuTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  className={cn(CONTROL_CLASS, className)}
+                  // Names the person even where the label is not on screen,
+                  // which is every width below `xl` -- a screen reader should
+                  // not have to open the menu to learn whose account this is.
+                  aria-label={triggerLabel}
+                />
+              }
+            />
+          }
+        >
+          <UserRound />
+          <span className="hidden max-w-24 truncate xl:inline">
+            {label ?? "Account"}
+          </span>
+        </DropdownMenuTrigger>
+        <TooltipContent>{triggerLabel}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="w-56">
         {/* The group is not decoration: `DropdownMenuLabel` is Base UI's
             `Menu.GroupLabel`, which throws "MenuGroupContext is missing" the

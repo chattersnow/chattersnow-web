@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { addDays } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import {
@@ -68,27 +68,45 @@ export function MonthView({
     <Card className="mt-6">
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Previous month"
-            nativeButton={false}
-            render={<Link href={monthHref(prevMonth)} />}
-          >
-            <ChevronLeft />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Link
+                  href={monthHref(prevMonth)}
+                  aria-label="Previous month"
+                  // Keeps the mobile shell's icon tap target (globals.css).
+                  data-size="icon-sm"
+                  className={buttonVariants({
+                    variant: "ghost",
+                    size: "icon-sm",
+                  })}
+                />
+              }
+            >
+              <ChevronLeft />
+            </TooltipTrigger>
+            <TooltipContent>Previous month</TooltipContent>
+          </Tooltip>
           <h2 className="text-sm font-semibold">{monthLabel}</h2>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Next month"
-            nativeButton={false}
-            render={<Link href={monthHref(nextMonth)} />}
-          >
-            <ChevronRight />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Link
+                  href={monthHref(nextMonth)}
+                  aria-label="Next month"
+                  // Keeps the mobile shell's icon tap target (globals.css).
+                  data-size="icon-sm"
+                  className={buttonVariants({
+                    variant: "ghost",
+                    size: "icon-sm",
+                  })}
+                />
+              }
+            >
+              <ChevronRight />
+            </TooltipTrigger>
+            <TooltipContent>Next month</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border text-xs">

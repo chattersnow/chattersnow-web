@@ -12,6 +12,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { SEVERITY_TONE } from "./attention-severity";
 import type {
@@ -44,41 +49,46 @@ export function NotificationsMenu({ items }: { items: PendingApprovalItem[] }) {
     "info",
   );
   const isClear = items.length === 0;
+  // The control used to disappear entirely at zero. Users build spatial
+  // memory for header controls, and a bell that is sometimes absent can't
+  // answer "am I clear?", only "is something wrong?".
+  const triggerLabel = isClear
+    ? "Nothing needs your attention"
+    : `${totalCount} item${totalCount === 1 ? "" : "s"} needing attention`;
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className={
-              isClear
-                ? "relative size-10 rounded-full"
-                : "relative size-10 rounded-full bg-[var(--purple-soft)] text-[var(--purple-deep)] hover:bg-[var(--purple-soft)] hover:brightness-95"
-            }
-            // The control used to disappear entirely at zero. Users build
-            // spatial memory for header controls, and a bell that is
-            // sometimes absent can't answer "am I clear?", only "is
-            // something wrong?".
-            aria-label={
-              isClear
-                ? "Nothing needs your attention"
-                : `${totalCount} item${totalCount === 1 ? "" : "s"} needing attention`
-            }
-          />
-        }
-      >
-        <Bell className={isClear ? "size-5" : "bell-ring size-5"} />
-        {!isClear && (
-          <Badge
-            variant={BADGE_VARIANT[worst]}
-            className="absolute -top-1 -right-1 h-5 min-w-5 justify-center rounded-full px-1 text-xs font-bold ring-2 ring-[var(--background)]"
-          >
-            {totalCount}
-          </Badge>
-        )}
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <DropdownMenuTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={
+                    isClear
+                      ? "relative size-10 rounded-full"
+                      : "relative size-10 rounded-full bg-[var(--purple-soft)] text-[var(--purple-deep)] hover:bg-[var(--purple-soft)] hover:brightness-95"
+                  }
+                  aria-label={triggerLabel}
+                />
+              }
+            />
+          }
+        >
+          <Bell className={isClear ? "size-5" : "bell-ring size-5"} />
+          {!isClear && (
+            <Badge
+              variant={BADGE_VARIANT[worst]}
+              className="absolute -top-1 -right-1 h-5 min-w-5 justify-center rounded-full px-1 text-xs font-bold ring-2 ring-[var(--background)]"
+            >
+              {totalCount}
+            </Badge>
+          )}
+        </DropdownMenuTrigger>
+        <TooltipContent>{triggerLabel}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuGroup>
           <DropdownMenuLabel>

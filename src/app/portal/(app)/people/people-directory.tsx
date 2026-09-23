@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/portal/empty-state";
+import { IconLink } from "@/components/portal/icon-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
@@ -402,19 +403,12 @@ export async function PeopleDirectory({
                             {person.phone ?? "—"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              nativeButton={false}
-                              aria-label={`View ${person.name ?? segment.noun}`}
-                              render={
-                                <Link href={`/portal/people/${person.id}`} />
-                              }
+                            <IconLink
+                              href={`/portal/people/${person.id}`}
+                              label={`View ${person.name ?? segment.noun}`}
                             >
-                              <LinkPendingPulse>
-                                <Eye />
-                              </LinkPendingPulse>
-                            </Button>
+                              <Eye />
+                            </IconLink>
                           </TableCell>
                         </TableRow>
                       ))}

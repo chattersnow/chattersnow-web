@@ -1,7 +1,14 @@
+"use client";
+
 import { ListLink } from "@/components/portal/list-navigation";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { SearchSubmitButton } from "@/components/search-submit-button";
 
@@ -62,17 +69,24 @@ export function SearchField({
       </div>
       <SearchSubmitButton />
       {defaultValue && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Clear search"
-          nativeButton={false}
-          render={<ListLink href={clearHref} />}
-        >
-          <LinkPendingPulse>
-            <X />
-          </LinkPendingPulse>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Clear search"
+                nativeButton={false}
+                render={<ListLink href={clearHref} />}
+              />
+            }
+          >
+            <LinkPendingPulse>
+              <X />
+            </LinkPendingPulse>
+          </TooltipTrigger>
+          <TooltipContent>Clear search</TooltipContent>
+        </Tooltip>
       )}
     </form>
   );

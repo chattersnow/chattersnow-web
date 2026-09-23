@@ -148,7 +148,7 @@ describe("SaleDetailsSheet receipts (#1016)", () => {
   test("a completed sale links to its receipt in a new tab", async () => {
     await openSheet();
 
-    const link = screen.getByRole("link", { name: "Receipt #000123" });
+    const link = screen.getByRole("link", { name: "Open receipt #000123" });
     expect(link).toHaveAttribute(
       "href",
       `/portal/finance/sales/${SALE.id}/receipt`,
@@ -159,7 +159,7 @@ describe("SaleDetailsSheet receipts (#1016)", () => {
   test("a reader without manage still gets the receipt", async () => {
     await openSheet(false);
     expect(
-      screen.getByRole("link", { name: "Receipt #000123" }),
+      screen.getByRole("link", { name: "Open receipt #000123" }),
     ).toBeInTheDocument();
   });
 
@@ -180,7 +180,7 @@ describe("SaleDetailsSheet receipts (#1016)", () => {
       screen.getByRole("button", { name: "View sale of $64.95" }),
     );
     expect(
-      screen.getByRole("link", { name: "Receipt #000123" }),
+      screen.getByRole("link", { name: "Open receipt #000123" }),
     ).toBeInTheDocument();
   });
 });

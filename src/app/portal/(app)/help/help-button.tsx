@@ -12,6 +12,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { helpContent } from "./help-content";
 import { usePortalHelp } from "./help-context";
 import { resolveHelpKey } from "./help-matcher";
@@ -34,19 +39,26 @@ export function HelpButton() {
 
   return (
     <Sheet>
-      <SheetTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-10 rounded-full"
-            aria-label="Help for this page"
-          />
-        }
-      >
-        <CircleHelp className="size-5" />
-      </SheetTrigger>
+      <Tooltip>
+        <SheetTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-10 rounded-full"
+                  aria-label="Help for this page"
+                />
+              }
+            />
+          }
+        >
+          <CircleHelp className="size-5" />
+        </SheetTrigger>
+        <TooltipContent>Help for this page</TooltipContent>
+      </Tooltip>
       <SheetContent side="right" size="lg">
         <SheetHeader>
           <SheetTitle>{entry.title}</SheetTitle>

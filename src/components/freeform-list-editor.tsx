@@ -4,6 +4,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type FreeformListEditorProps = {
   label: string;
@@ -33,15 +38,22 @@ export function FreeformListEditor({
               value={item}
               onChange={(event) => updateItem(index, event.target.value)}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Remove ${label.toLowerCase()} item`}
-              onClick={() => removeItem(index)}
-            >
-              <Trash2 />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Remove ${label.toLowerCase()} item`}
+                    onClick={() => removeItem(index)}
+                  />
+                }
+              >
+                <Trash2 />
+              </TooltipTrigger>
+              <TooltipContent>Remove {label.toLowerCase()} item</TooltipContent>
+            </Tooltip>
           </div>
         ))}
         <Button

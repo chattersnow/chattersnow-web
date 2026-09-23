@@ -89,7 +89,7 @@ test.describe("portal inventory donations", () => {
 
     // Since #469 the row's View action is a link to the donation's dedicated
     // detail page, with editing kept on a sheet opened from the page.
-    await row.getByRole("button", { name: "View donation" }).click();
+    await row.getByRole("link", { name: "View donation" }).click();
     await expect(page).toHaveURL(
       /\/portal\/inventory\/donations\/[0-9a-f-]{36}$/,
       { timeout: 15_000 },

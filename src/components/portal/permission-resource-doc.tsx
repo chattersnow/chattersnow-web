@@ -11,6 +11,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLexicon } from "@/components/lexicon-context";
 import { applyLexicon } from "@/lib/lexicon";
 import {
@@ -289,16 +294,23 @@ export function PermissionResourceSheet({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-7"
-        aria-label={triggerLabel}
-        onClick={() => handleOpenChange(true)}
-      >
-        <CircleHelp className="size-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label={triggerLabel}
+              onClick={() => handleOpenChange(true)}
+            />
+          }
+        >
+          <CircleHelp className="size-4" />
+        </TooltipTrigger>
+        <TooltipContent>{triggerLabel}</TooltipContent>
+      </Tooltip>
       <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetContent side="right" size="lg">
           <SheetHeader>

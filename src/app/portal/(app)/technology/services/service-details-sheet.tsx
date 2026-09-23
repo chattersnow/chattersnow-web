@@ -133,7 +133,7 @@ export function ServiceDetailsSheet({
           >
             <Eye />
           </SheetTrigger>
-          <TooltipContent>View service</TooltipContent>
+          <TooltipContent>{`View ${service.name}`}</TooltipContent>
         </Tooltip>
         <SheetContent side="right" showCloseButton={false}>
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
@@ -177,7 +177,7 @@ export function ServiceDetailsSheet({
                 >
                   <Pencil />
                 </TooltipTrigger>
-                <TooltipContent>Edit</TooltipContent>
+                <TooltipContent>Edit service</TooltipContent>
               </Tooltip>
             )}
             {mode === "edit" && (

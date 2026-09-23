@@ -3,6 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -56,19 +61,26 @@ export function PurchaserSearch({
         <FieldLabel htmlFor="purchaser-search">Purchaser</FieldLabel>
         <div className="flex items-center gap-2">
           <StatusBadge tone="info">{selected.label}</StatusBadge>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Remove ${selected.label} as purchaser`}
-            onClick={() => {
-              onSelect(null);
-              setQuery("");
-              setHits([]);
-            }}
-          >
-            <X />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${selected.label} as purchaser`}
+                  onClick={() => {
+                    onSelect(null);
+                    setQuery("");
+                    setHits([]);
+                  }}
+                />
+              }
+            >
+              <X />
+            </TooltipTrigger>
+            <TooltipContent>{`Remove ${selected.label} as purchaser`}</TooltipContent>
+          </Tooltip>
         </div>
       </Field>
     );

@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 
 /**
@@ -44,17 +49,24 @@ export function PreferredNameCell({
     return (
       <div className="flex items-center gap-1">
         <span className={value ? undefined : "app-muted"}>{value ?? "—"}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          disabled={disabled}
-          onClick={start}
-        >
-          <Pencil className="size-3.5" />
-          <span className="sr-only">Edit preferred name for {label}</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={disabled}
+                onClick={start}
+                aria-label={`Edit preferred name for ${label}`}
+              />
+            }
+          >
+            <Pencil className="size-3.5" />
+          </TooltipTrigger>
+          <TooltipContent>{`Edit preferred name for ${label}`}</TooltipContent>
+        </Tooltip>
       </div>
     );
   }
@@ -80,28 +92,42 @@ export function PreferredNameCell({
           }
         }}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-7"
-        disabled={disabled}
-        onClick={save}
-      >
-        <Check className="size-3.5" />
-        <span className="sr-only">Save preferred name for {label}</span>
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-7"
-        disabled={disabled}
-        onClick={cancel}
-      >
-        <X className="size-3.5" />
-        <span className="sr-only">Cancel</span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={disabled}
+              onClick={save}
+              aria-label={`Save preferred name for ${label}`}
+            />
+          }
+        >
+          <Check className="size-3.5" />
+        </TooltipTrigger>
+        <TooltipContent>{`Save preferred name for ${label}`}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={disabled}
+              onClick={cancel}
+              aria-label={`Cancel editing preferred name for ${label}`}
+            />
+          }
+        >
+          <X className="size-3.5" />
+        </TooltipTrigger>
+        <TooltipContent>{`Cancel editing preferred name for ${label}`}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

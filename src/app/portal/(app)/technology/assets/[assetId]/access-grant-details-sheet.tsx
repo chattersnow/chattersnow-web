@@ -158,7 +158,7 @@ export function AccessGrantDetailsSheet({
           >
             <Eye />
           </SheetTrigger>
-          <TooltipContent>View grant</TooltipContent>
+          <TooltipContent>{`View grant for ${grant.person?.name ?? "person"}`}</TooltipContent>
         </Tooltip>
         <SheetContent side="right" showCloseButton={false}>
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
@@ -204,7 +204,7 @@ export function AccessGrantDetailsSheet({
                 >
                   <Pencil />
                 </TooltipTrigger>
-                <TooltipContent>Edit</TooltipContent>
+                <TooltipContent>Edit access grant</TooltipContent>
               </Tooltip>
             )}
             {mode === "edit" && (

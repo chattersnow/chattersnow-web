@@ -26,6 +26,11 @@ import type {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Card,
   CardAction,
   CardContent,
@@ -153,15 +158,22 @@ function EditableCard({
         </CardTitle>
         {!editing && (
           <CardAction>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={editLabel}
-              onClick={onEdit}
-            >
-              <Pencil />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={editLabel}
+                    onClick={onEdit}
+                  />
+                }
+              >
+                <Pencil />
+              </TooltipTrigger>
+              <TooltipContent>{editLabel}</TooltipContent>
+            </Tooltip>
           </CardAction>
         )}
       </CardHeader>

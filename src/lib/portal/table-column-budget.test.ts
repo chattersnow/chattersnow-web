@@ -546,6 +546,8 @@ function portalTables(): Table[] {
 function opensTheRow(source: string): boolean {
   return (
     /from "next\/link"/.test(source) ||
+    // The row-level icon link, which wraps a Next link for its tooltip.
+    /<IconLink\b/.test(source) ||
     /<[A-Z]\w*(Sheet|Dialog|Modal|Drawer)\b/.test(source) ||
     /colSpan=\{\d+\}[^]*?<[A-Z]\w*Form\b/.test(source)
   );

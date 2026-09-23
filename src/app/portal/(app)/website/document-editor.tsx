@@ -3,6 +3,11 @@
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Field,
   FieldDescription,
   FieldGroup,
@@ -91,26 +96,40 @@ function SectionsEditor({
             <div className="flex items-start justify-between gap-2">
               <span className="app-eyebrow">{name}</span>
               <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Move ${name} up`}
-                  disabled={index === 0}
-                  onClick={() => rows.move(row.id, -1)}
-                >
-                  <ArrowUp />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Move ${name} down`}
-                  disabled={index === rows.rows.length - 1}
-                  onClick={() => rows.move(row.id, 1)}
-                >
-                  <ArrowDown />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Move ${name} up`}
+                        disabled={index === 0}
+                        onClick={() => rows.move(row.id, -1)}
+                      />
+                    }
+                  >
+                    <ArrowUp />
+                  </TooltipTrigger>
+                  <TooltipContent>{`Move ${name} up`}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Move ${name} down`}
+                        disabled={index === rows.rows.length - 1}
+                        onClick={() => rows.move(row.id, 1)}
+                      />
+                    }
+                  >
+                    <ArrowDown />
+                  </TooltipTrigger>
+                  <TooltipContent>{`Move ${name} down`}</TooltipContent>
+                </Tooltip>
                 <ConfirmDeleteButton
                   label={`Remove ${name}`}
                   title={`Remove ${name}?`}

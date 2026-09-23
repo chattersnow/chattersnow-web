@@ -92,7 +92,7 @@ test.describe("portal inventory distribution", () => {
     const row = page.getByRole("row").filter({ hasText: itemDescription });
     await expect(row).toBeVisible();
     await row
-      .getByRole("button", {
+      .getByRole("link", {
         name: `View distribution of ${itemDescription}`,
       })
       .click();
@@ -135,7 +135,7 @@ test.describe("portal inventory distribution", () => {
 
     // Delete from the detail page, confirming the dialog.
     await row
-      .getByRole("button", {
+      .getByRole("link", {
         name: `View distribution of ${itemDescription}`,
       })
       .click();

@@ -20,6 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
 
@@ -247,16 +252,23 @@ export function TiersSection({
                   <span className="app-muted"> → {tier?.label ?? "—"}</span>
                 </span>
                 {canEdit && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={isPending}
-                    aria-label={`Remove keyword ${rule.match_text}`}
-                    onClick={() => handleRemoveKeyword(rule.id)}
-                  >
-                    ×
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={isPending}
+                          aria-label={`Remove keyword ${rule.match_text}`}
+                          onClick={() => handleRemoveKeyword(rule.id)}
+                        />
+                      }
+                    >
+                      ×
+                    </TooltipTrigger>
+                    <TooltipContent>{`Remove keyword ${rule.match_text}`}</TooltipContent>
+                  </Tooltip>
                 )}
               </li>
             );

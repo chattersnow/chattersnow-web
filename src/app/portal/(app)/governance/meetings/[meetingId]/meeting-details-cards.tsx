@@ -38,6 +38,11 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateTime, personDisplayName } from "@/lib/format";
 import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 import { runAction } from "@/components/portal/action-toast";
@@ -169,15 +174,22 @@ function EditableCard({
         </CardTitle>
         {canEdit && !editing && (
           <CardAction>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={editLabel}
-              onClick={onEdit}
-            >
-              <Pencil />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={editLabel}
+                    onClick={onEdit}
+                  />
+                }
+              >
+                <Pencil />
+              </TooltipTrigger>
+              <TooltipContent>{editLabel}</TooltipContent>
+            </Tooltip>
           </CardAction>
         )}
       </CardHeader>
