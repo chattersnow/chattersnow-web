@@ -2,10 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MyContactDetails } from "@/lib/constituent/contact";
-import {
-  PHOTO_CONSENT_HEADING,
-  PHOTO_CONSENT_NOTICE,
-} from "@/lib/photo-consent";
+import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
 
 // The action module reaches the admin client, which is `server-only`-guarded
 // and throws outside Next's bundler. Neutralising the guard lets it load so
@@ -258,7 +255,7 @@ describe("MyEventRegistrationForm and the photo notice (#1376)", () => {
     expect(lastSubmission().photoConsent).toBeUndefined();
   });
 
-  test("renders the paragraphs and the notice, with no box of its own", () => {
+  test("renders the paragraphs, with no box of its own", () => {
     render(
       <MyEventRegistrationForm
         eventId="event-1"
@@ -273,7 +270,6 @@ describe("MyEventRegistrationForm and the photo notice (#1376)", () => {
     for (const paragraph of SCOPE) {
       expect(screen.getByText(paragraph)).toBeInTheDocument();
     }
-    expect(screen.getByText(PHOTO_CONSENT_NOTICE)).toBeInTheDocument();
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 

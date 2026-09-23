@@ -1,7 +1,4 @@
-import {
-  PHOTO_CONSENT_HEADING,
-  PHOTO_CONSENT_NOTICE,
-} from "@/lib/photo-consent";
+import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,15 +11,12 @@ import { cn } from "@/lib/utils";
  * public form takes by default.
  *
  * **It still renders nothing at all when the organization has written no
- * scope** — not a bare heading, not the platform's own sentence. This is the
+ * scope** — not even a bare heading. This is the
  * one place it diverges from that component, which keeps printing
  * `FORM_ASKS_FOR` on a blank tenant because the form collects those fields
  * either way. Here there is nothing to say: what an organization does with a
  * photo is off-platform and unknowable from this codebase, and the platform
- * writes none of it (`docs/legal-basis.md` rule 2). More than that, the
- * paragraphs are what makes registering carry the agreement at all — the
- * platform's sentence alone would describe a remedy for an implication nobody
- * had made. A tenant that has written nothing renders a form byte-identical to
+ * writes none of it (`docs/legal-basis.md` rule 2). A tenant that has written nothing renders a form byte-identical to
  * the one it had before #599 shipped, which is where almost every tenant is
  * and the state that must never break.
  *
@@ -31,6 +25,11 @@ import { cn } from "@/lib/utils";
  * sentence saying a registering adult's submission binds the under-18s in
  * their party would be a guardianship claim the platform is in no position to
  * make. A tenant's own paragraphs can cover minors if it wants them covered.
+ *
+ * **Nothing of the platform's own beneath the paragraphs.** A platform
+ * sentence here used to open "There is no box to tick here" and list the ways
+ * to object. It was dropped: the tenant's paragraphs are the whole notice, and
+ * how to object is the organization's to say in them.
  *
  * **No link.** The scope is these paragraphs and nothing else — there is no
  * `/photo-consent` route to point at, deliberately, and the DOM test asserts
@@ -56,9 +55,6 @@ export function PhotoConsentNotice({
           {paragraph}
         </p>
       ))}
-      <p className="app-muted text-sm leading-relaxed">
-        {PHOTO_CONSENT_NOTICE}
-      </p>
     </div>
   );
 }

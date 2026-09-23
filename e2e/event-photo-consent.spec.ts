@@ -99,9 +99,10 @@ test.describe("photos and video at registration", () => {
     await expect(
       dialog.getByRole("checkbox", { name: /photograph/i }),
     ).toHaveCount(0);
-    await expect(
-      dialog.getByText(/There is no box to tick here/),
-    ).toBeVisible();
+    // Nothing of the platform's own under the paragraphs either.
+    await expect(dialog.getByText(/There is no box to tick here/)).toHaveCount(
+      0,
+    );
   });
 
   test("registers, and the row records no objection", async ({ page }) => {
@@ -165,8 +166,5 @@ test.describe("photos and video at registration", () => {
     await expect(
       dialog.getByRole("heading", { name: "Photos and video" }),
     ).toHaveCount(0);
-    await expect(dialog.getByText(/There is no box to tick here/)).toHaveCount(
-      0,
-    );
   });
 });

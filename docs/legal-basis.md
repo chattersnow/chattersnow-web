@@ -260,17 +260,19 @@ a photo, and whether registering for its events carries agreement to it, are
 claims about that organization — rule 2, and the same argument that made
 `events.photo_consent` a tenant slot in the first place. A tenant that has
 written nothing says nothing: no heading, no notice, a form byte-identical to
-the one before #599, and that is where almost every tenant is. The platform's
-own sentence beneath a tenant's paragraphs describes only the mechanism and the
-remedy, both facts about this software.
+the one before #599, and that is where almost every tenant is. The
+registration form adds no sentence of the platform's own beneath a tenant's
+paragraphs: it once said there was no box and listed the routes below, and
+was dropped as redundant with a tenant's own text, which is where saying how
+to object belongs.
 
 **The remedy is objection, by three routes, of which one is self-service.**
 Telling any organizer at the event, emailing, or — only for somebody who has
 claimed an account — saying so from `/my/registration/[id]` through
 `set_my_photo_consent()`. That last one resolves through
 `my_constituent_person_id('events')`, and most registrants have never claimed
-an account, so the platform's wording names the organizer and the email first
-and qualifies the third rather than promising it. Under #599 the registration
+an account, so the privacy policy names the organizer and the email first and
+qualifies the third rather than promising it. Under #599 the registration
 page was a bonus on top of a box already ticked; here it is one route among
 three.
 

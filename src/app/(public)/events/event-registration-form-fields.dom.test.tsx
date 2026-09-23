@@ -21,10 +21,7 @@ mock.module("./event-registration-actions", () => ({
 const { EventRegistrationForm } =
   await import("./event-registration-form-fields");
 
-import {
-  PHOTO_CONSENT_HEADING,
-  PHOTO_CONSENT_NOTICE,
-} from "@/lib/photo-consent";
+import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
 
 /**
  * #685: the minors question is required, so every case that expects a
@@ -429,7 +426,7 @@ describe("EventRegistrationForm and the minors question", () => {
       expect(lastSubmission().photoConsent).toBeUndefined();
     });
 
-    test("renders the paragraphs and the notice, with no box of its own", async () => {
+    test("renders the paragraphs, with no box of its own", async () => {
       render(<EventRegistrationForm eventId="event-1" photoConsent={SCOPE} />);
 
       expect(
@@ -438,7 +435,6 @@ describe("EventRegistrationForm and the minors question", () => {
       for (const paragraph of SCOPE) {
         expect(screen.getByText(paragraph)).toBeInTheDocument();
       }
-      expect(screen.getByText(PHOTO_CONSENT_NOTICE)).toBeInTheDocument();
 
       // No waiver here, so the form carries no checkbox at all.
       expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
@@ -488,7 +484,6 @@ describe("EventRegistrationForm and the minors question", () => {
       await user.click(screen.getByLabelText(/under 18/i));
       await user.click(screen.getByRole("option", { name: "Yes" }));
 
-      expect(screen.getByText(PHOTO_CONSENT_NOTICE)).toBeInTheDocument();
       expect(screen.queryByText(/parent or guardian/i)).toBeNull();
     });
 

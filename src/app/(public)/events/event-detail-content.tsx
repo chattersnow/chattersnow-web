@@ -79,6 +79,7 @@ function EventFlier({
       // The page's flier is its hero image and the largest paint on it; the
       // sheet's arrives with an overlay that is already on screen.
       priority={page}
+      align={page ? "start" : "center"}
       className={page ? "mb-6" : "mb-4"}
     />
   );
