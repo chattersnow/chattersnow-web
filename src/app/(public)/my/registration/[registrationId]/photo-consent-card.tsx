@@ -24,7 +24,7 @@ import { setMyPhotoConsentAction } from "./photo-consent-actions";
  * withdrawing one is offered only once there is something to withdraw.
  *
  * **It is one of three routes and the only self-service one.** The other two
- * — telling an organizer, and emailing — are what `PHOTO_CONSENT_NOTICE` names
+ * — telling an organizer, and emailing — are what the privacy policy names
  * first, because `set_my_photo_consent()` resolves through
  * `my_constituent_person_id('events')` and so reaches only somebody who has
  * claimed an account. Most registrants have not. That is why this card is a
