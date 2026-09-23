@@ -334,7 +334,7 @@ export function MyEventRegistrationForm({
                 required
               />
               <FieldLabel htmlFor="my-registration-waiver" required>
-                I have read the agreement above and I accept it
+                I have read and accept the {waiver.title}
               </FieldLabel>
             </Field>
           </>

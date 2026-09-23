@@ -95,7 +95,9 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
     );
 
     expect(screen.getByText("The agreement itself")).toBeVisible();
-    const box = screen.getByRole("checkbox", { name: /I have read the/ });
+    const box = screen.getByRole("checkbox", {
+      name: /I have read and accept/,
+    });
     expect(box).not.toBeChecked();
 
     await userEvent.click(box);
@@ -158,7 +160,7 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
 
     expect(screen.getByText("The agreement itself")).toBeVisible();
     expect(
-      screen.getByRole("checkbox", { name: /I have read the/ }),
+      screen.getByRole("checkbox", { name: /I have read and accept/ }),
     ).not.toBeChecked();
   });
 });

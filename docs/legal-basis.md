@@ -149,9 +149,11 @@ submitted and worded by the organization for that purpose:
 - **Artwork submissions** — an unticked box confirming the work is the artist's
   own, and agreeing to the call's own `rights_note` (#876, #877) where it has
   one. The timestamp is stored on the submission.
-- **The participant waiver** (#686) — an unticked box beneath the organization's
-  own agreement, shown in full at the point of registration rather than behind a
-  link. `event_registrations.waiver_accepted_at` and `waiver_version` record
+- **The participant waiver** (#686) — an unticked box naming the
+  organization's own agreement, beneath its title, the organization's own
+  summary of it and a button that opens every word of that version in a
+  full-screen sheet (#1402, recorded below).
+  `event_registrations.waiver_accepted_at` and `waiver_version` record
   when, and which version, both resolved server-side. Taken on the signed-in
   registration path too: holding an account is not agreement to anything.
   **On file for a linked person** (#1401): a signed-in registrant whose account
@@ -186,8 +188,8 @@ What follows from this:
 - No stored pointer to a legal document version on a submission **that did not
   obtain one**. Such a column would assert an acceptance the interface never
   made. `event_registrations.waiver_version` is the single exception and the
-  only one this shape permits, because the waiver is shown in full where it is
-  accepted and its box can be left unticked. Nothing stores a pointer to the
+  only one this shape permits, because the waiver's full text is one tap from
+  where it is accepted, its box names it, and the box can be left unticked. Nothing stores a pointer to the
   privacy policy, the terms or the code of conduct, and nothing may.
   A **snapshot** is a different thing and is allowed where an acceptance was
   genuinely obtained: `artwork_submissions.consented_terms` (#1319) and
@@ -240,6 +242,45 @@ takes already records, and it says only that there is nothing to act on.
 Nothing had asserted that the waiver pair survives at all until #599;
 `retention.integration.test.ts` asserts both halves in one test, since one rule
 doing opposite things is the only place they can be compared.
+
+### How the waiver is presented
+
+**Decided 2026-09-22 by the platform owner (#1402), reversing #686's
+presentation.** #686 put the whole agreement inline, in a capped scroll box
+inside the registration form, so that "did they see it" was answerable. It is
+now shown as:
+
+1. the agreement's title in bold, and the organization's own `summary`
+   paragraphs — its words, not the platform's; a tenant that has written none
+   shows the title alone;
+2. a **Read the full agreement** button opening every word of the same version
+   in a full-screen sheet, beside the `/waiver?version=N` permalink the
+   registration's pointer resolves to;
+3. an unticked, required box directly above the submit button naming the
+   document: "I have read and accept the _title_".
+
+The reasons: a scroll box inside a scrolling page takes the finger over on a
+phone and shows a few lines at a time, and it is not the stronger form in court
+either. _Sgouros v. TransUnion_ (7th Cir. 2016) refused terms presented in a
+small scroll box with nothing prompting the reader to scroll. What courts have
+upheld is a conspicuous route to the full text beside an affirmative act:
+_Meyer v. Uber_ (2d Cir. 2017) on a link next to the action; _Nguyen v. Barnes &
+Noble_ (9th Cir. 2014) on why the box stays, since a link without an
+affirmative act fails; and _Corwin v. NYC Bike Share_ (S.D.N.Y. 2017), which
+enforced a liability release accepted through an "I have read and agree" box
+against ordinary negligence.
+
+What is deliberately **not** done: nothing forces the reader to scroll to the
+bottom, or to open the sheet, before the box can be ticked. It is an
+accessibility barrier, and no case found requires it. Recording that the
+person opened the full text was proposed as optional and is not built; it would
+need its own column and a change to the registration RPCs, and would be a
+separate decision.
+
+Unchanged: the version check in the registration RPCs, the version pointer,
+and the rule that the box is never pre-ticked. The organization's waiver text
+itself still wants its own lawyer's review — this decides how it is shown, not
+what it says.
 
 ### Registering carries the photo agreement
 

@@ -75,14 +75,21 @@ describe("EventRegistrationForm", () => {
     render(
       <EventRegistrationForm
         eventId="event-1"
-        waiver={{ version: 3 }}
+        waiver={{ version: 3, title: "Participant Waiver" }}
         waiverBlock={<p>The agreement itself</p>}
       />,
     );
 
     expect(screen.getByText("The agreement itself")).toBeVisible();
-    const box = screen.getByRole("checkbox", { name: /I have read the/ });
+    const box = screen.getByRole("checkbox", {
+      name: /I have read and accept/,
+    });
     expect(box).not.toBeChecked();
+    // Named, not "the agreement above" (#1402): the full text is now behind a
+    // button, so the box says which document it accepts.
+    expect(box).toHaveAccessibleName(
+      "I have read and accept the Participant Waiver",
+    );
     // A pre-ticked box is not an acceptance, and `required` is what makes the
     // browser say which control is missing rather than silently refusing.
     expect(box).toBeRequired();
@@ -92,7 +99,7 @@ describe("EventRegistrationForm", () => {
     render(
       <EventRegistrationForm
         eventId="event-1"
-        waiver={{ version: 3 }}
+        waiver={{ version: 3, title: "Participant Waiver" }}
         waiverBlock={<p>The agreement itself</p>}
       />,
     );
@@ -100,7 +107,7 @@ describe("EventRegistrationForm", () => {
     await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
     await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /I have read the/ }),
+      screen.getByRole("checkbox", { name: /I have read and accept/ }),
     );
     await sayNoMinors();
     await userEvent.click(
@@ -124,7 +131,7 @@ describe("EventRegistrationForm", () => {
     render(
       <EventRegistrationForm
         eventId="event-1"
-        waiver={{ version: 3 }}
+        waiver={{ version: 3, title: "Participant Waiver" }}
         waiverBlock={<p>The agreement itself</p>}
       />,
     );
@@ -448,14 +455,16 @@ describe("EventRegistrationForm and the minors question", () => {
         <EventRegistrationForm
           eventId="event-1"
           photoConsent={SCOPE}
-          waiver={{ version: 1 }}
+          waiver={{ version: 1, title: "Participant Waiver" }}
           waiverBlock={<p>The agreement itself.</p>}
         />,
       );
 
       const boxes = screen.getAllByRole("checkbox");
       expect(boxes).toHaveLength(1);
-      expect(boxes[0]).toHaveAccessibleName(/I have read the agreement/i);
+      expect(boxes[0]).toHaveAccessibleName(
+        "I have read and accept the Participant Waiver",
+      );
     });
 
     // The wire guard, and the point of the whole change: a registration taken
@@ -494,7 +503,7 @@ describe("EventRegistrationForm and the minors question", () => {
         <EventRegistrationForm
           eventId="event-1"
           photoConsent={SCOPE}
-          waiver={{ version: 1 }}
+          waiver={{ version: 1, title: "Participant Waiver" }}
           waiverBlock={<p>The agreement itself.</p>}
         />,
       );
@@ -502,7 +511,7 @@ describe("EventRegistrationForm and the minors question", () => {
       const text = container.textContent ?? "";
       const notice = text.indexOf("We use what you enter here");
       const photos = text.indexOf(PHOTO_CONSENT_HEADING);
-      const agreement = text.indexOf("I have read the agreement");
+      const agreement = text.indexOf("I have read and accept");
 
       expect(notice).toBeGreaterThanOrEqual(0);
       expect(photos).toBeGreaterThan(notice);

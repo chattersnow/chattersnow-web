@@ -64,6 +64,9 @@ export function LegalDocument({
  * keeps its own `h1`, rail and print layout; this is the same prose in a
  * frame the size of a form.
  *
+ * The full-text sheet (#1402) is a third frame: its title is the dialog's
+ * `h2`, so the sections sit at `h3` there.
+ *
  * `headingLevel` and `anchors` both exist because a form is not a page. A
  * document embedded under a form's own heading must not jump a level, and two
  * copies of the same document in one DOM -- or a section id colliding with a
@@ -75,14 +78,16 @@ export function LegalDocumentSections({
   anchors = true,
 }: {
   doc: LegalDocumentContent;
-  headingLevel?: 2 | 4;
+  headingLevel?: 2 | 3 | 4;
   anchors?: boolean;
 }) {
-  const Heading = headingLevel === 2 ? "h2" : "h4";
+  const Heading = (["h2", "h3", "h4"] as const)[headingLevel - 2];
   const headingClass =
     headingLevel === 2
       ? "brand-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl"
-      : "text-sm font-medium text-foreground";
+      : headingLevel === 3
+        ? "text-base font-semibold text-foreground"
+        : "text-sm font-medium text-foreground";
 
   return doc.sections.map((section) => (
     <section key={section.id} id={anchors ? section.id : undefined}>
