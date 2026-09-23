@@ -21,8 +21,15 @@ import {
   actionError,
   fromGuard,
   fromParseError,
+  type ActionFailure,
 } from "@/lib/portal/action-result";
 import { getRequestOrigin } from "@/lib/request-origin";
+import {
+  hasOptionAnswer,
+  optionCountsError,
+  type OptionCountRow,
+  type OptionCounts,
+} from "@/lib/registration-options";
 import { getTenantContext } from "@/lib/portal/tenants";
 import { getTenantLegalPublication } from "@/lib/legal-publication";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
@@ -169,6 +176,13 @@ export type EventRegistrant = {
   photo_consent: boolean | null;
   photo_consent_at: string | null;
   photo_consent_text: string | null;
+  /**
+   * The answer to the event's registration question (#1407), one row per
+   * option chosen. Empty where the event asks none or nobody was asked -- a
+   * walk-in staff left unanswered. Not gated on `events: manage`: how many
+   * tickets a party needs is what the door hands out.
+   */
+  option_counts: OptionCountRow[];
   rider: RegistrantRiderProfile | null;
   /** See `RegistrantMinorContacts`. Null unless `events: manage`. */
   minorContacts: RegistrantMinorContacts | null;
@@ -225,7 +239,72 @@ export type EventRegistrantsData = {
    * table needs `site_content: view` and the reader here is a door shift.
    */
   photoConsentInForce: boolean;
+  /** The event's registration question (#1407), or null where it asks none. */
+  registrationOptions: PortalRegistrationOptions | null;
 };
+
+/**
+ * An event's registration question as the portal shows it (#1407): each
+ * option with its cap and how many registrants have taken it, so the tab can
+ * say "7 of 10" before the organizer orders tickets.
+ */
+export type PortalRegistrationOptions = {
+  prompt: string;
+  options: { id: string; label: string; cap: number | null; taken: number }[];
+};
+
+/**
+ * The event's registration question on its own, for the add-registrant and
+ * walk-in dialogs. `taken` is filled in by the tab, which has the counts; the
+ * dialogs only need the choices.
+ */
+export async function listEventRegistrationOptionsAction(
+  eventId: string,
+): Promise<{ data: PortalRegistrationOptions | null } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "view");
+  if (permissionError) return permissionError;
+  return { data: await loadRegistrationOptions(supabase, eventId, []) };
+}
+
+async function loadRegistrationOptions(
+  supabase: SupabaseClient,
+  eventId: string,
+  registrants: EventRegistrant[],
+): Promise<PortalRegistrationOptions | null> {
+  const [{ data: event }, { data: options }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("registration_options_prompt")
+      .eq("id", eventId)
+      .maybeSingle(),
+    supabase
+      .from("event_registration_options")
+      .select("id, label, cap")
+      .eq("event_id", eventId)
+      .order("sort_order", { ascending: true }),
+  ]);
+  const prompt = event?.registration_options_prompt;
+  if (!prompt || !options || options.length === 0) return null;
+
+  const taken = new Map<string, number>();
+  for (const registrant of registrants) {
+    for (const row of registrant.option_counts) {
+      if (!row.option_id) continue;
+      taken.set(row.option_id, (taken.get(row.option_id) ?? 0) + row.quantity);
+    }
+  }
+
+  return {
+    prompt,
+    options: options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      cap: option.cap,
+      taken: taken.get(option.id) ?? 0,
+    })),
+  };
+}
 
 export async function listEventRegistrantsAction(
   eventId: string,
@@ -264,6 +343,11 @@ export async function listEventRegistrantsAction(
   // shows, because that condition does not depend on this flag.
   const photoConsentInForce =
     (await supabase.rpc("tenant_asks_photo_consent")).data === true;
+  const registrationOptions = await loadRegistrationOptions(
+    supabase,
+    eventId,
+    registrants,
+  );
 
   if (!canSeeRider) {
     return {
@@ -273,6 +357,7 @@ export async function listEventRegistrantsAction(
         messaging: null,
         waiverInForce,
         photoConsentInForce,
+        registrationOptions,
       },
     };
   }
@@ -336,6 +421,7 @@ export async function listEventRegistrantsAction(
       },
       waiverInForce,
       photoConsentInForce,
+      registrationOptions,
     },
   };
 }
@@ -344,8 +430,10 @@ export async function listEventRegistrantsAction(
 // list: that migration replaced this table's table-level SELECT with a column
 // allow-list so the minor contacts could be carved out of it, and a column
 // missing from the list simply disappears from the portal.
+//
+// `option_counts` is an embed, not a column of this table (#1407).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, photo_consent, photo_consent_at, photo_consent_text";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
@@ -368,8 +456,10 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
     riding_discipline_at_event,
     ski_experience_level_at_event,
     snowboard_experience_level_at_event,
-    ...rest
+    option_counts,
+    ...fields
   } = row as RegistrantRow;
+  const rest = { ...fields, option_counts: option_counts ?? [] };
 
   if (!canSeeRider) return { ...rest, rider: null, minorContacts: null };
 
@@ -477,6 +567,7 @@ export async function addRegistrantAction(
     phone: string | null;
   },
   partySize: number,
+  optionCounts: OptionCounts | null = null,
 ): Promise<RegistrantActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -492,15 +583,24 @@ export async function addRegistrantAction(
       partySize: "Party size must be at least 1.",
     });
   }
+  // #1407. Optional here, but an answer given has to add up.
+  const optionsError = hasOptionAnswer(optionCounts)
+    ? optionCountsError(optionCounts!, partySize)
+    : null;
+  if (optionsError) return actionError("invalid_input", optionsError);
 
-  const { error } = await supabase.from("event_registrations").insert({
-    event_id: eventId,
-    person_id: person.id,
-    name: person.name ?? "Registrant",
-    email: person.email ?? "",
-    phone: person.phone,
-    party_size: partySize,
-  });
+  const { data: created, error } = await supabase
+    .from("event_registrations")
+    .insert({
+      event_id: eventId,
+      person_id: person.id,
+      name: person.name ?? "Registrant",
+      email: person.email ?? "",
+      phone: person.phone,
+      party_size: partySize,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (error.code === "23505") {
@@ -515,6 +615,13 @@ export async function addRegistrantAction(
     );
   }
 
+  const optionsSaveError = await saveStaffOptionCounts(
+    supabase,
+    created.id,
+    optionCounts,
+  );
+  if (optionsSaveError) return optionsSaveError;
+
   revalidatePath("/portal/events");
   return { success: true };
 }
@@ -528,6 +635,7 @@ export async function createWalkInCheckInAction(
     phone: string | null;
   },
   partySize: number,
+  optionCounts: OptionCounts | null = null,
 ): Promise<RegistrantActionResult> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(
@@ -543,16 +651,25 @@ export async function createWalkInCheckInAction(
       partySize: "Party size must be at least 1.",
     });
   }
+  // #1407. Optional here, but an answer given has to add up.
+  const optionsError = hasOptionAnswer(optionCounts)
+    ? optionCountsError(optionCounts!, partySize)
+    : null;
+  if (optionsError) return actionError("invalid_input", optionsError);
 
-  const { error } = await supabase.from("event_registrations").insert({
-    event_id: eventId,
-    person_id: person.id,
-    name: person.name ?? "Walk-in",
-    email: person.email ?? "",
-    phone: person.phone,
-    party_size: partySize,
-    checked_in_at: new Date().toISOString(),
-  });
+  const { data: created, error } = await supabase
+    .from("event_registrations")
+    .insert({
+      event_id: eventId,
+      person_id: person.id,
+      name: person.name ?? "Walk-in",
+      email: person.email ?? "",
+      phone: person.phone,
+      party_size: partySize,
+      checked_in_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
 
   if (error) {
     if (error.code === "23505") {
@@ -567,8 +684,39 @@ export async function createWalkInCheckInAction(
     );
   }
 
+  const optionsSaveError = await saveStaffOptionCounts(
+    supabase,
+    created.id,
+    optionCounts,
+  );
+  if (optionsSaveError) return optionsSaveError;
+
   revalidatePath("/portal/events");
   return { success: true };
+}
+
+/**
+ * The second write of the two staff paths above (#1407). The registration row
+ * is a plain RLS insert and the counts go through a definer function, so the
+ * pair is not atomic -- which is why the sum is checked before the insert,
+ * leaving only a server fault to land here.
+ */
+async function saveStaffOptionCounts(
+  supabase: SupabaseClient,
+  registrationId: string,
+  optionCounts: OptionCounts | null,
+): Promise<ActionFailure | null> {
+  if (!hasOptionAnswer(optionCounts)) return null;
+  const { error } = await supabase.rpc("set_registrant_option_counts", {
+    p_registration_id: registrationId,
+    p_counts: optionCounts!,
+  });
+  if (!error) return null;
+  revalidatePath("/portal/events");
+  return actionError(
+    "server_error",
+    "The registrant was saved, but their options could not be recorded.",
+  );
 }
 
 // ---------------------------------------------------------------------------

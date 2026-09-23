@@ -3,7 +3,9 @@ import {
   parseEventAttendanceForm,
   parseEventForm,
   parseEventPlanningForm,
+  parseEventRegistrationOptionsField,
   parseEventReportForm,
+  REGISTRATION_OPTIONS_SAVE_ERRORS,
 } from "./event-form";
 
 function formData(fields: Record<string, string>) {
@@ -314,6 +316,71 @@ describe("parseEventReportForm", () => {
         lessonsLearned: "Start setup earlier next time",
         reportSummary: null,
       },
+    });
+  });
+});
+
+describe("parseEventRegistrationOptionsField (#1407)", () => {
+  const field = (value: unknown) =>
+    parseEventRegistrationOptionsField(JSON.stringify(value));
+
+  test("not sent is null, so the save leaves the question alone", () => {
+    expect(parseEventRegistrationOptionsField(null)).toBeNull();
+  });
+
+  test("keeps order, ids and caps; blank cap is uncapped", () => {
+    expect(
+      field({
+        prompt: " What do you need? ",
+        options: [
+          { id: "opt-1", label: " Own gear ", cap: "" },
+          { id: null, label: "Need a ticket", cap: "10" },
+        ],
+      }),
+    ).toEqual({
+      data: {
+        prompt: "What do you need?",
+        options: [
+          { id: "opt-1", label: "Own gear", cap: null },
+          { id: null, label: "Need a ticket", cap: 10 },
+        ],
+      },
+    });
+  });
+
+  test("no options clears the prompt with them", () => {
+    expect(field({ prompt: "Anything", options: [] })).toEqual({
+      data: { prompt: null, options: [] },
+    });
+  });
+
+  test("refuses what the RPC would", () => {
+    expect(field({ prompt: "", options: [{ label: "A" }] })).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_PROMPT_REQUIRED,
+    });
+    expect(field({ prompt: "Q", options: [{ label: " " }] })).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_INVALID,
+    });
+    expect(
+      field({ prompt: "Q", options: [{ label: "A", cap: "-1" }] }),
+    ).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_INVALID,
+    });
+    expect(
+      field({ prompt: "Q", options: [{ label: "Same" }, { label: "same" }] }),
+    ).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_DUPLICATE,
+    });
+    expect(
+      field({
+        prompt: "Q",
+        options: Array.from({ length: 11 }, (_, i) => ({ label: `O${i}` })),
+      }),
+    ).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_TOO_MANY,
+    });
+    expect(parseEventRegistrationOptionsField("not json")).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_INVALID,
     });
   });
 });

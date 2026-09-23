@@ -12,6 +12,13 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
+import {
+  hasOptionAnswer,
+  optionCountsError,
+  type OptionCounts,
+} from "@/lib/registration-options";
+import { useRegistrationOptions } from "./use-registration-options";
 
 export function AddRegistrantDialog({
   eventId,
@@ -29,6 +36,9 @@ export function AddRegistrantDialog({
     null,
   );
   const [partySize, setPartySize] = useState("1");
+  // #1407. Optional for staff: left blank, the registration is "not asked".
+  const [optionCounts, setOptionCounts] = useState<OptionCounts>({});
+  const registrationOptions = useRegistrationOptions(eventId, open);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -46,6 +56,7 @@ export function AddRegistrantDialog({
   function reset() {
     setSelectedPerson(null);
     setPartySize("1");
+    setOptionCounts({});
     setError(null);
   }
 
@@ -67,9 +78,22 @@ export function AddRegistrantDialog({
       setError("Party size must be at least 1.");
       return;
     }
+    const answered = registrationOptions && hasOptionAnswer(optionCounts);
+    const optionsError = answered
+      ? optionCountsError(optionCounts, size)
+      : null;
+    if (optionsError) {
+      setError(optionsError);
+      return;
+    }
 
     startTransition(async () => {
-      const result = await addRegistrantAction(eventId, selectedPerson, size);
+      const result = await addRegistrantAction(
+        eventId,
+        selectedPerson,
+        size,
+        answered ? optionCounts : null,
+      );
       if ("error" in result) {
         setError(result.error.message);
         return;
@@ -142,6 +166,20 @@ export function AddRegistrantDialog({
             onChange={(event) => setPartySize(event.target.value)}
           />
         </Field>
+
+        {registrationOptions && (
+          <RegistrationOptionCountsField
+            idPrefix="registrant"
+            question={registrationOptions}
+            counts={optionCounts}
+            onChange={setOptionCounts}
+            partySize={Number(partySize)}
+            required={false}
+            allowFull
+            description="One per person in the party. Leave blank if you didn't ask."
+            disabled={isPending}
+          />
+        )}
 
         {error && (
           <Alert variant="destructive">

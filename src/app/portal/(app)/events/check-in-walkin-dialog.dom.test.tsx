@@ -16,12 +16,29 @@ const createWalkInCheckInActionMock = mock<
       phone: string | null;
     },
     partySize: number,
+    optionCounts?: Record<string, number> | null,
   ) => Promise<ActionResult>
 >(async () => ({ success: true }));
+
+// #1407. No question by default; the case that is about one sets it.
+const listOptionsMock = mock<
+  () => Promise<{
+    data: {
+      prompt: string;
+      options: {
+        id: string;
+        label: string;
+        cap: number | null;
+        taken: number;
+      }[];
+    } | null;
+  }>
+>(async () => ({ data: null }));
 
 mock.module("./registrants-actions", () => ({
   ...RegistrantsActions,
   createWalkInCheckInAction: createWalkInCheckInActionMock,
+  listEventRegistrationOptionsAction: listOptionsMock,
 }));
 
 const listPeopleActionMock = mock(async () => ({
@@ -72,6 +89,7 @@ describe("CheckInWalkInDialog", () => {
         phone: null,
       },
       1,
+      null,
     );
   });
 

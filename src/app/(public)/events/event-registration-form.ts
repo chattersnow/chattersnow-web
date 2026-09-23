@@ -7,6 +7,10 @@ import {
   type MinorContacts,
 } from "@/lib/minors";
 import { parsePronouns } from "@/lib/pronouns";
+import {
+  parseOptionCounts,
+  type OptionCounts,
+} from "@/lib/registration-options";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
@@ -51,6 +55,12 @@ export type EventRegistrationFormData = {
    * the RPC, not this parser, that has to keep accepting those.
    */
   party_includes_minor: boolean;
+  /**
+   * The answer to the event's registration question (#1407), or null where
+   * the form showed none. Not checked against the party size here: whether
+   * the event asks at all is the RPC's to know.
+   */
+  option_counts: OptionCounts | null;
 } & MinorContacts;
 
 export function parseEventRegistrationForm(
@@ -116,6 +126,7 @@ export function parseEventRegistrationForm(
       attended_before,
       waiver_accepted,
       waiver_version,
+      option_counts: parseOptionCounts(formData),
     },
   };
 }

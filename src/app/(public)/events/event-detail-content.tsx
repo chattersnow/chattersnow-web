@@ -26,6 +26,8 @@ import {
   type EventViewer,
 } from "./my-registration";
 import type { AccountOffer } from "@/lib/constituent/account-offer";
+import type { RegistrationOptionsQuestion } from "@/lib/registration-options";
+import { loadRegistrationOptions } from "./registration-options-data";
 
 // Not the shared DATE_TIME_WITH_ZONE: the detail page spells the date out in
 // full where a card abbreviates it. The zone name is the part that matters and
@@ -101,6 +103,7 @@ function EventDetailBody({
   waiverBlock,
   minorAccompaniment,
   photoConsent,
+  registrationOptions,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
@@ -130,6 +133,8 @@ function EventDetailBody({
    * exactly what it rendered before #599 shipped.
    */
   photoConsent: string[];
+  /** The event's registration question (#1407), or null. */
+  registrationOptions: RegistrationOptionsQuestion | null;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -225,6 +230,7 @@ function EventDetailBody({
                   waiverOnFile={viewer.waiverOnFile}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  registrationOptions={registrationOptions}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -239,6 +245,7 @@ function EventDetailBody({
                   waiverBlock={waiverBlock}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  registrationOptions={registrationOptions}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -299,6 +306,11 @@ export async function EventDetailContent({
   // component for the reason the waiver is: a block of tenant prose has no
   // business in the browser bundle of the tenants that have none.
   const photoConsent = content.paragraphs("events.photo_consent");
+  // The event's own registration question (#1407). Only where registration
+  // is on at all, so the events that take none pay no query for it.
+  const registrationOptions = event.registration_enabled
+    ? await loadRegistrationOptions(supabase, event.id)
+    : null;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -338,6 +350,7 @@ export async function EventDetailContent({
               waiverBlock={waiverBlock}
               minorAccompaniment={minorAccompaniment}
               photoConsent={photoConsent}
+              registrationOptions={registrationOptions}
             />
           </div>
         </div>
@@ -371,6 +384,7 @@ export async function EventDetailContent({
         waiverBlock={waiverBlock}
         minorAccompaniment={minorAccompaniment}
         photoConsent={photoConsent}
+        registrationOptions={registrationOptions}
       />
     </>
   );

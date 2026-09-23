@@ -24,6 +24,13 @@
  * read it at all -- it has no policies and no grants -- which
  * `src/lib/constituent/actions.integration.test.ts` asserts directly.
  *
+ * `event_registration_options` and `event_registration_option_counts` (#1407)
+ * are absent for the same reason: the seed gives no event a registration
+ * question, and one given to a seeded event would make every suite that
+ * registers for it answer. Their isolation is asserted by the host probe on
+ * `public_event_registration_options` in the isolation suite and directly in
+ * `src/lib/registration-options.integration.test.ts`.
+ *
  * A table added later with a `tenant_id` column belongs here too. The catalog
  * side of that -- its policies carrying the tenant predicate, its foreign
  * keys being composite -- is asserted by `tenant_isolation_gaps()` regardless

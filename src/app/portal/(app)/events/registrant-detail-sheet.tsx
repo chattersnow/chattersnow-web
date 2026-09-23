@@ -28,6 +28,7 @@ import {
 } from "@/lib/outbound-messages";
 import { REGISTRANT_MESSAGE_ERRORS } from "./registrant-messaging";
 import { attendedBeforeLabel } from "@/lib/attended-before";
+import { formatOptionCounts } from "@/lib/registration-options";
 import {
   experienceLevelLabel,
   ridingDisciplineLabel,
@@ -67,6 +68,7 @@ export function RegistrantDetailSheet({
   canManage,
   waiverInForce,
   photoConsentInForce,
+  optionsPrompt = null,
   onClosed,
   onSent,
 }: {
@@ -99,6 +101,12 @@ export function RegistrantDetailSheet({
    * photos at all.
    */
   photoConsentInForce: boolean;
+  /**
+   * The event's registration question (#1407), or null where it asks none.
+   * A registration can still carry an answer then -- the question was removed
+   * after it was given -- and the answer is shown under a plain label.
+   */
+  optionsPrompt?: string | null;
   /** The sheet is mounted per target, so closing it unmounts it. */
   onClosed: () => void;
   onSent?: () => void;
@@ -181,6 +189,16 @@ export function RegistrantDetailSheet({
             <ReadOnlyField label="Party size" htmlFor="registrant-party-size">
               {registrant.party_size}
             </ReadOnlyField>
+            {(optionsPrompt || registrant.option_counts.length > 0) && (
+              <ReadOnlyField
+                label={optionsPrompt ?? "Options"}
+                htmlFor="registrant-options"
+              >
+                {registrant.option_counts.length > 0
+                  ? formatOptionCounts(registrant.option_counts)
+                  : "Not answered"}
+              </ReadOnlyField>
+            )}
             <ReadOnlyField label="Been before" htmlFor="registrant-been-before">
               {attendedBeforeLabel(registrant.attended_before) ?? "Not asked"}
             </ReadOnlyField>

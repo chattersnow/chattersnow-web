@@ -83,6 +83,7 @@ const b = {
   sponsorId: "",
   publicTeamId: "",
   taggedSponsorPersonId: "",
+  registrationOptionId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
   disabledModuleKey: "",
   giveawayId: "",
@@ -103,6 +104,7 @@ const aPublic = {
   taggedSponsorPersonId: "",
   publicProgramId: "",
   publicTeamId: "",
+  registrationOptionId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
 // One `<prefix>.<token>` app_settings / site_content key per tenant, so the
@@ -429,6 +431,27 @@ beforeAll(async () => {
     support_type: "cash",
     is_public: true,
   });
+  // #1407. Written only by definer functions, so the marker goes in through
+  // the service role, naming its tenant. On b.eventId, which is why the
+  // host-registration check below answers the question.
+  b.registrationOptionId = (
+    await must(
+      service
+        .from("event_registration_options")
+        .insert({ tenant_id: tenantB, event_id: b.eventId, label: "Isolation" })
+        .select("id")
+        .single(),
+      "b registration option",
+    )
+  ).id as string;
+  await must(
+    service
+      .from("events")
+      .update({ registration_options_prompt: "Isolation question" })
+      .eq("id", b.eventId)
+      .select("id"),
+    "b registration prompt",
+  );
   const bDonationId = await bRow("donations", { donor_id: b.personId });
   b.gearItemId = await bRow("inventory_items", {
     donation_id: bDonationId,
@@ -729,6 +752,20 @@ beforeAll(async () => {
   // public_sponsor_wall is keyed on the person rather than the sponsorship
   // (#914), so the probe needs the other end of the same row.
   aPublic.sponsorPersonId = aPublicSponsor.person_id as string;
+  // #1407. On an event of its own rather than the seeded one, which other
+  // suites register for and which must keep asking nothing.
+  const aOptionsEventId = await fixture("events", {
+    name: `Isolation options ${run}`,
+    starts_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    timezone: "America/Denver",
+    visibility: "public",
+    status: "published",
+  });
+  aPublic.registrationOptionId = await fixture(
+    "event_registration_options",
+    { tenant_id: tenantA, event_id: aOptionsEventId, label: "Isolation" },
+    service,
+  );
   // A's own hand-published organization, distinct from the event-credited one
   // above so the tag arm's check cannot pass on the event arm's row.
   aPublic.taggedSponsorPersonId = await fixture("people", {
@@ -1541,6 +1578,8 @@ describe("the public surface follows the host", () => {
         p_party_size: 1,
         p_notes: null,
         p_ip_address: uniqueIp(),
+        // b.eventId carries the registration-options marker (#1407).
+        p_option_counts: { [b.registrationOptionId]: 1 },
       },
     );
     expect(rightHost.error).toBeNull();
@@ -1628,6 +1667,12 @@ describe("every anon-readable view follows the host", () => {
       column: "sponsor_id",
       inA: () => aPublic.sponsorId,
       inB: () => b.sponsorId,
+    },
+    {
+      view: "public_event_registration_options",
+      column: "id",
+      inA: () => aPublic.registrationOptionId,
+      inB: () => b.registrationOptionId,
     },
     {
       view: "public_sponsor_wall",

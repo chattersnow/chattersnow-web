@@ -24,6 +24,11 @@ import {
 } from "@/lib/time";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import {
+  RegistrationOptionsEditor,
+  registrationOptionsDraft,
+  sameRegistrationOptions,
+} from "./registration-options-editor";
 
 function toDatetimeLocalValue(iso: string | null) {
   // The browser's zone, so the prefill and the save agree (#1063).
@@ -39,6 +44,10 @@ function formStateFor(event: EventRow) {
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
+    registrationOptions: registrationOptionsDraft(
+      event.registration_options_prompt,
+      event.registration_options,
+    ),
   };
 }
 
@@ -49,6 +58,12 @@ function isDirty(form: FormState, event: EventRow) {
   return (Object.keys(baseline) as (keyof FormState)[]).some((key) => {
     if (key === "eventLead") {
       return (form.eventLead?.id ?? null) !== (baseline.eventLead?.id ?? null);
+    }
+    if (key === "registrationOptions") {
+      return !sameRegistrationOptions(
+        form.registrationOptions,
+        baseline.registrationOptions,
+      );
     }
     return form[key] !== baseline[key];
   });
@@ -126,6 +141,20 @@ export function PlanningTab({
       form.autoAssignDiscountCodes ? "on" : "off",
     );
     formData.set("budgetAmount", form.budgetAmount);
+    // Only when changed, so saving a budget does not rewrite every option
+    // (and the audit log with it).
+    const baselineOptions = formStateFor(event).registrationOptions;
+    if (!sameRegistrationOptions(form.registrationOptions, baselineOptions)) {
+      formData.set(
+        "registrationOptions",
+        JSON.stringify({
+          prompt: form.registrationOptions.prompt,
+          options: form.registrationOptions.options.map(
+            ({ id, label, cap }) => ({ id, label, cap }),
+          ),
+        }),
+      );
+    }
 
     startTransition(async () => {
       await runAction(() => updateEventPlanningAction(event.id, formData), {
@@ -192,6 +221,24 @@ export function PlanningTab({
           htmlFor="planning-autoAssignDiscountCodes"
         >
           {form.autoAssignDiscountCodes ? "On" : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Registration question"
+          htmlFor="planning-options-prompt"
+        >
+          {form.registrationOptions.options.length === 0 ? (
+            "—"
+          ) : (
+            <>
+              <span className="block">{form.registrationOptions.prompt}</span>
+              {form.registrationOptions.options.map((option) => (
+                <span key={option.key} className="app-muted block text-xs">
+                  {option.label}
+                  {option.cap ? ` (cap ${option.cap})` : ""}
+                </span>
+              ))}
+            </>
+          )}
         </ReadOnlyField>
       </FieldGroup>
     );
@@ -278,6 +325,12 @@ export function PlanningTab({
             Auto-assign discount codes to new registrants
           </FieldLabel>
         </Field>
+
+        <RegistrationOptionsEditor
+          value={form.registrationOptions}
+          onChange={(next) => update("registrationOptions", next)}
+          disabled={isPending}
+        />
 
         {error && (
           <Alert variant="destructive">

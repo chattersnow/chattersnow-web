@@ -1,4 +1,5 @@
 import { MINOR_CONTACTS_REQUIRED_CODE } from "@/lib/minors";
+import { REGISTRATION_OPTION_ERROR_CODES } from "@/lib/registration-options";
 
 /**
  * The two halves of a registration form (#1403): the questions about the
@@ -23,6 +24,9 @@ const DETAILS_ERROR_CODES = new Set([
   "INVALID_PARTY_SIZE",
   "PRONOUNS_TOO_LONG",
   MINOR_CONTACTS_REQUIRED_CODE,
+  // #1407. The question sits beside the party size, and a full option is
+  // corrected there too.
+  ...REGISTRATION_OPTION_ERROR_CODES,
 ]);
 
 export function registrationErrorStep(code: string): RegistrationStep {
