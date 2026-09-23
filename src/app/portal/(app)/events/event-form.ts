@@ -220,3 +220,74 @@ export function parseEventAttendanceForm(
 
   return { data: { attendanceCount, attendanceNotes: notes || null } };
 }
+
+/**
+ * An event's registration question as the Planning tab submits it (#1407):
+ * the whole list, in display order. `save_event_registration_options()`
+ * checks all of this again; this is so the tab can say which rule it broke.
+ */
+export type EventRegistrationOptionsFormData = {
+  prompt: string | null;
+  options: { id: string | null; label: string; cap: number | null }[];
+};
+
+export const REGISTRATION_OPTIONS_SAVE_ERRORS: Record<string, string> = {
+  EVENT_OPTIONS_INVALID:
+    "Each option needs a name, and a cap must be a whole number of 0 or more.",
+  EVENT_OPTIONS_TOO_MANY: "An event can offer at most 10 options.",
+  EVENT_OPTIONS_PROMPT_REQUIRED: "Write the question the options answer.",
+  EVENT_OPTIONS_DUPLICATE: "Two options have the same name.",
+};
+
+/**
+ * Null when the field was not sent -- the tab sends it only when the
+ * question changed.
+ */
+export function parseEventRegistrationOptionsField(
+  raw: FormDataEntryValue | null,
+): ParseResult<EventRegistrationOptionsFormData> | null {
+  if (raw === null) return null;
+  const invalid = {
+    error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_INVALID,
+  };
+
+  let value: unknown;
+  try {
+    value = JSON.parse(String(raw));
+  } catch {
+    return invalid;
+  }
+  const draft = value as {
+    prompt?: unknown;
+    options?: { id?: unknown; label?: unknown; cap?: unknown }[];
+  };
+  if (!draft || !Array.isArray(draft.options)) return invalid;
+
+  const options: EventRegistrationOptionsFormData["options"] = [];
+  for (const option of draft.options) {
+    const label = String(option?.label ?? "").trim();
+    if (!label || label.length > 120) return invalid;
+    const capRaw = String(option?.cap ?? "").trim();
+    const cap = capRaw === "" ? null : Number(capRaw);
+    if (cap !== null && (!Number.isInteger(cap) || cap < 0)) return invalid;
+    const id = typeof option?.id === "string" && option.id ? option.id : null;
+    options.push({ id, label, cap });
+  }
+
+  if (options.length > 10) {
+    return { error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_TOO_MANY };
+  }
+  const prompt = String(draft.prompt ?? "").trim();
+  if (options.length > 0 && !prompt) {
+    return {
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_PROMPT_REQUIRED,
+    };
+  }
+  if (prompt.length > 300) return invalid;
+  const labels = new Set(options.map((option) => option.label.toLowerCase()));
+  if (labels.size !== options.length) {
+    return { error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_DUPLICATE };
+  }
+
+  return { data: { prompt: options.length > 0 ? prompt : null, options } };
+}

@@ -1059,7 +1059,7 @@ export async function sendEventRegistrationConfirmation(
   // (tenant_id, id) foreign key, so an embed could not name its tenant -- and on
   // the service-role client there is no policy underneath to catch a mistake.
   // Inside the same Promise.all it costs no latency.
-  const [event, mail, reply] = await Promise.all([
+  const [event, mail, reply, optionCounts] = await Promise.all([
     admin
       .from("events")
       .select("name, starts_at, ends_at, location, timezone")
@@ -1074,6 +1074,15 @@ export async function sendEventRegistrationConfirmation(
       data.tenant_id,
       EVENT_REGISTRATION_CONFIRMATION_KIND,
     ),
+    // #1407. The answer to the event's registration question, echoed back so
+    // a party can check it. A failed read leaves the row out rather than
+    // holding up the receipt.
+    admin
+      .from("event_registration_option_counts")
+      .select("label, quantity, sort_order")
+      .eq("registration_id", data.id)
+      .eq("tenant_id", data.tenant_id)
+      .order("sort_order", { ascending: true }),
   ]);
 
   // The second of the three gates, after the org-wide kill switch above. A
@@ -1112,6 +1121,10 @@ export async function sendEventRegistrationConfirmation(
           timeZone: registered.timezone,
           location: registered.location,
           partySize: data.party_size ?? 1,
+          options: (optionCounts.data ?? []).map(({ label, quantity }) => ({
+            label,
+            quantity,
+          })),
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,

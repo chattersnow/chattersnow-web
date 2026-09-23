@@ -119,6 +119,27 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     }
   });
 
+  test("echoes the registration choices back, in order (#1407)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      partySize: 3,
+      options: [
+        { label: "I need a ticket", quantity: 2 },
+        { label: "I need a ticket & gear", quantity: 1 },
+      ],
+    });
+    expect(text).toContain(
+      "Your choices: 2 × I need a ticket, 1 × I need a ticket & gear",
+    );
+    // Escaped in the HTML part like every other value.
+    expect(html).toContain("1 × I need a ticket &amp; gear");
+  });
+
+  test("an event with no question renders no choices row", () => {
+    const { text } = renderEventRegistrationConfirmationEmail(base);
+    expect(text).not.toContain("Your choices");
+  });
+
   test("greets someone who gave no name without a dangling space", () => {
     const { text } = renderEventRegistrationConfirmationEmail({
       ...base,

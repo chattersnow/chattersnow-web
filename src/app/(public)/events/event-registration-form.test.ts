@@ -135,8 +135,28 @@ describe("parseEventRegistrationForm", () => {
         accompanying_adult_phone: null,
         emergency_contact_name: null,
         emergency_contact_phone: null,
+        // No question on the form, so no answer to send (#1407).
+        option_counts: null,
       },
     });
+  });
+
+  test("collects an answer to the registration question per option (#1407)", () => {
+    const result = parseEventRegistrationForm(
+      formData({
+        name: "Jane",
+        email: "jane@example.com",
+        partySize: "3",
+        partyIncludesMinor: "no",
+        "optionCount.a": "2",
+        "optionCount.b": "1",
+        "optionCount.c": "",
+      }),
+    );
+    if ("error" in result) throw new Error(result.error);
+    // Blank is none, and the sum is left for the RPC, which knows whether
+    // the event asks at all.
+    expect(result.data.option_counts).toEqual({ a: 2, b: 1, c: 0 });
   });
 
   // #1376 removed the box, the parser's `photo_consent` field and

@@ -8,6 +8,10 @@ import { getClientIp } from "@/lib/get-client-ip";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
+import {
+  parseOptionCounts,
+  REGISTRATION_OPTION_ERROR_MESSAGES,
+} from "@/lib/registration-options";
 import { parseAttendedBefore } from "@/lib/attended-before";
 import {
   MINOR_CONTACTS_REQUIRED_CODE,
@@ -51,6 +55,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   WAIVER_UNAVAILABLE:
     "This organization's participant agreement could not be loaded, so we can't take your registration right now. Please try again shortly.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
+  // #1407
+  ...REGISTRATION_OPTION_ERROR_MESSAGES,
 };
 
 /**
@@ -129,6 +135,8 @@ export async function registerMyselfForEventAction(
       minorContacts.data.emergency_contact_name ?? undefined,
     p_emergency_contact_phone:
       minorContacts.data.emergency_contact_phone ?? undefined,
+    // #1407, as on the anonymous path.
+    p_option_counts: parseOptionCounts(formData) ?? undefined,
     // No `p_photo_consent` (#1376). The parameter is still there, declared
     // `default null`, and the RPC is unchanged -- but this form has no box, so
     // there is no answer to send and `null` is the correct resting state: no

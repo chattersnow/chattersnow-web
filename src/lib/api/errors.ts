@@ -206,6 +206,29 @@ const RPC_ERRORS: Record<
       "This organization requires its participant agreement to be accepted before registering. GET /api/v1/t/{tenant}/legal reports where to read it; send waiver_accepted once the person has.",
     field: "waiver_accepted",
   },
+  // #1407
+  EVENT_OPTIONS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This event asks each person what they need. GET /api/v1/t/{tenant}/events/{event} lists its registration_options; send option_counts.",
+    field: "option_counts",
+  },
+  EVENT_OPTIONS_MISMATCH: {
+    code: "invalid_request",
+    message: "option_counts must add up to party_size.",
+    field: "option_counts",
+  },
+  EVENT_OPTIONS_INVALID: {
+    code: "invalid_request",
+    message:
+      "option_counts names an option this event does not have, or a count that is not a whole number of 0 or more.",
+    field: "option_counts",
+  },
+  EVENT_OPTION_FULL: {
+    code: "conflict",
+    message: "One of the chosen registration options is full.",
+    field: "option_counts",
+  },
   INVALID_RIDER_PROFILE: {
     code: "invalid_request",
     message: "The riding discipline and experience levels do not agree.",

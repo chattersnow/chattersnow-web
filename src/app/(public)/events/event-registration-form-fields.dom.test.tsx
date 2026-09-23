@@ -147,6 +147,74 @@ describe("EventRegistrationForm", () => {
     expect(registerForEventActionMock).not.toHaveBeenCalled();
   });
 
+  // #1407
+  describe("the event's registration question", () => {
+    const question = {
+      prompt: "What does each person need?",
+      options: [
+        { id: "own", label: "Own gear", isFull: false },
+        { id: "ticket", label: "Need a ticket", isFull: true },
+        { id: "both", label: "Ticket and gear", isFull: false },
+      ],
+    };
+
+    test("is not asked by an event without one", () => {
+      render(<EventRegistrationForm eventId="event-1" />);
+      expect(screen.queryByText(question.prompt)).toBeNull();
+    });
+
+    test("locks a full option and posts the counts chosen", async () => {
+      render(
+        <EventRegistrationForm
+          eventId="event-1"
+          registrationOptions={question}
+        />,
+      );
+      expect(screen.getByText(question.prompt)).toBeTruthy();
+      expect(
+        (screen.getByLabelText("Need a ticket") as HTMLInputElement).disabled,
+      ).toBe(true);
+
+      await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+      await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+      const partySize = screen.getByLabelText("Number attending");
+      await userEvent.clear(partySize);
+      await userEvent.type(partySize, "3");
+      await sayNoMinors();
+      await userEvent.type(screen.getByLabelText("Own gear"), "2");
+      await userEvent.type(screen.getByLabelText("Ticket and gear"), "1");
+      await userEvent.click(
+        screen.getByRole("button", { name: "Complete registration" }),
+      );
+
+      const submission = lastSubmission();
+      expect(submission["optionCount.own"]).toBe("2");
+      expect(submission["optionCount.both"]).toBe("1");
+      // Untouched is absent, which the RPC reads as none.
+      expect(submission["optionCount.ticket"]).toBeUndefined();
+    });
+
+    test("does not submit counts that miss the party size", async () => {
+      render(
+        <EventRegistrationForm
+          eventId="event-1"
+          registrationOptions={question}
+        />,
+      );
+      await userEvent.type(screen.getByLabelText(/^Name/), "Jane");
+      await userEvent.type(screen.getByLabelText(/^Email/), "jane@example.com");
+      await sayNoMinors();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Complete registration" }),
+      );
+
+      expect(registerForEventActionMock).not.toHaveBeenCalled();
+      expect(
+        await screen.findByText(/what each person in your party needs/),
+      ).toBeTruthy();
+    });
+  });
+
   test("a visitor with no session gets the blank form it always had", () => {
     render(<EventRegistrationForm eventId="event-1" />);
 

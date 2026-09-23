@@ -18,6 +18,13 @@ import {
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
+import {
+  optionCountsError,
+  setOptionCounts,
+  type OptionCounts,
+  type RegistrationOptionsQuestion,
+} from "@/lib/registration-options";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -52,6 +59,7 @@ export function EventRegistrationForm({
   waiverBlock = null,
   minorAccompaniment = [],
   photoConsent = [],
+  registrationOptions = null,
 }: {
   eventId: string;
   account?: EventViewerAccount | null;
@@ -93,6 +101,11 @@ export function EventRegistrationForm({
    * from the registrant's own registration page.
    */
   photoConsent?: string[];
+  /**
+   * The event's registration question (#1407). Null for an event that asks
+   * none, which leaves this form exactly as it was.
+   */
+  registrationOptions?: RegistrationOptionsQuestion | null;
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
@@ -111,6 +124,9 @@ export function EventRegistrationForm({
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
+  // #1407. Every option starts at nothing: a preselected answer is one the
+  // form gave on their behalf.
+  const [optionCounts, setOptionCountsState] = useState<OptionCounts>({});
   const [company, setCompany] = useState("");
   // Starts unticked, always. A pre-ticked box is not an acceptance, and this
   // is the one control on the form where that matters (#686).
@@ -126,6 +142,14 @@ export function EventRegistrationForm({
 
   function handleSubmit() {
     setError(null);
+
+    if (registrationOptions) {
+      const message = optionCountsError(optionCounts, Number(partySize));
+      if (message) {
+        setError({ message, step: "details" });
+        return;
+      }
+    }
 
     const formData = new FormData();
     formData.set("name", name);
@@ -144,6 +168,7 @@ export function EventRegistrationForm({
         formData.set(key, value);
       }
     }
+    if (registrationOptions) setOptionCounts(formData, optionCounts);
     formData.set("notes", notes);
     formData.set("company", company);
     if (waiver) {
@@ -317,6 +342,16 @@ export function EventRegistrationForm({
               paragraphs={minorAccompaniment}
               values={minorContacts}
               onChange={setMinorContacts}
+              disabled={isPending}
+            />
+          )}
+          {registrationOptions && (
+            <RegistrationOptionCountsField
+              idPrefix="registration"
+              question={registrationOptions}
+              counts={optionCounts}
+              onChange={setOptionCountsState}
+              partySize={Number(partySize)}
               disabled={isPending}
             />
           )}

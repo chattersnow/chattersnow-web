@@ -39,6 +39,7 @@ const registrants: EventRegistrant[] = [
     photo_consent: false,
     photo_consent_at: "2026-08-01T12:00:00Z",
     photo_consent_text: "We use photos on our site and socials.",
+    option_counts: [],
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -79,6 +80,7 @@ const registrants: EventRegistrant[] = [
     photo_consent: true,
     photo_consent_at: "2026-08-01T12:05:00Z",
     photo_consent_text: "We use photos on our site and socials.",
+    option_counts: [],
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",
@@ -158,6 +160,7 @@ function payload(
     messages: NO_RECORD_MESSAGES,
     messaging: null,
     waiverInForce: false,
+    registrationOptions: null,
     photoConsentInForce: false,
     ...overrides,
   };

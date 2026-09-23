@@ -68,6 +68,11 @@ export type EventRegistrationConfirmation = {
    * capacity. So "you plus N" would overcount by one.
    */
   partySize: number;
+  /**
+   * The answer to the event's registration question (#1407), in the event's
+   * order. Empty or omitted where the event asks none, which renders no row.
+   */
+  options?: { label: string; quantity: number }[];
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -179,6 +184,15 @@ function detailRows(
   // is the thing that will say so first when a place is finally chosen.
   if (location) rows.push(["Where", location]);
   rows.push(["Party size", partySizeText(confirmation.partySize)]);
+  const options = confirmation.options ?? [];
+  if (options.length > 0) {
+    rows.push([
+      "Your choices",
+      options
+        .map((option) => `${option.quantity} × ${option.label}`)
+        .join(", "),
+    ]);
+  }
   return rows;
 }
 

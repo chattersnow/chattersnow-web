@@ -34,6 +34,7 @@ import {
   hasAnyAttendedBeforeAnswer,
 } from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
+import { formatOptionCounts } from "@/lib/registration-options";
 import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -133,6 +134,9 @@ export function RegistrantsTab({
   const waiverInForce = data?.waiverInForce ?? false;
   // Same default and same reasoning (#599).
   const photoConsentInForce = data?.photoConsentInForce ?? false;
+  // #1407. Null for the events that ask no registration question, which
+  // leaves the tab exactly as it was.
+  const registrationOptions = data?.registrationOptions ?? null;
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -300,6 +304,31 @@ export function RegistrantsTab({
         hideBelow: "sm",
         render: (registrant) => registrant.party_size,
       },
+      ...(registrationOptions
+        ? [
+            {
+              key: "options",
+              label: "Options",
+              sortValue: (registrant: EventRegistrant) =>
+                formatOptionCounts(registrant.option_counts),
+              hideBelow: "md",
+              // One line per option, capped: the labels are the tenant's own
+              // sentences and would otherwise widen the table past the screen.
+              cellClassName:
+                "app-muted min-w-40 max-w-56 text-xs whitespace-normal",
+              render: (registrant: EventRegistrant) =>
+                registrant.option_counts.length > 0
+                  ? [...registrant.option_counts]
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((row) => (
+                        <span key={row.label} className="block">
+                          {row.quantity} × {row.label}
+                        </span>
+                      ))
+                  : "—",
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
       {
         key: "created_at",
         label: "Registered",
@@ -406,6 +435,7 @@ export function RegistrantsTab({
       } satisfies PortalDataTableColumn<EventRegistrant>,
     ],
     [
+      registrationOptions,
       showAttendedBefore,
       showRides,
       mode,
@@ -440,6 +470,18 @@ export function RegistrantsTab({
             the difference -- "said" is doing the work. */}
         {showAttendedBefore &&
           ` · ${selfReportedFirstTimers} said it would be their first`}
+        {/* #1407. Per option, against its cap where it has one: the number
+            an organizer orders tickets or gear from. */}
+        {registrationOptions && (
+          <span className="block">
+            {registrationOptions.options
+              .map(
+                (option) =>
+                  `${option.label}: ${option.taken}${option.cap === null ? "" : ` of ${option.cap}`}`,
+              )
+              .join(" · ")}
+          </span>
+        )}
       </>
     );
 
@@ -564,6 +606,7 @@ export function RegistrantsTab({
           orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
           waiverInForce={waiverInForce}
           photoConsentInForce={photoConsentInForce}
+          optionsPrompt={registrationOptions?.prompt ?? null}
           onClosed={() => setDetailId(null)}
           onSent={refreshRegistrants}
         />

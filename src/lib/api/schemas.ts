@@ -168,6 +168,16 @@ export const eventRegistrationSchema = z
       description:
         "Send false to record that the person asked not to be photographed or recorded; it is stored as an objection and never refuses the registration. Send true only if they told you explicitly that photos are fine, after you showed them the events.photo_consent paragraphs from GET /content. Omit it — which is what this organization's own registration form does — and nothing is recorded; that is never read as an objection.",
     }),
+    // #1407. Optional in the schema, because most events ask nothing and this
+    // contract predates the question; required by the RPC for an event that
+    // does, the way the waiver is.
+    option_counts: z
+      .record(z.string(), z.int().min(0).max(10000))
+      .optional()
+      .meta({
+        description:
+          "How many people in the party chose each of the event's registration options, keyed by option id, adding up to party_size. Required when GET /events/{event} lists registration_options; omit it otherwise.",
+      }),
   })
   .meta({ id: "EventRegistration" });
 

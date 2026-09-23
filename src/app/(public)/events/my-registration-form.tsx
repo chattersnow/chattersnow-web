@@ -16,6 +16,13 @@ import {
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
+import {
+  optionCountsError,
+  setOptionCounts,
+  type OptionCounts,
+  type RegistrationOptionsQuestion,
+} from "@/lib/registration-options";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
@@ -47,6 +54,7 @@ export function MyEventRegistrationForm({
   waiverOnFile = null,
   minorAccompaniment = [],
   photoConsent = [],
+  registrationOptions = null,
 }: {
   eventId: string;
   person: MyContactDetails;
@@ -79,6 +87,11 @@ export function MyEventRegistrationForm({
    * to tell somebody less.
    */
   photoConsent?: string[];
+  /**
+   * The event's registration question (#1407). Null for an event that asks
+   * none, which leaves this form exactly as it was.
+   */
+  registrationOptions?: RegistrationOptionsQuestion | null;
 }) {
   const [phone, setPhone] = useState(person.phone ?? "");
   const [pronouns, setPronouns] = useState(person.pronouns ?? "");
@@ -98,6 +111,8 @@ export function MyEventRegistrationForm({
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
   const [notes, setNotes] = useState("");
+  // #1407, starting empty as on the anonymous form.
+  const [optionCounts, setOptionCountsState] = useState<OptionCounts>({});
   // Unticked, always (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [error, setError] = useState<{
@@ -116,8 +131,17 @@ export function MyEventRegistrationForm({
   function handleSubmit() {
     setError(null);
 
+    if (registrationOptions) {
+      const message = optionCountsError(optionCounts, Number(partySize));
+      if (message) {
+        setError({ message, step: "details" });
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.set("partySize", partySize);
+    if (registrationOptions) setOptionCounts(formData, optionCounts);
     formData.set("notes", notes);
     formData.set("phone", phone);
     formData.set("pronouns", pronouns);
@@ -261,6 +285,17 @@ export function MyEventRegistrationForm({
               paragraphs={minorAccompaniment}
               values={minorContacts}
               onChange={setMinorContacts}
+              disabled={isPending}
+            />
+          )}
+
+          {registrationOptions && (
+            <RegistrationOptionCountsField
+              idPrefix="my-registration"
+              question={registrationOptions}
+              counts={optionCounts}
+              onChange={setOptionCountsState}
+              partySize={Number(partySize)}
               disabled={isPending}
             />
           )}

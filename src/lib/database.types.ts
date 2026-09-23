@@ -2825,6 +2825,117 @@ export type Database = {
           },
         ];
       };
+      event_registration_option_counts: {
+        Row: {
+          id: string;
+          label: string;
+          option_id: string | null;
+          quantity: number;
+          registration_id: string;
+          sort_order: number;
+          tenant_id: string;
+        };
+        Insert: {
+          id?: string;
+          label: string;
+          option_id?: string | null;
+          quantity: number;
+          registration_id: string;
+          sort_order?: number;
+          tenant_id?: string;
+        };
+        Update: {
+          id?: string;
+          label?: string;
+          option_id?: string | null;
+          quantity?: number;
+          registration_id?: string;
+          sort_order?: number;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_registration_option_counts_option_fkey";
+            columns: ["tenant_id", "option_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registration_options";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_option_counts_registration_fkey";
+            columns: ["tenant_id", "registration_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registrations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_option_counts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_registration_option_counts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_registration_options: {
+        Row: {
+          cap: number | null;
+          created_at: string;
+          event_id: string;
+          id: string;
+          label: string;
+          sort_order: number;
+          tenant_id: string;
+        };
+        Insert: {
+          cap?: number | null;
+          created_at?: string;
+          event_id: string;
+          id?: string;
+          label: string;
+          sort_order?: number;
+          tenant_id?: string;
+        };
+        Update: {
+          cap?: number | null;
+          created_at?: string;
+          event_id?: string;
+          id?: string;
+          label?: string;
+          sort_order?: number;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_registration_options_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_registration_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_registrations: {
         Row: {
           accompanying_adult_name: string | null;
@@ -3393,6 +3504,7 @@ export type Database = {
           name: string;
           registration_deadline: string | null;
           registration_enabled: boolean;
+          registration_options_prompt: string | null;
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
@@ -3428,6 +3540,7 @@ export type Database = {
           name: string;
           registration_deadline?: string | null;
           registration_enabled?: boolean;
+          registration_options_prompt?: string | null;
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
@@ -3463,6 +3576,7 @@ export type Database = {
           name?: string;
           registration_deadline?: string | null;
           registration_enabled?: boolean;
+          registration_options_prompt?: string | null;
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
@@ -8693,6 +8807,17 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_event_registration_options: {
+        Row: {
+          event_id: string | null;
+          id: string | null;
+          is_full: boolean | null;
+          label: string | null;
+          prompt: string | null;
+          sort_order: number | null;
+        };
+        Relationships: [];
+      };
       public_event_sponsors: {
         Row: {
           event_id: string | null;
@@ -9073,6 +9198,18 @@ export type Database = {
         Returns: string;
       };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
+      apply_registration_option_counts: {
+        Args: {
+          p_counts: Json;
+          p_enforce_caps: boolean;
+          p_event_id: string;
+          p_party_size: number;
+          p_registration_id: string;
+          p_required: boolean;
+          p_tenant_id: string;
+        };
+        Returns: undefined;
+      };
       approve_event_expense: {
         Args: { p_id: string };
         Returns: {
@@ -9764,6 +9901,18 @@ export type Database = {
         }[];
       };
       my_public_person_id: { Args: never; Returns: string };
+      my_registration_option_counts: {
+        Args: { p_registration_id: string };
+        Returns: {
+          available: number;
+          editable: boolean;
+          label: string;
+          option_id: string;
+          party_size: number;
+          prompt: string;
+          quantity: number;
+        }[];
+      };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
       my_volunteer_history: {
@@ -10071,6 +10220,7 @@ export type Database = {
           p_ip_address?: unknown;
           p_name: string;
           p_notes: string;
+          p_option_counts?: Json;
           p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone: string;
@@ -10092,6 +10242,7 @@ export type Database = {
           p_instagram_handle?: string;
           p_ip_address?: unknown;
           p_notes?: string;
+          p_option_counts?: Json;
           p_party_includes_minor?: boolean;
           p_party_size: number;
           p_phone?: string;
@@ -10101,6 +10252,10 @@ export type Database = {
           p_waiver_version?: number;
         };
         Returns: string;
+      };
+      registration_option_defaults: {
+        Args: { p_tenant_id: string };
+        Returns: Json;
       };
       reject_event_expense: {
         Args: { p_id: string; p_reason: string };
@@ -10196,6 +10351,7 @@ export type Database = {
           name: string;
           registration_deadline: string | null;
           registration_enabled: boolean;
+          registration_options_prompt: string | null;
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
@@ -10426,6 +10582,10 @@ export type Database = {
         };
         Returns: string;
       };
+      save_event_registration_options: {
+        Args: { p_event_id: string; p_options: Json; p_prompt: string };
+        Returns: undefined;
+      };
       save_meeting_minutes_draft: {
         Args: {
           p_body_text: string;
@@ -10547,6 +10707,10 @@ export type Database = {
         Returns: undefined;
       };
       set_my_pronouns: { Args: { p_pronouns: string }; Returns: undefined };
+      set_my_registration_option_counts: {
+        Args: { p_counts: Json; p_registration_id: string };
+        Returns: undefined;
+      };
       set_notification_email_for_person: {
         Args: { p_email: string; p_person_id: string; p_token_hash: string };
         Returns: {
@@ -10568,6 +10732,10 @@ export type Database = {
       };
       set_preferred_name_for_user: {
         Args: { p_preferred_name: string; p_user_id: string };
+        Returns: undefined;
+      };
+      set_registrant_option_counts: {
+        Args: { p_counts: Json; p_registration_id: string };
         Returns: undefined;
       };
       set_registrant_rider_profile: {

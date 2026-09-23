@@ -5,6 +5,7 @@ import { myRegistrationClaimPath } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { PhotoConsentCard } from "./photo-consent-card";
+import { RegistrationOptionsCard } from "./registration-options-card";
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
@@ -51,6 +52,36 @@ export default async function MyRegistrationPage({
     p_registration_id: registrationId,
   });
   const photo = photoRows?.[0] ?? null;
+
+  // #1407. The event's registration question, with this person's answer and
+  // how much of each option they could hold. Through the same person
+  // resolution as the photo read above, so somebody else's id renders
+  // nothing.
+  const { data: optionRows } = await supabase.rpc(
+    "my_registration_option_counts",
+    { p_registration_id: registrationId },
+  );
+  const options = optionRows ?? [];
+  const optionsCard =
+    options.length > 0 && options[0].prompt ? (
+      <RegistrationOptionsCard
+        registrationId={registrationId}
+        question={{
+          prompt: options[0].prompt,
+          options: options.map((row) => ({
+            id: row.option_id,
+            label: row.label,
+            isFull: row.available === 0,
+            available: row.available,
+          })),
+        }}
+        initialCounts={Object.fromEntries(
+          options.map((row) => [row.option_id, row.quantity]),
+        )}
+        partySize={options[0].party_size}
+        editable={options[0].editable}
+      />
+    ) : null;
   const { content } = await getPublicSite(supabase);
 
   return (
@@ -60,12 +91,17 @@ export default async function MyRegistrationPage({
       record={{ kind: "registration", id: registrationId }}
       personId={personId}
       after={
-        photo?.asked ? (
-          <PhotoConsentCard
-            registrationId={registrationId}
-            paragraphs={content.paragraphs("events.photo_consent")}
-            consent={photo.consent}
-          />
+        optionsCard || photo?.asked ? (
+          <div className="flex flex-col gap-6">
+            {optionsCard}
+            {photo?.asked ? (
+              <PhotoConsentCard
+                registrationId={registrationId}
+                paragraphs={content.paragraphs("events.photo_consent")}
+                consent={photo.consent}
+              />
+            ) : null}
+          </div>
         ) : null
       }
     />
