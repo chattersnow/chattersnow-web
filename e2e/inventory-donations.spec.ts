@@ -73,7 +73,9 @@ test.describe("portal inventory donations", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     await addSheet.getByRole("button", { name: "Save donation" }).click();
-
+    // The sheet stays open on the item codes to label with (#1420).
+    await expect(addSheet.getByText("Item codes")).toBeVisible();
+    await addSheet.getByRole("button", { name: "Done" }).click();
     await expect(addSheet).not.toBeVisible();
 
     // Saving triggers a router.refresh() that re-renders the table; a click

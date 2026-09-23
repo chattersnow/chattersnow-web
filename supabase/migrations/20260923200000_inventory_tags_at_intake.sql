@@ -130,8 +130,12 @@ begin
       v_category_id := public.resolve_inventory_category(v_item->>'type', v_tenant_id);
     end if;
 
+    -- created_at from the clock rather than the transaction (#1420): every
+    -- item in one donation otherwise shares now(), and the labels printed for
+    -- the donation (inventory_intake_labels) have to come out in the order the
+    -- items were entered, which is the order they are on the table.
     insert into public.inventory_items
-      (donation_id, description, size, type, gender, condition, face_value, notes, intended_use, category_id, photo_url)
+      (donation_id, description, size, type, gender, condition, face_value, notes, intended_use, category_id, photo_url, created_at)
     values (
       v_donation_id,
       v_item->>'description',
@@ -145,7 +149,8 @@ begin
       v_category_id,
       -- Anything that isn't an http(s) URL is dropped rather than stored; see
       -- 20260907170000.
-      case when v_item->>'photo_url' ~ '^https?://' then v_item->>'photo_url' end
+      case when v_item->>'photo_url' ~ '^https?://' then v_item->>'photo_url' end,
+      clock_timestamp()
     )
     returning id into v_item_id;
 
