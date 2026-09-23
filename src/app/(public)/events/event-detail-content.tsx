@@ -113,7 +113,7 @@ function EventDetailBody({
    * posts back so the RPC can refuse a submission made against text that has
    * since been republished (#686). Null where the tenant takes no waiver.
    */
-  waiver: { version: number } | null;
+  waiver: { version: number; title: string } | null;
   /** That agreement, already rendered on the server. Null with `waiver`. */
   waiverBlock: React.ReactNode;
   /**
@@ -222,6 +222,7 @@ function EventDetailBody({
                   person={viewer.person}
                   waiver={waiver}
                   waiverBlock={waiverBlock}
+                  waiverOnFile={viewer.waiverOnFile}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                 />
@@ -323,7 +324,11 @@ export async function EventDetailContent({
             viewer={viewer}
             accountOffer={accountOffer}
             giveawayRulesId={giveawayRules?.giveawayId ?? null}
-            waiver={waiver ? { version: waiver.version } : null}
+            waiver={
+              waiver
+                ? { version: waiver.version, title: waiver.content.title }
+                : null
+            }
             waiverBlock={waiverBlock}
             minorAccompaniment={minorAccompaniment}
             photoConsent={photoConsent}
@@ -351,7 +356,11 @@ export async function EventDetailContent({
         viewer={viewer}
         accountOffer={accountOffer}
         giveawayRulesId={giveawayRules?.giveawayId ?? null}
-        waiver={waiver ? { version: waiver.version } : null}
+        waiver={
+          waiver
+            ? { version: waiver.version, title: waiver.content.title }
+            : null
+        }
         waiverBlock={waiverBlock}
         minorAccompaniment={minorAccompaniment}
         photoConsent={photoConsent}

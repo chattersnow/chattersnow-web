@@ -6468,6 +6468,56 @@ export type Database = {
           },
         ];
       };
+      person_waiver_acceptances: {
+        Row: {
+          accepted_at: string;
+          person_id: string;
+          tenant_id: string;
+          version: number;
+        };
+        Insert: {
+          accepted_at?: string;
+          person_id: string;
+          tenant_id?: string;
+          version: number;
+        };
+        Update: {
+          accepted_at?: string;
+          person_id?: string;
+          tenant_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "person_waiver_acceptances_person_fkey";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_waiver_acceptances_person_fkey";
+            columns: ["tenant_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_waiver_acceptances_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "person_waiver_acceptances_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       plan_modules: {
         Row: {
           enabled: boolean;
@@ -9738,6 +9788,13 @@ export type Database = {
           name: string;
         }[];
       };
+      my_waiver_on_file: {
+        Args: never;
+        Returns: {
+          accepted_at: string;
+          version: number;
+        }[];
+      };
       normalize_instagram_handle: {
         Args: { p_input: string };
         Returns: string;
@@ -10664,6 +10721,13 @@ export type Database = {
       void_product_sale: {
         Args: { p_reason: string; p_sale_id: string };
         Returns: undefined;
+      };
+      waiver_on_file: {
+        Args: { p_person_id: string; p_tenant_id: string };
+        Returns: {
+          accepted_at: string;
+          version: number;
+        }[];
       };
     };
     Enums: {

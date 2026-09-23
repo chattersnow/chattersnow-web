@@ -25,6 +25,7 @@ import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
+import type { WaiverOnFile } from "./my-registration";
 
 /**
  * Registering as yourself (#1165).
@@ -47,6 +48,7 @@ export function MyEventRegistrationForm({
   person,
   waiver = null,
   waiverBlock = null,
+  waiverOnFile = null,
   minorAccompaniment = [],
   photoConsent = [],
 }: {
@@ -58,9 +60,16 @@ export function MyEventRegistrationForm({
    * holding an account is not agreement to anything, and a path that skipped
    * it would be the shortest way to a registration with nothing behind it.
    */
-  waiver?: { version: number } | null;
+  waiver?: { version: number; title: string } | null;
   /** The agreement itself, rendered on the server. */
   waiverBlock?: React.ReactNode;
+  /**
+   * The acceptance this person already has on file (#1401). When it is for
+   * the version being shown, the agreement and its box give way to one line
+   * saying so, and the RPC copies the acceptance onto the registration. A
+   * different version -- the page raced a republish -- asks in full.
+   */
+  waiverOnFile?: WaiverOnFile | null;
   /**
    * This organization's rule for a party that includes anyone under 18
    * (#685). Empty on a tenant that has written none.
@@ -99,6 +108,9 @@ export function MyEventRegistrationForm({
   const [registered, setRegistered] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const onFile =
+    waiver && waiverOnFile?.version === waiver.version ? waiverOnFile : null;
+
   const displayName =
     person.preferred_name?.trim() || person.name?.trim() || "";
 
@@ -120,7 +132,10 @@ export function MyEventRegistrationForm({
       }
     }
     if (waiver) {
-      formData.set("waiverAccepted", waiverAccepted ? "on" : "");
+      // Nothing ticked when it is on file: there was no box. The version still
+      // goes, so a republish since this page rendered is refused as a change
+      // rather than as a box they were never shown (#1401).
+      formData.set("waiverAccepted", waiverAccepted && !onFile ? "on" : "");
       formData.set("waiverVersion", String(waiver.version));
     }
 
@@ -272,7 +287,34 @@ export function MyEventRegistrationForm({
             told -- so the agreement is the last thing read before submitting.
             The server refuses an unticked box independently of the `required`
             here; see `accepted_waiver_version()`. */}
-        {waiver && (
+        {waiver && onFile && (
+          /* Already accepted, this version (#1401). One line in place of the
+             longest block on the form, and still a link to the words, since
+             having agreed to something is no reason not to be able to read
+             it again. A republish makes this disappear on its own: the RPC
+             behind `onFile` only answers for the version in force. */
+          <p className="app-muted text-sm">
+            {waiver.title} v{waiver.version} · accepted{" "}
+            {/* The browser's own zone, like every date a reader is shown
+                about themselves, so the server's rendering of it can differ
+                by a day at the edges. */}
+            <time dateTime={onFile.accepted_at} suppressHydrationWarning>
+              {formatAcceptedDay(onFile.accepted_at)}
+            </time>{" "}
+            ·{" "}
+            <Link
+              href={`/waiver?version=${waiver.version}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`View ${waiver.title}, version ${waiver.version}, in a new tab`}
+              className="hover:text-foreground underline underline-offset-4"
+            >
+              view
+            </Link>
+          </p>
+        )}
+
+        {waiver && !onFile && (
           <>
             {waiverBlock}
             {/* No `scroll-mb-*` against the pinned submit below (#1375). The
@@ -321,4 +363,13 @@ export function MyEventRegistrationForm({
       </FieldGroup>
     </form>
   );
+}
+
+/** "Oct 4, 2026", in the reader's own zone. */
+function formatAcceptedDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
