@@ -5180,6 +5180,111 @@ export type Database = {
           },
         ];
       };
+      inventory_distribution_draft_items: {
+        Row: {
+          created_at: string;
+          draft_id: string;
+          id: string;
+          item_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          draft_id: string;
+          id?: string;
+          item_id: string;
+          tenant_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          draft_id?: string;
+          id?: string;
+          item_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inventory_distribution_draft_items_draft_in_tenant";
+            columns: ["tenant_id", "draft_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_distribution_drafts";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_draft_items_item_in_tenant";
+            columns: ["tenant_id", "item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_draft_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_draft_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      inventory_distribution_drafts: {
+        Row: {
+          created_at: string;
+          event_id: string | null;
+          id: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          event_id?: string | null;
+          id?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: string | null;
+          id?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inventory_distribution_drafts_event_in_tenant";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_drafts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_drafts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       inventory_item_tags: {
         Row: {
           created_at: string;
@@ -9288,6 +9393,10 @@ export type Database = {
         Args: { p_acknowledged: boolean; p_text: string };
         Returns: string;
       };
+      add_to_distribution_draft: {
+        Args: { p_event_id?: string; p_item_id: string };
+        Returns: string;
+      };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
       apply_registration_cancellation: {
         Args: {
@@ -10282,6 +10391,16 @@ export type Database = {
         Returns: number;
       };
       purge_rate_limit_hits: { Args: { p_as_of?: string }; Returns: number };
+      record_distribution_draft: {
+        Args: {
+          p_event_id?: string;
+          p_mark_item_distributed?: boolean;
+          p_occurred_at?: string;
+          p_reason?: string;
+          p_recipient_person_id?: string;
+        };
+        Returns: number;
+      };
       record_event_distribution: {
         Args: {
           p_event_id?: string;

@@ -31,6 +31,12 @@
  * `public_event_registration_options` in the isolation suite and directly in
  * `src/lib/registration-options.integration.test.ts`.
  *
+ * `inventory_distribution_drafts` and `inventory_distribution_draft_items`
+ * (#1420) are absent for the same reason: a draft exists only while one
+ * person is scanning a handout, and is deleted when it is recorded, so the
+ * seed has none. Their RLS is owner-only on top of the tenant predicate, which
+ * `src/lib/inventory-distribution-draft.integration.test.ts` asserts directly.
+ *
  * A table added later with a `tenant_id` column belongs here too. The catalog
  * side of that -- its policies carrying the tenant predicate, its foreign
  * keys being composite -- is asserted by `tenant_isolation_gaps()` regardless

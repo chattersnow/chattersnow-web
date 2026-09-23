@@ -35,14 +35,29 @@ const REDIRECT_STUBS = new Set([
 ]);
 
 /**
- * Resolvers that read one row under RLS and redirect to the page that shows
+ * Resolvers that read one row under RLS and answer with the page that shows
  * it. A permission guard here would answer a reader without `inventory:view`
  * differently from one scanning an unknown code, and the tag resolver (#1420)
  * must not reveal whether a code exists: both get the same not-found, and the
- * destination page keeps its own guard. Checked below to still be a redirect
- * stub, like the list above.
+ * destination page keeps its own guard. Since #1420 part 3 the tag resolver
+ * may render an "add to your distribution" offer instead of redirecting, but
+ * only once the lookup has found the item under the reader's RLS -- checked
+ * below as: it looks the code up, answers a miss with `notFound()`, and names
+ * no permission guard of its own.
  */
 const RLS_GATED_RESOLVERS = new Set([join("t", "[code]")]);
+
+/** Looks the row up under RLS and answers a miss with the not-found. */
+function isRlsGatedResolver(routeDir: string) {
+  const page = join(routeDir, "page.tsx");
+  if (!existsSync(page)) return false;
+  const source = readFileSync(page, "utf8");
+  return (
+    /\blookupInventoryTag\(/.test(source) &&
+    /\bnotFound\(\)/.test(source) &&
+    !GUARD.test(source)
+  );
+}
 
 /** A page that hands the request on rather than rendering anything. */
 function isRedirectStub(routeDir: string) {
@@ -115,9 +130,9 @@ describe("portal route guards", () => {
   }
 
   for (const route of RLS_GATED_RESOLVERS) {
-    test(`/portal/${route} is still nothing but a redirect`, () => {
+    test(`/portal/${route} still answers through RLS alone`, () => {
       expect(routes).toContain(route);
-      expect(isRedirectStub(join(PORTAL_ROOT, route))).toBe(true);
+      expect(isRlsGatedResolver(join(PORTAL_ROOT, route))).toBe(true);
     });
   }
 
