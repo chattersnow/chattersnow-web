@@ -3,6 +3,11 @@
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -43,18 +48,25 @@ export function AuditLogDetailSheet({ row }: { row: AuditLogRow }) {
 
   return (
     <Sheet>
-      <SheetTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="View entry details"
-          />
-        }
-      >
-        <Eye />
-      </SheetTrigger>
+      <Tooltip>
+        <SheetTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="View entry details"
+                />
+              }
+            />
+          }
+        >
+          <Eye />
+        </SheetTrigger>
+        <TooltipContent>View entry details</TooltipContent>
+      </Tooltip>
       <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>

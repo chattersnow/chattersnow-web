@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { IconLink } from "@/components/portal/icon-link";
 import {
   PortalDataTable,
   type PortalDataTableColumn,
@@ -99,17 +98,14 @@ const COLUMNS: PortalDataTableColumn<DistributionRow>[] = [
     srOnlyLabel: true,
     headClassName: "w-0",
     render: (movement) => (
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        nativeButton={false}
-        aria-label={`View distribution of ${
+      <IconLink
+        href={`/portal/inventory/distribution/${movement.id}`}
+        label={`View distribution of ${
           movement.inventory_item?.description ?? "item"
         }`}
-        render={<Link href={`/portal/inventory/distribution/${movement.id}`} />}
       >
         <Eye />
-      </Button>
+      </IconLink>
     ),
   },
 ];

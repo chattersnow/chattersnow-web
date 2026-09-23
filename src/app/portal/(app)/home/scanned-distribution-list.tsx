@@ -6,6 +6,11 @@ import { TagScanner } from "@/components/portal/tag-scanner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   scanWarning,
   type DistributionDraft,
 } from "@/lib/inventory-distribution-draft";
@@ -176,16 +181,23 @@ export function ScannedDistributionList({
                       </span>
                     )}
                   </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove ${itemLabel(item)}`}
-                    disabled={isPending}
-                    onClick={() => remove(item.id)}
-                  >
-                    <X />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove ${itemLabel(item)}`}
+                          disabled={isPending}
+                          onClick={() => remove(item.id)}
+                        />
+                      }
+                    >
+                      <X />
+                    </TooltipTrigger>
+                    <TooltipContent>{`Remove ${itemLabel(item)}`}</TooltipContent>
+                  </Tooltip>
                 </li>
               );
             })}

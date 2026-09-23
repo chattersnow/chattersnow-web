@@ -26,6 +26,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { useTabData } from "@/hooks/use-tab-data";
 import { useViewerTimeZone } from "@/hooks/use-viewer-time-zone";
@@ -254,15 +259,22 @@ function RecordPreviewView({
     <>
       <SheetHeader className="flex-row items-start gap-2">
         {onBack && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Back to ${backLabel}`}
-            onClick={onBack}
-          >
-            <ArrowLeft />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Back to ${backLabel}`}
+                  onClick={onBack}
+                />
+              }
+            >
+              <ArrowLeft />
+            </TooltipTrigger>
+            <TooltipContent>{`Back to ${backLabel}`}</TooltipContent>
+          </Tooltip>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <SheetTitle>{preview?.title ?? record.label}</SheetTitle>

@@ -12,6 +12,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resolveImageUrl } from "@/lib/inventory";
 import { RecordAccountOffer } from "@/components/record-account-offer";
@@ -129,15 +134,22 @@ export function GearCartSheet({
                           {categoryLabelFor(item)}
                         </p>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => onRemove(item.id)}
-                      >
-                        <X className="size-4" />
-                        <span className="sr-only">Remove from cart</span>
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Remove from cart"
+                              onClick={() => onRemove(item.id)}
+                            />
+                          }
+                        >
+                          <X className="size-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Remove from cart</TooltipContent>
+                      </Tooltip>
                     </li>
                   );
                 })}

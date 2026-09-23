@@ -35,6 +35,11 @@ import {
 } from "@/components/portal/data-table";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
@@ -374,15 +379,22 @@ export function ActionItemsTab({
             cellClassName: "text-right whitespace-nowrap",
             render: (actionItem: ActionItem) => (
               <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Edit action item"
-                  onClick={() => setEditingId(actionItem.id)}
-                >
-                  <Pencil />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Edit action item"
+                        onClick={() => setEditingId(actionItem.id)}
+                      />
+                    }
+                  >
+                    <Pencil />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit action item</TooltipContent>
+                </Tooltip>
                 <ConfirmDeleteButton
                   label="Remove action item"
                   title="Remove this action item?"

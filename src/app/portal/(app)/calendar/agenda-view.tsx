@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateInZone } from "@/lib/time";
 import {
@@ -114,15 +119,25 @@ export function AgendaView({ entries }: { entries: CalendarEntry[] }) {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    nativeButton={false}
-                    aria-label={`View ${entry.title}`}
-                    render={<Link href={entry.href} />}
-                  >
-                    <Eye />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Link
+                          href={entry.href}
+                          aria-label={`View ${entry.title}`}
+                          // Keeps the mobile shell's icon tap target (globals.css).
+                          data-size="icon-sm"
+                          className={buttonVariants({
+                            variant: "ghost",
+                            size: "icon-sm",
+                          })}
+                        />
+                      }
+                    >
+                      <Eye />
+                    </TooltipTrigger>
+                    <TooltipContent>{`View ${entry.title}`}</TooltipContent>
+                  </Tooltip>
                 </div>
               ))}
             </div>

@@ -13,6 +13,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PersonPicker, type PickedPerson } from "../person-picker";
 import type { PersonListItem } from "../actions";
 
@@ -43,18 +48,25 @@ export function MergeDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Merge a duplicate"
-          />
-        }
-      >
-        <Merge />
-      </DialogTrigger>
+      <Tooltip>
+        <DialogTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Merge a duplicate"
+                />
+              }
+            />
+          }
+        >
+          <Merge />
+        </DialogTrigger>
+        <TooltipContent>Merge a duplicate</TooltipContent>
+      </Tooltip>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Merge a duplicate</DialogTitle>

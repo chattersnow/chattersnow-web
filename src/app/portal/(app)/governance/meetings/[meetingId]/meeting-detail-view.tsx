@@ -31,6 +31,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/format";
 
 type TabValue = "overview" | "agenda" | "minutes";
@@ -99,15 +104,22 @@ function AgendaCard({
         </CardTitle>
         {canManage && mode === "view" && (
           <CardAction>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Edit agenda"
-              onClick={() => onModeChange("edit")}
-            >
-              <Pencil />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit agenda"
+                    onClick={() => onModeChange("edit")}
+                  />
+                }
+              >
+                <Pencil />
+              </TooltipTrigger>
+              <TooltipContent>Edit agenda</TooltipContent>
+            </Tooltip>
           </CardAction>
         )}
       </CardHeader>

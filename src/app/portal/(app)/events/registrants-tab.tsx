@@ -42,6 +42,11 @@ import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   PortalDataTable,
   withoutSorting,
   type PortalDataTableColumn,
@@ -417,55 +422,87 @@ export function RegistrantsTab({
                 registration to read a party size or a note is not editing,
                 and the door staff who hold `events: view` are exactly who
                 does it. What is inside the sheet is gated, not the sheet. */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Registration details for ${registrant.name}`}
-              onClick={() => setDetailId(registrant.id)}
-            >
-              <Eye />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Registration details for ${registrant.name}`}
+                    onClick={() => setDetailId(registrant.id)}
+                  />
+                }
+              >
+                <Eye />
+              </TooltipTrigger>
+              <TooltipContent>{`Registration details for ${registrant.name}`}</TooltipContent>
+            </Tooltip>
             {mode === "edit" && (
               <>
                 {/* The profile hangs off the person record, so a
                     registration never linked to one has nowhere to put it —
                     link it from the People module first. */}
                 {registrant.rider && registrant.person_id && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Rider profile for ${registrant.name}`}
-                    onClick={() => setRiderTarget(registrant)}
-                  >
-                    <Snowflake />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Rider profile for ${registrant.name}`}
+                          onClick={() => setRiderTarget(registrant)}
+                        />
+                      }
+                    >
+                      <Snowflake />
+                    </TooltipTrigger>
+                    <TooltipContent>{`Rider profile for ${registrant.name}`}</TooltipContent>
+                  </Tooltip>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={
-                    registrant.checked_in_at ? "Undo check-in" : "Check in"
-                  }
-                  disabled={isPending && pendingId === registrant.id}
-                  onClick={() => handleToggleCheckIn(registrant)}
-                >
-                  {registrant.checked_in_at ? <Undo2 /> : <Check />}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={
+                          registrant.checked_in_at
+                            ? "Undo check-in"
+                            : "Check in"
+                        }
+                        disabled={isPending && pendingId === registrant.id}
+                        onClick={() => handleToggleCheckIn(registrant)}
+                      />
+                    }
+                  >
+                    {registrant.checked_in_at ? <Undo2 /> : <Check />}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {registrant.checked_in_at ? "Undo check-in" : "Check in"}
+                  </TooltipContent>
+                </Tooltip>
                 {/* #1418. Not once they are through the door: undo the
                     check-in first, which the database insists on too. */}
                 {canManage && registrant.checked_in_at === null && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Cancel registration for ${registrant.name}`}
-                    onClick={() => setCancelTarget(registrant)}
-                  >
-                    <Ban />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Cancel registration for ${registrant.name}`}
+                          onClick={() => setCancelTarget(registrant)}
+                        />
+                      }
+                    >
+                      <Ban />
+                    </TooltipTrigger>
+                    <TooltipContent>{`Cancel registration for ${registrant.name}`}</TooltipContent>
+                  </Tooltip>
                 )}
               </>
             )}

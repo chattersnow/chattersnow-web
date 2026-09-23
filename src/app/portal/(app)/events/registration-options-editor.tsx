@@ -10,6 +10,11 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /** The most options one event may offer; save_event_registration_options() agrees. */
 export const MAX_REGISTRATION_OPTIONS = 10;
@@ -134,38 +139,59 @@ export function RegistrationOptionsEditor({
               />
             </Field>
             <div className="flex shrink-0">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Move option ${index + 1} up`}
-                disabled={disabled || index === 0}
-                onClick={() => move(index, -1)}
-              >
-                <ArrowUp />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Move option ${index + 1} down`}
-                disabled={disabled || index === options.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                <ArrowDown />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Remove option ${index + 1}`}
-                disabled={disabled}
-                onClick={() =>
-                  setOptions(options.filter((_, i) => i !== index))
-                }
-              >
-                <Trash2 />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Move option ${index + 1} up`}
+                      disabled={disabled || index === 0}
+                      onClick={() => move(index, -1)}
+                    />
+                  }
+                >
+                  <ArrowUp />
+                </TooltipTrigger>
+                <TooltipContent>{`Move option ${index + 1} up`}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Move option ${index + 1} down`}
+                      disabled={disabled || index === options.length - 1}
+                      onClick={() => move(index, 1)}
+                    />
+                  }
+                >
+                  <ArrowDown />
+                </TooltipTrigger>
+                <TooltipContent>{`Move option ${index + 1} down`}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Remove option ${index + 1}`}
+                      disabled={disabled}
+                      onClick={() =>
+                        setOptions(options.filter((_, i) => i !== index))
+                      }
+                    />
+                  }
+                >
+                  <Trash2 />
+                </TooltipTrigger>
+                <TooltipContent>{`Remove option ${index + 1}`}</TooltipContent>
+              </Tooltip>
             </div>
           </li>
         ))}

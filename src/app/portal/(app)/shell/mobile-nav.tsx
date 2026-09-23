@@ -18,6 +18,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toPortalPathname } from "@/lib/portal/paths";
 import { type PermissionMap } from "@/lib/auth/permissions";
 import {
@@ -154,19 +159,26 @@ export function MobileNav({
           showCloseButton={false}
         >
           <SheetHeader className="shrink-0 flex-row items-start gap-2 space-y-0 px-3 pt-3 pb-2">
-            <SheetClose
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-11 shrink-0"
-                  aria-label="Close menu"
-                />
-              }
-            >
-              <X />
-            </SheetClose>
+            <Tooltip>
+              <SheetClose
+                render={
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-11 shrink-0"
+                        aria-label="Close menu"
+                      />
+                    }
+                  />
+                }
+              >
+                <X />
+              </SheetClose>
+              <TooltipContent>Close menu</TooltipContent>
+            </Tooltip>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2">
               <SheetTitle>Menu</SheetTitle>
               <SheetDescription>

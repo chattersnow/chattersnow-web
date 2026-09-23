@@ -12,6 +12,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Program } from "../../programs/actions";
 import type { EventRow } from "../event-badges";
 import { StatusBadge, VisibilityBadge } from "../event-badges";
@@ -119,15 +124,22 @@ function EditableTabCard({
         </CardTitle>
         {canEdit && mode === "view" && (
           <CardAction>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Edit ${title.toLowerCase()}`}
-              onClick={() => setMode("edit")}
-            >
-              <Pencil />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Edit ${title.toLowerCase()}`}
+                    onClick={() => setMode("edit")}
+                  />
+                }
+              >
+                <Pencil />
+              </TooltipTrigger>
+              <TooltipContent>{`Edit ${title.toLowerCase()}`}</TooltipContent>
+            </Tooltip>
           </CardAction>
         )}
       </CardHeader>

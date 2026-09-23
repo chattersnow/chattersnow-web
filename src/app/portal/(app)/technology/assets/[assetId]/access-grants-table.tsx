@@ -128,7 +128,7 @@ function DeleteGrantButton({
         >
           <Trash2 />
         </TooltipTrigger>
-        <TooltipContent>Delete</TooltipContent>
+        <TooltipContent>{`Delete grant for ${personName}`}</TooltipContent>
       </Tooltip>
 
       <AlertDialog open={open} onOpenChange={setOpen}>

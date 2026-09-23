@@ -45,6 +45,11 @@ import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { formatCurrency, personDisplayName } from "@/lib/format";
@@ -399,21 +404,30 @@ export function SponsorForm({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Remove item ${index + 1}`}
-                    title={
-                      row.value.allocated
-                        ? "This item is a giveaway prize. Remove the prize first."
-                        : undefined
-                    }
-                    disabled={itemRows.rows.length === 1 || row.value.allocated}
-                    onClick={() => itemRows.remove(row.id)}
-                  >
-                    <X />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove item ${index + 1}`}
+                          title={
+                            row.value.allocated
+                              ? "This item is a giveaway prize. Remove the prize first."
+                              : undefined
+                          }
+                          disabled={
+                            itemRows.rows.length === 1 || row.value.allocated
+                          }
+                          onClick={() => itemRows.remove(row.id)}
+                        />
+                      }
+                    >
+                      <X />
+                    </TooltipTrigger>
+                    <TooltipContent>{`Remove item ${index + 1}`}</TooltipContent>
+                  </Tooltip>
                 </div>
               ))}
             </div>
@@ -648,15 +662,22 @@ export function SponsorsTab({
                   <TableCell className="text-right whitespace-nowrap">
                     {mode === "edit" && (
                       <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Edit sponsor"
-                          onClick={() => setEditingId(sponsor.id)}
-                        >
-                          <Pencil />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Edit sponsor"
+                                onClick={() => setEditingId(sponsor.id)}
+                              />
+                            }
+                          >
+                            <Pencil />
+                          </TooltipTrigger>
+                          <TooltipContent>Edit sponsor</TooltipContent>
+                        </Tooltip>
                         <ConfirmDeleteButton
                           label="Remove sponsor"
                           title={`Remove ${personDisplayName(sponsor.person)} as a sponsor?`}

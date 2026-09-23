@@ -33,7 +33,7 @@ test.describe("portal calendar item detail page", () => {
     await page.goto("/portal/calendar");
 
     await page
-      .getByRole("button", { name: `View ${SEEDED_OPPORTUNITY}` })
+      .getByRole("link", { name: `View ${SEEDED_OPPORTUNITY}` })
       .click();
 
     await expect(page).toHaveURL(/\/portal\/calendar\/[0-9a-f-]{36}$/, {
@@ -84,7 +84,7 @@ test.describe("portal calendar item detail page", () => {
     await signIn(page);
     await page.goto("/portal/calendar");
     await page
-      .getByRole("button", { name: `View ${SEEDED_OPPORTUNITY}` })
+      .getByRole("link", { name: `View ${SEEDED_OPPORTUNITY}` })
       .click();
 
     await expect(
@@ -115,9 +115,7 @@ test.describe("portal calendar item detail page", () => {
   }) => {
     await signIn(page);
     await page.goto("/portal/calendar");
-    await page
-      .getByRole("button", { name: `View ${SEEDED_OBSERVANCE}` })
-      .click();
+    await page.getByRole("link", { name: `View ${SEEDED_OBSERVANCE}` }).click();
 
     await expect(
       page.getByRole("heading", { level: 1, name: SEEDED_OBSERVANCE }),
@@ -131,7 +129,7 @@ test.describe("portal calendar item detail page", () => {
     await signIn(page, { email: "volunteer@example.test" });
     await page.goto("/portal/calendar");
     await page
-      .getByRole("button", { name: `View ${SEEDED_OPPORTUNITY}` })
+      .getByRole("link", { name: `View ${SEEDED_OPPORTUNITY}` })
       .click();
 
     await expect(

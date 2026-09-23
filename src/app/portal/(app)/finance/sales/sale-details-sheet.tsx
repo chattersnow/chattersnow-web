@@ -96,6 +96,7 @@ export function SaleDetailsSheet({
   const [voidReason, setVoidReason] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  const receiptLabel = `Open receipt ${formatReceiptNumber(sale.receipt_number)}`;
   const formId = `edit-sale-form-${sale.id}`;
   const lines = sale.sale_line_items ?? [];
 
@@ -174,7 +175,7 @@ export function SaleDetailsSheet({
           >
             <Eye />
           </SheetTrigger>
-          <TooltipContent>View sale</TooltipContent>
+          <TooltipContent>{`View sale of ${formatCurrency(sale.total)}`}</TooltipContent>
         </Tooltip>
         <SheetContent side="right" showCloseButton={false}>
           <SheetHeader className="flex-row items-start gap-2 space-y-0">
@@ -229,9 +230,7 @@ export function SaleDetailsSheet({
                       href={`/portal/finance/sales/${sale.id}/receipt`}
                       target="_blank"
                       rel="noopener"
-                      aria-label={`Receipt ${formatReceiptNumber(
-                        sale.receipt_number,
-                      )}`}
+                      aria-label={receiptLabel}
                       className={buttonVariants({
                         variant: "ghost",
                         size: "icon-sm",
@@ -241,7 +240,7 @@ export function SaleDetailsSheet({
                 >
                   <Printer />
                 </TooltipTrigger>
-                <TooltipContent>Receipt</TooltipContent>
+                <TooltipContent>{receiptLabel}</TooltipContent>
               </Tooltip>
             )}
             {canManage &&

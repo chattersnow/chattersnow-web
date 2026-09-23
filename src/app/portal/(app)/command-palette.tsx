@@ -7,6 +7,11 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { hasPermission, type PermissionMap } from "@/lib/auth/permissions";
 import { visibleNavItems } from "@/lib/portal/nav";
 import { applyLexicon, type Lexicon } from "@/lib/lexicon";
@@ -284,19 +289,26 @@ export function CommandPalette({
           }
         }}
       >
-        <Dialog.Trigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Search the portal"
-              className="size-10 rounded-full"
-            />
-          }
-        >
-          <Search />
-        </Dialog.Trigger>
+        <Tooltip>
+          <Dialog.Trigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Search the portal"
+                    className="size-10 rounded-full"
+                  />
+                }
+              />
+            }
+          >
+            <Search />
+          </Dialog.Trigger>
+          <TooltipContent>Search the portal</TooltipContent>
+        </Tooltip>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/30 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden px-3 pt-20 pb-3">

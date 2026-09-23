@@ -126,7 +126,7 @@ test.describe("portal governance board, meetings, and resolutions", () => {
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row).toContainText("Scheduled");
 
-      await row.getByRole("button", { name: "View meeting on" }).click();
+      await row.getByRole("link", { name: "View meeting on" }).click();
       await expect(page).toHaveURL(/\/portal\/governance\/meetings\/[^/]+$/, {
         timeout: 15_000,
       });
