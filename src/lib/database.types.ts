@@ -9216,6 +9216,17 @@ export type Database = {
         };
         Returns: undefined;
       };
+      apply_registration_rider_profile: {
+        Args: {
+          p_person_id: string;
+          p_preferred_mountain: string;
+          p_riding_discipline: string;
+          p_ski_experience_level: string;
+          p_snowboard_experience_level: string;
+          p_tenant_id: string;
+        };
+        Returns: undefined;
+      };
       approve_event_expense: {
         Args: { p_id: string };
         Returns: {
@@ -10231,7 +10242,11 @@ export type Database = {
           p_party_size: number;
           p_phone: string;
           p_photo_consent?: boolean;
+          p_preferred_mountain?: string;
           p_pronouns?: string;
+          p_riding_discipline?: string;
+          p_ski_experience_level?: string;
+          p_snowboard_experience_level?: string;
           p_waiver_accepted?: boolean;
           p_waiver_version?: number;
         };
@@ -10253,7 +10268,11 @@ export type Database = {
           p_party_size: number;
           p_phone?: string;
           p_photo_consent?: boolean;
+          p_preferred_mountain?: string;
           p_pronouns?: string;
+          p_riding_discipline?: string;
+          p_ski_experience_level?: string;
+          p_snowboard_experience_level?: string;
           p_waiver_accepted?: boolean;
           p_waiver_version?: number;
         };

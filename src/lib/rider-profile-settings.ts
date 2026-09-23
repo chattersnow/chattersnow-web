@@ -7,13 +7,14 @@ import {
 } from "@/lib/rider-profile";
 
 /**
- * The rider profile step for the tenant the request host resolves to (#1408).
+ * Registration's riding questions for the tenant the request host resolves to
+ * (#1408, #1415).
  *
  * `public_rider_profile_settings` returns a row only when that tenant has the
- * `rider_profile` module, so one read answers both "is it offered" and "which
- * mountains". Null on a failed read too: the step is optional and asked after
- * the registration is already saved, so leaving it out is the quiet direction,
- * and a question the RPC behind it would refuse is not worth asking.
+ * `rider_profile` module, so one read answers both "is it asked" and "which
+ * mountains". Null on a failed read too: the form then registers without the
+ * questions, which is the quiet direction -- a failed settings read should not
+ * stand between somebody and a registration.
  */
 export async function getPublicRiderProfile(
   supabase: SupabaseClient,

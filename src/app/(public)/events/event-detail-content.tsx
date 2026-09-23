@@ -138,7 +138,7 @@ function EventDetailBody({
   photoConsent: string[];
   /** The event's registration question (#1407), or null. */
   registrationOptions: RegistrationOptionsQuestion | null;
-  /** The rider profile follow-up (#1408), or null without the module. */
+  /** The riding questions on step 2 (#1415), or null without the module. */
   riderProfile: PublicRiderProfile | null;
 }) {
   const page = variant === "page";
@@ -236,6 +236,7 @@ function EventDetailBody({
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
+                  riderProfile={riderProfile}
                 />
               ) : (
                 /* Signed in without an approved claim (#1162) still registers
@@ -317,8 +318,8 @@ export async function EventDetailContent({
   const registrationOptions = event.registration_enabled
     ? await loadRegistrationOptions(supabase, event.id)
     : null;
-  // The rider profile follow-up (#1408), only for a tenant with the module
-  // and only where there is a registration form for it to follow.
+  // The riding questions on registration's step 2 (#1408, #1415), only for a
+  // tenant with the module and only where there is a registration form.
   const riderProfile = event.registration_enabled
     ? await getPublicRiderProfile(supabase)
     : null;

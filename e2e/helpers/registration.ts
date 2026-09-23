@@ -22,6 +22,22 @@ export async function sayNoMinors(scope: Locator) {
 }
 
 /**
+ * Answers the riding questions (#1415), which the seeded tenant asks on step 2
+ * because it has the rider_profile module. Required once shown, so every spec
+ * that submits a registration answers them; one discipline and one level is
+ * the shortest complete answer. The mountain is optional and left alone.
+ */
+export async function answerRiding(scope: Locator) {
+  const page = scope.page();
+  await scope.getByRole("combobox", { name: /Do you ski or ride\?/ }).click();
+  await page.getByRole("option", { name: "Snowboard", exact: true }).click();
+  await scope
+    .getByRole("combobox", { name: /Experience on a snowboard/ })
+    .click();
+  await page.getByRole("option", { name: "Beginner" }).click();
+}
+
+/**
  * Registration is three steps at every width (#1413): "About you", "This
  * event", then "Review and agree" with the notices, the agreement and the
  * button. These move through them, so a spec says where it is going rather
@@ -29,7 +45,9 @@ export async function sayNoMinors(scope: Locator) {
  */
 export async function continueToThisEvent(scope: Locator) {
   await scope.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(scope.getByRole("group", { name: /This event/ })).toBeVisible();
+  await expect(
+    scope.getByRole("group", { name: /This event|Your riding/ }),
+  ).toBeVisible();
 }
 
 /** From either earlier step to "Review and agree". */

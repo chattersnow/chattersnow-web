@@ -15,6 +15,7 @@ import {
   completeRegistration,
   continueToReview,
   sayNoMinors,
+  answerRiding,
   continueToThisEvent,
 } from "./helpers/registration";
 
@@ -119,6 +120,7 @@ test.describe("the participant agreement at registration", () => {
     await dialog.getByLabel("Email").fill(`waiver-${Date.now()}@example.test`);
     await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
+    await answerRiding(dialog);
     // The agreement is on the review step (#1413).
     await continueToReview(dialog);
 
@@ -173,6 +175,7 @@ test.describe("the participant agreement at registration", () => {
     // Answered, so the box is unambiguously what stops this submission.
     await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
+    await answerRiding(dialog);
     await completeRegistration(dialog);
 
     // Still on the form. The browser's own `required` stops it here; the RPC

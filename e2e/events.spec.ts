@@ -7,6 +7,7 @@ import {
   continueToReview,
   continueToThisEvent,
   sayNoMinors,
+  answerRiding,
 } from "./helpers/registration";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
@@ -41,6 +42,7 @@ async function registerFromSheet(dialog: Locator, name: string, email: string) {
   // registering rather than about who is in the party.
   await continueToThisEvent(dialog);
   await sayNoMinors(dialog);
+  await answerRiding(dialog);
   await completeRegistration(dialog);
 }
 
@@ -174,30 +176,12 @@ test.describe("public events", () => {
       ),
     ).toBeVisible();
 
-    // The rider-profile prompt continues from the confirmation (#564).
-    await dialog.getByRole("combobox", { name: "Do you ski or ride?" }).click();
-    await page.getByRole("option", { name: "Both" }).click();
-
-    await dialog.getByRole("combobox", { name: "Experience on skis" }).click();
-    await page.getByRole("option", { name: "Beginner" }).click();
-
-    await dialog
-      .getByRole("combobox", { name: "Experience on a snowboard" })
-      .click();
-    await page.getByRole("option", { name: "Advanced" }).click();
-
-    await dialog
-      .getByRole("combobox", { name: "Preferred mountain for meetups" })
-      .click();
-    await page.getByRole("option", { name: "Hunter" }).click();
-
-    await dialog.getByRole("button", { name: "Save details" }).click();
-
+    // The riding questions were step 2 (#1415), so nothing follows the
+    // confirmation but the account offer.
+    await expect(dialog.getByText(/Do you ski or ride/)).toHaveCount(0);
     await expect(
-      dialog.getByText(
-        "Thanks — we'll use this to point you at the right group.",
-      ),
-    ).toBeVisible();
+      dialog.getByRole("button", { name: "Save details" }),
+    ).toHaveCount(0);
   });
 
   // #1413. Three steps at every width, with a summary that goes back to each,
@@ -220,15 +204,18 @@ test.describe("public events", () => {
     await again.getByLabel("Email").fill(email);
     await continueToThisEvent(again);
     await sayNoMinors(again);
+    await answerRiding(again);
     await again.getByLabel("Notes").fill("Bringing a friend's board");
     await continueToReview(again);
 
     const review = again.getByRole("group", { name: /Review and agree/ });
     await expect(review.getByText(email)).toBeVisible();
     await expect(review.getByText("Bringing a friend's board")).toBeVisible();
+    // The riding answers are summarised with the rest of step 2 (#1415).
+    await expect(review.getByText("Snowboard", { exact: true })).toBeVisible();
 
-    await review.getByRole("button", { name: "Edit this event" }).click();
-    const thisEvent = again.getByRole("group", { name: /This event/ });
+    await review.getByRole("button", { name: "Edit your riding" }).click();
+    const thisEvent = again.getByRole("group", { name: /Your riding/ });
     await expect(thisEvent).toBeFocused();
     await thisEvent.getByLabel("Notes").fill("Bringing my own board");
     await continueToReview(again);
@@ -273,36 +260,6 @@ test.describe("public events", () => {
       /\/my\/sign-in\?next=%2Fmy%2Fregistration%2F[0-9a-f-]{36}$/,
     );
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  });
-
-  test("skipping the rider profile leaves the registration confirmed", async ({
-    page,
-  }) => {
-    await eventLink(page).click();
-
-    const dialog = page.getByRole("dialog", { name: EVENT_NAME });
-    await expect(
-      dialog.getByRole("heading", { name: EVENT_NAME }),
-    ).toBeVisible();
-
-    await registerFromSheet(
-      dialog,
-      "E2E Skipping Registrant",
-      `e2e-skip-${Date.now()}@example.test`,
-    );
-
-    const confirmation = dialog.getByText(
-      "You're registered! We look forward to seeing you there.",
-    );
-    await expect(confirmation).toBeVisible();
-
-    await dialog.getByRole("button", { name: "Skip" }).click();
-
-    // The prompt goes away; the registration stands.
-    await expect(
-      dialog.getByRole("button", { name: "Save details" }),
-    ).toBeHidden();
-    await expect(confirmation).toBeVisible();
   });
 });
 

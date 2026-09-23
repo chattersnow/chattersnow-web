@@ -26,11 +26,15 @@ export function attendedBeforeRows(value: string): RegistrationSummaryRow[] {
   return label ? [{ label: "Been before", value: label }] : [];
 }
 
-/** Party size, the under-18 answer and its contacts, options, and notes. */
+/**
+ * Party size, the under-18 answer and its contacts, the riding answers where
+ * they were asked (#1415), options, and notes -- the order step 2 asks them in.
+ */
 export function eventSummaryRows({
   partySize,
   partyIncludesMinor,
   minorContacts,
+  riding = [],
   registrationOptions,
   optionCounts,
   notes,
@@ -38,6 +42,7 @@ export function eventSummaryRows({
   partySize: string;
   partyIncludesMinor: string;
   minorContacts: MinorContactValues;
+  riding?: RegistrationSummaryRow[];
   registrationOptions: RegistrationOptionsQuestion | null;
   optionCounts: OptionCounts;
   notes: string;
@@ -68,6 +73,8 @@ export function eventSummaryRows({
       },
     );
   }
+
+  rows.push(...riding);
 
   if (registrationOptions) {
     const chosen = registrationOptions.options

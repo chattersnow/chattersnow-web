@@ -4,6 +4,7 @@ import { createAdminClient } from "./helpers/admin-client";
 import {
   continueToReview,
   sayNoMinors,
+  answerRiding,
   continueToThisEvent,
 } from "./helpers/registration";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
@@ -196,6 +197,7 @@ test.describe("notice at the point of collection", () => {
     await page.getByLabel("Email").fill("notice-reader@example.test");
     await continueToThisEvent(page.locator("form"));
     await sayNoMinors(page.locator("form"));
+    await answerRiding(page.locator("form"));
     await continueToReview(page.locator("form"));
 
     await expectPrivacyNotice(page, /hold your spot/);
