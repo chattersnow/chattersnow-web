@@ -18,9 +18,11 @@ import {
 export function InventoryCard({
   item,
   categories,
+  defaultOpen = false,
 }: {
   item: InventoryItem;
   categories: InventoryCategory[];
+  defaultOpen?: boolean;
 }) {
   const genderLabel = labelFor(GENDERS, item.gender);
   const imageUrl = resolveImageUrl(item.photo_url);
@@ -43,7 +45,11 @@ export function InventoryCard({
       <CardContent className="space-y-1.5 px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <p className="line-clamp-2 text-sm font-medium">{item.description}</p>
-          <EditInventoryModal item={item} categories={categories} />
+          <EditInventoryModal
+            item={item}
+            categories={categories}
+            defaultOpen={defaultOpen}
+          />
         </div>
         <p className="app-muted text-xs">
           {[categoryLabelFor(item), item.size, genderLabel]

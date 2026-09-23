@@ -94,6 +94,7 @@ export const TENANT_TABLES = [
   "grants",
   "inventory_categories",
   "inventory_category_groups",
+  "inventory_item_tags",
   "inventory_items",
   "inventory_movements",
   "legal_document_versions",

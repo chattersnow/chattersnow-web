@@ -34,6 +34,16 @@ const REDIRECT_STUBS = new Set([
   "organizations",
 ]);
 
+/**
+ * Resolvers that read one row under RLS and redirect to the page that shows
+ * it. A permission guard here would answer a reader without `inventory:view`
+ * differently from one scanning an unknown code, and the tag resolver (#1420)
+ * must not reveal whether a code exists: both get the same not-found, and the
+ * destination page keeps its own guard. Checked below to still be a redirect
+ * stub, like the list above.
+ */
+const RLS_GATED_RESOLVERS = new Set([join("t", "[code]")]);
+
 /** A page that hands the request on rather than rendering anything. */
 function isRedirectStub(routeDir: string) {
   const page = join(routeDir, "page.tsx");
@@ -104,9 +114,17 @@ describe("portal route guards", () => {
     });
   }
 
+  for (const route of RLS_GATED_RESOLVERS) {
+    test(`/portal/${route} is still nothing but a redirect`, () => {
+      expect(routes).toContain(route);
+      expect(isRedirectStub(join(PORTAL_ROOT, route))).toBe(true);
+    });
+  }
+
   for (const route of routes) {
     if (INTENTIONALLY_UNGATED.has(route.split(/[/\\]/)[0])) continue;
     if (REDIRECT_STUBS.has(route)) continue;
+    if (RLS_GATED_RESOLVERS.has(route)) continue;
     test(`/portal/${route} checks a permission before rendering`, () => {
       expect(isGuarded(join(PORTAL_ROOT, route))).toBe(true);
     });

@@ -357,6 +357,16 @@ begin
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, event_id, created_by)
   values (v_item2, 'received', 1, 'Donation intake', v_event_upcoming, v_admin_id);
 
+  -- Scannable tags (#1420): a printed asset-tag code on each, and the jacket's
+  -- manufacturer barcode. Fixed codes so tests and a local /portal/t/<code>
+  -- visit can name them; generated codes never contain 0, 1, I, L or O, so
+  -- these cannot collide with one.
+  insert into public.inventory_item_tags (item_id, kind, value, created_by)
+  values
+    (v_item1, 'asset_tag', 'SEED01', v_admin_id),
+    (v_item2, 'asset_tag', 'SEED02', v_admin_id),
+    (v_item1, 'barcode', '012345678905', v_admin_id);
+
   insert into public.donations (id, donor_id, notes, created_by)
   values (v_donation2, v_person_donor2, 'Dropped off at office', v_admin_id);
 

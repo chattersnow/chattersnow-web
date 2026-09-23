@@ -5180,6 +5180,64 @@ export type Database = {
           },
         ];
       };
+      inventory_item_tags: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          item_id: string | null;
+          kind: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          value: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          item_id?: string | null;
+          kind: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          value: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          item_id?: string | null;
+          kind?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          value?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inventory_item_tags_item_in_tenant";
+            columns: ["tenant_id", "item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_item_tags_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_item_tags_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       inventory_items: {
         Row: {
           category_id: string | null;
@@ -9540,6 +9598,10 @@ export type Database = {
         Returns: string;
       };
       generate_conduct_report_reference: {
+        Args: { p_tenant_id: string };
+        Returns: string;
+      };
+      generate_inventory_asset_tag: {
         Args: { p_tenant_id: string };
         Returns: string;
       };
