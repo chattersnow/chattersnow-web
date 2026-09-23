@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { createAdminClient } from "./helpers/admin-client";
+import { continueToBeforeYouGo, sayNoMinors } from "./helpers/registration";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 // The legal notices have to be reachable from anywhere on the site, which is
@@ -184,6 +185,13 @@ test.describe("notice at the point of collection", () => {
     // The form is behind a disclosure (#1256), and the notice belongs with the
     // fields rather than with the trigger.
     await page.getByRole("button", { name: "Register", exact: true }).click();
+
+    // On a phone the notices are the form's second step (#1403), reached by
+    // answering the first; on a wider screen this changes nothing.
+    await page.getByLabel("Name").fill("Notice Reader");
+    await page.getByLabel("Email").fill("notice-reader@example.test");
+    await sayNoMinors(page.locator("form"));
+    await continueToBeforeYouGo(page.locator("form"));
 
     await expectPrivacyNotice(page, /hold your spot/);
   });
