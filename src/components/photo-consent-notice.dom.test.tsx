@@ -32,6 +32,27 @@ describe("PhotoConsentNotice (#599, #1376)", () => {
   // Nothing at all: not even a bare heading.
   // Without paragraphs nothing is implied by registering, so the form is
   // byte-identical to the one that shipped before #599.
+  test("the first paragraph always shows; the rest fold under a toggle (#1403)", () => {
+    const { container } = renderNotice(WRITTEN);
+
+    const details = container.querySelector("details");
+    expect(details).not.toBeNull();
+    expect(details?.open).toBe(false);
+    // The opening of what registering agrees to is never behind the click.
+    expect(details?.contains(screen.getByText(WRITTEN[0]))).toBe(false);
+    expect(details?.contains(screen.getByText(WRITTEN[1]))).toBe(true);
+    expect(container.querySelector("summary")?.textContent).toContain(
+      "More about photos",
+    );
+  });
+
+  test("one paragraph has nothing to fold", () => {
+    const { container } = renderNotice([WRITTEN[0]]);
+
+    expect(screen.getByText(WRITTEN[0])).toBeDefined();
+    expect(container.querySelector("details")).toBeNull();
+  });
+
   test("an unwritten slot renders nothing whatsoever", () => {
     const { container } = renderNotice([]);
 

@@ -19,3 +19,20 @@ export async function sayNoMinors(scope: Locator) {
     .getByRole("option", { name: /everyone is 18 or over/i })
     .click();
 }
+
+/**
+ * On a phone the registration form is two steps (#1403) and "Next" leads to
+ * the one with the notices, the agreement and the button; on a wider screen
+ * both are on one page and there is no "Next" to press. Shared so every spec
+ * that registers works in both projects without asking which it is in.
+ */
+export async function continueToBeforeYouGo(scope: Locator) {
+  const next = scope.getByRole("button", { name: "Next", exact: true });
+  if (await next.isVisible()) await next.click();
+}
+
+/** Moves past the first step if there is one, then submits. */
+export async function completeRegistration(scope: Locator) {
+  await continueToBeforeYouGo(scope);
+  await scope.getByRole("button", { name: "Complete registration" }).click();
+}

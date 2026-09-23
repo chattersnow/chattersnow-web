@@ -10,7 +10,8 @@ import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
 mock.module("server-only", () => ({}));
 
 type RegisterMyselfResult =
-  { error: string } | { success: true; registrationId: string };
+  | { error: string; step: "details" | "confirm" }
+  | { success: true; registrationId: string };
 
 const registerMyselfForEventActionMock = mock<
   (eventId: string, formData: FormData) => Promise<RegisterMyselfResult>
@@ -76,6 +77,16 @@ function lastSubmission() {
 describe("MyEventRegistrationForm and the participant agreement", () => {
   beforeEach(() => {
     registerMyselfForEventActionMock.mockClear();
+  });
+
+  // #1403. With no agreement and no photo paragraphs there is nothing for a
+  // second step to hold, so there is no second step and no legend over the one.
+  test("is a single step when there is nothing to agree to or be told", () => {
+    render(<MyEventRegistrationForm eventId="event-1" person={person} />);
+
+    expect(screen.queryByRole("group", { name: /About you/ })).toBeNull();
+    expect(screen.queryByRole("group", { name: /Before you go/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
   });
 
   test("shows nothing when the tenant takes no agreement", () => {
