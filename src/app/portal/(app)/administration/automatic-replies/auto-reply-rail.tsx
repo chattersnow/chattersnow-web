@@ -172,10 +172,6 @@ function RailBody({
           </li>
         ))}
       </ul>
-      <p className="app-muted mt-3 px-2 text-xs">
-        The grey number is how many fields of that reply you have written
-        yourself; everything else is the platform&rsquo;s wording.
-      </p>
     </nav>
   );
 }

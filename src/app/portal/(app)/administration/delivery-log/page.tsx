@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildHref, PAGE_SIZE, totalPagesFor } from "@/lib/pagination";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DeliveryLogFilterForm } from "./delivery-log-filter-form";
 import { parseDeliveryLogParams, type SortColumn } from "./delivery-log-params";
 import { DeliveryLogTable } from "./delivery-log-table";
@@ -77,7 +76,6 @@ export default async function DeliveryLogPage({
   }
 
   const totalPages = totalPagesFor(count, filters.perPage);
-  const showingSkips = filters.status === "all" || filters.status === "skipped";
 
   return (
     <>
@@ -87,32 +85,6 @@ export default async function DeliveryLogPage({
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
-
-      <p className="app-muted mt-4 max-w-prose text-sm leading-relaxed">
-        Every email this organization&rsquo;s account sends automatically —
-        receipts, notices to staff, the daily digest, the leadership report —
-        with what the email provider said about each one. Messages a staff
-        member writes by hand appear on the record they are about, not here. No
-        message text is kept.
-      </p>
-
-      {/* #1310: a skip is four different situations wearing one word, and only
-          one of them leaves a row. Saying so is what keeps this screen from
-          being the second dead end after the provider's dashboard. */}
-      {showingSkips ? (
-        <Alert className="mt-4 max-w-prose">
-          <AlertTitle>When an email is not sent</AlertTitle>
-          <AlertDescription className="leading-relaxed">
-            A row marked <strong>Not sent</strong> says why it was skipped. Some
-            sends stop before they reach this ledger and leave no row at all:
-            when email is switched off for the whole organization, when an
-            automatic reply is switched off for its kind, and when the person
-            has no address on file. If a message you expected is missing
-            entirely, check those three in Organization Settings and Automatic
-            Replies.
-          </AlertDescription>
-        </Alert>
-      ) : null}
 
       <DeliveryLogFilterForm filters={filters} />
 

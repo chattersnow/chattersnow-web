@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { deviceClass } from "@/lib/portal/device";
@@ -65,31 +64,6 @@ export default async function AutomaticRepliesPage() {
         </h1>
         <div className="rainbow-accent mt-3 w-full" />
       </div>
-
-      <p className="app-muted mt-6 max-w-3xl text-sm leading-relaxed">
-        The emails your public forms send straight back to the person who filled
-        them in. You write the wording; the portal keeps adding the details —
-        the event date and its calendar attachment, the reference code and its
-        status link, the list of items requested.
-      </p>
-
-      <p className="app-muted mt-2 max-w-3xl text-sm leading-relaxed">
-        Whether any email goes out at all, and who it comes from, is in{" "}
-        <Link
-          href="/portal/administration/organization-settings?tab=notifications"
-          className="underline underline-offset-4"
-        >
-          Organization Settings → Notifications
-        </Link>
-        . Every change here is recorded in the{" "}
-        <Link
-          href="/portal/administration/audit-log"
-          className="underline underline-offset-4"
-        >
-          audit log
-        </Link>
-        .
-      </p>
 
       <div className="mt-6">
         {/* Editing on top of a failed read would write a sparse object built
