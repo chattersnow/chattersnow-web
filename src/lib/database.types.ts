@@ -9575,6 +9575,13 @@ export type Database = {
       count_pending_artwork_submissions: { Args: never; Returns: number };
       count_pending_event_expense_approvals: { Args: never; Returns: number };
       count_pending_reimbursement_approvals: { Args: never; Returns: number };
+      create_blank_asset_tags: {
+        Args: { p_count: number };
+        Returns: {
+          id: string;
+          value: string;
+        }[];
+      };
       create_donation_with_items: {
         Args: {
           p_donated_at?: string;
@@ -9588,6 +9595,7 @@ export type Database = {
           p_items: Json;
         };
         Returns: {
+          asset_tags: string[];
           donation_id: string;
           giveaway_id: string;
           inventory_item_ids: string[];
@@ -9799,6 +9807,25 @@ export type Database = {
       };
       has_role: { Args: { p_role: string }; Returns: boolean };
       has_tenant_membership: { Args: never; Returns: boolean };
+      inventory_intake_labels: {
+        Args: { p_codes: string[]; p_donation_id: string };
+        Returns: {
+          code: string;
+          description: string;
+          item_id: string;
+          size: string;
+          tag_id: string;
+        }[];
+      };
+      inventory_intake_scan: {
+        Args: { p_asset_tag: string; p_barcode: string };
+        Returns: {
+          asset_tag_status: string;
+          barcode_category_key: string;
+          barcode_description: string;
+          barcode_known: boolean;
+        }[];
+      };
       is_admin: { Args: never; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
       link_person_to_auth_user: {

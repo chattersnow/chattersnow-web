@@ -11,7 +11,7 @@ import type { PermissionLevel } from "@/lib/auth/permissions";
 
 export type RpcCall = { name: string; args: unknown };
 
-export type QueryError = { message: string; code?: string };
+export type QueryError = { message: string; code?: string; hint?: string };
 
 export type RpcAnswer = {
   data?: unknown;

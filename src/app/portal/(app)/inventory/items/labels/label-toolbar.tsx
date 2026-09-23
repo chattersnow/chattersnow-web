@@ -38,12 +38,16 @@ export function LabelToolbar({
   skip,
   barcode,
   printable,
+  backHref = "/portal/inventory/items",
+  backLabel = "Back to items",
 }: {
   layout: LabelLayoutKey;
   skip: number;
   barcode: boolean;
   /** False when there is nothing to print yet, which disables Print. */
   printable: boolean;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -70,9 +74,9 @@ export function LabelToolbar({
           variant="ghost"
           size="sm"
           nativeButton={false}
-          render={<Link href="/portal/inventory/items" />}
+          render={<Link href={backHref} />}
         >
-          <ArrowLeft /> Back to items
+          <ArrowLeft /> {backLabel}
         </Button>
         <Button
           type="button"

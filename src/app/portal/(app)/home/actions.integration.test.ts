@@ -60,7 +60,14 @@ describe("createDonationAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.finance);
     const result = await createDonationAction(donationInput());
 
-    expect(result).toEqual({ success: true, giveaway: null });
+    expect(result).toMatchObject({ success: true, giveaway: null });
+    // Every received item leaves intake with a code (#1420).
+    expect("codes" in result && result.codes).toEqual([
+      {
+        itemId: expect.any(String),
+        code: expect.stringMatching(/^[A-Z2-9]{6}$/),
+      },
+    ]);
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/home");
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/inventory/items");
 
@@ -80,7 +87,11 @@ describe("createDonationAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.volunteer);
     const result = await createDonationAction(donationInput());
 
-    expect(result).toEqual({ success: true, giveaway: null });
+    expect(result).toMatchObject({ success: true, giveaway: null });
+    // The intake volunteer can open the intake label page, so is offered it.
+    expect("labelsHref" in result && result.labelsHref).toBe(
+      `/portal/inventory/donations/labels?donation=${"donationId" in result ? result.donationId : ""}`,
+    );
 
     const { data } = await adminClient
       .from("donations")
