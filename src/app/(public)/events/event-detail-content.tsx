@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite } from "@/lib/public-site";
 import type { PublicRiderProfile } from "@/lib/rider-profile";
 import { getPublicRiderProfile } from "@/lib/rider-profile-settings";
+import { getPublicAsksAboutMinors } from "@/lib/registration-settings";
 import { loadEventWaiver } from "./event-waiver-data";
 import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
@@ -103,6 +104,7 @@ function EventDetailBody({
   giveawayRulesId,
   waiver,
   waiverBlock,
+  asksAboutMinors,
   minorAccompaniment,
   photoConsent,
   registrationOptions,
@@ -127,6 +129,7 @@ function EventDetailBody({
    * (#685), shown once somebody answers yes. Empty on a tenant that has
    * written none, which is the state every tenant starts in.
    */
+  asksAboutMinors: boolean;
   minorAccompaniment: string[];
   /**
    * This organization's photos-and-video paragraphs (#599, #1376), shown as a
@@ -233,6 +236,7 @@ function EventDetailBody({
                   waiver={waiver}
                   waiverBlock={waiverBlock}
                   waiverOnFile={viewer.waiverOnFile}
+                  asksAboutMinors={asksAboutMinors}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
@@ -249,6 +253,7 @@ function EventDetailBody({
                   accountOffer={accountOffer}
                   waiver={waiver}
                   waiverBlock={waiverBlock}
+                  asksAboutMinors={asksAboutMinors}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
@@ -323,6 +328,11 @@ export async function EventDetailContent({
   const riderProfile = event.registration_enabled
     ? await getPublicRiderProfile(supabase)
     : null;
+  // Whether registration asks about under-18s (#1416). Only where there is a
+  // registration form, like the riding questions.
+  const asksAboutMinors = event.registration_enabled
+    ? await getPublicAsksAboutMinors(supabase)
+    : true;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -360,6 +370,7 @@ export async function EventDetailContent({
                   : null
               }
               waiverBlock={waiverBlock}
+              asksAboutMinors={asksAboutMinors}
               minorAccompaniment={minorAccompaniment}
               photoConsent={photoConsent}
               registrationOptions={registrationOptions}
@@ -395,6 +406,7 @@ export async function EventDetailContent({
             : null
         }
         waiverBlock={waiverBlock}
+        asksAboutMinors={asksAboutMinors}
         minorAccompaniment={minorAccompaniment}
         photoConsent={photoConsent}
         registrationOptions={registrationOptions}

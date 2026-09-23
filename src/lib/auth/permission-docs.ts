@@ -59,7 +59,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   events: {
     view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18. Also what the Calendar reads to show events alongside calendar items.",
     manage:
-      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen.",
+      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page.",
     excludes: [
       {
         key: "event_expenses",

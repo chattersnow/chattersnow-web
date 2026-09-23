@@ -17,9 +17,7 @@ import { parseRegistrationRiding } from "@/lib/rider-profile-form";
 import {
   MINOR_CONTACTS_REQUIRED_CODE,
   MINOR_CONTACTS_REQUIRED_ERROR,
-  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
-  parseMinorContacts,
-  parsePartyIncludesMinor,
+  parseRegistrationMinors,
 } from "@/lib/minors";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
@@ -86,21 +84,14 @@ export async function registerMyselfForEventAction(
     return { error: ERROR_MESSAGES.INVALID_PARTY_SIZE, step: "event" };
   }
 
-  // #685. Required on this form as on the anonymous one, and validated here
-  // rather than left to the RPC: the RPC has to keep accepting an unanswered
-  // question, because the public API's published contract predates it, so
-  // "the question was asked and skipped" is a distinction only the two forms
-  // can draw.
-  const partyIncludesMinor = parsePartyIncludesMinor(
-    formData.get("partyIncludesMinor"),
-  );
-  if (partyIncludesMinor === null) {
-    return { error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR, step: "event" };
-  }
-  const minorContacts = parseMinorContacts(partyIncludesMinor, formData);
-  if ("error" in minorContacts) {
-    return { error: minorContacts.error, step: "event" };
-  }
+  // #685. Required on this form as on the anonymous one wherever it was
+  // asked (#1416), and validated here rather than left to the RPC: the RPC
+  // has to keep accepting an unanswered question, because the public API's
+  // published contract predates it, so "the question was asked and skipped"
+  // is a distinction only the two forms can draw.
+  const minors = parseRegistrationMinors(formData);
+  if ("error" in minors) return { error: minors.error, step: "event" };
+  const minorContacts = minors.data;
 
   // #1415, and parsed as the anonymous form parses it.
   const parsedRiding = parseRegistrationRiding(formData);
@@ -137,15 +128,14 @@ export async function registerMyselfForEventAction(
     )
       ? Number(formData.get("waiverVersion"))
       : undefined,
-    p_party_includes_minor: partyIncludesMinor,
+    p_party_includes_minor: minorContacts.party_includes_minor ?? undefined,
     p_accompanying_adult_name:
-      minorContacts.data.accompanying_adult_name ?? undefined,
+      minorContacts.accompanying_adult_name ?? undefined,
     p_accompanying_adult_phone:
-      minorContacts.data.accompanying_adult_phone ?? undefined,
-    p_emergency_contact_name:
-      minorContacts.data.emergency_contact_name ?? undefined,
+      minorContacts.accompanying_adult_phone ?? undefined,
+    p_emergency_contact_name: minorContacts.emergency_contact_name ?? undefined,
     p_emergency_contact_phone:
-      minorContacts.data.emergency_contact_phone ?? undefined,
+      minorContacts.emergency_contact_phone ?? undefined,
     // #1407, as on the anonymous path.
     p_option_counts: parseOptionCounts(formData) ?? undefined,
     // #1415. `undefined` when the form did not ask, so nothing is written;

@@ -462,6 +462,46 @@ describe("EventRegistrationForm and the minors question", () => {
     });
   });
 
+  test("a submission says the question was asked", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou();
+    await sayNoMinors();
+    await submit();
+    expect(lastSubmission()).toMatchObject({
+      minorsAsked: "on",
+      partyIncludesMinor: "no",
+    });
+  });
+
+  // #1416. A tenant with the question off: nothing about under-18s renders,
+  // nothing is sent, and the form submits without it.
+  test("a tenant that does not ask shows and sends nothing about it", async () => {
+    const user = userEvent.setup();
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        asksAboutMinors={false}
+        minorAccompaniment={["An adult has to be with them for the whole day."]}
+      />,
+    );
+
+    await fillAboutYou(user);
+    await toThisEvent(user);
+    expect(screen.queryByLabelText(/under 18/i)).toBeNull();
+    expect(screen.queryByLabelText(/Accompanying adult/i)).toBeNull();
+    expect(
+      screen.queryByText("An adult has to be with them for the whole day."),
+    ).toBeNull();
+
+    await submit(user);
+    const submission = lastSubmission();
+    expect(submission).not.toHaveProperty("minorsAsked");
+    expect(submission).not.toHaveProperty("partyIncludesMinor");
+    expect(submission).not.toHaveProperty("accompanyingAdultName");
+    expect(screen.queryByText(/Anyone under 18/)).toBeNull();
+    expect(await screen.findByText(/You're registered/)).toBeVisible();
+  });
+
   // Changed their mind. Nobody agreed to give a guardian's number for a party
   // that has none, so the form stops sending them.
   test("going back to no sends no contacts", async () => {

@@ -104,10 +104,10 @@ export async function registerForEventAction(
     // unshown waiver leaves the RPC's own default in place.
     p_waiver_accepted: parsed.data.waiver_accepted,
     p_waiver_version: parsed.data.waiver_version ?? undefined,
-    // #685. Sent as answered. The column is three-state and the RPC accepts a
-    // null, but this form requires the question, so a null here would mean
-    // the parser let something through.
-    p_party_includes_minor: parsed.data.party_includes_minor,
+    // #685. Sent as answered, and `undefined` where the form did not ask
+    // (#1416). The RPC ignores it either way on a tenant that has the
+    // question off.
+    p_party_includes_minor: parsed.data.party_includes_minor ?? undefined,
     p_accompanying_adult_name: parsed.data.accompanying_adult_name ?? undefined,
     p_accompanying_adult_phone:
       parsed.data.accompanying_adult_phone ?? undefined,

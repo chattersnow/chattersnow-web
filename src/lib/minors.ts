@@ -176,6 +176,41 @@ export function parseMinorContacts(
   return { data };
 }
 
+/**
+ * Set by a registration form that asked the question (#1416), which is every
+ * form on a tenant that has not turned it off. Without it the answer is null
+ * -- "nobody was asked" -- and nothing is required, the reading a tenant with
+ * the question off needs. The RPC holds the setting itself either way.
+ */
+export const MINORS_ASKED_FIELD = "minorsAsked";
+
+/**
+ * The answer and the four contacts off a registration form. Required where
+ * the form asked; null with no contacts where it did not.
+ */
+export function parseRegistrationMinors(formData: FormData):
+  | { data: { party_includes_minor: boolean | null } & MinorContacts }
+  | {
+      error: string;
+      field: "partyIncludesMinor" | "minorContacts";
+    } {
+  if (formData.get(MINORS_ASKED_FIELD) !== "on") {
+    return { data: { party_includes_minor: null, ...NO_MINOR_CONTACTS } };
+  }
+  const party_includes_minor = parsePartyIncludesMinor(
+    formData.get("partyIncludesMinor"),
+  );
+  if (party_includes_minor === null) {
+    return {
+      error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
+      field: "partyIncludesMinor",
+    };
+  }
+  const contacts = parseMinorContacts(party_includes_minor, formData);
+  if ("error" in contacts) return { ...contacts, field: "minorContacts" };
+  return { data: { party_includes_minor, ...contacts.data } };
+}
+
 /** How the portal names the answer. Null is not "no" and never renders as one. */
 export function partyIncludesMinorLabel(answer: boolean | null): string | null {
   if (answer === null) return null;

@@ -84,6 +84,7 @@ function registrationForm(email: string, riding: Record<string, string>) {
   return formData({
     name: "Riding Registrant",
     email,
+    minorsAsked: "on",
     partyIncludesMinor: "no",
     ridingAsked: "on",
     ...riding,
@@ -212,7 +213,12 @@ describe("the anonymous registration form", () => {
     registeredEmails.push(email);
     const result = await registerForEventAction(
       await event(),
-      formData({ name: "Unasked", email, partyIncludesMinor: "no" }),
+      formData({
+        name: "Unasked",
+        email,
+        minorsAsked: "on",
+        partyIncludesMinor: "no",
+      }),
     );
 
     expect(result).toMatchObject({ success: true });

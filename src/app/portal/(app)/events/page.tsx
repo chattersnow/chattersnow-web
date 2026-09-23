@@ -31,7 +31,9 @@ import { StatusBadge, VisibilityBadge } from "./event-badges";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { OutstandingTasksSheet } from "./outstanding-tasks-sheet";
 import { RiderMountainsSheet } from "./rider-mountains-sheet";
+import { RegistrationSettingsSheet } from "./registration-settings-sheet";
 import { getRiderProfileMountains } from "@/lib/rider-profile-settings";
+import { getRegistrationAsksAboutMinors } from "@/lib/registration-settings";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
@@ -161,15 +163,20 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   const { offset, to } = pageRange(page, perPage);
   const { data: events, error, count } = await query.range(offset, to);
-  const [programsResult, eventTasks, riderMountains] = await Promise.all([
-    listProgramsAction(),
-    getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
-    // The rider profile's mountain list (#1408). rider_profiles carries the
-    // rider_profile module, so on a tenant without it nobody pays the read.
-    canManageRiderMountains
-      ? getRiderProfileMountains(supabase)
-      : Promise.resolve(null),
-  ]);
+  const [programsResult, eventTasks, riderMountains, asksAboutMinors] =
+    await Promise.all([
+      listProgramsAction(),
+      getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
+      // The rider profile's mountain list (#1408). rider_profiles carries the
+      // rider_profile module, so on a tenant without it nobody pays the read.
+      canManageRiderMountains
+        ? getRiderProfileMountains(supabase)
+        : Promise.resolve(null),
+      // Registration's under-18 setting (#1416), for whoever can change it.
+      canManage
+        ? getRegistrationAsksAboutMinors(supabase)
+        : Promise.resolve(null),
+    ]);
   const programs = "data" in programsResult ? programsResult.data : [];
   const taskGroups = groupEventTasksByEvent(eventTasks.items);
 
@@ -334,6 +341,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
         )}
 
         {riderMountains && <RiderMountainsSheet mountains={riderMountains} />}
+
+        {asksAboutMinors !== null && (
+          <RegistrationSettingsSheet asksAboutMinors={asksAboutMinors} />
+        )}
 
         {canManage && <NewEventDialog programs={programs} />}
       </div>
