@@ -36,6 +36,8 @@ export type InventoryItem = {
   intended_use: string;
   photo_url: string | null;
   notes: string | null;
+  /** The item's asset-tag code (#1420), or null before it has one. */
+  assetTag?: string | null;
   holdRequester?: {
     id: string;
     name: string | null;
