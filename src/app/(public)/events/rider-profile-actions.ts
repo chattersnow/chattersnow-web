@@ -11,6 +11,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   // nothing here can undo it (issue #564 -- this step is never a gate).
   RIDER_PROFILE_UNAVAILABLE:
     "You're registered — we just couldn't save your ride details. Reply to your confirmation and we'll add them.",
+  // The tenant does not have the rider_profile module (#1408). The step is
+  // never rendered there, so this is a stale tab; same reassurance.
+  SECTION_UNAVAILABLE:
+    "You're registered — we just couldn't save your ride details. Reply to your confirmation and we'll add them.",
   INVALID_RIDER_PROFILE: "Please check your answers and try again.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
 };

@@ -9021,6 +9021,12 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_rider_profile_settings: {
+        Row: {
+          mountains: Json | null;
+        };
+        Relationships: [];
+      };
       public_site_content: {
         Row: {
           key: string | null;
@@ -10559,6 +10565,7 @@ export type Database = {
         Args: { p_membership_id: string };
         Returns: undefined;
       };
+      rider_profile_mountains: { Args: never; Returns: Json };
       run_retention_purge: {
         Args: {
           p_as_of?: string;
@@ -10750,6 +10757,10 @@ export type Database = {
       };
       set_retention_policy_mode: {
         Args: { p_mode: string; p_policy_key: string };
+        Returns: undefined;
+      };
+      set_rider_profile_mountains: {
+        Args: { p_mountains: string[] };
         Returns: undefined;
       };
       show_limit: { Args: never; Returns: number };

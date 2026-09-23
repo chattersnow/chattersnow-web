@@ -3,6 +3,7 @@ import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { labelText } from "../../../../../test/labels";
+import { PortalRiderProfileProvider } from "@/lib/portal/rider-profile-context";
 import {
   PersonFormFields,
   emptyPersonForm,
@@ -132,6 +133,20 @@ describe("PersonFormFields", () => {
 
     expect(screen.getByLabelText("Logo URL")).toBeInTheDocument();
     expect(screen.queryByLabelText("Rides")).not.toBeInTheDocument();
+  });
+
+  test("no rider fields for a reader who may not edit rider profiles", () => {
+    // Which is everyone on a tenant without the rider_profile module (#1408).
+    render(
+      <PortalRiderProfileProvider access={{ canView: true, canManage: false }}>
+        <ControlledForm />
+      </PortalRiderProfileProvider>,
+    );
+
+    expect(screen.queryByLabelText("Rides")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Preferred mountain"),
+    ).not.toBeInTheDocument();
   });
 });
 

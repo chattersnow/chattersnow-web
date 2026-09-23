@@ -145,6 +145,23 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
       },
     ],
   },
+  rider_profiles: {
+    view: "See how a person skis or snowboards, their experience level and preferred mountain, wherever the surrounding screen is already open to you: the Rides column and rider block on an event's registrants (which also need Events at Manage), the person record, and the Beginner participants figure on an event's Impact card and the program impact report.",
+    manage:
+      "Edit those answers — at the door from an event's registrants, and on the person form — and edit the list of mountains the rider profile offers, from the Mountains button on the Events page.",
+    excludes: [
+      {
+        key: "events",
+        covers: "the registrants list the door dialog opens from",
+      },
+      { key: "people", covers: "the rest of a person's record" },
+    ],
+    notes: [
+      "Belongs to the Rider Profile module, which is off unless the platform turns it on for an organization. Without it this row grants nothing at any level, and the rider questions, columns and figures do not appear anywhere.",
+      "Seeded from each role's existing access so nothing changed when it arrived: Manage where the role managed Events or People, View where it could see Events, People or Impact tracking.",
+      "Deleting a rider profile on request is not gated on this: it stays with People or Events at Manage, so a deletion request can always be honoured.",
+    ],
+  },
   artwork_submissions: {
     view: "Open the Artwork section: the open calls for community artwork and the submissions that have come in.",
     manage:

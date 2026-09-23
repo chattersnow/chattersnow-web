@@ -10,6 +10,8 @@ import { publicGiveawayRulesPath } from "@/lib/giveaway-rules-path";
 import { getEventGiveawayRulesLink } from "@/lib/giveaway-rules-publication";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite } from "@/lib/public-site";
+import type { PublicRiderProfile } from "@/lib/rider-profile";
+import { getPublicRiderProfile } from "@/lib/rider-profile-settings";
 import { loadEventWaiver } from "./event-waiver-data";
 import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
@@ -104,6 +106,7 @@ function EventDetailBody({
   minorAccompaniment,
   photoConsent,
   registrationOptions,
+  riderProfile,
 }: {
   event: PublicEvent;
   variant: EventDetailVariant;
@@ -135,6 +138,8 @@ function EventDetailBody({
   photoConsent: string[];
   /** The event's registration question (#1407), or null. */
   registrationOptions: RegistrationOptionsQuestion | null;
+  /** The rider profile follow-up (#1408), or null without the module. */
+  riderProfile: PublicRiderProfile | null;
 }) {
   const page = variant === "page";
   const registrationWindow = checkRegistrationWindow(event);
@@ -246,6 +251,7 @@ function EventDetailBody({
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
+                  riderProfile={riderProfile}
                 />
               )}
             </EventRegistrationDisclosure>
@@ -311,6 +317,11 @@ export async function EventDetailContent({
   const registrationOptions = event.registration_enabled
     ? await loadRegistrationOptions(supabase, event.id)
     : null;
+  // The rider profile follow-up (#1408), only for a tenant with the module
+  // and only where there is a registration form for it to follow.
+  const riderProfile = event.registration_enabled
+    ? await getPublicRiderProfile(supabase)
+    : null;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -351,6 +362,7 @@ export async function EventDetailContent({
               minorAccompaniment={minorAccompaniment}
               photoConsent={photoConsent}
               registrationOptions={registrationOptions}
+              riderProfile={riderProfile}
             />
           </div>
         </div>
@@ -385,6 +397,7 @@ export async function EventDetailContent({
         minorAccompaniment={minorAccompaniment}
         photoConsent={photoConsent}
         registrationOptions={registrationOptions}
+        riderProfile={riderProfile}
       />
     </>
   );

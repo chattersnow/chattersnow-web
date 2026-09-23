@@ -17,6 +17,7 @@ import {
   type RegistrantActionResult,
 } from "./registrant-core";
 import { parseRiderProfileForm } from "@/lib/rider-profile-form";
+import { getRiderProfileMountains } from "@/lib/rider-profile-settings";
 import {
   actionError,
   fromGuard,
@@ -241,6 +242,11 @@ export type EventRegistrantsData = {
   photoConsentInForce: boolean;
   /** The event's registration question (#1407), or null where it asks none. */
   registrationOptions: PortalRegistrationOptions | null;
+  /**
+   * This organization's preferred-mountain list, for the door-side rider
+   * dialog (#1408). Null wherever `rider` is null on every registrant.
+   */
+  riderMountains: string[] | null;
 };
 
 /**
@@ -314,7 +320,12 @@ export async function listEventRegistrantsAction(
   if (permissionError) return permissionError;
 
   const permissions = await getCurrentUserPermissions(supabase);
-  const canSeeRider = hasPermission(permissions, "events", "manage");
+  const canManage = hasPermission(permissions, "events", "manage");
+  // Rider answers need the rider_profiles permission as well, which carries
+  // the rider_profile module (#1408) -- so on a tenant without it there is no
+  // Rides column, no rider dialog and no rider block in the sheet, for anyone.
+  const canSeeRider =
+    canManage && hasPermission(permissions, "rider_profiles", "view");
 
   const { data, error } = await supabase
     .from("event_registrations")
@@ -349,7 +360,7 @@ export async function listEventRegistrantsAction(
     registrants,
   );
 
-  if (!canSeeRider) {
+  if (!canManage) {
     return {
       data: {
         registrants,
@@ -358,39 +369,46 @@ export async function listEventRegistrantsAction(
         waiverInForce,
         photoConsentInForce,
         registrationOptions,
+        riderMountains: null,
       },
     };
   }
 
-  const [messages, orgEmailEnabled, tenantContext, orgMail, minorContacts] =
-    await Promise.all([
-      loadRecordMessages(
-        supabase,
-        EVENT_REGISTRATION_RECORD_TYPE,
-        registrants.map((registrant) => registrant.id),
-      ),
-      getOrgEmailEnabled(supabase),
-      // Only for what the composer calls the organization in its default
-      // subject. Memoized per request, so the shell has already paid for it.
-      getTenantContext(supabase),
-      // The Reply-To the composer quotes, through the view that exists because
-      // app_settings itself is closed to an events manager.
-      supabase
-        .from("org_notification_settings")
-        .select("reply_to")
-        .maybeSingle(),
-      // The four contacts, through the definer view that is the only way to
-      // them: they are revoked from `authenticated` on the table (#685). One
-      // read for the event, not one per row, and it returns nothing at all for
-      // a reader without `events: manage` — this branch already is one, and
-      // the view checks again anyway.
-      supabase
-        .from("event_registration_minor_contacts")
-        .select(
-          "registration_id, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
-        )
-        .eq("event_id", eventId),
-    ]);
+  const [
+    messages,
+    orgEmailEnabled,
+    tenantContext,
+    orgMail,
+    minorContacts,
+    riderMountains,
+  ] = await Promise.all([
+    loadRecordMessages(
+      supabase,
+      EVENT_REGISTRATION_RECORD_TYPE,
+      registrants.map((registrant) => registrant.id),
+    ),
+    getOrgEmailEnabled(supabase),
+    // Only for what the composer calls the organization in its default
+    // subject. Memoized per request, so the shell has already paid for it.
+    getTenantContext(supabase),
+    // The Reply-To the composer quotes, through the view that exists because
+    // app_settings itself is closed to an events manager.
+    supabase.from("org_notification_settings").select("reply_to").maybeSingle(),
+    // The four contacts, through the definer view that is the only way to
+    // them: they are revoked from `authenticated` on the table (#685). One
+    // read for the event, not one per row, and it returns nothing at all for
+    // a reader without `events: manage` — this branch already is one, and
+    // the view checks again anyway.
+    supabase
+      .from("event_registration_minor_contacts")
+      .select(
+        "registration_id, accompanying_adult_name, accompanying_adult_phone, emergency_contact_name, emergency_contact_phone",
+      )
+      .eq("event_id", eventId),
+    // The door dialog's picker (#1408). Only for a reader who sees rider
+    // answers, which is the only reader the dialog opens for.
+    canSeeRider ? getRiderProfileMountains(supabase) : Promise.resolve(null),
+  ]);
 
   const contactsById = new Map(
     (minorContacts.data ?? []).map((row) => [
@@ -422,6 +440,7 @@ export async function listEventRegistrantsAction(
       waiverInForce,
       photoConsentInForce,
       registrationOptions,
+      riderMountains,
     },
   };
 }
@@ -531,6 +550,13 @@ export async function setRegistrantRiderProfileAction(
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return fromGuard("forbidden", permissionError);
+  // Carries the rider_profile module (#1408); the RPC checks both again.
+  const riderError = await checkPermission(
+    supabase,
+    "rider_profiles",
+    "manage",
+  );
+  if (riderError) return fromGuard("forbidden", riderError);
 
   const { error } = await supabase.rpc("set_registrant_rider_profile", {
     p_registration_id: registrationId,
