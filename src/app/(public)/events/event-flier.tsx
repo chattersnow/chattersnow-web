@@ -69,16 +69,27 @@ export function EventFlierTile({
 /**
  * The flier on a detail view, at its own aspect ratio. `max-h` keeps a tall
  * poster from pushing the event's date and registration form off the first
- * screen, and `w-auto`/`h-auto` mean a flier smaller than the column is
- * centred at its real size rather than upscaled into mush.
+ * screen, and `w-auto`/`h-auto` mean a flier smaller than the column keeps
+ * its real size rather than being upscaled into mush.
+ *
+ * `align` is where that narrower flier sits. The sheet centres it; the page
+ * starts it on the column's left edge, where its heading, date and form all
+ * start -- centred in a `max-w-6xl` column, a portrait flier floated over a
+ * page whose every other line was flush left.
  */
 export function EventFlierFull({
   flierUrl,
   sizes,
   alt,
   priority,
+  align = "center",
   className,
-}: FlierProps & { alt: string; priority?: boolean; className?: string }) {
+}: FlierProps & {
+  alt: string;
+  priority?: boolean;
+  align?: "center" | "start";
+  className?: string;
+}) {
   const imageUrl = resolveImageUrl(flierUrl);
   if (!isRenderableImageSrc(imageUrl)) return null;
 
@@ -87,7 +98,9 @@ export function EventFlierFull({
     // otherwise sit between two grey rails. Letterboxing is what the tile
     // above uses the blurred backdrop to avoid, and here there is nothing to
     // fill -- the flier simply takes the width it needs.
-    <div className={`flex justify-center ${className ?? ""}`}>
+    <div
+      className={`flex ${align === "start" ? "justify-start" : "justify-center"} ${className ?? ""}`}
+    >
       <Image
         src={imageUrl}
         alt={alt}
