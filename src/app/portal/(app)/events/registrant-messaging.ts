@@ -28,6 +28,7 @@ export const REGISTRANT_MESSAGE_ERRORS = {
    * the organization" is what decides whether there is anything to be done.
    */
   NO_EMAIL: "This registration has no email address to write to.",
+  CANCELLED: "This registration was cancelled.",
   NO_PERSON:
     "This registration isn't linked to a person, so the confirmation can't be resent.",
   RESENT_RECENTLY:

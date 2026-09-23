@@ -27,6 +27,7 @@ function registration(
     party_size: 1,
     attended: false,
     registered_at: "2026-05-01T17:00:00Z",
+    cancelled_at: null,
     ...overrides,
   };
 }
