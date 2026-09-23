@@ -10755,12 +10755,12 @@ export type Database = {
         };
         Returns: undefined;
       };
-      set_rider_profile_mountains: {
-        Args: { p_mountains: string[] };
-        Returns: undefined;
-      };
       set_retention_policy_mode: {
         Args: { p_mode: string; p_policy_key: string };
+        Returns: undefined;
+      };
+      set_rider_profile_mountains: {
+        Args: { p_mountains: string[] };
         Returns: undefined;
       };
       show_limit: { Args: never; Returns: number };
