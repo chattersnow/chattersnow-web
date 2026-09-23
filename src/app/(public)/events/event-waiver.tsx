@@ -4,18 +4,30 @@ import {
   LegalDocumentSummary,
 } from "@/components/legal-document";
 import type { LegalDocumentContent } from "@/lib/site-content";
+import { EventWaiverFullText } from "./event-waiver-full-text";
 
 /**
- * The organization's participant agreement, rendered in full above the box
- * that accepts it (#686).
+ * The organization's participant agreement where it is accepted: its title,
+ * its own summary, and the full text one tap away in a sheet (#686, #1402).
  *
- * In full, and not behind a link: the whole point of the record this form
- * writes is that the person was shown the words. A link alone would make
- * "which version did they accept" answerable and "did they see it" not.
+ * #686 put the whole document inline, in a capped scroll box, so that "did
+ * they see it" was answerable. #1402 reversed that on the platform owner's
+ * decision: a scroll box inside a scrolling page takes over the finger on a
+ * phone and shows a few lines at a time, and it is not the stronger pattern
+ * in court either -- *Sgouros v. TransUnion* refused terms in a small box
+ * nothing prompted the reader to scroll. What courts have upheld is a
+ * conspicuous way to the full text beside an affirmative act naming the
+ * document, which is the button here and the box the form puts under it.
+ * docs/legal-basis.md records the decision and the cases.
+ *
+ * The summary is the tenant's own `summary` paragraphs, in the tenant's
+ * words; the platform writes none of it. A tenant that has written none shows
+ * the title and the button, and the full text is no further away for it.
  *
  * Rendered on the server and passed into the client form as a prop, which
  * keeps `parseLegalBlocks` and a whole legal document out of the browser
- * bundle for the many tenants that have no waiver at all.
+ * bundle for the many tenants that have no waiver at all. The sheet's body is
+ * rendered here too and handed to the client trigger as children.
  *
  * What is displayed is the *version's* content rather than the live site
  * content row. They agree today; the day somebody republishes between this
@@ -31,41 +43,32 @@ export function EventWaiver({
   version: number;
   headingId: string;
 }) {
+  const summary =
+    doc.summary.length > 0 ? (
+      <div className="app-muted space-y-3 text-sm leading-relaxed">
+        <LegalDocumentSummary paragraphs={doc.summary} />
+      </div>
+    ) : null;
+
   return (
-    <section aria-labelledby={headingId} className="space-y-2">
-      <h3 id={headingId} className="text-sm font-medium">
+    <section
+      aria-labelledby={headingId}
+      className="space-y-3 rounded-md border border-[var(--line)] p-4"
+    >
+      <h3 id={headingId} className="text-sm font-semibold">
         {doc.title}
       </h3>
-      {/*
-        A capped, scrollable frame rather than the whole document inline. The
-        text is all here -- nothing truncated, nothing fetched on demand -- but
-        an agreement runs to a page or more, and pushing the box and the submit
-        button below it means a reader on a phone scrolls past the thing they
-        are meant to act on.
-
-        `tabIndex` because a scrollable region that cannot be focused cannot be
-        scrolled from the keyboard, which is what axe's
-        `scrollable-region-focusable` is about; `role="group"` with a name so
-        that now-focusable div announces as something rather than as nothing.
-      */}
-      <div
-        role="group"
-        aria-labelledby={headingId}
-        tabIndex={0}
-        className="max-h-80 space-y-4 overflow-y-auto rounded-md border border-[var(--line)] p-4 text-sm leading-relaxed"
+      {summary}
+      <EventWaiverFullText
+        title={doc.title}
+        version={version}
+        lastUpdated={doc.last_updated}
       >
-        {doc.summary.length > 0 ? (
-          <div className="app-muted space-y-4">
-            <LegalDocumentSummary paragraphs={doc.summary} />
-          </div>
-        ) : null}
-        {/* h4 under this block's h3, which is the level `event-sponsors.tsx`
-            and `rider-profile-form-fields.tsx` already use in this position --
-            it reads the same under the page's h1 and under the sheet's h2. No
-            anchors: the ids belong to /waiver, and a second copy of them
-            inside a form would be a real duplicate. */}
-        <LegalDocumentSections doc={doc} headingLevel={4} anchors={false} />
-      </div>
+        {summary}
+        {/* h3 under the sheet's own h2 title. No anchors: the ids belong to
+            /waiver's section rail. */}
+        <LegalDocumentSections doc={doc} headingLevel={3} anchors={false} />
+      </EventWaiverFullText>
       <p className="app-muted text-xs">
         Version {version} · last updated {doc.last_updated} ·{" "}
         <Link

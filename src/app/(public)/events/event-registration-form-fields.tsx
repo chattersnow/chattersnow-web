@@ -65,9 +65,11 @@ export function EventRegistrationForm({
    * (#686). Posted back so the RPC can refuse a submission made against text
    * that has been republished since it was rendered. Null, and the block
    * below with it, on a tenant that has adopted no waiver -- which is most of
-   * them, and leaves this form exactly as it was.
+   * them, and leaves this form exactly as it was. The title is what the box
+   * names (#1402): an agreement accepted by reference to "the agreement
+   * above" reads less clearly than one accepted by name.
    */
-  waiver?: { version: number } | null;
+  waiver?: { version: number; title: string } | null;
   /** The agreement itself, rendered on the server. */
   waiverBlock?: React.ReactNode;
   /**
@@ -374,7 +376,7 @@ export function EventRegistrationForm({
                 required
               />
               <FieldLabel htmlFor="registration-waiver" required>
-                I have read the agreement above and I accept it
+                I have read and accept the {waiver.title}
               </FieldLabel>
             </Field>
           </>

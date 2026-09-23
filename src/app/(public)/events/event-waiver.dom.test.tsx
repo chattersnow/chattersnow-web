@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { EventWaiver } from "./event-waiver";
 import type { LegalDocumentContent } from "@/lib/site-content";
 
 const DOC: LegalDocumentContent = {
   title: "Participant Waiver",
   last_updated: "September 22, 2026",
-  summary: ["Please read this before you register."],
+  summary: [
+    "- You release us from claims for ordinary negligence.\n- Snow sports carry real risk of injury.",
+  ],
   sections: [
     {
       id: "risks",
@@ -24,25 +27,94 @@ const DOC: LegalDocumentContent = {
   ],
 };
 
-describe("EventWaiver", () => {
-  // The point of the record this form writes is that the person was shown the
-  // words. A link alone would make "which version did they accept" answerable
-  // and "did they see it" not, so the whole document is in the DOM (#686).
-  test("renders every section in full, not a link to them", () => {
-    render(<EventWaiver doc={DOC} version={2} headingId="waiver-title" />);
+function renderWaiver(doc: LegalDocumentContent = DOC) {
+  return render(<EventWaiver doc={doc} version={2} headingId="waiver-title" />);
+}
 
-    expect(screen.getByText("Risks of taking part")).toBeVisible();
-    expect(screen.getByText("Questions")).toBeVisible();
+async function openFullText() {
+  await userEvent.click(
+    screen.getByRole("button", { name: "Read the full agreement" }),
+  );
+  return screen.findByRole("dialog", { name: "Participant Waiver" });
+}
+
+describe("EventWaiver", () => {
+  // #1402: the title and the tenant's own summary where the box is, and the
+  // full text one tap away -- not a scroll box inside a scrolling page.
+  test("shows the title and the summary, and no scroll box", () => {
+    const { container } = renderWaiver();
+
     expect(
-      screen.getByText("Please read this before you register."),
+      screen.getByRole("heading", { level: 3, name: "Participant Waiver" }),
     ).toBeVisible();
-    expect(screen.getByText("Falls")).toBeVisible();
-    expect(screen.getByText("Collisions")).toBeVisible();
-    expect(screen.getByText("dangerous")).toBeVisible();
+    expect(
+      screen.getByText("You release us from claims for ordinary negligence."),
+    ).toBeVisible();
+    expect(screen.queryByText("Risks of taking part")).toBeNull();
+    expect(container.querySelector("[class*='overflow-y-auto']")).toBeNull();
+    expect(container.querySelector("div[tabindex]")).toBeNull();
+  });
+
+  // The whole document, same version, every word -- in a sheet rather than
+  // inline, so "did they see it" is still a tap from the box.
+  test("opens every section in full in a sheet", async () => {
+    renderWaiver();
+
+    const sheet = await openFullText();
+
+    expect(within(sheet).getByText(/Version 2/)).toBeVisible();
+    expect(within(sheet).getByText("Risks of taking part")).toBeVisible();
+    expect(within(sheet).getByText("Questions")).toBeVisible();
+    expect(
+      within(sheet).getByText(
+        "You release us from claims for ordinary negligence.",
+      ),
+    ).toBeVisible();
+    expect(within(sheet).getByText("Falls")).toBeVisible();
+    expect(within(sheet).getByText("dangerous")).toBeVisible();
+  });
+
+  // The sheet's title is its h2, so the sections sit at h3 inside it.
+  test("keeps the heading outline honest inside the sheet", async () => {
+    renderWaiver();
+
+    const sheet = await openFullText();
+
+    expect(
+      within(sheet)
+        .getAllByRole("heading", { level: 3 })
+        .map((node) => node.textContent),
+    ).toEqual(["Risks of taking part", "Questions"]);
+  });
+
+  test("closes back to the registration", async () => {
+    renderWaiver();
+
+    const sheet = await openFullText();
+    await userEvent.click(
+      within(sheet).getByRole("button", { name: "Back to registration" }),
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: "Participant Waiver" }),
+    ).toBeNull();
+  });
+
+  // A tenant that has written no summary still gets the title and the button;
+  // the platform writes no summary on its behalf.
+  test("with no summary, shows the title and the button only", () => {
+    renderWaiver({ ...DOC, summary: [] });
+
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Participant Waiver" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Read the full agreement" }),
+    ).toBeVisible();
   });
 
   test("names the version and links that exact one", () => {
-    render(<EventWaiver doc={DOC} version={2} headingId="waiver-title" />);
+    renderWaiver();
 
     expect(screen.getByText(/Version 2/)).toBeVisible();
     // Not `/waiver`: a permalink to the version on screen is what the
@@ -52,42 +124,14 @@ describe("EventWaiver", () => {
     ).toHaveAttribute("href", "/waiver?version=2");
   });
 
-  // A scrollable region that cannot be focused cannot be scrolled from the
-  // keyboard, which is what axe's `scrollable-region-focusable` is about, and
-  // a focusable div with no role or name announces as nothing.
-  test("the scrolling frame is reachable and named", () => {
-    render(<EventWaiver doc={DOC} version={2} headingId="waiver-title" />);
-
-    const frame = screen.getByRole("group", { name: "Participant Waiver" });
-    expect(frame).toHaveAttribute("tabindex", "0");
-  });
-
   // The ids belong to /waiver's section rail. A second copy of them inside a
   // form would be a real duplicate-id bug rather than a cosmetic one.
-  test("carries none of the document page's section anchors", () => {
-    const { container } = render(
-      <EventWaiver doc={DOC} version={2} headingId="waiver-title" />,
-    );
+  test("carries none of the document page's section anchors", async () => {
+    renderWaiver();
 
-    expect(container.querySelector("#risks")).toBeNull();
-    expect(container.querySelector("#questions")).toBeNull();
-  });
+    await openFullText();
 
-  // The waiver's own heading is an h3, matching event-sponsors.tsx and
-  // rider-profile-form-fields.tsx in the same position, so the outline reads
-  // the same under the page's h1 and under the sheet's h2. Its sections sit a
-  // level below that.
-  test("keeps the heading outline honest inside a form", () => {
-    const { container } = render(
-      <EventWaiver doc={DOC} version={2} headingId="waiver-title" />,
-    );
-
-    expect(container.querySelector("h3")?.textContent).toBe(
-      "Participant Waiver",
-    );
-    expect(
-      [...container.querySelectorAll("h4")].map((node) => node.textContent),
-    ).toEqual(["Risks of taking part", "Questions"]);
-    expect(container.querySelector("h1, h2")).toBeNull();
+    expect(document.querySelector("#risks")).toBeNull();
+    expect(document.querySelector("#questions")).toBeNull();
   });
 });
