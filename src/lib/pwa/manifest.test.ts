@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { EMPTY_BRANDING, type Branding } from "@/lib/branding";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
+  APP_ICONS_METADATA,
   APP_ICON_PATH,
+  APP_ICON_SIZES,
+  FAVICON_SIZE,
   NEUTRAL_APP_NAME,
   NEUTRAL_PUBLIC_APP_NAME,
   appIconInitials,
@@ -235,5 +240,45 @@ describe("appIconInitials", () => {
   test("falls back to a neutral mark rather than an empty square", () => {
     expect(appIconInitials(null)).toBe("•");
     expect(appIconInitials("!!!")).toBe("•");
+  });
+});
+
+/** Every `layout.tsx` and `page.tsx` under `src/app`, recursively. */
+function appSegmentSources(dir = "src/app"): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return appSegmentSources(path);
+    return /^(layout|page)\.tsx$/.test(entry.name) ? [path] : [];
+  });
+}
+
+describe("APP_ICONS_METADATA", () => {
+  // The regression #1398 was. Next merges the `app/icon.png` file convention
+  // into a route's metadata only when nothing in that route declared
+  // `metadata.icons`, so an object here that carries `apple` alone silently
+  // removes the favicon from every page under the layout that declares it.
+  test("declares a tab icon, not only the home-screen one", () => {
+    expect(APP_ICONS_METADATA.icon.length).toBeGreaterThan(0);
+    expect(APP_ICONS_METADATA.icon[0]?.url).toBe(
+      `${APP_ICON_PATH}/${FAVICON_SIZE}`,
+    );
+  });
+
+  // A size outside the allowlist 404s, which is the same blank tab by another
+  // route.
+  test("asks the icon route for a size it will render", () => {
+    expect(APP_ICON_SIZES).toContain(FAVICON_SIZE);
+  });
+
+  // The constant only helps if it is the single place `icons` is written: a
+  // layout that spells its own object out is free to omit `icon` again.
+  test("is the only `icons` metadata any app segment declares", () => {
+    const offenders = appSegmentSources().filter((path) => {
+      const source = readFileSync(path, "utf8");
+      return (
+        /^\s*icons:/m.test(source) && !source.includes("APP_ICONS_METADATA")
+      );
+    });
+    expect(offenders).toEqual([]);
   });
 });
