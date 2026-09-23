@@ -100,7 +100,7 @@ export function ridingSummaryRows(
     values.mountain === OTHER_MOUNTAIN
       ? values.otherMountain.trim()
       : values.mountain;
-  if (mountain) rows.push({ label: "Preferred mountain", value: mountain });
+  if (mountain) rows.push({ label: "Home mountain", value: mountain });
   return rows;
 }
 
@@ -178,7 +178,7 @@ export function RidingFields({
     <>
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-riding-discipline`} required>
-          Do you ski or ride?
+          Do you ski or snowboard?
         </FieldLabel>
         <Select
           value={values.discipline || null}
@@ -229,9 +229,7 @@ export function RidingFields({
       )}
 
       <Field>
-        <FieldLabel htmlFor={`${idPrefix}-mountain`}>
-          Preferred mountain for meetups
-        </FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-mountain`}>Home mountain</FieldLabel>
         <Select
           value={values.mountain || null}
           disabled={disabled}

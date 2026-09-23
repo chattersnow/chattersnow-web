@@ -149,7 +149,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   rider_profiles: {
-    view: "See how a person skis or snowboards, their experience level and preferred mountain, wherever the surrounding screen is already open to you: the Rides column and rider block on an event's registrants (which also need Events at Manage), the person record, and the Beginner participants figure on an event's Impact card and the program impact report.",
+    view: "See how a person skis or snowboards, their experience level and home mountain, wherever the surrounding screen is already open to you: the Rides column and rider block on an event's registrants (which also need Events at Manage), the person record, and the Beginner participants figure on an event's Impact card and the program impact report.",
     manage:
       "Edit those answers — at the door from an event's registrants, and on the person form — and edit the list of mountains the rider profile offers, from the Mountains button on the Events page.",
     excludes: [

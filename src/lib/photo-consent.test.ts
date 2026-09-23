@@ -7,6 +7,7 @@ import {
   PHOTO_OBJECTION_RECORDED,
   PHOTO_OBJECTION_WITHDRAWN,
   PHOTO_OBJECTION_WITHDRAW_ACTION,
+  waiverAcceptanceLabel,
 } from "./photo-consent";
 
 // #599's parser, its form-value helper, its guardian-capacity label and its
@@ -62,5 +63,21 @@ describe("what the RPC's refusal turns into", () => {
     expect(PHOTO_CONSENT_UNAVAILABLE_ERROR).not.toMatch(/no longer asking/i);
     expect(PHOTO_CONSENT_UNAVAILABLE_ERROR).toMatch(/email them/i);
     expect(PHOTO_CONSENT_UNAVAILABLE_ERROR).toMatch(/taken down/i);
+  });
+});
+
+describe("waiverAcceptanceLabel", () => {
+  test("names only the waiver when no photo release is written", () => {
+    expect(waiverAcceptanceLabel("Participant Waiver", ["  "])).toBe(
+      "I have read and accept the Participant Waiver",
+    );
+  });
+
+  test("names the photo release too when one is written", () => {
+    expect(
+      waiverAcceptanceLabel("Participant Waiver", ["We take photos."]),
+    ).toBe(
+      "I have read and accept the Participant Waiver and the photo and video release",
+    );
   });
 });

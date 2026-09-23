@@ -84,7 +84,7 @@ describe("ContactForm", () => {
     render(<ContactForm details={DETAILS} showRider={false} />);
 
     expect(screen.queryByRole("group", { name: "What you ride" })).toBeNull();
-    expect(screen.queryByLabelText("Preferred mountain")).toBeNull();
+    expect(screen.queryByLabelText("Home mountain")).toBeNull();
 
     await user.type(screen.getByLabelText("Phone"), "9");
     await user.click(save());
@@ -149,7 +149,7 @@ describe("ContactForm", () => {
       const user = userEvent.setup();
       render(<ContactForm details={DETAILS} />);
 
-      const mountain = screen.getByLabelText("Preferred mountain");
+      const mountain = screen.getByLabelText("Home mountain");
       await user.clear(mountain);
       expect(save()).toBeEnabled();
 

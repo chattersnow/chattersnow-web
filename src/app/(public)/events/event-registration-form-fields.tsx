@@ -28,6 +28,7 @@ import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmati
 import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
 import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { waiverAcceptanceLabel } from "@/lib/photo-consent";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
 import {
   optionCountsError,
@@ -488,7 +489,7 @@ export function EventRegistrationForm({
                   required
                 />
                 <FieldLabel htmlFor="registration-waiver" required>
-                  I have read and accept the {waiver.title}
+                  {waiverAcceptanceLabel(waiver.title, photoConsent)}
                 </FieldLabel>
               </Field>
             </>

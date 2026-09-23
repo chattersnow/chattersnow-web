@@ -38,7 +38,9 @@ export async function sayNoMinors(scope: Locator) {
  */
 export async function answerRiding(scope: Locator) {
   const page = scope.page();
-  await scope.getByRole("combobox", { name: /Do you ski or ride\?/ }).click();
+  await scope
+    .getByRole("combobox", { name: /Do you ski or snowboard\?/ })
+    .click();
   await page.getByRole("option", { name: "Snowboard", exact: true }).click();
   await scope
     .getByRole("combobox", { name: /Experience on a snowboard/ })
