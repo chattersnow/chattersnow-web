@@ -414,7 +414,7 @@ export function PersonFormFields({
           </Field>
           <Field>
             <FieldLabel htmlFor={`${idPrefix}-preferredMountain`}>
-              Preferred mountain
+              Home mountain
             </FieldLabel>
             <Input
               id={`${idPrefix}-preferredMountain`}

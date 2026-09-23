@@ -58,6 +58,22 @@
 export const PHOTO_CONSENT_HEADING = "Photos and video";
 
 /**
+ * The label on a registration form's waiver box. Names the photo release too
+ * when the organization has written one, since the box is the last thing read
+ * before submitting and registering carries that agreement (#1376). Nothing
+ * extra is recorded: ticking it is still only the waiver's acceptance.
+ */
+export function waiverAcceptanceLabel(
+  waiverTitle: string,
+  photoConsent: string[],
+): string {
+  const photoRelease = photoConsent.some((paragraph) => paragraph.trim());
+  return photoRelease
+    ? `I have read and accept the ${waiverTitle} and the photo and video release`
+    : `I have read and accept the ${waiverTitle}`;
+}
+
+/**
  * What the RPC raises when somebody tries to record an objection against an
  * organization that publishes no photo notice, and what the Server Action
  * turns it back into.

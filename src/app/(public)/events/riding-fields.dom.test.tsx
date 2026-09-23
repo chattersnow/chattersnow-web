@@ -45,7 +45,7 @@ describe("RidingFields", () => {
       screen.queryByRole("combobox", { name: /Experience on skis/ }),
     ).not.toBeInTheDocument();
 
-    await chooseOption(user, /Do you ski or ride/, "Both");
+    await chooseOption(user, /Do you ski or snowboard/, "Both");
 
     expect(
       screen.getByRole("combobox", { name: /Experience on skis/ }),
@@ -59,7 +59,7 @@ describe("RidingFields", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await chooseOption(user, /Do you ski or ride/, "Snowboard");
+    await chooseOption(user, /Do you ski or snowboard/, "Snowboard");
 
     expect(
       screen.queryByRole("combobox", { name: /Experience on skis/ }),
@@ -73,9 +73,7 @@ describe("RidingFields", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.click(
-      screen.getByRole("combobox", { name: "Preferred mountain for meetups" }),
-    );
+    await user.click(screen.getByRole("combobox", { name: "Home mountain" }));
     const options = (await screen.findAllByRole("option")).map(
       (option) => option.textContent,
     );
@@ -98,7 +96,7 @@ describe("RidingFields", () => {
     );
 
     expect(
-      screen.getByRole("combobox", { name: /Do you ski or ride/ }),
+      screen.getByRole("combobox", { name: /Do you ski or snowboard/ }),
     ).toHaveTextContent("Skis");
     expect(
       screen.getByRole("combobox", { name: /Experience on skis/ }),
@@ -162,7 +160,7 @@ describe("ridingSummaryRows and setRidingFields", () => {
     expect(ridingSummaryRows(values)).toEqual([
       { label: "Skis or snowboard", value: "Snowboard" },
       { label: "Experience on a snowboard", value: "Intermediate" },
-      { label: "Preferred mountain", value: "Jay Peak" },
+      { label: "Home mountain", value: "Jay Peak" },
     ]);
     expect(ridingSummaryRows(EMPTY_RIDING)).toEqual([]);
   });

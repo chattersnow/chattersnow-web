@@ -156,7 +156,7 @@ test.describe("public events", () => {
 
     // The riding questions were step 2 (#1415), so nothing follows the
     // confirmation but the account offer.
-    await expect(form.getByText(/Do you ski or ride/)).toHaveCount(0);
+    await expect(form.getByText(/Do you ski or snowboard/)).toHaveCount(0);
     await expect(
       form.getByRole("button", { name: "Save details" }),
     ).toHaveCount(0);

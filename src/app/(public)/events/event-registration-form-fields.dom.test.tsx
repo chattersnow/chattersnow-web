@@ -606,7 +606,7 @@ describe("EventRegistrationForm and the minors question", () => {
       const boxes = screen.getAllByRole("checkbox");
       expect(boxes).toHaveLength(1);
       expect(boxes[0]).toHaveAccessibleName(
-        "I have read and accept the Participant Waiver",
+        "I have read and accept the Participant Waiver and the photo and video release",
       );
     });
 
@@ -681,13 +681,17 @@ describe("EventRegistrationForm and the riding questions", () => {
     await fillAboutYou(user);
     await toThisEvent(user);
     expect(screen.getByRole("group", { name: /This event/ })).toBeVisible();
-    expect(screen.queryByText(/Do you ski or ride/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Do you ski or snowboard/),
+    ).not.toBeInTheDocument();
 
     await sayNoMinors(user);
     await submit(user);
     expect(lastSubmission()).not.toHaveProperty("ridingAsked");
     expect(await screen.findByText(/You're registered/)).toBeVisible();
-    expect(screen.queryByText(/Do you ski or ride/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Do you ski or snowboard/),
+    ).not.toBeInTheDocument();
   });
 
   test('step 2 is "Your riding", and the discipline is required', async () => {
@@ -715,7 +719,9 @@ describe("EventRegistrationForm and the riding questions", () => {
 
     await fillAboutYou(user);
     await sayNoMinors(user);
-    await user.click(screen.getByRole("combobox", { name: /ski or ride/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /ski or snowboard/ }),
+    );
     await user.click(screen.getByRole("option", { name: "Skis" }));
     await user.click(
       screen.getByRole("combobox", { name: /Experience on skis/ }),
@@ -743,7 +749,9 @@ describe("EventRegistrationForm and the riding questions", () => {
     });
     expect(await screen.findByText(/You're registered/)).toBeVisible();
     expect(screen.queryByText("One more thing")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Do you ski or ride/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Do you ski or snowboard/),
+    ).not.toBeInTheDocument();
   });
 });
 

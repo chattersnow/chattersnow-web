@@ -144,9 +144,7 @@ describe("PersonFormFields", () => {
     );
 
     expect(screen.queryByLabelText("Rides")).not.toBeInTheDocument();
-    expect(
-      screen.queryByLabelText("Preferred mountain"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Home mountain")).not.toBeInTheDocument();
   });
 });
 

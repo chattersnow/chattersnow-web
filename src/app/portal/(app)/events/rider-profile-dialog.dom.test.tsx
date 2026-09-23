@@ -94,7 +94,7 @@ describe("RiderProfileDialog", () => {
       />,
     );
 
-    await chooseOption(user, "Do they ski or ride?", "Snowboard");
+    await chooseOption(user, "Do they ski or snowboard?", "Snowboard");
 
     expect(
       screen.queryByRole("combobox", { name: "Experience on skis" }),
@@ -154,7 +154,7 @@ describe("RiderProfileDialog", () => {
       />,
     );
 
-    await chooseOption(user, "Do they ski or ride?", "Skis");
+    await chooseOption(user, "Do they ski or snowboard?", "Skis");
     await chooseOption(user, "Experience on skis", "Beginner");
     await user.click(
       screen.getByRole("button", { name: "Save rider profile" }),
@@ -190,7 +190,7 @@ describe("RiderProfileDialog", () => {
       />,
     );
 
-    await chooseOption(user, "Do they ski or ride?", "Skis");
+    await chooseOption(user, "Do they ski or snowboard?", "Skis");
     await chooseOption(user, "Experience on skis", "Beginner");
     await user.click(
       screen.getByRole("button", { name: "Save rider profile" }),

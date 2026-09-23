@@ -442,7 +442,7 @@ describe("MyEventRegistrationForm and the riding questions", () => {
     await toThisEvent(user);
     expect(screen.getByRole("group", { name: /Your riding/ })).toBeVisible();
     expect(
-      screen.getByRole("combobox", { name: /ski or ride/ }),
+      screen.getByRole("combobox", { name: /ski or snowboard/ }),
     ).toHaveTextContent("Both");
     // Not on today's list, so it is kept as a typed name under Other.
     expect(screen.getByLabelText("Which mountain?")).toHaveValue("Jay Peak");
