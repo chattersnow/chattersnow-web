@@ -15,6 +15,7 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
 import {
@@ -63,6 +64,7 @@ export function MyEventRegistrationForm({
   waiver = null,
   waiverBlock = null,
   waiverOnFile = null,
+  asksAboutMinors = true,
   minorAccompaniment = [],
   photoConsent = [],
   registrationOptions = null,
@@ -86,6 +88,13 @@ export function MyEventRegistrationForm({
    * different version -- the page raced a republish -- asks in full.
    */
   waiverOnFile?: WaiverOnFile | null;
+  /**
+   * Whether this organization asks about under-18s at registration (#1416).
+   * Off, the question and the contacts it reveals do not render and nothing
+   * about them is sent. On -- the default, and every tenant that has not
+   * turned it off -- is #685's form unchanged.
+   */
+  asksAboutMinors?: boolean;
   /**
    * This organization's rule for a party that includes anyone under 18
    * (#685). Empty on a tenant that has written none.
@@ -172,8 +181,11 @@ export function MyEventRegistrationForm({
     formData.set("pronouns", pronouns);
     formData.set("instagramHandle", instagramHandle);
     formData.set("attendedBefore", attendedBefore);
-    formData.set("partyIncludesMinor", partyIncludesMinor);
-    if (partyIncludesMinor === "yes") {
+    if (asksAboutMinors) {
+      formData.set(MINORS_ASKED_FIELD, "on");
+      formData.set("partyIncludesMinor", partyIncludesMinor);
+    }
+    if (asksAboutMinors && partyIncludesMinor === "yes") {
       for (const [key, value] of Object.entries(minorContacts)) {
         formData.set(key, value);
       }
@@ -302,20 +314,24 @@ export function MyEventRegistrationForm({
                 the same component (#685). A signed-in caller is not exempt: an
                 account says who is registering and nothing about who is coming
                 with them. */}
-          <PartyIncludesMinorField
-            id="my-registration-party-includes-minor"
-            value={partyIncludesMinor}
-            onChange={setPartyIncludesMinor}
-            disabled={isPending}
-          />
-          {partyIncludesMinor === "yes" && (
-            <MinorAccompanimentFields
-              idPrefix="my-registration"
-              paragraphs={minorAccompaniment}
-              values={minorContacts}
-              onChange={setMinorContacts}
-              disabled={isPending}
-            />
+          {asksAboutMinors && (
+            <>
+              <PartyIncludesMinorField
+                id="my-registration-party-includes-minor"
+                value={partyIncludesMinor}
+                onChange={setPartyIncludesMinor}
+                disabled={isPending}
+              />
+              {partyIncludesMinor === "yes" && (
+                <MinorAccompanimentFields
+                  idPrefix="my-registration"
+                  paragraphs={minorAccompaniment}
+                  values={minorContacts}
+                  onChange={setMinorContacts}
+                  disabled={isPending}
+                />
+              )}
+            </>
           )}
 
           {riderProfile && (

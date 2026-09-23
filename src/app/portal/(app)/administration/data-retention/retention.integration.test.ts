@@ -225,6 +225,7 @@ const OWNED_TABLES = [
   "donations",
   "events",
   "people",
+  "app_settings",
   "role_permissions",
   "user_roles",
   "tenant_memberships",
@@ -683,6 +684,18 @@ describe("run_retention_purge", () => {
         });
         return data.id as string;
       }
+
+      // #1416. This tenant has stopped asking about under-18s, which must not
+      // stop the purge clearing contacts collected while it still asked: the
+      // rule reads the columns, never the setting.
+      const { error: settingError } = await serviceClient
+        .from("app_settings")
+        .insert({
+          tenant_id: await tenantId(),
+          key: "registration.asks_about_minors",
+          value: false,
+        });
+      if (settingError) throw settingError;
 
       oldRegistrationId = await eventEndingAt(Date.now() - 7 * DAY);
       // Ten days out, so it stays inside the window at every clock these tests

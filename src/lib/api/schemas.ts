@@ -115,7 +115,7 @@ export const eventRegistrationSchema = z
     // is the one rule the organization's own policy rests on.
     party_includes_minor: z.boolean().optional().meta({
       description:
-        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no.",
+        "Whether anyone in the party is under 18. Omit it if you did not ask; it is never read as a no. Ignored, with the four contacts, when the organization does not ask about under-18s.",
     }),
     accompanying_adult_name: optionalText(200).meta({
       description:

@@ -315,6 +315,26 @@ describe("MyEventRegistrationForm and the minors question", () => {
       emergencyContactPhone: "555-0102",
     });
   });
+
+  // #1416
+  test("a tenant that does not ask shows and sends nothing about it", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyEventRegistrationForm
+        eventId="event-1"
+        person={person}
+        asksAboutMinors={false}
+      />,
+    );
+
+    await toThisEvent(user);
+    expect(screen.queryByLabelText(/under 18/i)).toBeNull();
+
+    await submitForm(user);
+    const submission = lastSubmission();
+    expect(submission).not.toHaveProperty("minorsAsked");
+    expect(submission).not.toHaveProperty("partyIncludesMinor");
+  });
 });
 
 // #599, reversed by #1376. Shown to a signed-in caller exactly as to an

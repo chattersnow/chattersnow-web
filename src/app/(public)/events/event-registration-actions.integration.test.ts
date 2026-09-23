@@ -52,6 +52,7 @@ const { registerForEventAction } = await import("./event-registration-actions");
  */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set("minorsAsked", "on");
   fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;

@@ -9021,6 +9021,12 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_registration_settings: {
+        Row: {
+          asks_about_minors: boolean | null;
+        };
+        Relationships: [];
+      };
       public_rider_profile_settings: {
         Row: {
           mountains: Json | null;
@@ -10278,6 +10284,7 @@ export type Database = {
         };
         Returns: string;
       };
+      registration_asks_about_minors: { Args: never; Returns: boolean };
       registration_option_defaults: {
         Args: { p_tenant_id: string };
         Returns: Json;
@@ -10774,6 +10781,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      set_registration_asks_about_minors: {
+        Args: { p_enabled: boolean };
+        Returns: undefined;
+      };
       set_retention_policy_mode: {
         Args: { p_mode: string; p_policy_key: string };
         Returns: undefined;
@@ -10852,6 +10863,10 @@ export type Database = {
       sync_event_sponsor_donations: {
         Args: { p_items: Json; p_sponsor_id: string };
         Returns: undefined;
+      };
+      tenant_asks_about_minors: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
       };
       tenant_asks_photo_consent: { Args: never; Returns: boolean };
       tenant_data_snapshot: { Args: { p_tenant_id: string }; Returns: Json };

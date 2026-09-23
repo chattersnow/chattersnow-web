@@ -1,11 +1,6 @@
 import type { ParseResult } from "@/lib/forms";
 import { parseAttendedBefore } from "@/lib/attended-before";
-import {
-  PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
-  parseMinorContacts,
-  parsePartyIncludesMinor,
-  type MinorContacts,
-} from "@/lib/minors";
+import { parseRegistrationMinors, type MinorContacts } from "@/lib/minors";
 import { parsePronouns } from "@/lib/pronouns";
 import {
   parseRegistrationRiding,
@@ -51,14 +46,14 @@ export type EventRegistrationFormData = {
   /**
    * Whether the party includes anyone under 18 (#685).
    *
-   * Required by this parser, unlike `attended_before`: the accompanying-adult
-   * block, the organizer's flag and the organization's own rule all hang off
-   * it, so an unanswered question here leaves exactly the gap the field
-   * exists to close. The *column* stays three-state — null is "nobody was
-   * asked", which is what a walk-in and a public API caller are — and it is
-   * the RPC, not this parser, that has to keep accepting those.
+   * Required by this parser wherever the form asked it, unlike
+   * `attended_before`: the accompanying-adult block, the organizer's flag and
+   * the organization's own rule all hang off it, so an unanswered question
+   * here leaves exactly the gap the field exists to close. Null where the
+   * form did not ask (#1416) -- the column's "nobody was asked", which is also
+   * what a walk-in and a public API caller are.
    */
-  party_includes_minor: boolean;
+  party_includes_minor: boolean | null;
   /**
    * The answer to the event's registration question (#1407), or null where
    * the form showed none. Not checked against the party size here: whether
@@ -85,10 +80,6 @@ export function parseEventRegistrationForm(
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
   const attended_before = parseAttendedBefore(formData.get("attendedBefore"));
-  const party_includes_minor = parsePartyIncludesMinor(
-    formData.get("partyIncludesMinor"),
-  );
-  const minorContacts = parseMinorContacts(party_includes_minor, formData);
   const waiver_accepted = formData.get("waiverAccepted") === "on";
   // Digits only, and no leading zero, the same discipline `selectLegalVersion`
   // applies to `?version=`. Anything else is treated as "not sent" rather than
@@ -119,23 +110,15 @@ export function parseEventRegistrationForm(
     return { error: "Party size must be at least 1.", field: "partySize" };
   }
 
-  if (party_includes_minor === null) {
-    return {
-      error: PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
-      field: "partyIncludesMinor",
-    };
-  }
-  if ("error" in minorContacts) {
-    return { ...minorContacts, field: "minorContacts" };
-  }
+  const minors = parseRegistrationMinors(formData);
+  if ("error" in minors) return minors;
 
   const riding = parseRegistrationRiding(formData);
   if ("error" in riding) return riding;
 
   return {
     data: {
-      ...minorContacts.data,
-      party_includes_minor,
+      ...minors.data,
       name,
       email,
       phone: phone || null,

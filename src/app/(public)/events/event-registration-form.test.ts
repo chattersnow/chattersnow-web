@@ -5,18 +5,22 @@ import {
 } from "./event-registration-form";
 import {
   MINOR_CONTACTS_REQUIRED_ERROR,
+  MINORS_ASKED_FIELD,
   PARTY_INCLUDES_MINOR_REQUIRED_ERROR,
 } from "@/lib/minors";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 
 /**
- * The minors question is required (#685), so every case that expects a
- * *parse* rather than an error has to answer it. Defaulted to "no" here
- * rather than added to two dozen call sites, and overridable per case — the
- * cases that are about the question itself pass their own value.
+ * The minors question is required wherever it is asked (#685), and it is
+ * asked on every tenant that has not turned it off (#1416), so every case
+ * that expects a *parse* rather than an error has to answer it. Defaulted to
+ * asked-and-"no" here rather than added to two dozen call sites, and
+ * overridable per case — the cases that are about the question itself pass
+ * their own value.
  */
 function formData(fields: Record<string, string>) {
   const fd = new FormData();
+  fd.set(MINORS_ASKED_FIELD, "on");
   fd.set("partyIncludesMinor", "no");
   for (const [key, value] of Object.entries(fields)) fd.set(key, value);
   return fd;
@@ -370,6 +374,51 @@ describe("parseEventRegistrationForm", () => {
         accompanying_adult_name: null,
         accompanying_adult_phone: null,
         emergency_contact_name: null,
+        emergency_contact_phone: null,
+      },
+    });
+  });
+});
+
+// #1416. A tenant with the question off: the form sends no marker, nothing
+// is required, and anything sent anyway is dropped.
+describe("parseEventRegistrationForm, question not asked", () => {
+  function notAsked(fields: Record<string, string>) {
+    const fd = formData(fields);
+    fd.delete(MINORS_ASKED_FIELD);
+    fd.delete("partyIncludesMinor");
+    return fd;
+  }
+
+  test("parses without an answer", () => {
+    expect(
+      parseEventRegistrationForm(
+        notAsked({ name: "Jane", email: "jane@example.com" }),
+      ),
+    ).toMatchObject({
+      data: {
+        party_includes_minor: null,
+        accompanying_adult_name: null,
+        emergency_contact_phone: null,
+      },
+    });
+  });
+
+  test("ignores an answer and contacts sent anyway", () => {
+    expect(
+      parseEventRegistrationForm(
+        notAsked({
+          name: "Jane",
+          email: "jane@example.com",
+          partyIncludesMinor: "yes",
+          accompanyingAdultName: "Jane Doe",
+          emergencyContactPhone: "555-9876",
+        }),
+      ),
+    ).toMatchObject({
+      data: {
+        party_includes_minor: null,
+        accompanying_adult_name: null,
         emergency_contact_phone: null,
       },
     });
