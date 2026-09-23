@@ -23,8 +23,9 @@ import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import {
   completeRegistration,
-  continueToBeforeYouGo,
+  continueToReview,
   sayNoMinors,
+  continueToThisEvent,
 } from "./helpers/registration";
 
 const SLOT_KEY = "events.photo_consent";
@@ -93,9 +94,10 @@ test.describe("photos and video at registration", () => {
     await dialog
       .getByLabel("Email")
       .fill(`photo-reader-${Date.now()}@example.test`);
+    await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
-    // The notices are on the second step on a phone (#1403).
-    await continueToBeforeYouGo(dialog);
+    // The notices are on the review step (#1413).
+    await continueToReview(dialog);
 
     const heading = dialog.getByRole("heading", { name: "Photos and video" });
     await expect(heading).toBeVisible();
@@ -127,6 +129,7 @@ test.describe("photos and video at registration", () => {
     const dialog = await openRegistrationForm(page);
     await dialog.getByLabel("Name").fill("Photo Notice");
     await dialog.getByLabel("Email").fill(email);
+    await continueToThisEvent(dialog);
     await sayNoMinors(dialog);
     await completeRegistration(dialog);
 
@@ -155,8 +158,21 @@ test.describe("photos and video at registration", () => {
     await writeScope();
 
     const dialog = await openRegistrationForm(page);
+    await dialog.getByLabel("Name").fill("Photo Guardian");
+    await dialog
+      .getByLabel("Email")
+      .fill(`photo-guardian-${Date.now()}@example.test`);
+    // The question and its contacts are on "This event" (#1413); the contacts
+    // are required once the answer is yes, so they are filled to move on.
+    await continueToThisEvent(dialog);
     await dialog.getByLabel(/Is anyone in your party under 18\?/).click();
     await page.getByRole("option", { name: "Yes", exact: true }).click();
+    await expect(dialog.getByText(/parent or guardian/i)).toHaveCount(0);
+    await dialog.getByLabel(/Accompanying adult's name/).fill("Pat Guardian");
+    await dialog.getByLabel(/Accompanying adult's mobile/).fill("555-0101");
+    await dialog.getByLabel(/Emergency contact's name/).fill("Sam Guardian");
+    await dialog.getByLabel(/Emergency contact's phone/).fill("555-0102");
+    await continueToReview(dialog);
 
     await expect(
       dialog.getByRole("heading", { name: "Photos and video" }),

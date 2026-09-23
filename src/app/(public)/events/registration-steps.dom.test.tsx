@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RegistrationStep } from "./registration-step";
@@ -22,138 +22,163 @@ mock.module("./event-registration-actions", () => ({
 const { EventRegistrationForm } =
   await import("./event-registration-form-fields");
 
-/**
- * Tailwind is not loaded here, so without this every step is on screen and
- * the form behaves as it does on a wide one. This is the one rule the stepping
- * depends on, applied as a phone would apply it.
- */
-function actLikeAPhone() {
-  const style = document.createElement("style");
-  style.textContent = '[class~="max-sm:hidden"] { display: none; }';
-  document.head.append(style);
-  return () => style.remove();
-}
+type User = ReturnType<typeof userEvent.setup>;
 
-async function fillAboutYou(user: ReturnType<typeof userEvent.setup>) {
+const aboutYou = () => screen.queryByRole("group", { name: /About you/ });
+const thisEvent = () => screen.queryByRole("group", { name: /This event/ });
+const review = () => screen.queryByRole("group", { name: /Review and agree/ });
+const next = () => screen.getByRole("button", { name: "Next" });
+
+async function fillAboutYou(user: User) {
   await user.type(screen.getByLabelText(/^Name/), "Jane");
   await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+}
+
+async function fillThisEvent(user: User) {
   await user.click(screen.getByLabelText(/under 18/i));
   await user.click(
     screen.getByRole("option", { name: /everyone is 18 or over/i }),
   );
 }
 
-const aboutYou = () => screen.getByRole("group", { name: /About you/ });
-const beforeYouGo = () => screen.getByRole("group", { name: /Before you go/ });
+async function reachReview(user: User) {
+  await fillAboutYou(user);
+  await user.click(next());
+  await fillThisEvent(user);
+  await user.click(next());
+}
 
-describe("RegistrationSteps (#1403)", () => {
+describe("RegistrationSteps (#1413)", () => {
   beforeEach(() => {
     registerForEventActionMock.mockClear();
   });
 
-  test("a wide screen shows both groups, under their legends", () => {
+  test("starts on About you, with Next and no submit or Back", () => {
     render(<EventRegistrationForm eventId="event-1" />);
 
     expect(aboutYou()).toBeVisible();
-    expect(beforeYouGo()).toBeVisible();
+    expect(screen.getByText("Step 1 of 3")).toBeVisible();
+    expect(thisEvent()).toBeNull();
+    expect(review()).toBeNull();
+    expect(next()).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Complete registration" }),
+    ).toBeNull();
+  });
+
+  test("does not ask for a phone number", () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    expect(screen.queryByLabelText(/phone/i)).toBeNull();
+  });
+
+  test("Next will not leave a required field empty behind it", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+
+    await user.click(next());
+    expect(aboutYou()).toBeVisible();
+
+    await fillAboutYou(user);
+    await user.click(next());
+    expect(thisEvent()).toBeVisible();
+
+    // The under-18 question is required on this step.
+    await user.click(next());
+    expect(thisEvent()).toBeVisible();
+    expect(review()).toBeNull();
+  });
+
+  test("walks all three steps, and Back keeps what was typed", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou(user);
+
+    await user.click(next());
+    expect(thisEvent()).toHaveFocus();
+    expect(screen.getByText("Step 2 of 3")).toBeVisible();
+    await fillThisEvent(user);
+
+    await user.click(next());
+    expect(review()).toHaveFocus();
     expect(
       screen.getByRole("button", { name: "Complete registration" }),
     ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(aboutYou()).toBeVisible();
+    expect(screen.getByLabelText(/^Name/)).toHaveValue("Jane");
+    expect(screen.getByLabelText(/^Email/)).toHaveValue("jane@example.com");
   });
 
-  describe("on a phone", () => {
-    let restore: () => void;
-    beforeEach(() => {
-      restore = actLikeAPhone();
-    });
-    afterEach(() => restore());
+  test("the review summarises both steps, and Edit goes back to each", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+    await reachReview(user);
 
-    test("starts on the first step, with Next and no submit", () => {
-      render(<EventRegistrationForm eventId="event-1" />);
+    const summary = review()!;
+    expect(summary).toHaveTextContent("Jane");
+    expect(summary).toHaveTextContent("jane@example.com");
+    expect(summary).toHaveTextContent("Number attending");
+    expect(summary).toHaveTextContent("everyone is 18 or over");
 
-      expect(aboutYou()).toBeVisible();
-      expect(screen.queryByRole("group", { name: /Before you go/ })).toBeNull();
-      expect(screen.getByRole("button", { name: "Next" })).toBeVisible();
-      expect(
-        screen.queryByRole("button", { name: "Complete registration" }),
-      ).toBeNull();
-    });
+    await user.click(screen.getByRole("button", { name: "Edit this event" }));
+    expect(thisEvent()).toHaveFocus();
 
-    test("Next will not leave a required field empty behind it", async () => {
-      const user = userEvent.setup();
-      render(<EventRegistrationForm eventId="event-1" />);
+    await user.click(next());
+    await user.click(screen.getByRole("button", { name: "Edit about you" }));
+    expect(aboutYou()).toHaveFocus();
+  });
 
-      await user.click(screen.getByRole("button", { name: "Next" }));
+  test("Enter in a field before the last step means Next, not submit", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou(user);
 
-      expect(aboutYou()).toBeVisible();
-      expect(screen.queryByRole("group", { name: /Before you go/ })).toBeNull();
-    });
+    await user.type(screen.getByLabelText(/^Name/), "{Enter}");
 
-    test("Next moves on, and Back keeps what was typed", async () => {
-      const user = userEvent.setup();
-      render(<EventRegistrationForm eventId="event-1" />);
-      await fillAboutYou(user);
+    expect(registerForEventActionMock).not.toHaveBeenCalled();
+    expect(thisEvent()).toBeVisible();
+  });
 
-      await user.click(screen.getByRole("button", { name: "Next" }));
-      expect(beforeYouGo()).toBeVisible();
-      expect(beforeYouGo()).toHaveFocus();
-      expect(screen.queryByRole("group", { name: /About you/ })).toBeNull();
+  test("submits from the review step", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+    await reachReview(user);
 
-      await user.click(screen.getByRole("button", { name: "Back" }));
-      expect(aboutYou()).toBeVisible();
-      expect(screen.getByLabelText(/^Name/)).toHaveValue("Jane");
-      expect(screen.getByLabelText(/^Email/)).toHaveValue("jane@example.com");
-    });
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
 
-    test("Enter in a first-step field means Next, not submit", async () => {
-      const user = userEvent.setup();
-      render(<EventRegistrationForm eventId="event-1" />);
-      await fillAboutYou(user);
+    expect(registerForEventActionMock).toHaveBeenCalledTimes(1);
+    const formData = registerForEventActionMock.mock.calls[0][1];
+    expect(formData.has("phone")).toBe(false);
+  });
 
-      await user.type(screen.getByLabelText(/^Name/), "{Enter}");
-
-      expect(registerForEventActionMock).not.toHaveBeenCalled();
-      expect(beforeYouGo()).toBeVisible();
-    });
-
-    test("an error about a first-step field comes back to that step", async () => {
+  test.each([
+    ["about", "This email is already registered for this event.", aboutYou],
+    ["event", "Party size must be at least 1.", thisEvent],
+    ["review", "This event has reached capacity.", review],
+  ] as const)(
+    "a server error about the %s step comes back to it",
+    async (step, message, group) => {
       registerForEventActionMock.mockImplementationOnce(async () => ({
-        error: "This email is already registered for this event.",
-        step: "details",
+        error: message,
+        step,
       }));
       const user = userEvent.setup();
       render(<EventRegistrationForm eventId="event-1" />);
-      await fillAboutYou(user);
-      await user.click(screen.getByRole("button", { name: "Next" }));
+      await reachReview(user);
 
       await user.click(
         screen.getByRole("button", { name: "Complete registration" }),
       );
 
-      expect(aboutYou()).toBeVisible();
-      expect(
-        screen.getByText("This email is already registered for this event."),
-      ).toBeVisible();
-    });
-
-    test("any other error stays with the button", async () => {
-      registerForEventActionMock.mockImplementationOnce(async () => ({
-        error: "This event has reached capacity.",
-        step: "confirm",
-      }));
-      const user = userEvent.setup();
-      render(<EventRegistrationForm eventId="event-1" />);
-      await fillAboutYou(user);
-      await user.click(screen.getByRole("button", { name: "Next" }));
-
-      await user.click(
-        screen.getByRole("button", { name: "Complete registration" }),
-      );
-
-      expect(beforeYouGo()).toBeVisible();
-      expect(
-        screen.getByText("This event has reached capacity."),
-      ).toBeVisible();
-    });
-  });
+      expect(group()).toBeVisible();
+      expect(screen.getByText(message)).toBeVisible();
+    },
+  );
 });

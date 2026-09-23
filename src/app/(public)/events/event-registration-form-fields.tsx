@@ -5,6 +5,7 @@ import { registerForEventAction } from "./event-registration-actions";
 import { RiderProfileForm } from "./rider-profile-form-fields";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
+import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -117,7 +118,6 @@ export function EventRegistrationForm({
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
-  const [phone, setPhone] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [pronouns, setPronouns] = useState("");
   // #1259. Starts empty and stays empty unless the registrant picks something:
@@ -154,7 +154,7 @@ export function EventRegistrationForm({
     if (registrationOptions) {
       const message = optionCountsError(optionCounts, Number(partySize));
       if (message) {
-        setError({ message, step: "details" });
+        setError({ message, step: "event" });
         return;
       }
     }
@@ -162,7 +162,6 @@ export function EventRegistrationForm({
     const formData = new FormData();
     formData.set("name", name);
     formData.set("email", email);
-    formData.set("phone", phone);
     formData.set("instagramHandle", instagramHandle);
     formData.set("pronouns", pronouns);
     formData.set("attendedBefore", attendedBefore);
@@ -241,7 +240,7 @@ export function EventRegistrationForm({
       isPending={isPending}
       onSubmit={handleSubmit}
       submitVariant="rainbow"
-      details={
+      about={
         <>
           {account?.email && (
             // One line, and no more than that. It says which session is
@@ -262,30 +261,21 @@ export function EventRegistrationForm({
               onChange={(event) => setName(event.target.value)}
             />
           </Field>
-          <Field orientation="responsive">
-            <Field>
-              <FieldLabel htmlFor="registration-email" required>
-                Email
-              </FieldLabel>
-              <Input
-                id="registration-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="registration-phone">Phone</FieldLabel>
-              <Input
-                id="registration-phone"
-                type="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-              />
-            </Field>
+          {/* No phone number (#1413). The column stays, and staff can still
+              fill it in from the portal; the numbers for a party with anyone
+              under 18 are asked on "This event", as before. */}
+          <Field>
+            <FieldLabel htmlFor="registration-email" required>
+              Email
+            </FieldLabel>
+            <Input
+              id="registration-email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </Field>
           {/* Instagram and pronouns stay here rather than moving to the
               rider-profile step after registering (#1403). Neither is
@@ -323,6 +313,26 @@ export function EventRegistrationForm({
             value={attendedBefore}
             onChange={setAttendedBefore}
           />
+
+          {/* Honeypot: hidden from sighted/keyboard users, but bots that
+              autofill every field will fill this and get silently rejected
+              server-side. Not type="hidden" -- bots skip those. On the first
+              step, beside the fields a bot fills first. */}
+          <div className="sr-only" aria-hidden="true">
+            <label htmlFor="registration-company">Company</label>
+            <input
+              id="registration-company"
+              name="company"
+              tabIndex={-1}
+              autoComplete="off"
+              value={company}
+              onChange={(event) => setCompany(event.target.value)}
+            />
+          </div>
+        </>
+      }
+      event={
+        <>
           <Field>
             <FieldLabel htmlFor="registration-party-size">
               Number attending
@@ -376,26 +386,30 @@ export function EventRegistrationForm({
               onChange={(event) => setNotes(event.target.value)}
             />
           </Field>
-
-          {/* Honeypot: hidden from sighted/keyboard users, but bots that
-              autofill every field will fill this and get silently rejected
-              server-side. Not type="hidden" -- bots skip those. */}
-          <div className="sr-only" aria-hidden="true">
-            <label htmlFor="registration-company">Company</label>
-            <input
-              id="registration-company"
-              name="company"
-              tabIndex={-1}
-              autoComplete="off"
-              value={company}
-              onChange={(event) => setCompany(event.target.value)}
-            />
-          </div>
         </>
       }
-      // Never null here: the privacy notice is always on this form, so there
-      // are always two steps.
-      confirm={
+      summary={{
+        about: [
+          { label: "Name", value: name.trim() },
+          { label: "Email", value: email.trim() },
+          ...(instagramHandle.trim()
+            ? [{ label: "Instagram", value: instagramHandle.trim() }]
+            : []),
+          ...(pronouns.trim()
+            ? [{ label: "Pronouns", value: pronouns.trim() }]
+            : []),
+          ...attendedBeforeRows(attendedBefore),
+        ],
+        event: eventSummaryRows({
+          partySize,
+          partyIncludesMinor,
+          minorContacts,
+          registrationOptions,
+          optionCounts,
+          notes,
+        }),
+      }}
+      review={
         <>
           <PrivacyNotice surface="eventRegistration" />
 

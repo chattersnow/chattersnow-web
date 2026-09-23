@@ -10,7 +10,7 @@ import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
 mock.module("server-only", () => ({}));
 
 type RegisterMyselfResult =
-  | { error: string; step: "details" | "confirm" }
+  | { error: string; step: "about" | "event" | "review" }
   | { success: true; registrationId: string };
 
 const registerMyselfForEventActionMock = mock<
@@ -45,15 +45,40 @@ const person: MyContactDetails = {
   address_country: null,
 };
 
-/**
- * #685: the minors question is required here exactly as it is on the anonymous
- * form, so every case that expects a submission has to answer it.
- */
 // Structural rather than `typeof userEvent`: the default export and what
 // `userEvent.setup()` returns are different types, and both are passed here.
-async function sayNoMinors(
-  user: { click: (element: Element) => Promise<unknown> } = userEvent,
-) {
+type Clicker = { click: (element: Element) => Promise<unknown> };
+
+/** Presses Next once, to the following step (#1413). */
+async function next(user: Clicker = userEvent) {
+  await user.click(screen.getByRole("button", { name: "Next" }));
+}
+
+/** Moves to "This event" unless already there. */
+async function toThisEvent(user: Clicker = userEvent) {
+  if (screen.queryByRole("group", { name: /This event/ })) return;
+  await next(user);
+}
+
+/** Presses Next through to the review step and submits from there. */
+async function submitForm(user: Clicker = userEvent) {
+  for (let press = 0; press < 2; press++) {
+    const button = screen.queryByRole("button", { name: "Next" });
+    if (!button) break;
+    await user.click(button);
+  }
+  await user.click(
+    screen.getByRole("button", { name: "Complete registration" }),
+  );
+}
+
+/**
+ * #685: the minors question is required here exactly as it is on the anonymous
+ * form, so every case that expects a submission has to answer it. It is on
+ * "This event", so this goes there first.
+ */
+async function sayNoMinors(user: Clicker = userEvent) {
+  await toThisEvent(user);
   await user.click(screen.getByLabelText(/under 18/i));
   await user.click(
     screen.getByRole("option", { name: /everyone is 18 or over/i }),
@@ -79,20 +104,28 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
     registerMyselfForEventActionMock.mockClear();
   });
 
-  // #1403. With no agreement and no photo paragraphs there is nothing for a
-  // second step to hold, so there is no second step and no legend over the one.
-  test("is a single step when there is nothing to agree to or be told", () => {
+  // #1413. The same three steps as the anonymous form. With no agreement and
+  // no photo paragraphs, the review is the summary on its own.
+  test("is three steps, with a summary when there is nothing to agree to", async () => {
     render(<MyEventRegistrationForm eventId="event-1" person={person} />);
 
-    expect(screen.queryByRole("group", { name: /About you/ })).toBeNull();
-    expect(screen.queryByRole("group", { name: /Before you go/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(screen.getByRole("group", { name: /About you/ })).toBeVisible();
+    await sayNoMinors();
+    await next();
+
+    const review = screen.getByRole("group", { name: /Review and agree/ });
+    expect(review).toHaveTextContent("Jamie Rivera");
+    expect(review).toHaveTextContent("jamie@example.test");
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Complete registration" }),
+    ).toBeVisible();
   });
 
   test("shows nothing when the tenant takes no agreement", () => {
     render(<MyEventRegistrationForm eventId="event-1" person={person} />);
 
-    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("checkbox", { hidden: true })).toBeNull();
   });
 
   test("starts unticked and posts the version it was shown", async () => {
@@ -104,6 +137,8 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
         waiverBlock={<p>The agreement itself</p>}
       />,
     );
+    await sayNoMinors();
+    await next();
 
     expect(screen.getByText("The agreement itself")).toBeVisible();
     const box = screen.getByRole("checkbox", {
@@ -112,10 +147,7 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
     expect(box).not.toBeChecked();
 
     await userEvent.click(box);
-    await sayNoMinors();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submitForm();
 
     expect(lastSubmission()).toMatchObject({
       waiverAccepted: "on",
@@ -135,6 +167,8 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
         waiverOnFile={{ version: 7, accepted_at: "2026-10-04T17:00:00Z" }}
       />,
     );
+    await sayNoMinors();
+    await next();
 
     expect(screen.queryByText("The agreement itself")).toBeNull();
     expect(screen.queryByRole("checkbox")).toBeNull();
@@ -145,10 +179,7 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
       screen.getByRole("link", { name: /Participant agreement, version 7/ }),
     ).toHaveAttribute("href", "/waiver?version=7");
 
-    await sayNoMinors();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submitForm();
 
     // No tick to send, and the version it relied on still goes so the RPC can
     // tell a republish from a missing tick.
@@ -158,7 +189,7 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
     });
   });
 
-  test("asks in full when what is on file is an older version", () => {
+  test("asks in full when what is on file is an older version", async () => {
     render(
       <MyEventRegistrationForm
         eventId="event-1"
@@ -168,6 +199,8 @@ describe("MyEventRegistrationForm and the participant agreement", () => {
         waiverOnFile={{ version: 7, accepted_at: "2026-10-04T17:00:00Z" }}
       />,
     );
+    await sayNoMinors();
+    await next();
 
     expect(screen.getByText("The agreement itself")).toBeVisible();
     expect(
@@ -194,9 +227,7 @@ describe("MyEventRegistrationForm and the been-before question", () => {
     render(<MyEventRegistrationForm eventId="event-1" person={person} />);
 
     await sayNoMinors(user);
-    await user.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submitForm(user);
 
     // A linked person has a full attendance record in the portal, and it is
     // still not used to answer for them: the column is what they said, and
@@ -216,9 +247,7 @@ describe("MyEventRegistrationForm and the been-before question", () => {
       screen.getByRole("option", { name: "Yes, I've been to one before" }),
     );
     await sayNoMinors(user);
-    await user.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submitForm(user);
 
     expect(lastSubmission().attendedBefore).toBe("yes");
   });
@@ -233,8 +262,9 @@ describe("MyEventRegistrationForm and the minors question", () => {
     registerMyselfForEventActionMock.mockClear();
   });
 
-  test("asks it, in the same words the anonymous form uses", () => {
+  test("asks it, in the same words the anonymous form uses", async () => {
     render(<MyEventRegistrationForm eventId="event-1" person={person} />);
+    await toThisEvent();
 
     expect(
       screen.getByLabelText(/Is anyone in your party under 18\?/),
@@ -253,6 +283,7 @@ describe("MyEventRegistrationForm and the minors question", () => {
 
     expect(screen.queryByLabelText(/Accompanying adult's name/i)).toBeNull();
 
+    await toThisEvent(user);
     await user.click(screen.getByLabelText(/under 18/i));
     await user.click(screen.getByRole("option", { name: "Yes" }));
 
@@ -276,9 +307,7 @@ describe("MyEventRegistrationForm and the minors question", () => {
       screen.getByLabelText(/Emergency contact's phone/i),
       "555-0102",
     );
-    await user.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submitForm(user);
 
     expect(lastSubmission()).toMatchObject({
       partyIncludesMinor: "yes",
@@ -303,17 +332,18 @@ describe("MyEventRegistrationForm and the photo notice (#1376)", () => {
 
   async function submit() {
     await sayNoMinors();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Complete registration" }),
-    );
+    await submitForm();
   }
 
   test("says nothing, and posts nothing, when the tenant has written none", async () => {
     render(<MyEventRegistrationForm eventId="event-1" person={person} />);
 
-    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("checkbox", { hidden: true })).toBeNull();
     expect(
-      screen.queryByRole("heading", { name: PHOTO_CONSENT_HEADING }),
+      screen.queryByRole("heading", {
+        name: PHOTO_CONSENT_HEADING,
+        hidden: true,
+      }),
     ).toBeNull();
     await submit();
 
@@ -329,13 +359,18 @@ describe("MyEventRegistrationForm and the photo notice (#1376)", () => {
       />,
     );
 
+    // `hidden: true`: these are on the review step, and the question is what
+    // the form carries rather than what is on screen.
     expect(
-      screen.getByRole("heading", { name: PHOTO_CONSENT_HEADING }),
+      screen.getByRole("heading", {
+        name: PHOTO_CONSENT_HEADING,
+        hidden: true,
+      }),
     ).toBeInTheDocument();
     for (const paragraph of SCOPE) {
       expect(screen.getByText(paragraph)).toBeInTheDocument();
     }
-    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.queryAllByRole("checkbox", { hidden: true })).toHaveLength(0);
   });
 
   // The wire guard: a registration taken through this form records nothing

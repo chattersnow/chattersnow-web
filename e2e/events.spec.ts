@@ -2,7 +2,12 @@ import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./helpers/test";
 import { modal } from "./helpers/dialog";
 import { clickNavLink } from "./helpers/nav";
-import { completeRegistration, sayNoMinors } from "./helpers/registration";
+import {
+  completeRegistration,
+  continueToReview,
+  continueToThisEvent,
+  sayNoMinors,
+} from "./helpers/registration";
 import { SEEDED_EVENT_IDS } from "../test/seed-fixtures";
 
 const EVENT_NAME = "Winter Gear Swap";
@@ -34,6 +39,7 @@ async function registerFromSheet(dialog: Locator, name: string, email: string) {
   await dialog.getByLabel("Email").fill(email);
   // Required since #685, and answered "no" so this helper stays about
   // registering rather than about who is in the party.
+  await continueToThisEvent(dialog);
   await sayNoMinors(dialog);
   await completeRegistration(dialog);
 }
@@ -192,6 +198,48 @@ test.describe("public events", () => {
         "Thanks — we'll use this to point you at the right group.",
       ),
     ).toBeVisible();
+  });
+
+  // #1413. Three steps at every width, with a summary that goes back to each,
+  // and a refusal about a typed field lands on the step that field is on.
+  test("registration steps through, reviews, and returns to a refused field", async ({
+    page,
+  }) => {
+    const email = `e2e-steps-${Date.now()}@example.test`;
+    await eventLink(page).click();
+    const dialog = page.getByRole("dialog", { name: EVENT_NAME });
+    await registerFromSheet(dialog, "E2E Steps Registrant", email);
+    await expect(dialog.getByText(/You're registered/)).toBeVisible();
+
+    // The same email again, so the RPC refuses it as already registered.
+    await page.reload();
+    const again = page.locator("main");
+    await again.getByRole("button", { name: "Register", exact: true }).click();
+    await expect(again.getByLabel(/Phone/)).toHaveCount(0);
+    await again.getByLabel("Name").fill("E2E Steps Registrant");
+    await again.getByLabel("Email").fill(email);
+    await continueToThisEvent(again);
+    await sayNoMinors(again);
+    await again.getByLabel("Notes").fill("Bringing a friend's board");
+    await continueToReview(again);
+
+    const review = again.getByRole("group", { name: /Review and agree/ });
+    await expect(review.getByText(email)).toBeVisible();
+    await expect(review.getByText("Bringing a friend's board")).toBeVisible();
+
+    await review.getByRole("button", { name: "Edit this event" }).click();
+    const thisEvent = again.getByRole("group", { name: /This event/ });
+    await expect(thisEvent).toBeFocused();
+    await thisEvent.getByLabel("Notes").fill("Bringing my own board");
+    await continueToReview(again);
+    await expect(review.getByText("Bringing my own board")).toBeVisible();
+
+    await again.getByRole("button", { name: "Complete registration" }).click();
+    const aboutYou = again.getByRole("group", { name: /About you/ });
+    await expect(
+      aboutYou.getByText("This email is already registered for this event."),
+    ).toBeVisible();
+    await expect(aboutYou.getByLabel("Email")).toHaveValue(email);
   });
 
   // #1258. The seeded tenant has `constituent_accounts` on (#1175), so a

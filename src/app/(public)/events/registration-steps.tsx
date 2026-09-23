@@ -5,14 +5,14 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
-import { cn } from "@/lib/utils";
-import type { RegistrationStep } from "./registration-step";
+import { REGISTRATION_STEPS, type RegistrationStep } from "./registration-step";
 
 type Validatable = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
@@ -28,35 +28,38 @@ function firstInvalid(root: HTMLElement | null): Validatable | null {
   return null;
 }
 
+/** One answer in the review step's summary. */
+export type RegistrationSummaryRow = { label: string; value: ReactNode };
+
+const LEGENDS: Record<RegistrationStep, string> = {
+  about: "About you",
+  event: "This event",
+  review: "Review and agree",
+};
+
 /**
- * The frame both registration forms share (#1403): the questions under
- * "About you", the notices and the agreement under "Before you go", and the
- * button pinned beneath them.
+ * The frame both registration forms share (#1403, #1413): "About you", then
+ * "This event", then "Review and agree" with the button in a bar pinned
+ * beneath them.
  *
- * **Two steps on a phone, one page elsewhere.** Ten fields, two notices and an
- * agreement on one narrow screen is a long way to scroll to a button, and
- * forms that long do better split in two on mobile. Wider screens have the
- * room, so they get the same two groups under their legends and no stepping.
- * Which of the two is happening is decided by CSS alone (`max-sm:hidden`),
- * so the server render and the first paint agree and nothing flickers; the
- * handlers read it back from the layout rather than keeping a second copy of
- * the breakpoint in JavaScript.
+ * **Three steps at every width** (#1413). #1403 stepped on a phone only and
+ * showed a wider screen one long page; a wider screen gets the same steps now,
+ * so there is one flow to design, test and support rather than two, and the
+ * button is only ever beside the summary and the agreement it acts on.
  *
  * **No URL per step**, for #1256's reason: "I am halfway through a form" is
- * not worth a history entry, and Back belongs to the page. The hidden step is
- * hidden rather than unmounted, and the values live in the form's own state
- * either way, so going back and forth keeps everything typed.
+ * not worth a history entry, and Back belongs to the page. The other steps
+ * are `hidden` rather than unmounted, and the values live in the form's own
+ * state either way, so going back and forth keeps everything typed.
  *
  * **Validation is done here, not by the browser** (`noValidate`). The browser
- * would refuse to submit over a required field on the hidden step and could
- * not show it, which is a button that silently does nothing. So "Next" checks
- * the first step's fields, submitting checks all of them, and an invalid one
- * brings its own step back into view before the browser's message is shown.
- * A server error does the same through `error.step`.
+ * would refuse to submit over a required field on a hidden step and could not
+ * show it, which is a button that silently does nothing. So "Next" checks the
+ * step it leaves, submitting checks all of them, and an invalid field brings
+ * its own step back into view before the browser's message is shown. A server
+ * error does the same through `error.step`.
  *
- * **The pinned bar (#1404).** #1375 pinned the bare button, which left it
- * floating over the fields as they scrolled past, with their text showing
- * around it. It is a bar now: opaque, full width, with a rule above it, so
+ * **The pinned bar (#1404).** Opaque, full width, with a rule above it, so
  * what scrolls beneath is covered rather than half-visible. It is the last
  * child of the tall `FieldGroup`, which is what it travels within, so at full
  * scroll it settles into place below the last field and never covers one for
@@ -65,85 +68,102 @@ function firstInvalid(root: HTMLElement | null): Validatable | null {
  * bar rather than beneath it.
  */
 export function RegistrationSteps({
-  details,
-  confirm,
+  about,
+  event,
+  review,
+  summary,
   error,
   isPending,
   onSubmit,
   submitVariant = "default",
 }: {
-  /** "About you": the questions about the registrant and their party. */
-  details: ReactNode;
+  /** "About you": the questions about the registrant. */
+  about: ReactNode;
+  /** "This event": the questions about this attendance and the party. */
+  event: ReactNode;
   /**
-   * "Before you go": the notices and the agreement. Null when there are none,
-   * which leaves one step and nothing to go on to -- a heading over an empty
-   * step would be a step for its own sake.
+   * The notices and the agreement, under the summary on "Review and agree".
+   * Null when a form has none, which leaves the summary on its own.
    */
-  confirm: ReactNode;
+  review: ReactNode;
+  /**
+   * What was answered on the first two steps, shown on the last with an Edit
+   * button back to each. Unanswered questions are left out rather than listed
+   * as blank.
+   */
+  summary: { about: RegistrationSummaryRow[]; event: RegistrationSummaryRow[] };
   /** The last server error, placed on the step that owns it. */
   error: { message: string; step: RegistrationStep } | null;
   isPending: boolean;
-  /** Called once every field on both steps is valid. */
+  /** Called once every field on every step is valid. */
   onSubmit: () => void;
   submitVariant?: "default" | "rainbow";
 }) {
-  const [step, setStep] = useState<RegistrationStep>("details");
+  const [step, setStep] = useState<RegistrationStep>("about");
   const formRef = useRef<HTMLFormElement>(null);
-  const detailsRef = useRef<HTMLFieldSetElement>(null);
-  const confirmRef = useRef<HTMLFieldSetElement>(null);
+  const stepRefs = useRef<Record<RegistrationStep, HTMLFieldSetElement | null>>(
+    { about: null, event: null, review: null },
+  );
   const errorRef = useRef<HTMLDivElement>(null);
-  const hasConfirm = confirm !== null;
+  const index = REGISTRATION_STEPS.indexOf(step);
+  const isLast = index === REGISTRATION_STEPS.length - 1;
 
   // A new server error moves the reader to its step, during render rather than
   // in an effect, so the scroll below finds the alert already on screen.
   const [shownError, setShownError] = useState(error);
   if (error !== shownError) {
     setShownError(error);
-    if (error) setStep(hasConfirm ? error.step : "details");
+    if (error) setStep(error.step);
   }
 
   useEffect(() => {
     errorRef.current?.scrollIntoView({ block: "nearest" });
   }, [shownError]);
 
-  /** True when the steps are being shown one at a time: a phone. */
-  function isStepped() {
-    const hidden = step === "details" ? confirmRef.current : detailsRef.current;
-    return hidden !== null && getComputedStyle(hidden).display === "none";
-  }
-
   /** Shows `next` and hands it focus, so a screen reader hears its legend. */
   function goTo(next: RegistrationStep) {
     flushSync(() => setStep(next));
-    const target = next === "details" ? detailsRef.current : confirmRef.current;
+    const target = stepRefs.current[next];
     target?.focus({ preventScroll: true });
     target?.scrollIntoView({ block: "start" });
   }
 
   function handleNext() {
-    const invalid = firstInvalid(detailsRef.current);
+    const invalid = firstInvalid(stepRefs.current[step]);
     if (invalid) {
       invalid.reportValidity();
       return;
     }
-    goTo("confirm");
+    goTo(REGISTRATION_STEPS[index + 1]);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    // Enter in a first-step field on a phone: the button it would press is on
-    // the next step, so it means "Next".
-    if (hasConfirm && step === "details" && isStepped()) {
-      handleNext();
+  /**
+   * Enter in a text field before the last step means "Next". The browser
+   * will not do it: those steps have no submit button, and without one a form
+   * with more than one field does not submit on Enter at all.
+   */
+  function handleKeyDown(keyEvent: KeyboardEvent<HTMLFormElement>) {
+    if (isLast || keyEvent.key !== "Enter" || keyEvent.nativeEvent.isComposing)
       return;
-    }
+    const target = keyEvent.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (["button", "checkbox", "radio", "submit"].includes(target.type)) return;
+    keyEvent.preventDefault();
+    handleNext();
+  }
+
+  function handleSubmit(submitEvent: FormEvent<HTMLFormElement>) {
+    submitEvent.preventDefault();
+    // Only the last step has a submit button, so nothing the reader does
+    // submits before it; anything that does is ignored.
+    if (!isLast) return;
 
     const invalid = firstInvalid(formRef.current);
     if (invalid) {
-      const owner = detailsRef.current?.contains(invalid)
-        ? "details"
-        : "confirm";
+      const owner =
+        REGISTRATION_STEPS.find((candidate) =>
+          stepRefs.current[candidate]?.contains(invalid),
+        ) ?? step;
       if (owner !== step) flushSync(() => setStep(owner));
       invalid.reportValidity();
       return;
@@ -153,8 +173,7 @@ export function RegistrationSteps({
   }
 
   const errorAlert = (owner: RegistrationStep) =>
-    error &&
-    (hasConfirm ? error.step : "details") === owner && (
+    error?.step === owner && (
       <div ref={errorRef} className="scroll-my-24">
         <Alert variant="destructive">
           <AlertDescription>{error.message}</AlertDescription>
@@ -162,56 +181,87 @@ export function RegistrationSteps({
       </div>
     );
 
-  const showingDetails = !hasConfirm || step === "details";
+  const fieldSet = (owner: RegistrationStep, children: ReactNode) => (
+    <FieldSet
+      ref={(element) => {
+        stepRefs.current[owner] = element;
+      }}
+      tabIndex={-1}
+      hidden={step !== owner}
+      className="scroll-mt-24 outline-none"
+    >
+      <FieldLegend>
+        <span className="app-muted block text-xs font-normal">
+          Step {REGISTRATION_STEPS.indexOf(owner) + 1} of{" "}
+          {REGISTRATION_STEPS.length}
+        </span>
+        {LEGENDS[owner]}
+      </FieldLegend>
+      {errorAlert(owner)}
+      <FieldGroup>{children}</FieldGroup>
+    </FieldSet>
+  );
+
+  const summarySection = (
+    owner: "about" | "event",
+    rows: RegistrationSummaryRow[],
+  ) => (
+    <section
+      aria-labelledby={`registration-summary-${owner}`}
+      className="rounded-lg border p-4"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h3
+          id={`registration-summary-${owner}`}
+          className="text-sm font-medium"
+        >
+          {LEGENDS[owner]}
+        </h3>
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="h-auto p-0"
+          onClick={() => goTo(owner)}
+          disabled={isPending}
+          aria-label={`Edit ${LEGENDS[owner].toLowerCase()}`}
+        >
+          Edit
+        </Button>
+      </div>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        {rows.map((row) => (
+          <div key={row.label} className="contents">
+            <dt className="app-muted">{row.label}</dt>
+            <dd className="min-w-0 break-words whitespace-pre-line">
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
 
   return (
     <form
       ref={formRef}
       noValidate
       onSubmit={handleSubmit}
+      onKeyDown={handleKeyDown}
       // The bar's height, give or take, so nothing focus or a validation
       // message scrolls to lands underneath it (#1404).
-      className="[&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24 [&_button]:scroll-mb-24"
+      className="[&_button]:scroll-mb-24 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24"
     >
       <FieldGroup>
-        <FieldSet
-          ref={detailsRef}
-          tabIndex={-1}
-          className={cn(
-            "scroll-mt-24 outline-none",
-            !showingDetails && "max-sm:hidden",
-          )}
-        >
-          {hasConfirm && (
-            <FieldLegend>
-              <span className="app-muted block text-xs font-normal sm:hidden">
-                Step 1 of 2
-              </span>
-              About you
-            </FieldLegend>
-          )}
-          {errorAlert("details")}
-          <FieldGroup>{details}</FieldGroup>
-        </FieldSet>
-
-        {hasConfirm && (
-          <FieldSet
-            ref={confirmRef}
-            tabIndex={-1}
-            className={cn(
-              "scroll-mt-24 outline-none",
-              step === "details" && "max-sm:hidden",
-            )}
-          >
-            <FieldLegend>
-              <span className="app-muted block text-xs font-normal sm:hidden">
-                Step 2 of 2
-              </span>
-              Before you go
-            </FieldLegend>
-            {errorAlert("confirm")}
-            <FieldGroup>{confirm}</FieldGroup>
-          </FieldSet>
+        {fieldSet("about", about)}
+        {fieldSet("event", event)}
+        {fieldSet(
+          "review",
+          <>
+            {summarySection("about", summary.about)}
+            {summarySection("event", summary.event)}
+            {review}
+          </>,
         )}
 
         {/* The last child of the outer `FieldGroup`, which is its containing
@@ -221,43 +271,45 @@ export function RegistrationSteps({
             does not show at either side of it. The `env()` resolves to 0
             until a layout exports `viewport-fit=cover`. */}
         <div className="bg-background sticky bottom-0 z-10 -mx-4 flex gap-3 border-t px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
-          {hasConfirm && step === "confirm" && (
+          {index > 0 && (
             <Button
               type="button"
               variant="outline"
-              onClick={() => goTo("details")}
+              onClick={() => goTo(REGISTRATION_STEPS[index - 1])}
               disabled={isPending}
-              className="sm:hidden"
             >
               Back
             </Button>
           )}
-          {hasConfirm && step === "details" && (
+          {/* Keyed apart: were Next reused as the submit button, its `type`
+              would change under the click that pressed it, and the click's
+              default action would then submit the form from the step before
+              the review. */}
+          {isLast ? (
+            // Not "Register": that is the disclosure's trigger above the form
+            // (#1256), and two buttons of the same name in one section are
+            // one for the reader to disambiguate and one for a test to pick
+            // the wrong one of.
             <Button
+              key="submit"
+              type="submit"
+              variant={submitVariant}
+              disabled={isPending}
+              className="flex-1 sm:flex-none"
+            >
+              {isPending ? "Registering…" : "Complete registration"}
+            </Button>
+          ) : (
+            <Button
+              key="next"
               type="button"
               variant={submitVariant}
               onClick={handleNext}
-              className="flex-1 sm:hidden"
+              className="flex-1 sm:flex-none"
             >
               Next
             </Button>
           )}
-          {/* Not "Register": that is the disclosure's trigger above the form
-              (#1256), and two buttons of the same name in one section are one
-              for the reader to disambiguate and one for a test to pick the
-              wrong one of. Rendered on the first step too, hidden on a phone,
-              so a wider screen always has it. */}
-          <Button
-            type="submit"
-            variant={submitVariant}
-            disabled={isPending}
-            className={cn(
-              "flex-1 sm:flex-none",
-              hasConfirm && step === "details" && "max-sm:hidden",
-            )}
-          >
-            {isPending ? "Registering…" : "Complete registration"}
-          </Button>
         </div>
       </FieldGroup>
     </form>
