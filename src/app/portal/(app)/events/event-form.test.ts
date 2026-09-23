@@ -182,9 +182,18 @@ describe("parseEventPlanningForm", () => {
         registrationEnabled: false,
         registrationDeadline: null,
         autoAssignDiscountCodes: false,
+        // Not sent, so left as it was (#1417).
+        adultsOnly: null,
         budgetAmount: null,
       },
     });
+  });
+
+  test("reads the adults-only switch (#1417)", () => {
+    const parse = (value: string) =>
+      parseEventPlanningForm(formData({ adultsOnly: value }), eventDates);
+    expect(parse("on")).toMatchObject({ data: { adultsOnly: true } });
+    expect(parse("off")).toMatchObject({ data: { adultsOnly: false } });
   });
 
   test("rejects a negative capacity", () => {

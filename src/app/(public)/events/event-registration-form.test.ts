@@ -142,6 +142,7 @@ describe("parseEventRegistrationForm", () => {
         // the form sent and leaves the deciding to the RPC (#686).
         waiver_accepted: false,
         waiver_version: null,
+        adults_only_confirmed: false,
         party_includes_minor: false,
         accompanying_adult_name: null,
         accompanying_adult_phone: null,

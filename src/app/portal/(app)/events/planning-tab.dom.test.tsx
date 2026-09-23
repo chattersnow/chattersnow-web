@@ -183,3 +183,42 @@ describe("PlanningTab registration deadline", () => {
     expect(submitted.get("registrationDeadline")).toBe("");
   });
 });
+
+describe("PlanningTab adults only (#1417)", () => {
+  beforeEach(() => updateEventPlanningActionMock.mockClear());
+
+  const adultsOnlySwitch = () =>
+    screen.getByRole("switch", { name: /Adults only \(18\+\)/ });
+
+  test("starts from the stored value and saves the change", async () => {
+    const user = userEvent.setup();
+    renderTab(makeEvent({ adults_only: false }));
+
+    expect(adultsOnlySwitch()).not.toBeChecked();
+    await user.click(adultsOnlySwitch());
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateEventPlanningActionMock).toHaveBeenCalledTimes(1),
+    );
+    expect(
+      updateEventPlanningActionMock.mock.calls[0][1].get("adultsOnly"),
+    ).toBe("on");
+  });
+
+  test("an 18+ event shows it on and can turn it off", async () => {
+    const user = userEvent.setup();
+    renderTab(makeEvent({ adults_only: true }));
+
+    expect(adultsOnlySwitch()).toBeChecked();
+    await user.click(adultsOnlySwitch());
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateEventPlanningActionMock).toHaveBeenCalledTimes(1),
+    );
+    expect(
+      updateEventPlanningActionMock.mock.calls[0][1].get("adultsOnly"),
+    ).toBe("off");
+  });
+});

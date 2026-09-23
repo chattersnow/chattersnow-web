@@ -16,7 +16,14 @@ import type { PersonListItem } from "../people/actions";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import {
   datetimeLocalToUtcIsoInBrowser,
@@ -42,6 +49,7 @@ function formStateFor(event: EventRow) {
     registrationEnabled: event.registration_enabled,
     registrationDeadline: toDatetimeLocalValue(event.registration_deadline),
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
+    adultsOnly: event.adults_only ?? false,
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
     registrationOptions: registrationOptionsDraft(
@@ -140,6 +148,7 @@ export function PlanningTab({
       "autoAssignDiscountCodes",
       form.autoAssignDiscountCodes ? "on" : "off",
     );
+    formData.set("adultsOnly", form.adultsOnly ? "on" : "off");
     formData.set("budgetAmount", form.budgetAmount);
     // Only when changed, so saving a budget does not rewrite every option
     // (and the audit log with it).
@@ -221,6 +230,9 @@ export function PlanningTab({
           htmlFor="planning-autoAssignDiscountCodes"
         >
           {form.autoAssignDiscountCodes ? "On" : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField label="Adults only (18+)" htmlFor="planning-adultsOnly">
+          {form.adultsOnly ? "On" : "Off"}
         </ReadOnlyField>
         <ReadOnlyField
           label="Registration question"
@@ -324,6 +336,23 @@ export function PlanningTab({
           <FieldLabel htmlFor="planning-autoAssignDiscountCodes">
             Auto-assign discount codes to new registrants
           </FieldLabel>
+        </Field>
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-adultsOnly">
+              Adults only (18+)
+            </FieldLabel>
+            <FieldDescription>
+              Shows an 18+ badge on the event and asks each registrant to
+              confirm everyone in their party is 18 or over.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-adultsOnly"
+            checked={form.adultsOnly}
+            onCheckedChange={(checked) => update("adultsOnly", checked)}
+          />
         </Field>
 
         <RegistrationOptionsEditor

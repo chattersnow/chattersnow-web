@@ -24,6 +24,8 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmation-field";
+import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
 import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
@@ -67,6 +69,7 @@ export function EventRegistrationForm({
   waiver = null,
   waiverBlock = null,
   asksAboutMinors = true,
+  adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
   registrationOptions = null,
@@ -99,6 +102,12 @@ export function EventRegistrationForm({
    * turned it off -- is #685's form unchanged.
    */
   asksAboutMinors?: boolean;
+  /**
+   * Whether the event is adults only (#1417). On, step 2 asks every registrant
+   * to confirm everyone in their party is 18 or over. The caller turns
+   * `asksAboutMinors` off with it: an 18+ event never asks the question.
+   */
+  adultsOnly?: boolean;
   /**
    * This organization's rule for a party that includes anyone under 18
    * (#685), from `events.minor_accompaniment`. Empty on a tenant that has
@@ -150,6 +159,8 @@ export function EventRegistrationForm({
   const [partyIncludesMinor, setPartyIncludesMinor] = useState("");
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
+  // #1417. Unticked, always, for the reason the waiver's box is.
+  const [adultsOnlyConfirmed, setAdultsOnlyConfirmed] = useState(false);
   const [notes, setNotes] = useState("");
   const [riding, setRiding] = useState<RidingValues>(EMPTY_RIDING);
   // #1407. Every option starts at nothing: a preselected answer is one the
@@ -197,6 +208,9 @@ export function EventRegistrationForm({
       for (const [key, value] of Object.entries(minorContacts)) {
         formData.set(key, value);
       }
+    }
+    if (adultsOnly && adultsOnlyConfirmed) {
+      formData.set(ADULTS_ONLY_CONFIRMED_FIELD, "on");
     }
     if (riderProfile) setRidingFields(formData, riding);
     if (registrationOptions) setOptionCounts(formData, optionCounts);
@@ -378,6 +392,14 @@ export function EventRegistrationForm({
               )}
             </>
           )}
+          {adultsOnly && (
+            <AdultsOnlyConfirmationField
+              id="registration-adults-only"
+              checked={adultsOnlyConfirmed}
+              onChange={setAdultsOnlyConfirmed}
+              disabled={isPending}
+            />
+          )}
           {riderProfile && (
             <RidingFields
               idPrefix="registration"
@@ -423,6 +445,7 @@ export function EventRegistrationForm({
           partySize,
           partyIncludesMinor,
           minorContacts,
+          adultsOnlyConfirmed: adultsOnly && adultsOnlyConfirmed,
           riding: riderProfile ? ridingSummaryRows(riding) : [],
           registrationOptions,
           optionCounts,

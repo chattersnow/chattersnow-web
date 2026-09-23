@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseAdultsOnlyConfirmed } from "@/lib/adults-only";
 import { parseAttendedBefore } from "@/lib/attended-before";
 import { parseRegistrationMinors, type MinorContacts } from "@/lib/minors";
 import { parsePronouns } from "@/lib/pronouns";
@@ -54,6 +55,12 @@ export type EventRegistrationFormData = {
    * what a walk-in and a public API caller are.
    */
   party_includes_minor: boolean | null;
+  /**
+   * Whether "Everyone in my party is 18 or over" was ticked (#1417). Not
+   * validated here, for the reason `waiver_accepted` is not: whether the event
+   * is adults only is the RPC's to know, and it refuses without it.
+   */
+  adults_only_confirmed: boolean;
   /**
    * The answer to the event's registration question (#1407), or null where
    * the form showed none. Not checked against the party size here: whether
@@ -129,6 +136,7 @@ export function parseEventRegistrationForm(
       attended_before,
       waiver_accepted,
       waiver_version,
+      adults_only_confirmed: parseAdultsOnlyConfirmed(formData),
       option_counts: parseOptionCounts(formData),
       riding: riding.data,
     },

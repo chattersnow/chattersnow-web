@@ -8,7 +8,7 @@ const route = publicRead<{ tenant: string; event: string }>(
       await supabase
         .from("public_events")
         .select(
-          "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url",
+          "id, name, location, starts_at, ends_at, timezone, description, capacity, registration_enabled, registration_deadline, flier_url, adults_only",
         )
         .eq("id", params.event)
         .maybeSingle(),

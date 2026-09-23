@@ -15,6 +15,8 @@ import {
   type MinorContactValues,
 } from "@/components/minor-accompaniment-fields";
 import { PartyIncludesMinorField } from "@/components/party-includes-minor-field";
+import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmation-field";
+import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
 import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
@@ -65,6 +67,7 @@ export function MyEventRegistrationForm({
   waiverBlock = null,
   waiverOnFile = null,
   asksAboutMinors = true,
+  adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
   registrationOptions = null,
@@ -95,6 +98,11 @@ export function MyEventRegistrationForm({
    * turned it off -- is #685's form unchanged.
    */
   asksAboutMinors?: boolean;
+  /**
+   * Whether the event is adults only (#1417): step 2 asks for the
+   * confirmation, as on the anonymous form.
+   */
+  adultsOnly?: boolean;
   /**
    * This organization's rule for a party that includes anyone under 18
    * (#685). Empty on a tenant that has written none.
@@ -136,6 +144,8 @@ export function MyEventRegistrationForm({
   const [partyIncludesMinor, setPartyIncludesMinor] = useState("");
   const [minorContacts, setMinorContacts] =
     useState<MinorContactValues>(EMPTY_MINOR_CONTACTS);
+  // #1417. Unticked, always, as on the anonymous form.
+  const [adultsOnlyConfirmed, setAdultsOnlyConfirmed] = useState(false);
   const [notes, setNotes] = useState("");
   // #1415. Filled in from their own record -- this reader is signed in and
   // linked to it, which is the only case where prefilling discloses nothing.
@@ -174,6 +184,9 @@ export function MyEventRegistrationForm({
 
     const formData = new FormData();
     formData.set("partySize", partySize);
+    if (adultsOnly && adultsOnlyConfirmed) {
+      formData.set(ADULTS_ONLY_CONFIRMED_FIELD, "on");
+    }
     if (riderProfile) setRidingFields(formData, riding);
     if (registrationOptions) setOptionCounts(formData, optionCounts);
     formData.set("notes", notes);
@@ -334,6 +347,14 @@ export function MyEventRegistrationForm({
             </>
           )}
 
+          {adultsOnly && (
+            <AdultsOnlyConfirmationField
+              id="my-registration-adults-only"
+              checked={adultsOnlyConfirmed}
+              onChange={setAdultsOnlyConfirmed}
+              disabled={isPending}
+            />
+          )}
           {riderProfile && (
             <RidingFields
               idPrefix="my-registration"
@@ -385,6 +406,7 @@ export function MyEventRegistrationForm({
           partySize,
           partyIncludesMinor,
           minorContacts,
+          adultsOnlyConfirmed: adultsOnly && adultsOnlyConfirmed,
           riding: riderProfile ? ridingSummaryRows(riding) : [],
           registrationOptions,
           optionCounts,

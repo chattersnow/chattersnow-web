@@ -33,6 +33,7 @@ const registrants: EventRegistrant[] = [
     // #685. The row that carries the flag, so the badge has something to
     // render and the other row proves it renders on that one alone.
     party_includes_minor: true,
+    adults_only_confirmed_at: null,
     // #599. The row that declined, so the "No photos" badge has something to
     // render and the other row proves it renders on that one alone. Declining
     // is the notable state here, which is the inverse of the minors flag above.
@@ -75,6 +76,7 @@ const registrants: EventRegistrant[] = [
     waiver_accepted_at: null,
     waiver_version: null,
     party_includes_minor: false,
+    adults_only_confirmed_at: null,
     // Granted, which renders nothing: the badge is for the decline, and
     // "agreed" on every other row would be noise at the door (#599).
     photo_consent: true,

@@ -246,6 +246,16 @@ export function RegistrantDetailSheet({
                 )}
               </>
             )}
+            {/* #1417. Only on a registration that carries one: every other
+                registrant was never asked. */}
+            {registrant.adults_only_confirmed_at && (
+              <ReadOnlyField
+                label="All 18 or over"
+                htmlFor="registrant-adults-only"
+              >
+                Confirmed {formatDateTime(registrant.adults_only_confirmed_at)}
+              </ReadOnlyField>
+            )}
             <ReadOnlyField label="Checked in" htmlFor="registrant-checked-in">
               {registrant.checked_in_at
                 ? formatDateTime(registrant.checked_in_at)
