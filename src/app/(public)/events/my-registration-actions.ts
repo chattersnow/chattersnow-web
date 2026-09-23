@@ -7,6 +7,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
+import {
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE,
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
+  parseAdultsOnlyConfirmed,
+} from "@/lib/adults-only";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import {
   parseOptionCounts,
@@ -44,6 +49,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   // #685. The form asks for the four the moment somebody answers yes, so this
   // is the belt to that braces.
   [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
+  // #1417, as on the anonymous path.
+  [ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE]:
+    ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
   // #686. Three ways a waiver can stop a registration, and they are three
   // different things to say. The first is the reader's to fix; the second is
   // nobody's fault and asks them to read again; the third is the
@@ -138,6 +146,8 @@ export async function registerMyselfForEventAction(
       minorContacts.emergency_contact_phone ?? undefined,
     // #1407, as on the anonymous path.
     p_option_counts: parseOptionCounts(formData) ?? undefined,
+    // #1417. The RPC ignores it on an event that is not 18+.
+    p_adults_only_confirmed: parseAdultsOnlyConfirmed(formData),
     // #1415. `undefined` when the form did not ask, so nothing is written;
     // the RPC ignores them on a tenant without the rider_profile module.
     p_riding_discipline: riding?.riding_discipline,

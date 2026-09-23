@@ -260,6 +260,7 @@ export async function updateEventPlanningAction(
     registrationEnabled,
     registrationDeadline,
     autoAssignDiscountCodes,
+    adultsOnly,
     budgetAmount,
   } = parsed.data;
 
@@ -271,6 +272,7 @@ export async function updateEventPlanningAction(
       registration_enabled: registrationEnabled,
       registration_deadline: registrationDeadline,
       auto_assign_discount_codes: autoAssignDiscountCodes,
+      ...(adultsOnly === null ? {} : { adults_only: adultsOnly }),
       budget_amount: budgetAmount,
     })
     .eq("id", id);

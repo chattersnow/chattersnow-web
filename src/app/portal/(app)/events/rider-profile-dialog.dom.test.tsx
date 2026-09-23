@@ -43,6 +43,7 @@ function registrant(
     waiver_accepted_at: null,
     waiver_version: null,
     party_includes_minor: null,
+    adults_only_confirmed_at: null,
     photo_consent: null,
     photo_consent_at: null,
     photo_consent_text: null,

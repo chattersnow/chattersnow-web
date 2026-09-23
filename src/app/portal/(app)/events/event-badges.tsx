@@ -46,6 +46,11 @@ export type EventRow = {
    * page only, which is where the Planning tab edits it; absent elsewhere.
    */
   registration_options_prompt?: string | null;
+  /**
+   * Adults only (18+) (#1417). Loaded by the event detail page, where the
+   * Planning tab edits it; absent elsewhere.
+   */
+  adults_only?: boolean;
   registration_options?: {
     id: string;
     label: string;

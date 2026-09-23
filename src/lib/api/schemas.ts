@@ -133,6 +133,12 @@ export const eventRegistrationSchema = z
       description:
         "That contact's number. Required when party_includes_minor is true.",
     }),
+    // #1417. Optional, since most events are not 18+; required by the RPC for
+    // one that is, the way the waiver is.
+    adults_only_confirmed: z.boolean().optional().meta({
+      description:
+        "That the person confirmed everyone in their party is 18 or over. Required when GET /events/{event} reports adults_only; ignored otherwise.",
+    }),
     // #1366, closing a gap #686 opened. `register_for_event()` gained these
     // two parameters and this schema did not, so `p_waiver_accepted` fell
     // through to its `false` default and every headless registration for a

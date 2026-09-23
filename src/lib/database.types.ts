@@ -2940,6 +2940,7 @@ export type Database = {
         Row: {
           accompanying_adult_name: string | null;
           accompanying_adult_phone: string | null;
+          adults_only_confirmed_at: string | null;
           attended_before: boolean | null;
           checked_in_at: string | null;
           created_at: string;
@@ -2969,6 +2970,7 @@ export type Database = {
         Insert: {
           accompanying_adult_name?: string | null;
           accompanying_adult_phone?: string | null;
+          adults_only_confirmed_at?: string | null;
           attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
@@ -2998,6 +3000,7 @@ export type Database = {
         Update: {
           accompanying_adult_name?: string | null;
           accompanying_adult_phone?: string | null;
+          adults_only_confirmed_at?: string | null;
           attended_before?: boolean | null;
           checked_in_at?: string | null;
           created_at?: string;
@@ -3485,6 +3488,7 @@ export type Database = {
       };
       events: {
         Row: {
+          adults_only: boolean;
           attendance_count: number | null;
           attendance_notes: string | null;
           auto_assign_discount_codes: boolean;
@@ -3521,6 +3525,7 @@ export type Database = {
           visibility: string;
         };
         Insert: {
+          adults_only?: boolean;
           attendance_count?: number | null;
           attendance_notes?: string | null;
           auto_assign_discount_codes?: boolean;
@@ -3557,6 +3562,7 @@ export type Database = {
           visibility?: string;
         };
         Update: {
+          adults_only?: boolean;
           attendance_count?: number | null;
           attendance_notes?: string | null;
           auto_assign_discount_codes?: boolean;
@@ -8830,6 +8836,7 @@ export type Database = {
       };
       public_events: {
         Row: {
+          adults_only: boolean | null;
           capacity: number | null;
           description: string | null;
           ends_at: string | null;
@@ -8843,6 +8850,7 @@ export type Database = {
           timezone: string | null;
         };
         Insert: {
+          adults_only?: boolean | null;
           capacity?: number | null;
           description?: string | null;
           ends_at?: string | null;
@@ -8856,6 +8864,7 @@ export type Database = {
           timezone?: string | null;
         };
         Update: {
+          adults_only?: boolean | null;
           capacity?: number | null;
           description?: string | null;
           ends_at?: string | null;
@@ -10233,6 +10242,7 @@ export type Database = {
         Args: {
           p_accompanying_adult_name?: string;
           p_accompanying_adult_phone?: string;
+          p_adults_only_confirmed?: boolean;
           p_attended_before?: boolean;
           p_email: string;
           p_emergency_contact_name?: string;
@@ -10262,6 +10272,7 @@ export type Database = {
         Args: {
           p_accompanying_adult_name?: string;
           p_accompanying_adult_phone?: string;
+          p_adults_only_confirmed?: boolean;
           p_attended_before?: boolean;
           p_emergency_contact_name?: string;
           p_emergency_contact_phone?: string;
@@ -10364,6 +10375,7 @@ export type Database = {
       reopen_event_report: {
         Args: { p_id: string; p_reason: string };
         Returns: {
+          adults_only: boolean;
           attendance_count: number | null;
           attendance_notes: string | null;
           auto_assign_discount_codes: boolean;

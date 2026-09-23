@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AdultsOnlyBadge } from "@/components/adults-only-badge";
 import {
   SheetDescription,
   SheetHeader,
@@ -237,6 +238,7 @@ function EventDetailBody({
                   waiverBlock={waiverBlock}
                   waiverOnFile={viewer.waiverOnFile}
                   asksAboutMinors={asksAboutMinors}
+                  adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
@@ -254,6 +256,7 @@ function EventDetailBody({
                   waiver={waiver}
                   waiverBlock={waiverBlock}
                   asksAboutMinors={asksAboutMinors}
+                  adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
@@ -329,10 +332,12 @@ export async function EventDetailContent({
     ? await getPublicRiderProfile(supabase)
     : null;
   // Whether registration asks about under-18s (#1416). Only where there is a
-  // registration form, like the riding questions.
-  const asksAboutMinors = event.registration_enabled
-    ? await getPublicAsksAboutMinors(supabase)
-    : true;
+  // registration form, like the riding questions, and never on an 18+ event
+  // (#1417), which asks for its confirmation instead.
+  const asksAboutMinors =
+    event.registration_enabled && !event.adults_only
+      ? await getPublicAsksAboutMinors(supabase)
+      : !event.adults_only;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -346,7 +351,10 @@ export async function EventDetailContent({
       <>
         <SheetHeader>
           <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
-          <SheetTitle className="text-xl">{event.name}</SheetTitle>
+          <SheetTitle className="text-xl">
+            {event.name}
+            <AdultsOnlyBadge adultsOnly={event.adults_only} className="ml-2" />
+          </SheetTitle>
           <SheetDescription>{formatWhen(event)}</SheetDescription>
         </SheetHeader>
 
@@ -389,6 +397,10 @@ export async function EventDetailContent({
         <p className="app-eyebrow">{eventProgramsLabel(event.programs)}</p>
         <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
           {event.name}
+          <AdultsOnlyBadge
+            adultsOnly={event.adults_only}
+            className="ml-3 text-sm"
+          />
         </h1>
         <p className="app-muted mt-4 text-sm sm:text-base">
           {formatWhen(event)}

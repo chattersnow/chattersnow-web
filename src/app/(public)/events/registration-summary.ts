@@ -1,5 +1,6 @@
 import type { MinorContactValues } from "@/components/minor-accompaniment-fields";
 import { ATTENDED_BEFORE_OPTIONS } from "@/lib/attended-before";
+import { ADULTS_ONLY_CONFIRMATION_LABEL } from "@/lib/adults-only";
 import { PARTY_INCLUDES_MINOR_OPTIONS } from "@/lib/minors";
 import type {
   OptionCounts,
@@ -34,6 +35,7 @@ export function eventSummaryRows({
   partySize,
   partyIncludesMinor,
   minorContacts,
+  adultsOnlyConfirmed = false,
   riding = [],
   registrationOptions,
   optionCounts,
@@ -42,6 +44,8 @@ export function eventSummaryRows({
   partySize: string;
   partyIncludesMinor: string;
   minorContacts: MinorContactValues;
+  /** #1417. Shown as confirmed only where the event asked and it was ticked. */
+  adultsOnlyConfirmed?: boolean;
   riding?: RegistrationSummaryRow[];
   registrationOptions: RegistrationOptionsQuestion | null;
   optionCounts: OptionCounts;
@@ -72,6 +76,10 @@ export function eventSummaryRows({
         ),
       },
     );
+  }
+
+  if (adultsOnlyConfirmed) {
+    rows.push({ label: "Ages", value: ADULTS_ONLY_CONFIRMATION_LABEL });
   }
 
   rows.push(...riding);

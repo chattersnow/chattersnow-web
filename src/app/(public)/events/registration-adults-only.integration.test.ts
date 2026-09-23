@@ -1,0 +1,194 @@
+// Integration test for the per-event Adults only (18+) setting (#1417),
+// against the real RPC on a local Supabase stack: an 18+ event refuses a
+// registration without the confirmation, records it with one, and never
+// stores an under-18 answer; any other event ignores the confirmation. The
+// flag reaches the public site through public_events.
+// Requires `bun run db:start && bun run db:reset`; run via
+// `bun run test:integration`.
+import { afterAll, afterEach, describe, expect, mock, test } from "bun:test";
+import {
+  adminClient,
+  anonClient,
+  createPublishedEvent,
+  serviceRoleClient,
+  uniqueEmail,
+  uniqueIp,
+} from "../../../../test/integration-setup";
+
+mock.module("next/cache", () => ({ revalidatePath: () => {} }));
+// As in registration-riding.integration.test.ts: the confirmation email is
+// scheduled with after(), which throws outside a request scope.
+mock.module("server-only", () => ({}));
+const nextServer = await import("next/server");
+mock.module("next/server", () => ({ ...nextServer, after: () => {} }));
+
+let currentIp: string | null = null;
+mock.module("@/lib/get-client-ip", () => ({
+  getClientIp: async () => currentIp,
+}));
+mock.module("@/lib/supabase/server", () => ({
+  createSupabaseServerClient: async () => anonClient(),
+}));
+
+const { registerForEventAction } = await import("./event-registration-actions");
+
+const service = serviceRoleClient();
+const run = crypto.randomUUID().slice(0, 8);
+const fixture = await createPublishedEvent({ name: `Adults only ${run}` });
+const registeredEmails: string[] = [];
+
+async function setAdultsOnly(value: boolean) {
+  const { error } = await service
+    .from("events")
+    .update({ adults_only: value })
+    .eq("id", fixture.id);
+  if (error) throw error;
+}
+
+afterEach(() => setAdultsOnly(false));
+
+afterAll(async () => {
+  await fixture.cleanup();
+  if (registeredEmails.length) {
+    await service.from("people").delete().in("email", registeredEmails);
+  }
+});
+
+function nextEmail() {
+  const email = uniqueEmail(`adults-only-${run}`);
+  registeredEmails.push(email);
+  return email;
+}
+
+/** Straight at the RPC, as the public API calls it. */
+async function registerDirect(fields: Record<string, unknown>) {
+  const email = nextEmail();
+  const { error } = await anonClient().rpc("register_for_event", {
+    p_event_id: fixture.id,
+    p_name: "Adults Only Registrant",
+    p_email: email,
+    p_phone: null,
+    p_party_size: 2,
+    p_notes: null,
+    p_ip_address: uniqueIp(),
+    ...fields,
+  } as never);
+  return { email, error };
+}
+
+async function stored(email: string) {
+  const { data, error } = await service
+    .from("event_registrations")
+    .select(
+      "adults_only_confirmed_at, party_includes_minor, accompanying_adult_name",
+    )
+    .eq("event_id", fixture.id)
+    .eq("email", email)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+describe("an 18+ event", () => {
+  test("refuses a registration without the confirmation", async () => {
+    await setAdultsOnly(true);
+    const { error } = await registerDirect({});
+    expect(error?.message).toBe("ADULTS_ONLY_CONFIRMATION_REQUIRED");
+
+    const { error: unticked } = await registerDirect({
+      p_adults_only_confirmed: false,
+    });
+    expect(unticked?.message).toBe("ADULTS_ONLY_CONFIRMATION_REQUIRED");
+  });
+
+  test("accepts one with it and records when", async () => {
+    await setAdultsOnly(true);
+    const before = Date.now();
+    const { email, error } = await registerDirect({
+      p_adults_only_confirmed: true,
+    });
+    expect(error).toBeNull();
+
+    const row = await stored(email);
+    expect(row.adults_only_confirmed_at).not.toBeNull();
+    expect(
+      new Date(row.adults_only_confirmed_at!).getTime(),
+    ).toBeGreaterThanOrEqual(before - 60_000);
+  });
+
+  test("never stores an under-18 answer, whatever the tenant setting", async () => {
+    await setAdultsOnly(true);
+    const { email, error } = await registerDirect({
+      p_adults_only_confirmed: true,
+      p_party_includes_minor: true,
+      p_accompanying_adult_name: "Robin Rivera",
+    });
+    expect(error).toBeNull();
+    expect(await stored(email)).toMatchObject({
+      party_includes_minor: null,
+      accompanying_adult_name: null,
+    });
+  });
+
+  test("the form's refusal belongs to step 2", async () => {
+    await setAdultsOnly(true);
+    currentIp = uniqueIp();
+    const fd = new FormData();
+    fd.set("name", "Adults Only Registrant");
+    fd.set("email", nextEmail());
+
+    const result = await registerForEventAction(fixture.id, fd);
+
+    expect(result).toMatchObject({ step: "event" });
+  });
+
+  test("the form registers with the box ticked", async () => {
+    await setAdultsOnly(true);
+    currentIp = uniqueIp();
+    const email = nextEmail();
+    const fd = new FormData();
+    fd.set("name", "Adults Only Registrant");
+    fd.set("email", email);
+    fd.set("adultsOnlyConfirmed", "on");
+
+    const result = await registerForEventAction(fixture.id, fd);
+
+    expect(result).toMatchObject({ success: true });
+    expect((await stored(email)).adults_only_confirmed_at).not.toBeNull();
+  });
+});
+
+describe("any other event", () => {
+  test("ignores the confirmation and records nothing", async () => {
+    const { email, error } = await registerDirect({
+      p_adults_only_confirmed: true,
+    });
+    expect(error).toBeNull();
+    expect((await stored(email)).adults_only_confirmed_at).toBeNull();
+  });
+});
+
+describe("the flag", () => {
+  test("round-trips through the portal's client and reaches public_events", async () => {
+    const admin = adminClient;
+    const { error } = await admin
+      .from("events")
+      .update({ adults_only: true })
+      .eq("id", fixture.id);
+    expect(error).toBeNull();
+
+    const { data: portal } = await admin
+      .from("events")
+      .select("adults_only")
+      .eq("id", fixture.id)
+      .single();
+    expect(portal?.adults_only).toBe(true);
+
+    const { data: publicRow } = await anonClient()
+      .from("public_events")
+      .select("adults_only")
+      .eq("id", fixture.id)
+      .single();
+    expect(publicRow?.adults_only).toBe(true);
+  });
+});

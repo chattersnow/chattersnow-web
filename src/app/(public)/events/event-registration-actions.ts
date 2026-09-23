@@ -11,6 +11,10 @@ import {
   MINOR_CONTACTS_REQUIRED_CODE,
   MINOR_CONTACTS_REQUIRED_ERROR,
 } from "@/lib/minors";
+import {
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE,
+  ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
+} from "@/lib/adults-only";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { REGISTRATION_OPTION_ERROR_MESSAGES } from "@/lib/registration-options";
 import { parseEventRegistrationForm } from "./event-registration-form";
@@ -43,6 +47,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   // reaching this means a client that did not -- the public API, or a browser
   // that let a half-filled form through. Worth a sentence either way.
   [MINOR_CONTACTS_REQUIRED_CODE]: MINOR_CONTACTS_REQUIRED_ERROR,
+  // #1417. The box is required on step 2, so reaching this means a client
+  // that did not ask.
+  [ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE]:
+    ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
   // #686. Three ways a waiver can stop a registration, and they are three
   // different things to say. The first is the reader's to fix; the second is
   // nobody's fault and asks them to read again; the third is the
@@ -116,6 +124,8 @@ export async function registerForEventAction(
     // #1407. `undefined` when the form showed no question, so the RPC's own
     // default stands; an event with options then refuses it.
     p_option_counts: parsed.data.option_counts ?? undefined,
+    // #1417. Sent as ticked; the RPC ignores it on an event that is not 18+.
+    p_adults_only_confirmed: parsed.data.adults_only_confirmed,
     // #1415. `undefined` when the form did not ask, so nothing is written;
     // the RPC ignores them on a tenant without the rider_profile module.
     p_riding_discipline: riding?.riding_discipline,

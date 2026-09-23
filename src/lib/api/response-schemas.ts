@@ -164,6 +164,10 @@ const eventSchema = z
     registration_enabled: z.boolean(),
     registration_deadline: z.union([z.string(), z.null()]),
     flier_url: z.union([z.string(), z.null()]),
+    adults_only: z.boolean().meta({
+      description:
+        "Adults only (18+). Registering for one requires adults_only_confirmed.",
+    }),
     sponsors: z.array(sponsorSchema),
     programs: z.array(programSchema),
   })

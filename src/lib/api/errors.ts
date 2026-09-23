@@ -195,6 +195,13 @@ const RPC_ERRORS: Record<
       "A party that includes anyone under 18 needs an accompanying adult and an emergency contact.",
     field: "accompanying_adult_name",
   },
+  // #1417
+  ADULTS_ONLY_CONFIRMATION_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This event is adults only (18+). Send adults_only_confirmed once the person has confirmed everyone in their party is 18 or over.",
+    field: "adults_only_confirmed",
+  },
   // #1366. Names where to find the document, because the website's own wording
   // -- "tick the box" -- is advice a headless caller cannot act on. It names
   // the endpoint rather than a version: GET /legal reports each document's

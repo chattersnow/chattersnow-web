@@ -746,3 +746,65 @@ describe("EventRegistrationForm and the riding questions", () => {
     expect(screen.queryByText(/Do you ski or ride/)).not.toBeInTheDocument();
   });
 });
+
+describe("EventRegistrationForm on an adults-only event (#1417)", () => {
+  beforeEach(() => registerForEventActionMock.mockClear());
+
+  const confirmation = () =>
+    screen.queryByRole("checkbox", {
+      name: /Everyone in my party is 18 or over/,
+    });
+
+  test("any other event asks nothing about it", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou();
+    await toThisEvent();
+    expect(confirmation()).toBeNull();
+  });
+
+  test("step 2 asks for the confirmation, unticked, and not the minors question", async () => {
+    const user = userEvent.setup();
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        adultsOnly
+        asksAboutMinors={false}
+      />,
+    );
+    await fillAboutYou(user);
+    await toThisEvent(user);
+
+    expect(confirmation()).not.toBeChecked();
+    expect(screen.queryByLabelText(/under 18\?/i)).toBeNull();
+
+    // Required: Next stays on step 2 until it is ticked.
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(confirmation()).toBeVisible();
+  });
+
+  test("posts the confirmation and shows it on review", async () => {
+    const user = userEvent.setup();
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        adultsOnly
+        asksAboutMinors={false}
+      />,
+    );
+    await fillAboutYou(user);
+    await toThisEvent(user);
+    await user.click(confirmation()!);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(
+      screen.getByText("Everyone in my party is 18 or over", {
+        selector: "dd",
+      }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+    expect(lastSubmission().adultsOnlyConfirmed).toBe("on");
+  });
+});

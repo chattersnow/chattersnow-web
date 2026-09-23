@@ -90,6 +90,11 @@ export type EventPlanningFormData = {
   registrationEnabled: boolean;
   registrationDeadline: string | null;
   autoAssignDiscountCodes: boolean;
+  /**
+   * #1417. Null when the form did not send the field, so a save from a form
+   * that does not show the switch leaves the column as it was.
+   */
+  adultsOnly: boolean | null;
   budgetAmount: number | null;
 };
 
@@ -108,6 +113,11 @@ export function parseEventPlanningForm(
   const autoAssignDiscountCodes =
     formData.get("autoAssignDiscountCodes") === "on" ||
     formData.get("autoAssignDiscountCodes") === "true";
+  const adultsOnlyRaw = formData.get("adultsOnly");
+  const adultsOnly =
+    adultsOnlyRaw === null
+      ? null
+      : adultsOnlyRaw === "on" || adultsOnlyRaw === "true";
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
 
   let capacity: number | null = null;
@@ -160,6 +170,7 @@ export function parseEventPlanningForm(
       registrationEnabled,
       registrationDeadline: registrationDeadlineIso,
       autoAssignDiscountCodes,
+      adultsOnly,
       budgetAmount,
     },
   };

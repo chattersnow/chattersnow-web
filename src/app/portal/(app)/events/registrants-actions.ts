@@ -159,6 +159,12 @@ export type EventRegistrant = {
    */
   party_includes_minor: boolean | null;
   /**
+   * When the registrant confirmed everyone in their party is 18 or over, on
+   * an adults-only event (#1417). Null everywhere else. Not gated on
+   * `events: manage`, for the reason `party_includes_minor` is not.
+   */
+  adults_only_confirmed_at: string | null;
+  /**
    * What this person said about being photographed or recorded (#599), and the
    * only three-state field here where every state has to be legible.
    *
@@ -452,7 +458,7 @@ export async function listEventRegistrantsAction(
 //
 // `option_counts` is an embed, not a column of this table (#1407).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order)";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
