@@ -25,7 +25,7 @@ import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import { ScanTagDialog } from "./scan-tag-dialog";
 import { Hash } from "lucide-react";
-import { NUMBERED_CODES_PATH } from "@/lib/inventory-labels";
+import { CODES_PATH } from "@/lib/inventory-codes";
 import { withTagsAndHolds } from "./item-extras";
 import {
   CONDITIONS,
@@ -291,9 +291,9 @@ export default async function InventoryPage({
           <Button
             variant="secondary"
             nativeButton={false}
-            render={<Link href={NUMBERED_CODES_PATH} />}
+            render={<Link href={CODES_PATH} />}
           >
-            <Hash /> Numbered codes
+            <Hash /> Codes
           </Button>
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">

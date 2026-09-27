@@ -71,11 +71,12 @@ export default async function InventoryLabelsPage({
     options.itemIds.length > 0
       ? supabase
           .from("inventory_item_tags")
-          .select("item_id, kind, value")
+          .select("id, item_id, kind, value")
           .in("kind", ["asset_tag", "numbered"])
           .in("item_id", options.itemIds)
       : Promise.resolve({
           data: [] as {
+            id: string;
             item_id: string | null;
             kind: string;
             value: string;
@@ -89,33 +90,33 @@ export default async function InventoryLabelsPage({
     (itemsResult.data ?? []).map((item) => [item.id, item]),
   );
   const items = options.itemIds.flatMap((id) => itemById.get(id) ?? []);
-  const tagCodes = new Map<string | null, string>();
-  const numberedCodes = new Map<string | null, string>();
+  type Tag = { id: string; value: string };
+  const tagCodes = new Map<string | null, Tag>();
+  const numberedCodes = new Map<string | null, Tag>();
   for (const tag of tagsResult.data ?? []) {
-    (tag.kind === "numbered" ? numberedCodes : tagCodes).set(
-      tag.item_id,
-      tag.value,
-    );
+    (tag.kind === "numbered" ? numberedCodes : tagCodes).set(tag.item_id, tag);
   }
   // Either code opens the item (#1444). A numbered code is what most items
   // are labelled with, so it is the default wherever one is on the items.
   const hasNumbered = items.some((item) => numberedCodes.has(item.id));
   const codeKind = options.codeKind ?? (hasNumbered ? "numbered" : "tag");
-  const codeByItemId = codeKind === "numbered" ? numberedCodes : tagCodes;
+  const tagByItemId = codeKind === "numbered" ? numberedCodes : tagCodes;
 
   const labels: PrintableLabel[] = [];
   const uncoded: string[] = [];
   for (const item of items) {
-    const code = codeByItemId.get(item.id);
-    if (!code) {
+    const tag = tagByItemId.get(item.id);
+    if (!tag) {
       uncoded.push(item.id);
       continue;
     }
+    const code = tag.value;
     // A numbered label outlives the item it is on, so like the ones printed
     // from the pool it carries the code alone.
     const numbered = codeKind === "numbered";
     labels.push({
       itemId: item.id,
+      tagId: tag.id,
       code,
       description: numbered ? "" : item.description,
       size: numbered ? null : item.size,
@@ -162,6 +163,7 @@ export default async function InventoryLabelsPage({
             barcode={options.barcode}
             codeKind={hasNumbered || codeKind === "numbered" ? codeKind : null}
             printable={labels.length > 0}
+            tagIds={labels.map((label) => label.tagId)}
           />
 
           {uncoded.length > 0 && codeKind === "numbered" && (

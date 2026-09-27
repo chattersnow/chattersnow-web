@@ -15,6 +15,7 @@ import {
   type RasterLabel,
 } from "@/lib/label-printer/raster";
 import { storedZip } from "@/lib/label-printer/zip";
+import { recordLabelsPrintedAction } from "./actions";
 
 /**
  * One label: its dots as read, for the preview and for stock loaded upright,
@@ -87,7 +88,15 @@ function fileNames(labels: RasterLabel[]): string[] {
  * path talks to it through WebHID or Web Bluetooth (Chrome and Edge; Chrome
  * on Android; Bluefy on an iPhone). The images work in every browser.
  */
-export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
+export function KatasymbolLabels({
+  labels,
+  tagIds,
+}: {
+  labels: RasterLabel[];
+  /** Recorded as printed once the labels print or their images are saved
+   *  (#1450). */
+  tagIds: readonly string[];
+}) {
   const support = useBrowserSupport();
   const [rendered, setRendered] = useState<Rendered[] | null>(null);
   const [state, setState] = useState<PrintState>({ step: "idle" });
@@ -147,6 +156,7 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
         setState({ step: "printing", printed, total: encoded.length }),
       );
       setState({ step: "done", total: encoded.length });
+      void recordLabelsPrintedAction(tagIds).catch(() => null);
     } catch (error) {
       setState({ step: "error", message: describe(error) });
     } finally {
@@ -196,13 +206,19 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
       const files = rendered.map(
         ({ png }, i) => new File([png], names[i], { type: "image/png" }),
       );
+      // Saved images count as printed (#1450); a closed share sheet doesn't.
+      let saved = true;
       if (support.share && navigator.canShare({ files })) {
-        await navigator.share({ files }).catch((error: unknown) => {
-          // Closing the share sheet is not a failure.
-          if (!(error instanceof DOMException && error.name === "AbortError")) {
+        saved = await navigator.share({ files }).then(
+          () => true,
+          (error: unknown) => {
+            // Closing the share sheet is not a failure, nor a print.
+            if (error instanceof DOMException && error.name === "AbortError") {
+              return false;
+            }
             throw error;
-          }
-        });
+          },
+        );
       } else if (files.length === 1) {
         download(files[0], names[0]);
       } else {
@@ -218,6 +234,7 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
           "labels.zip",
         );
       }
+      if (saved) void recordLabelsPrintedAction(tagIds).catch(() => null);
     } finally {
       setSaving(false);
     }
