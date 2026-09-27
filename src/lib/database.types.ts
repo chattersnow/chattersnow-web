@@ -9870,8 +9870,10 @@ export type Database = {
           intro: string;
           location: string;
           max_images: number;
+          opens_at: string;
           rights_note: string;
           starts_at: string;
+          status: string;
           title: string;
         }[];
       };

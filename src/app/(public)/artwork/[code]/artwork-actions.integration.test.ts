@@ -60,7 +60,9 @@ async function createCall(
   overrides: {
     is_open?: boolean;
     max_images?: number;
+    opens_at?: string;
     closes_at?: string;
+    intro?: string;
     rights_note?: string;
     timezone?: string;
     /** Skips the event fixture entirely, for the standalone case (#879). */
@@ -619,6 +621,7 @@ describe("anonymous reach (integration)", () => {
 
     expect(data).toMatchObject({
       call_id: call.id,
+      status: "open",
       title: "Zine Vol. 2",
       event_id: call.eventId,
       // createPublishedEvent's default, inherited because the call sets no
@@ -697,5 +700,142 @@ describe("anonymous reach (integration)", () => {
     const first = await createCall({ withoutEvent: true });
     const second = await createCall({ withoutEvent: true });
     expect(first.id).not.toBe(second.id);
+  });
+});
+
+// #1454. A call someone holds the link to answers with where it stands, not a
+// 404 -- and with nothing but its title and dates when it is not open.
+describe("get_artwork_call status (integration)", () => {
+  const HOUR = 3_600_000;
+
+  async function lookUp(code: string) {
+    const { data, error } = await anonClient().rpc("get_artwork_call", {
+      p_code: code,
+      p_ip_address: uniqueIp(),
+    });
+    expect(error).toBeNull();
+    return data ?? [];
+  }
+
+  // The brief and the event are the open page's business. A closed call's
+  // rights note is one view-source away if the RPC hands it over at all.
+  const WITHHELD = {
+    event_id: null,
+    event_name: null,
+    starts_at: null,
+    location: null,
+    intro: null,
+    rights_note: null,
+  };
+
+  test("a call past its deadline is closed, with its date and nothing else", async () => {
+    const closesAt = new Date(Date.now() - HOUR).toISOString();
+    const call = await createCall({
+      closes_at: closesAt,
+      intro: "Send us your winter.",
+      rights_note: "You keep the original.",
+    });
+
+    const rows = await lookUp(call.code);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      status: "closed",
+      title: "Zine Vol. 2",
+      display_timezone: "America/Chicago",
+      ...WITHHELD,
+    });
+    expect(new Date(rows[0].closes_at).toISOString()).toBe(closesAt);
+  });
+
+  test("a call whose window has not started is not yet open", async () => {
+    const opensAt = new Date(Date.now() + 24 * HOUR).toISOString();
+    const call = await createCall({
+      opens_at: opensAt,
+      intro: "Send us your winter.",
+    });
+
+    const rows = await lookUp(call.code);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "not_yet_open", ...WITHHELD });
+    expect(new Date(rows[0].opens_at).toISOString()).toBe(opensAt);
+  });
+
+  test("a call switched off after taking work is closed", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall();
+    const result = await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari",
+        email: uniqueEmail("artwork-switched-off"),
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+    expect(result).toEqual({ success: true });
+
+    await service
+      .from("event_artwork_calls")
+      .update({ is_open: false })
+      .eq("id", call.id);
+
+    const rows = await lookUp(call.code);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "closed", ...WITHHELD });
+  });
+
+  test("a call switched off past its deadline is closed", async () => {
+    const call = await createCall({
+      is_open: false,
+      closes_at: new Date(Date.now() - HOUR).toISOString(),
+    });
+
+    const rows = await lookUp(call.code);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "closed" });
+  });
+
+  // A draft nobody was ever sent the link for. "Closed" would announce it.
+  test("a call never opened, with no work and no passed deadline, is not found", async () => {
+    const call = await createCall({
+      is_open: false,
+      closes_at: new Date(Date.now() + 24 * HOUR).toISOString(),
+    });
+    expect(await lookUp(call.code)).toHaveLength(0);
+
+    const undated = await createCall({ is_open: false });
+    expect(await lookUp(undated.code)).toHaveLength(0);
+  });
+
+  test("a closed call still refuses a submission", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall({
+      closes_at: new Date(Date.now() - HOUR).toISOString(),
+    });
+    expect((await lookUp(call.code))[0]).toMatchObject({ status: "closed" });
+
+    const result = await submitArtworkAction(
+      call.code,
+      formData({
+        name: "Ari",
+        email: uniqueEmail("artwork-closed-page"),
+        images: JSON.stringify([imagePaths(call)]),
+      }),
+    );
+
+    expect(result).toEqual({ error: "This call for artwork is closed." });
+    expect(await submissionsFor(call.id)).toHaveLength(0);
+  });
+
+  test("a not-yet-open call refuses an upload slot", async () => {
+    currentIp = uniqueIp();
+    const call = await createCall({
+      opens_at: new Date(Date.now() + 24 * HOUR).toISOString(),
+    });
+
+    expect(
+      await createArtworkUploadSlotsAction(call.code, ["image/jpeg"]),
+    ).toEqual({ error: "This call for artwork is closed." });
   });
 });
