@@ -25,7 +25,7 @@ import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import { ScanTagDialog } from "./scan-tag-dialog";
 import { Hash } from "lucide-react";
-import { NUMBERED_CODES_PATH } from "@/lib/inventory-labels";
+import { CODES_PATH } from "@/lib/inventory-codes";
 import { withTagsAndHolds } from "./item-extras";
 import {
   CONDITIONS,
@@ -275,7 +275,7 @@ export default async function InventoryPage({
           Two groups, not five evenly spread controls: proximity is what
           tells a reader which controls belong together. Everything that
           finds or narrows items sits together on the left; how the result is
-          shown, and the way out to the codes page, sit on the right.
+          shown, and the way out to the Codes page, sit on the right.
         */}
         <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
           <div className="flex flex-wrap items-center gap-2">
@@ -419,9 +419,9 @@ export default async function InventoryPage({
             <Button
               variant="secondary"
               nativeButton={false}
-              render={<Link href={NUMBERED_CODES_PATH} />}
+              render={<Link href={CODES_PATH} />}
             >
-              <Hash /> Numbered codes
+              <Hash /> Codes
             </Button>
           </div>
         </div>

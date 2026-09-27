@@ -8,13 +8,20 @@ import { Spinner } from "@/components/ui/spinner";
 import type { Bitmap } from "@/lib/label-printer/bitmap";
 import {
   KATASYMBOL_LABEL_MM,
+  bitmapToCanvas,
   canvasToPng,
   renderLabel,
+  rotateClockwise,
   type RasterLabel,
 } from "@/lib/label-printer/raster";
 import { storedZip } from "@/lib/label-printer/zip";
+import { recordLabelsPrintedAction } from "./actions";
 
-type Rendered = { bitmap: Bitmap; png: Blob; url: string };
+/**
+ * One label: its dots as read, for the preview and for stock loaded upright,
+ * and turned to lie the way 50 × 30 stock runs, for the printer and the file.
+ */
+type Rendered = { upright: Bitmap; turned: Bitmap; png: Blob; url: string };
 type Link = "usb" | "bluetooth";
 type Driver = typeof import("@/lib/label-printer/printer");
 type Connected = Awaited<ReturnType<Driver["connectUsbPrinter"]>>;
@@ -81,7 +88,15 @@ function fileNames(labels: RasterLabel[]): string[] {
  * path talks to it through WebHID or Web Bluetooth (Chrome and Edge; Chrome
  * on Android; Bluefy on an iPhone). The images work in every browser.
  */
-export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
+export function KatasymbolLabels({
+  labels,
+  tagIds,
+}: {
+  labels: RasterLabel[];
+  /** Recorded as printed once the labels print or their images are saved
+   *  (#1450). */
+  tagIds: readonly string[];
+}) {
   const support = useBrowserSupport();
   const [rendered, setRendered] = useState<Rendered[] | null>(null);
   const [state, setState] = useState<PrintState>({ step: "idle" });
@@ -100,11 +115,15 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
     (async () => {
       const next: Rendered[] = [];
       for (const label of labels) {
-        const { bitmap, canvas } = await renderLabel(label);
-        const png = await canvasToPng(canvas);
-        const url = URL.createObjectURL(png);
+        const upright = await renderLabel(label);
+        const turned = rotateClockwise(upright);
+        const [preview, png] = await Promise.all([
+          canvasToPng(bitmapToCanvas(upright)),
+          canvasToPng(bitmapToCanvas(turned)),
+        ]);
+        const url = URL.createObjectURL(preview);
         urls.push(url);
-        next.push({ bitmap, png, url });
+        next.push({ upright, turned, png, url });
       }
       if (!cancelled) setRendered(next);
     })().catch(() => {
@@ -121,16 +140,23 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
     };
   }, [labels]);
 
-  async function send(transport: Connected) {
+  /**
+   * `upright` when the stock is loaded 30 mm across the head, so the label
+   * already runs the way it reads.
+   */
+  async function send(transport: Connected, upright = false) {
     const { encodeLabel, printLabels } = await (driver.current ??=
       loadDriver());
-    const encoded = rendered!.map(({ bitmap }) => encodeLabel(bitmap));
+    const encoded = rendered!.map((label) =>
+      encodeLabel(upright ? label.upright : label.turned),
+    );
     setState({ step: "printing", printed: 0, total: encoded.length });
     try {
       await printLabels(transport, encoded, (printed) =>
         setState({ step: "printing", printed, total: encoded.length }),
       );
       setState({ step: "done", total: encoded.length });
+      void recordLabelsPrintedAction(tagIds).catch(() => null);
     } catch (error) {
       setState({ step: "error", message: describe(error) });
     } finally {
@@ -141,6 +167,7 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
   async function print(link: Link) {
     setState({ step: "connecting" });
     let transport: Connected | null = null;
+    let upright = false;
     try {
       const printer = await (driver.current ??= loadDriver());
       transport = await (link === "usb"
@@ -148,7 +175,10 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
         : printer.connectBluetoothPrinter());
       const loaded = await transport.loadedLabels();
       const { width, height } = KATASYMBOL_LABEL_MM;
-      if (!printer.labelsMatch(loaded, width, height)) {
+      upright =
+        printer.labelsMatch(loaded, height, width) &&
+        !printer.labelsMatch(loaded, width, height);
+      if (!upright && !printer.labelsMatch(loaded, width, height)) {
         setState({
           step: "mismatch",
           loaded: `${loaded!.widthMm} × ${loaded!.heightMm} mm`,
@@ -165,7 +195,7 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
       }
       return;
     }
-    await send(transport);
+    await send(transport, upright);
   }
 
   async function saveImages() {
@@ -176,13 +206,19 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
       const files = rendered.map(
         ({ png }, i) => new File([png], names[i], { type: "image/png" }),
       );
+      // Saved images count as printed (#1450); a closed share sheet doesn't.
+      let saved = true;
       if (support.share && navigator.canShare({ files })) {
-        await navigator.share({ files }).catch((error: unknown) => {
-          // Closing the share sheet is not a failure.
-          if (!(error instanceof DOMException && error.name === "AbortError")) {
+        saved = await navigator.share({ files }).then(
+          () => true,
+          (error: unknown) => {
+            // Closing the share sheet is not a failure, nor a print.
+            if (error instanceof DOMException && error.name === "AbortError") {
+              return false;
+            }
             throw error;
-          }
-        });
+          },
+        );
       } else if (files.length === 1) {
         download(files[0], names[0]);
       } else {
@@ -198,6 +234,7 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
           "labels.zip",
         );
       }
+      if (saved) void recordLabelsPrintedAction(tagIds).catch(() => null);
     } finally {
       setSaving(false);
     }
@@ -295,9 +332,10 @@ export function KatasymbolLabels({ labels }: { labels: RasterLabel[] }) {
           <div
             key={`${label.code}-${i}`}
             className="flex items-center justify-center overflow-hidden rounded-sm bg-white shadow-md ring-1 ring-black/10"
+            // Upright, as it reads on the item.
             style={{
-              width: `${KATASYMBOL_LABEL_MM.width}mm`,
-              height: `${KATASYMBOL_LABEL_MM.height}mm`,
+              width: `${KATASYMBOL_LABEL_MM.height}mm`,
+              height: `${KATASYMBOL_LABEL_MM.width}mm`,
             }}
           >
             {/* A blob: URL drawn in the browser; nothing for next/image

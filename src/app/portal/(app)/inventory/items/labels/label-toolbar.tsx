@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
@@ -20,14 +20,21 @@ import { runAction } from "@/components/portal/action-toast";
 import {
   LABEL_LAYOUTS,
   labelsPerPage,
+  type LabelCodeKind,
   type LabelLayoutKey,
 } from "@/lib/inventory-labels";
 import { createAssetTagsAction } from "../actions";
+import { recordLabelsPrintedAction } from "./actions";
 
 const LAYOUT_ITEMS = LABEL_LAYOUTS.map((layout) => ({
   value: layout.key,
   label: layout.name,
 }));
+
+const CODE_ITEMS: { value: LabelCodeKind; label: string }[] = [
+  { value: "numbered", label: "Numbered code" },
+  { value: "tag", label: "Tag code" },
+];
 
 /**
  * The print options, kept in the URL: a reprint of the same sheet is the same
@@ -37,15 +44,25 @@ export function LabelToolbar({
   layout,
   skip,
   barcode,
+  codeKind = null,
   printable,
+  tagIds,
   backHref = "/portal/inventory/items",
   backLabel = "Back to items",
 }: {
   layout: LabelLayoutKey;
   skip: number;
   barcode: boolean;
+  /**
+   * Which of the items' codes the labels carry, offered only when the items
+   * have both kinds to choose from.
+   */
+  codeKind?: LabelCodeKind | null;
   /** False when there is nothing to print yet, which disables Print. */
   printable: boolean;
+  /** The codes on these sheets, recorded as printed when Print is pressed
+   *  (#1450). Opening the page records nothing. */
+  tagIds: readonly string[];
   backHref?: string;
   backLabel?: string;
 }) {
@@ -53,6 +70,7 @@ export function LabelToolbar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [isRecording, setIsRecording] = useState(false);
   const current = LABEL_LAYOUTS.find((option) => option.key === layout)!;
   const perPage = labelsPerPage(current);
   // A Katasymbol label is printed from its own panel, not the print dialog.
@@ -84,8 +102,15 @@ export function LabelToolbar({
           <Button
             type="button"
             className="ml-auto"
-            disabled={!printable || isPending}
-            onClick={() => window.print()}
+            disabled={!printable || isPending || isRecording}
+            onClick={async () => {
+              // Recorded first, since the dialog can hold the page until it
+              // closes; the labels print whether or not it was saved.
+              setIsRecording(true);
+              await recordLabelsPrintedAction(tagIds).catch(() => null);
+              setIsRecording(false);
+              window.print();
+            }}
           >
             <Printer /> Print labels
           </Button>
@@ -116,6 +141,35 @@ export function LabelToolbar({
           </Select>
           <p className="app-muted text-xs">{current.description}</p>
         </div>
+
+        {codeKind && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="label-code">Code</Label>
+            <Select
+              items={CODE_ITEMS}
+              value={codeKind}
+              onValueChange={(next) =>
+                next && next !== codeKind && setParams({ code: next })
+              }
+            >
+              <SelectTrigger id="label-code" className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CODE_ITEMS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="app-muted text-xs">
+              {codeKind === "numbered"
+                ? "Reusable: the code alone, for the next item too."
+                : "Permanent: with the item’s name."}
+            </p>
+          </div>
+        )}
 
         {perPage > 1 && (
           <div className="flex flex-col gap-1.5">

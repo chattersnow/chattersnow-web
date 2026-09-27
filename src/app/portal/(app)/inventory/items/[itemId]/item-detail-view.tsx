@@ -22,6 +22,7 @@ import {
   resolveImageUrl,
   type InventoryItem,
 } from "../inventory-shared";
+import { CodeActions } from "./code-actions";
 import { ItemActions, type ItemDistribute } from "./item-actions";
 import { ItemHistoryCard } from "./item-history-card";
 import type { HistoryEntry } from "./item-history";
@@ -40,7 +41,7 @@ export function ItemDetailView({
   distribute?: ItemDistribute | null;
 }) {
   const imageUrl = resolveImageUrl(item.photo_url);
-  const hasActions = canManage || !!item.assetTag || !!item.numberedCode;
+  const hasActions = canManage || !!distribute;
 
   return (
     <>
@@ -156,25 +157,29 @@ export function ItemDetailView({
             <FieldGroup>
               <ReadOnlyField label="Tag code" htmlFor="item-assetTag">
                 {item.assetTag ? (
-                  <span className="font-mono tracking-wider">
-                    {item.assetTag}
-                  </span>
+                  <CodeActions
+                    itemId={item.id}
+                    code={item.assetTag}
+                    kind="tag"
+                  />
                 ) : (
                   "None yet"
                 )}
               </ReadOnlyField>
               <p className="app-muted text-sm">
                 {item.assetTag
-                  ? "Tapping this item's NFC tag, or scanning its label, opens this page. To write the tag on an iPhone, copy the tag URL and write it to the tag with a free app such as NFC Tools."
+                  ? "Tapping an NFC tag with either code, or scanning its label, opens this page. To write the tag on an iPhone, copy the tag URL and write it to the tag with a free app such as NFC Tools."
                   : canManage
                     ? "Generate a code to print this item's label or write it to an NFC tag."
                     : "This item has no tag code yet."}
               </p>
               <ReadOnlyField label="Numbered code" htmlFor="item-numberedCode">
                 {item.numberedCode ? (
-                  <span className="font-mono tracking-wider">
-                    {item.numberedCode}
-                  </span>
+                  <CodeActions
+                    itemId={item.id}
+                    code={item.numberedCode}
+                    kind="numbered"
+                  />
                 ) : (
                   "None"
                 )}

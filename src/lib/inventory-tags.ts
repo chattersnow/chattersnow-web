@@ -150,6 +150,9 @@ export type InventoryTagMatch = {
  * `kinds` narrows the search -- the resolver route passes the two kinds a
  * URL can carry, `asset_tag` and `numbered`. A numbered code is matched by
  * its number, and a prefix typed with it must be the one on the code.
+ *
+ * A retired code (#1450) matches nothing: its tag was damaged or lost, so
+ * whatever was scanned is not that tag, and it answers as an unknown code.
  */
 export async function lookupInventoryTag(
   supabase: SupabaseClient<Database>,
@@ -176,6 +179,7 @@ export async function lookupInventoryTag(
       "id, kind, value, item:inventory_items!inventory_item_tags_item_in_tenant(id, description, status)",
     )
     .or(clauses.join(","))
+    .is("retired_at", null)
     .order("created_at", { ascending: true })
     .limit(50);
 

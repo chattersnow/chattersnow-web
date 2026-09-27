@@ -1,9 +1,60 @@
 import { describe, expect, test } from "bun:test";
-import { bitmapGet } from "./bitmap";
-import { RASTER_SIZE, fitFontSize, thresholdPixels, wrapText } from "./raster";
+import { bitmapBytesPerRow, bitmapGet, type Bitmap } from "./bitmap";
+import {
+  RASTER_SIZE,
+  UPRIGHT_SIZE,
+  fitFontSize,
+  rotateClockwise,
+  thresholdPixels,
+  wrapText,
+} from "./raster";
 
 test("a 50 × 30 mm label is 400 × 240 dots at 8 dots/mm", () => {
   expect(RASTER_SIZE).toEqual({ width: 400, height: 240 });
+});
+
+test("the label is drawn upright, taller than it is wide", () => {
+  expect(UPRIGHT_SIZE).toEqual({ width: 240, height: 400 });
+});
+
+describe("rotateClockwise", () => {
+  function bitmapWith(width: number, height: number, dots: [number, number][]) {
+    const stride = bitmapBytesPerRow(width);
+    const data = new Uint8Array(stride * height);
+    for (const [x, y] of dots) data[y * stride + (x >> 3)] |= 0x80 >> (x & 7);
+    return { width, height, data } satisfies Bitmap;
+  }
+
+  test("turns the upright label to lie the way the stock runs", () => {
+    const { width, height } = UPRIGHT_SIZE;
+    // The top-left corner, and a dot near the bottom-right.
+    const turned = rotateClockwise(
+      bitmapWith(width, height, [
+        [0, 0],
+        [width - 2, height - 1],
+      ]),
+    );
+    expect({ width: turned.width, height: turned.height }).toEqual(RASTER_SIZE);
+    // The label's top is the right-hand edge.
+    expect(bitmapGet(turned, RASTER_SIZE.width - 1, 0)).toBe(true);
+    expect(bitmapGet(turned, 0, RASTER_SIZE.height - 2)).toBe(true);
+    const inked = [...turned.data].reduce(
+      (sum, byte) => sum + byte.toString(2).replaceAll("0", "").length,
+      0,
+    );
+    expect(inked).toBe(2);
+  });
+
+  test("four turns come back to the start", () => {
+    const start = bitmapWith(13, 5, [
+      [0, 0],
+      [12, 4],
+      [7, 2],
+    ]);
+    let bitmap: Bitmap = start;
+    for (let i = 0; i < 4; i++) bitmap = rotateClockwise(bitmap);
+    expect(bitmap).toEqual(start);
+  });
 });
 
 describe("thresholdPixels", () => {

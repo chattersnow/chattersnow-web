@@ -1,4 +1,9 @@
-import { DOTS_PER_MM, bitmapBytesPerRow, type Bitmap } from "./bitmap";
+import {
+  DOTS_PER_MM,
+  bitmapBytesPerRow,
+  bitmapGet,
+  type Bitmap,
+} from "./bitmap";
 
 /**
  * A label drawn dot for dot at the printer's resolution (#1447), for the two
@@ -12,12 +17,26 @@ import { DOTS_PER_MM, bitmapBytesPerRow, type Bitmap } from "./bitmap";
  * small type need hard edges, not a dither.
  */
 
-/** The die-cut stock: 50 mm across the printhead, 30 mm along the feed. */
+/**
+ * The die-cut stock as it sits in the printer: 50 mm across the printhead,
+ * 30 mm along the feed, which is how the stock's own tag reports it.
+ */
 export const KATASYMBOL_LABEL_MM = { width: 50, height: 30 } as const;
 
+/** The stock in dots, across the head by along the feed. */
 export const RASTER_SIZE = {
   width: KATASYMBOL_LABEL_MM.width * DOTS_PER_MM,
   height: KATASYMBOL_LABEL_MM.height * DOTS_PER_MM,
+} as const;
+
+/**
+ * The label as it is read. Stuck on an item it stands taller than it is
+ * wide, so it is drawn 30 mm across and 50 mm down, and turned a quarter to
+ * go through the printer the way the stock is loaded.
+ */
+export const UPRIGHT_SIZE = {
+  width: RASTER_SIZE.height,
+  height: RASTER_SIZE.width,
 } as const;
 
 /** Darker than this (0-255 luma) prints. */
@@ -111,18 +130,60 @@ export function fitFontSize(
   return size;
 }
 
-// Layout, in printer dots (8 per mm). The printhead is 48 mm, so a millimetre
-// comes off each side of the 50 mm label, and a die cut wanders about as much
-// again: nothing is drawn within 2.5 mm of the side edges or 2 mm of the ends.
-// The QR is 21 mm with its quiet zone, about half a millimetre a module, which
-// a phone reads easily and leaves the text half the label.
-const PAD_X = 20;
-const PAD_Y = 16;
-const QR_SIZE = 168;
-const QR_TOP = (RASTER_SIZE.height - QR_SIZE) / 2;
-const GAP = 4;
-const TEXT_LEFT = PAD_X + QR_SIZE + GAP;
-const TEXT_WIDTH = RASTER_SIZE.width - PAD_X - TEXT_LEFT;
+/**
+ * The bitmap turned a quarter clockwise: the upright label as the printer
+ * takes it off 50 × 30 stock, the top of the label on the right.
+ */
+export function rotateClockwise(bitmap: Bitmap): Bitmap {
+  const width = bitmap.height;
+  const height = bitmap.width;
+  const stride = bitmapBytesPerRow(width);
+  const data = new Uint8Array(stride * height);
+  for (let y = 0; y < bitmap.height; y++) {
+    for (let x = 0; x < bitmap.width; x++) {
+      if (!bitmapGet(bitmap, x, y)) continue;
+      const toX = width - 1 - y;
+      data[x * stride + (toX >> 3)] |= 0x80 >> (toX & 7);
+    }
+  }
+  return { width, height, data };
+}
+
+/** A canvas of exactly a bitmap's dots, black on white. */
+export function bitmapToCanvas(bitmap: Bitmap): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d")!;
+  const pixels = ctx.createImageData(bitmap.width, bitmap.height);
+  for (let y = 0; y < bitmap.height; y++) {
+    for (let x = 0; x < bitmap.width; x++) {
+      const i = (y * bitmap.width + x) * 4;
+      const value = bitmapGet(bitmap, x, y) ? 0 : 255;
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
+      pixels.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
+// Layout of the upright label, in printer dots (8 per mm). Its height runs
+// across the 48 mm printhead, so a millimetre comes off the top and bottom of
+// the 50 mm label, and a die cut wanders about as much again: nothing is
+// drawn within 2.5 mm of those ends or 2 mm of the sides. The QR is 24 mm
+// with its quiet zone, over half a millimetre a module, which a phone reads
+// easily, and leaves the lower two fifths for the text.
+const PAD_X = 16;
+const PAD_Y = 20;
+const CONTENT_WIDTH = UPRIGHT_SIZE.width - PAD_X * 2;
+const QR_SIZE = 192;
+const QR_LEFT = (UPRIGHT_SIZE.width - QR_SIZE) / 2;
+const GAP = 6;
+const TEXT_TOP = PAD_Y + QR_SIZE + GAP;
+const TEXT_BOTTOM = UPRIGHT_SIZE.height - PAD_Y;
+const CENTER_X = UPRIGHT_SIZE.width / 2;
+const LINE_GAP = 3;
 
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
@@ -133,22 +194,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Draws one label and returns it both as the bitmap the printer takes and as
- * a canvas of exactly those black and white dots.
+ * Draws one label upright and returns the black and white dots the printer
+ * burns, as they read on the label.
  */
-export async function renderLabel(
-  label: RasterLabel,
-): Promise<{ bitmap: Bitmap; canvas: HTMLCanvasElement }> {
+export async function renderLabel(label: RasterLabel): Promise<Bitmap> {
   const canvas = document.createElement("canvas");
-  canvas.width = RASTER_SIZE.width;
-  canvas.height = RASTER_SIZE.height;
+  canvas.width = UPRIGHT_SIZE.width;
+  canvas.height = UPRIGHT_SIZE.height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   await document.fonts.ready;
   const qr = await loadImage(label.qrSrc);
-  ctx.drawImage(qr, PAD_X, QR_TOP, QR_SIZE, QR_SIZE);
+  ctx.drawImage(qr, QR_LEFT, PAD_Y, QR_SIZE, QR_SIZE);
 
   const sans = getComputedStyle(document.body).fontFamily || "sans-serif";
   const measureAt = (font: string) => (text: string, size: number) => {
@@ -158,6 +217,7 @@ export async function renderLabel(
   const codeFont = `700 {size}px ${MONO}`;
   ctx.fillStyle = "#000";
   ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "center";
 
   const codeOnly = !label.description && !label.size;
   if (codeOnly) {
@@ -165,29 +225,48 @@ export async function renderLabel(
     // whole label.
     const size = fitFontSize(
       label.code,
-      TEXT_WIDTH,
+      CONTENT_WIDTH,
       72,
       16,
       measureAt(codeFont),
     );
     ctx.font = codeFont.replace("{size}", String(size));
-    ctx.fillText(label.code, TEXT_LEFT, RASTER_SIZE.height / 2 + size * 0.35);
+    ctx.fillText(
+      label.code,
+      CENTER_X,
+      (TEXT_TOP + TEXT_BOTTOM) / 2 + size * 0.35,
+    );
   } else {
+    // The code sits on the bottom edge; the name and size fill down to it.
+    const codeSize = fitFontSize(
+      label.code,
+      CONTENT_WIDTH,
+      44,
+      18,
+      measureAt(codeFont),
+    );
+    const codeTop = TEXT_BOTTOM - codeSize * 0.75;
     const measure = (text: string) => ctx.measureText(text).width;
-    let y = PAD_Y;
+    const descriptionSize = 20;
+    const sizeSize = 18;
+    const room = codeTop - GAP - TEXT_TOP;
+    let y = TEXT_TOP;
     if (label.description) {
-      const size = 20;
-      ctx.font = `600 ${size}px ${sans}`;
-      const lines = wrapText(
-        label.description,
-        TEXT_WIDTH,
-        measure,
-        label.size ? 4 : 5,
+      const sizeRoom = label.size ? sizeSize + LINE_GAP : 0;
+      const maxLines = Math.max(
+        1,
+        Math.floor((room - sizeRoom) / (descriptionSize + LINE_GAP)),
       );
-      for (const line of lines) {
-        y += size;
-        ctx.fillText(line, TEXT_LEFT, y);
-        y += 3;
+      ctx.font = `600 ${descriptionSize}px ${sans}`;
+      for (const line of wrapText(
+        label.description,
+        CONTENT_WIDTH,
+        measure,
+        maxLines,
+      )) {
+        y += descriptionSize;
+        ctx.fillText(line, CENTER_X, y);
+        y += LINE_GAP;
       }
     }
     if (label.size) {
@@ -195,42 +274,21 @@ export async function renderLabel(
       const sizeFont = `400 {size}px ${sans}`;
       const size = fitFontSize(
         sizeText,
-        TEXT_WIDTH,
-        18,
+        CONTENT_WIDTH,
+        sizeSize,
         14,
         measureAt(sizeFont),
       );
       ctx.font = sizeFont.replace("{size}", String(size));
-      const [line] = wrapText(sizeText, TEXT_WIDTH, measure, 1);
-      ctx.fillText(line, TEXT_LEFT, y + size + 3);
+      const [line] = wrapText(sizeText, CONTENT_WIDTH, measure, 1);
+      ctx.fillText(line, CENTER_X, y + size);
     }
-    const size = fitFontSize(
-      label.code,
-      TEXT_WIDTH,
-      44,
-      18,
-      measureAt(codeFont),
-    );
-    ctx.font = codeFont.replace("{size}", String(size));
-    ctx.fillText(label.code, TEXT_LEFT, RASTER_SIZE.height - PAD_Y);
+    ctx.font = codeFont.replace("{size}", String(codeSize));
+    ctx.fillText(label.code, CENTER_X, TEXT_BOTTOM);
   }
 
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const bitmap = thresholdPixels(pixels.data, canvas.width, canvas.height);
-  // Paint the cut back, so the saved image is what the printer would burn.
-  for (let i = 0; i < pixels.data.length; i += 4) {
-    const x = (i / 4) % canvas.width;
-    const y = Math.floor(i / 4 / canvas.width);
-    const ink =
-      (bitmap.data[y * bitmapBytesPerRow(canvas.width) + (x >> 3)] &
-        (0x80 >> (x & 7))) !==
-      0;
-    const value = ink ? 0 : 255;
-    pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
-    pixels.data[i + 3] = 255;
-  }
-  ctx.putImageData(pixels, 0, 0);
-  return { bitmap, canvas };
+  return thresholdPixels(pixels.data, canvas.width, canvas.height);
 }
 
 export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {

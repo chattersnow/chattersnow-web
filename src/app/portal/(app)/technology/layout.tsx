@@ -4,11 +4,14 @@ import { requireAnyPermission } from "@/lib/auth/permissions";
 /**
  * The gate on everything under /portal/technology.
  *
- * Unchanged by the move out of Administration (#943): `access_management` was
- * always its own module in the entitlement catalog, admitting its two
- * resources at `view`, and `administration:manage` still reaches it the way it
- * reaches every other section an admin holds. Nobody gains or loses access --
- * the section is simply no longer behind Administration's disclosure.
+ * `access_management` is its own module in the entitlement catalog, so the
+ * gate is its two resources at `view` and nothing else. It used to admit
+ * `administration:manage` as well, the way the Administration sections do, but
+ * that resource belongs to the core `administration` module and cannot be
+ * switched off -- so a tenant with Access Management disabled still showed its
+ * admins the whole section. Admins lose nothing by dropping it: the admin role
+ * holds access_management_assets:manage outright, which my_permissions()
+ * reports as `none` exactly when the module is off.
  */
 export default async function TechnologyLayout({
   children,
@@ -19,7 +22,6 @@ export default async function TechnologyLayout({
   await requireAnyPermission(
     supabase,
     [
-      { resource: "administration", level: "manage" },
       { resource: "access_management_assets", level: "view" },
       { resource: "access_management_reviews", level: "view" },
     ],

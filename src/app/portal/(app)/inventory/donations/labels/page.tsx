@@ -72,6 +72,7 @@ export default async function IntakeLabelsPage({
 
   const labels: PrintableLabel[] = (rowsResult.data ?? []).map((row) => ({
     itemId: row.item_id ?? row.tag_id,
+    tagId: row.tag_id,
     code: row.code,
     description: row.description ?? "",
     size: row.size,
@@ -124,6 +125,7 @@ export default async function IntakeLabelsPage({
             skip={options.skip}
             barcode={options.barcode}
             printable
+            tagIds={labels.map((label) => label.tagId)}
             backHref="/portal/inventory/donations"
             backLabel="Back to donations"
           />

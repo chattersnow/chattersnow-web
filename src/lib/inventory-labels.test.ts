@@ -86,6 +86,13 @@ describe("parseLabelOptions", () => {
     expect(parseLabelOptions({ layout: "roll", skip: "4" }).skip).toBe(0);
   });
 
+  test("code is numbered or tag, and otherwise left to the page", () => {
+    expect(parseLabelOptions({ code: "numbered" }).codeKind).toBe("numbered");
+    expect(parseLabelOptions({ code: "tag" }).codeKind).toBe("tag");
+    expect(parseLabelOptions({ code: "asset" }).codeKind).toBeNull();
+    expect(parseLabelOptions({}).codeKind).toBeNull();
+  });
+
   test("barcode is on only for 1", () => {
     expect(parseLabelOptions({ barcode: "1" }).barcode).toBe(true);
     expect(parseLabelOptions({ barcode: "true" }).barcode).toBe(false);
@@ -146,9 +153,12 @@ describe("paginateLabels", () => {
   });
 });
 
-test("labelsHref lists the ids", () => {
+test("labelsHref lists the ids, and the code when one is named", () => {
   expect(labelsHref([A, B])).toBe(
     `/portal/inventory/items/labels?items=${A},${B}`,
+  );
+  expect(labelsHref([A], "numbered")).toBe(
+    `/portal/inventory/items/labels?items=${A}&code=numbered`,
   );
 });
 
