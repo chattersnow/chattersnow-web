@@ -55,6 +55,8 @@ export function LabelToolbar({
   const [isPending, startTransition] = useTransition();
   const current = LABEL_LAYOUTS.find((option) => option.key === layout)!;
   const perPage = labelsPerPage(current);
+  // A Katasymbol label is printed from its own panel, not the print dialog.
+  const viaDialog = current.printer === "browser";
 
   function setParams(changes: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams.toString());
@@ -78,14 +80,16 @@ export function LabelToolbar({
         >
           <ArrowLeft /> {backLabel}
         </Button>
-        <Button
-          type="button"
-          className="ml-auto"
-          disabled={!printable || isPending}
-          onClick={() => window.print()}
-        >
-          <Printer /> Print labels
-        </Button>
+        {viaDialog && (
+          <Button
+            type="button"
+            className="ml-auto"
+            disabled={!printable || isPending}
+            onClick={() => window.print()}
+          >
+            <Printer /> Print labels
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
@@ -99,7 +103,7 @@ export function LabelToolbar({
               next && next !== layout && setParams({ layout: next, skip: null })
             }
           >
-            <SelectTrigger id="label-layout" className="w-44">
+            <SelectTrigger id="label-layout" className="w-56">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -139,24 +143,28 @@ export function LabelToolbar({
           </div>
         )}
 
-        <div className="flex items-center gap-2 pb-5">
-          <Checkbox
-            id="label-barcode"
-            checked={barcode}
-            onCheckedChange={(checked) =>
-              setParams({ barcode: checked ? "1" : null })
-            }
-          />
-          <Label htmlFor="label-barcode">Add a 1D barcode</Label>
-        </div>
+        {viaDialog && (
+          <div className="flex items-center gap-2 pb-5">
+            <Checkbox
+              id="label-barcode"
+              checked={barcode}
+              onCheckedChange={(checked) =>
+                setParams({ barcode: checked ? "1" : null })
+              }
+            />
+            <Label htmlFor="label-barcode">Add a 1D barcode</Label>
+          </div>
+        )}
 
         {isPending && <Spinner className="mb-5" />}
       </div>
 
-      <p className="app-muted text-sm">
-        In the print dialog, set the scale to 100% (“Actual size”) and the
-        margins to None, or the labels will drift off the sheet’s cut lines.
-      </p>
+      {viaDialog && (
+        <p className="app-muted text-sm">
+          In the print dialog, set the scale to 100% (“Actual size”) and the
+          margins to None, or the labels will drift off the sheet’s cut lines.
+        </p>
+      )}
     </div>
   );
 }

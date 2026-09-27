@@ -90,6 +90,25 @@ describe("parseLabelOptions", () => {
     expect(parseLabelOptions({ barcode: "1" }).barcode).toBe(true);
     expect(parseLabelOptions({ barcode: "true" }).barcode).toBe(false);
   });
+
+  test("a Katasymbol label never carries a barcode (#1447)", () => {
+    const options = parseLabelOptions({
+      layout: "katasymbol-50x30",
+      barcode: "1",
+      skip: "3",
+    });
+    expect(options.layout.printer).toBe("katasymbol");
+    expect(options.barcode).toBe(false);
+    expect(options.skip).toBe(0);
+  });
+});
+
+test("the Katasymbol layout is one 50 × 30 mm label per page", () => {
+  const layout = labelLayoutFor("katasymbol-50x30");
+  expect(labelsPerPage(layout)).toBe(1);
+  expect(layout.page.width * 25.4).toBeCloseTo(50);
+  expect(layout.page.height * 25.4).toBeCloseTo(30);
+  expect(layout.label).toEqual(layout.page);
 });
 
 describe("paginateLabels", () => {

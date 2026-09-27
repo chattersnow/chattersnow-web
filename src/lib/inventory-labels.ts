@@ -10,7 +10,15 @@
  * brand sold as "compatible" with those numbers shares the geometry.
  */
 
-export type LabelLayoutKey = "sheet-30" | "sheet-10" | "roll";
+export type LabelLayoutKey =
+  "sheet-30" | "sheet-10" | "roll" | "katasymbol-50x30";
+
+/**
+ * How the labels reach the printer: the browser's print dialog, or drawn in
+ * the browser and sent to a Katasymbol T50M Pro, which has no driver for the
+ * dialog to find (#1447).
+ */
+export type LabelPrinter = "browser" | "katasymbol";
 
 export type LabelLayout = {
   key: LabelLayoutKey;
@@ -27,7 +35,10 @@ export type LabelLayout = {
   /** Space between neighbouring labels. */
   gapX: number;
   gapY: number;
+  printer: LabelPrinter;
 };
+
+const MM = 1 / 25.4;
 
 export const LABEL_LAYOUTS: readonly LabelLayout[] = [
   {
@@ -42,6 +53,7 @@ export const LABEL_LAYOUTS: readonly LabelLayout[] = [
     marginLeft: 0.1875,
     gapX: 0.125,
     gapY: 0,
+    printer: "browser",
   },
   {
     key: "sheet-10",
@@ -55,6 +67,7 @@ export const LABEL_LAYOUTS: readonly LabelLayout[] = [
     marginLeft: 0.15625,
     gapX: 0.1875,
     gapY: 0,
+    printer: "browser",
   },
   {
     // A thermal label printer prints one label per "page", sized to the
@@ -71,6 +84,23 @@ export const LABEL_LAYOUTS: readonly LabelLayout[] = [
     marginLeft: 0,
     gapX: 0,
     gapY: 0,
+    printer: "browser",
+  },
+  {
+    // Die-cut 50 × 30 mm stock, 50 mm across the printhead. Sized in
+    // millimetres because that is how this stock is sold.
+    key: "katasymbol-50x30",
+    name: "Katasymbol T50M Pro",
+    description: "One 50 × 30 mm label at a time",
+    page: { width: 50 * MM, height: 30 * MM },
+    label: { width: 50 * MM, height: 30 * MM },
+    columns: 1,
+    rows: 1,
+    marginTop: 0,
+    marginLeft: 0,
+    gapX: 0,
+    gapY: 0,
+    printer: "katasymbol",
   },
 ];
 
@@ -102,7 +132,11 @@ export type LabelOptions = {
    * on a roll.
    */
   skip: number;
-  /** Add a Code128 of the bare code, for a scanner that reads only 1D. */
+  /**
+   * Add a Code128 of the bare code, for a scanner that reads only 1D. Never
+   * on a Katasymbol label: at 8 dots per millimetre its bars beside the QR
+   * would be too narrow to read.
+   */
   barcode: boolean;
 };
 
@@ -131,7 +165,12 @@ export function parseLabelOptions(params: {
     Number.isFinite(requestedSkip) && requestedSkip > 0
       ? Math.min(requestedSkip, labelsPerPage(layout) - 1)
       : 0;
-  return { itemIds, layout, skip, barcode: params.barcode === "1" };
+  return {
+    itemIds,
+    layout,
+    skip,
+    barcode: params.barcode === "1" && layout.printer === "browser",
+  };
 }
 
 /**
