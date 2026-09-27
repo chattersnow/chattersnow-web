@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
@@ -23,6 +23,7 @@ import {
   type LabelLayoutKey,
 } from "@/lib/inventory-labels";
 import { createAssetTagsAction } from "../actions";
+import { recordLabelsPrintedAction } from "./actions";
 
 const LAYOUT_ITEMS = LABEL_LAYOUTS.map((layout) => ({
   value: layout.key,
@@ -38,6 +39,7 @@ export function LabelToolbar({
   skip,
   barcode,
   printable,
+  tagIds,
   backHref = "/portal/inventory/items",
   backLabel = "Back to items",
 }: {
@@ -46,6 +48,9 @@ export function LabelToolbar({
   barcode: boolean;
   /** False when there is nothing to print yet, which disables Print. */
   printable: boolean;
+  /** The codes on these sheets, recorded as printed when Print is pressed
+   *  (#1450). Opening the page records nothing. */
+  tagIds: readonly string[];
   backHref?: string;
   backLabel?: string;
 }) {
@@ -53,6 +58,7 @@ export function LabelToolbar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [isRecording, setIsRecording] = useState(false);
   const current = LABEL_LAYOUTS.find((option) => option.key === layout)!;
   const perPage = labelsPerPage(current);
   // A Katasymbol label is printed from its own panel, not the print dialog.
@@ -84,8 +90,15 @@ export function LabelToolbar({
           <Button
             type="button"
             className="ml-auto"
-            disabled={!printable || isPending}
-            onClick={() => window.print()}
+            disabled={!printable || isPending || isRecording}
+            onClick={async () => {
+              // Recorded first, since the dialog can hold the page until it
+              // closes; the labels print whether or not it was saved.
+              setIsRecording(true);
+              await recordLabelsPrintedAction(tagIds).catch(() => null);
+              setIsRecording(false);
+              window.print();
+            }}
           >
             <Printer /> Print labels
           </Button>

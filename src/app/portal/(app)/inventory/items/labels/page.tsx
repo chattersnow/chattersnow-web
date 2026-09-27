@@ -70,11 +70,11 @@ export default async function InventoryLabelsPage({
     options.itemIds.length > 0
       ? supabase
           .from("inventory_item_tags")
-          .select("item_id, value")
+          .select("id, item_id, value")
           .eq("kind", "asset_tag")
           .in("item_id", options.itemIds)
       : Promise.resolve({
-          data: [] as { item_id: string | null; value: string }[],
+          data: [] as { id: string; item_id: string | null; value: string }[],
         }),
   ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
@@ -84,20 +84,22 @@ export default async function InventoryLabelsPage({
     (itemsResult.data ?? []).map((item) => [item.id, item]),
   );
   const items = options.itemIds.flatMap((id) => itemById.get(id) ?? []);
-  const codeByItemId = new Map(
-    (tagsResult.data ?? []).map((tag) => [tag.item_id, tag.value]),
+  const tagByItemId = new Map(
+    (tagsResult.data ?? []).map((tag) => [tag.item_id, tag]),
   );
 
   const labels: PrintableLabel[] = [];
   const uncoded: string[] = [];
   for (const item of items) {
-    const code = codeByItemId.get(item.id);
-    if (!code) {
+    const tag = tagByItemId.get(item.id);
+    if (!tag) {
       uncoded.push(item.id);
       continue;
     }
+    const code = tag.value;
     labels.push({
       itemId: item.id,
+      tagId: tag.id,
       code,
       description: item.description,
       size: item.size,
@@ -143,6 +145,7 @@ export default async function InventoryLabelsPage({
             skip={options.skip}
             barcode={options.barcode}
             printable={labels.length > 0}
+            tagIds={labels.map((label) => label.tagId)}
           />
 
           {uncoded.length > 0 && (
