@@ -63,10 +63,10 @@ describe("ItemDetailView", () => {
       screen.getByRole("button", { name: "Edit item" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Copy tag URL" }),
+      screen.queryByRole("button", { name: /Copy tag URL/ }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Print label" }),
+      screen.queryByRole("link", { name: /Print label/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -74,11 +74,13 @@ describe("ItemDetailView", () => {
     renderView(makeItem({ assetTag: "ABC234" }), false);
 
     expect(
-      screen.getByRole("button", { name: "Copy tag URL" }),
+      screen.getByRole("button", { name: "Copy tag URL for ABC234" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Print label" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Print label for ABC234" }),
+    ).toHaveAttribute(
       "href",
-      "/portal/inventory/items/labels?items=11111111-1111-4111-8111-111111111111",
+      "/portal/inventory/items/labels?items=11111111-1111-4111-8111-111111111111&code=tag",
     );
     expect(
       screen.queryByRole("button", { name: "Edit item" }),
@@ -88,8 +90,27 @@ describe("ItemDetailView", () => {
     ).not.toBeInTheDocument();
     // Web NFC is Chrome-on-Android only, and the test DOM has none.
     expect(
-      screen.queryByRole("button", { name: "Write NFC tag" }),
+      screen.queryByRole("button", { name: /NFC tag/ }),
     ).not.toBeInTheDocument();
+  });
+
+  test("either code can be copied and printed, each as its own label", () => {
+    renderView(
+      makeItem({ assetTag: "ABC234", numberedCode: "CSN-007" }),
+      false,
+    );
+
+    for (const code of ["ABC234", "CSN-007"]) {
+      expect(
+        screen.getByRole("button", { name: `Copy tag URL for ${code}` }),
+      ).toBeInTheDocument();
+    }
+    expect(
+      screen.getByRole("link", { name: "Print label for CSN-007" }),
+    ).toHaveAttribute(
+      "href",
+      "/portal/inventory/items/labels?items=11111111-1111-4111-8111-111111111111&code=numbered",
+    );
   });
 
   test("a viewer with no code to act on gets no toolbar", () => {

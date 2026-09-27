@@ -91,7 +91,7 @@ export const LABEL_LAYOUTS: readonly LabelLayout[] = [
     // millimetres because that is how this stock is sold.
     key: "katasymbol-50x30",
     name: "Katasymbol T50M Pro",
-    description: "One 50 × 30 mm label at a time",
+    description: "One 50 × 30 mm label at a time, read upright",
     page: { width: 50 * MM, height: 30 * MM },
     label: { width: 50 * MM, height: 30 * MM },
     columns: 1,
@@ -123,8 +123,17 @@ export function labelsPerPage(layout: LabelLayout): number {
   return layout.columns * layout.rows;
 }
 
+/**
+ * Which of an item's codes its label carries (#1444): the reusable numbered
+ * code, or the permanent tag code. Either one is a QR and an NFC tag that
+ * opens the item.
+ */
+export type LabelCodeKind = "numbered" | "tag";
+
 export type LabelOptions = {
   itemIds: string[];
+  /** Null when the link doesn't say, so the page picks. */
+  codeKind: LabelCodeKind | null;
   layout: LabelLayout;
   /**
    * Cells to leave blank at the start of the first sheet, so a sheet with
@@ -147,6 +156,7 @@ export type LabelOptions = {
  */
 export function parseLabelOptions(params: {
   items?: string;
+  code?: string;
   layout?: string;
   skip?: string;
   barcode?: string;
@@ -167,6 +177,8 @@ export function parseLabelOptions(params: {
       : 0;
   return {
     itemIds,
+    codeKind:
+      params.code === "numbered" || params.code === "tag" ? params.code : null,
     layout,
     skip,
     barcode: params.barcode === "1" && layout.printer === "browser",
@@ -228,8 +240,12 @@ export function parseLabelCodes(raw: string | undefined): string[] {
 }
 
 /** The print page for these items, from anywhere in the portal. */
-export function labelsHref(itemIds: readonly string[]): string {
-  return `/portal/inventory/items/labels?items=${itemIds.join(",")}`;
+export function labelsHref(
+  itemIds: readonly string[],
+  codeKind?: LabelCodeKind,
+): string {
+  const code = codeKind ? `&code=${codeKind}` : "";
+  return `/portal/inventory/items/labels?items=${itemIds.join(",")}${code}`;
 }
 
 /**

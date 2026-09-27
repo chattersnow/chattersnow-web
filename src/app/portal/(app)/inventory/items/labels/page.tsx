@@ -46,6 +46,7 @@ export default async function InventoryLabelsPage({
   };
   const options = parseLabelOptions({
     items: raw("items"),
+    code: raw("code"),
     layout: raw("layout"),
     skip: raw("skip"),
     barcode: raw("barcode"),
@@ -70,11 +71,15 @@ export default async function InventoryLabelsPage({
     options.itemIds.length > 0
       ? supabase
           .from("inventory_item_tags")
-          .select("item_id, value")
-          .eq("kind", "asset_tag")
+          .select("item_id, kind, value")
+          .in("kind", ["asset_tag", "numbered"])
           .in("item_id", options.itemIds)
       : Promise.resolve({
-          data: [] as { item_id: string | null; value: string }[],
+          data: [] as {
+            item_id: string | null;
+            kind: string;
+            value: string;
+          }[],
         }),
   ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
@@ -84,9 +89,19 @@ export default async function InventoryLabelsPage({
     (itemsResult.data ?? []).map((item) => [item.id, item]),
   );
   const items = options.itemIds.flatMap((id) => itemById.get(id) ?? []);
-  const codeByItemId = new Map(
-    (tagsResult.data ?? []).map((tag) => [tag.item_id, tag.value]),
-  );
+  const tagCodes = new Map<string | null, string>();
+  const numberedCodes = new Map<string | null, string>();
+  for (const tag of tagsResult.data ?? []) {
+    (tag.kind === "numbered" ? numberedCodes : tagCodes).set(
+      tag.item_id,
+      tag.value,
+    );
+  }
+  // Either code opens the item (#1444). A numbered code is what most items
+  // are labelled with, so it is the default wherever one is on the items.
+  const hasNumbered = items.some((item) => numberedCodes.has(item.id));
+  const codeKind = options.codeKind ?? (hasNumbered ? "numbered" : "tag");
+  const codeByItemId = codeKind === "numbered" ? numberedCodes : tagCodes;
 
   const labels: PrintableLabel[] = [];
   const uncoded: string[] = [];
@@ -96,11 +111,14 @@ export default async function InventoryLabelsPage({
       uncoded.push(item.id);
       continue;
     }
+    // A numbered label outlives the item it is on, so like the ones printed
+    // from the pool it carries the code alone.
+    const numbered = codeKind === "numbered";
     labels.push({
       itemId: item.id,
       code,
-      description: item.description,
-      size: item.size,
+      description: numbered ? "" : item.description,
+      size: numbered ? null : item.size,
       qrSrc: qrCodeDataUri(tagUrl(origin, code)),
       barcodeSrc: options.barcode ? code128DataUri(code) : null,
     });
@@ -142,10 +160,25 @@ export default async function InventoryLabelsPage({
             layout={options.layout.key}
             skip={options.skip}
             barcode={options.barcode}
+            codeKind={hasNumbered || codeKind === "numbered" ? codeKind : null}
             printable={labels.length > 0}
           />
 
-          {uncoded.length > 0 && (
+          {uncoded.length > 0 && codeKind === "numbered" && (
+            <Alert className="print:hidden">
+              <AlertTitle>
+                {uncoded.length === 1
+                  ? "1 item has no numbered code"
+                  : `${uncoded.length} items have no numbered code`}
+              </AlertTitle>
+              <AlertDescription>
+                Assign one from the item&rsquo;s page, or print their tag codes
+                instead.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {uncoded.length > 0 && codeKind === "tag" && (
             <Alert className="print:hidden">
               <AlertTitle>
                 {uncoded.length === 1

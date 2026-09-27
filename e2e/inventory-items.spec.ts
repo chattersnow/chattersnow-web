@@ -92,7 +92,7 @@ test.describe("portal inventory item page", () => {
       const tagCode = page.locator("#item-assetTag");
       await expect(tagCode).toHaveText("None yet");
       await expect(
-        page.getByRole("button", { name: "Copy tag URL" }),
+        page.getByRole("button", { name: /Copy tag URL/ }),
       ).toHaveCount(0);
 
       const generate = page.getByRole("button", { name: "Generate code" });
@@ -106,13 +106,15 @@ test.describe("portal inventory item page", () => {
       const code = (await tagCode.textContent())!.trim();
       await expect(generate).toHaveCount(0);
 
-      const copy = page.getByRole("button", { name: "Copy tag URL" });
+      const copy = page.getByRole("button", {
+        name: `Copy tag URL for ${code}`,
+      });
       await expect(copy).toBeVisible();
       await expect(
-        page.getByRole("link", { name: "Print label" }),
+        page.getByRole("link", { name: `Print label for ${code}` }),
       ).toHaveAttribute(
         "href",
-        `/portal/inventory/items/labels?items=${item.id}`,
+        `/portal/inventory/items/labels?items=${item.id}&code=tag`,
       );
 
       // Only Chromium lets a test read the clipboard back.
