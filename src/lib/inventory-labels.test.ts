@@ -100,7 +100,7 @@ describe("parseLabelOptions", () => {
 
   test("a Katasymbol label never carries a barcode (#1447)", () => {
     const options = parseLabelOptions({
-      layout: "katasymbol-50x30",
+      layout: "katasymbol-50x80",
       barcode: "1",
       skip: "3",
     });
@@ -110,12 +110,21 @@ describe("parseLabelOptions", () => {
   });
 });
 
-test("the Katasymbol layout is one 50 × 30 mm label per page", () => {
-  const layout = labelLayoutFor("katasymbol-50x30");
+test.each([
+  ["katasymbol-50x80", 50, 80],
+  ["katasymbol-40x30", 40, 30],
+])("the %s layout is one %i × %i mm label per page", (key, width, height) => {
+  const layout = labelLayoutFor(key);
+  expect<string>(layout.key).toBe(key);
+  expect(layout.printer).toBe("katasymbol");
   expect(labelsPerPage(layout)).toBe(1);
-  expect(layout.page.width * 25.4).toBeCloseTo(50);
-  expect(layout.page.height * 25.4).toBeCloseTo(30);
+  expect(layout.page.width * 25.4).toBeCloseTo(width);
+  expect(layout.page.height * 25.4).toBeCloseTo(height);
   expect(layout.label).toEqual(layout.page);
+});
+
+test("a link to the old 50 × 30 layout opens the 50 × 80 one", () => {
+  expect(labelLayoutFor("katasymbol-50x30").key).toBe("katasymbol-50x80");
 });
 
 describe("paginateLabels", () => {

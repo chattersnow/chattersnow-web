@@ -54,14 +54,14 @@ function fakePrinter(overrides: { errorsAfterStart?: string[] } = {}) {
 
 function blankLabel() {
   return {
-    width: 400,
+    width: 320,
     height: 240,
-    data: new Uint8Array(bitmapBytesPerRow(400) * 240),
+    data: new Uint8Array(bitmapBytesPerRow(320) * 240),
   };
 }
 
 describe("encodeLabel", () => {
-  test("a blank 50 × 30 mm label fits one block at full speed", () => {
+  test("a blank 40 × 30 mm label fits one block at full speed", () => {
     const { blocks, speed } = encodeLabel(blankLabel());
     expect(blocks).toHaveLength(1);
     expect(blocks[0].length).toBeLessThanOrEqual(4096);
