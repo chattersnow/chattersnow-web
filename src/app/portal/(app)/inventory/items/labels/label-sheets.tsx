@@ -1,14 +1,36 @@
+import { getImageProps } from "next/image";
 import { paginateLabels, type LabelLayout } from "@/lib/inventory-labels";
+import { KatasymbolLabels } from "./katasymbol-labels";
 
 export type PrintableLabel = {
   /** The item's id, or the tag's for a blank label. */
   itemId: string;
+  /** The code's own row, so printing it can be recorded (#1450). */
+  tagId: string;
   code: string;
   description: string;
   size: string | null;
   qrSrc: string;
   barcodeSrc: string | null;
 };
+
+/**
+ * The organization's logo, as a label draws it: through the app's own image
+ * optimizer, so it is same-origin (a canvas that draws a cross-origin image
+ * can't be read back into printer dots) and a few kilobytes rather than the
+ * original upload. The optimizer only takes the hosts `next.config.ts` allows,
+ * which are the ones a logo can already come from; anything else prints the
+ * labels without it.
+ */
+export function labelLogoSrc(logoUrl: string | null): string | null {
+  if (!logoUrl) return null;
+  try {
+    return getImageProps({ src: logoUrl, alt: "", width: 256, height: 256 })
+      .props.src;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The sheets themselves, at their printed size in inches. On screen each one
@@ -23,11 +45,31 @@ export function LabelSheets({
   labels,
   layout,
   skip,
+  logoSrc = null,
 }: {
   labels: PrintableLabel[];
   layout: LabelLayout;
   skip: number;
+  /** See `labelLogoSrc`; only the Katasymbol label has room for it. */
+  logoSrc?: string | null;
 }) {
+  if (layout.printer === "katasymbol") {
+    // Drawn in the browser, dot for dot, since that picture is what the
+    // printer or the Katasymbol app gets (#1447).
+    return (
+      <KatasymbolLabels
+        labels={labels.map(({ code, description, size, qrSrc }) => ({
+          code,
+          description,
+          size,
+          qrSrc,
+        }))}
+        logoSrc={logoSrc}
+        tagIds={labels.map((label) => label.tagId)}
+      />
+    );
+  }
+
   const pages = paginateLabels(labels, layout, skip);
   const inches = (value: number) => `${value}in`;
 

@@ -86,10 +86,36 @@ describe("parseLabelOptions", () => {
     expect(parseLabelOptions({ layout: "roll", skip: "4" }).skip).toBe(0);
   });
 
+  test("code is numbered or tag, and otherwise left to the page", () => {
+    expect(parseLabelOptions({ code: "numbered" }).codeKind).toBe("numbered");
+    expect(parseLabelOptions({ code: "tag" }).codeKind).toBe("tag");
+    expect(parseLabelOptions({ code: "asset" }).codeKind).toBeNull();
+    expect(parseLabelOptions({}).codeKind).toBeNull();
+  });
+
   test("barcode is on only for 1", () => {
     expect(parseLabelOptions({ barcode: "1" }).barcode).toBe(true);
     expect(parseLabelOptions({ barcode: "true" }).barcode).toBe(false);
   });
+
+  test("a Katasymbol label never carries a barcode (#1447)", () => {
+    const options = parseLabelOptions({
+      layout: "katasymbol-50x30",
+      barcode: "1",
+      skip: "3",
+    });
+    expect(options.layout.printer).toBe("katasymbol");
+    expect(options.barcode).toBe(false);
+    expect(options.skip).toBe(0);
+  });
+});
+
+test("the Katasymbol layout is one 50 × 30 mm label per page", () => {
+  const layout = labelLayoutFor("katasymbol-50x30");
+  expect(labelsPerPage(layout)).toBe(1);
+  expect(layout.page.width * 25.4).toBeCloseTo(50);
+  expect(layout.page.height * 25.4).toBeCloseTo(30);
+  expect(layout.label).toEqual(layout.page);
 });
 
 describe("paginateLabels", () => {
@@ -127,9 +153,12 @@ describe("paginateLabels", () => {
   });
 });
 
-test("labelsHref lists the ids", () => {
+test("labelsHref lists the ids, and the code when one is named", () => {
   expect(labelsHref([A, B])).toBe(
     `/portal/inventory/items/labels?items=${A},${B}`,
+  );
+  expect(labelsHref([A], "numbered")).toBe(
+    `/portal/inventory/items/labels?items=${A}&code=numbered`,
   );
 });
 

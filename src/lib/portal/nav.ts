@@ -583,13 +583,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "Organization",
     href: "/portal/technology",
     basePath: "/portal/technology",
+    // No `administration:manage` alternative, unlike the rest of the admin
+    // sections: that resource maps to the core `administration` module, so it
+    // admitted every admin even when the tenant had `access_management`
+    // switched off, and the section stayed in the sidebar. The admin role
+    // holds access_management_assets:manage outright
+    // (20260828100000_add_access_management_resources.sql), and
+    // my_permissions() reports it `none` when the module is off, so these two
+    // checks alone follow the entitlement.
     subItems: [
       {
         value: "assets",
         label: "Assets",
         href: "/portal/technology",
         access: [
-          { resource: "administration", level: "manage" },
           { resource: "access_management_assets", level: "view" },
           { resource: "access_management_reviews", level: "view" },
         ],
@@ -601,7 +608,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Services",
         href: "/portal/technology/services",
         access: [
-          { resource: "administration", level: "manage" },
           { resource: "access_management_assets", level: "view" },
           { resource: "access_management_reviews", level: "view" },
         ],

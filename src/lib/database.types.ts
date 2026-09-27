@@ -5374,7 +5374,15 @@ export type Database = {
           id: string;
           item_id: string | null;
           kind: string;
+          last_printed_at: string | null;
+          nfc_written_at: string | null;
+          nfc_written_by: string | null;
           number: number | null;
+          print_count: number;
+          retired_at: string | null;
+          retired_by: string | null;
+          retired_note: string | null;
+          retired_reason: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
@@ -5386,7 +5394,15 @@ export type Database = {
           id?: string;
           item_id?: string | null;
           kind: string;
+          last_printed_at?: string | null;
+          nfc_written_at?: string | null;
+          nfc_written_by?: string | null;
           number?: number | null;
+          print_count?: number;
+          retired_at?: string | null;
+          retired_by?: string | null;
+          retired_note?: string | null;
+          retired_reason?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5398,7 +5414,15 @@ export type Database = {
           id?: string;
           item_id?: string | null;
           kind?: string;
+          last_printed_at?: string | null;
+          nfc_written_at?: string | null;
+          nfc_written_by?: string | null;
           number?: number | null;
+          print_count?: number;
+          retired_at?: string | null;
+          retired_by?: string | null;
+          retired_note?: string | null;
+          retired_reason?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -9846,8 +9870,10 @@ export type Database = {
           intro: string;
           location: string;
           max_images: number;
+          opens_at: string;
           rights_note: string;
           starts_at: string;
+          status: string;
           title: string;
         }[];
       };
@@ -9965,6 +9991,51 @@ export type Database = {
       inventory_numbered_tag_number: {
         Args: { p_code: string };
         Returns: number;
+      };
+      inventory_tag_codes: {
+        Args: {
+          p_ids?: string[];
+          p_kinds?: string[];
+          p_limit?: number;
+          p_never_printed?: boolean;
+          p_not_written?: boolean;
+          p_number_from?: number;
+          p_number_to?: number;
+          p_offset?: number;
+          p_search?: string;
+          p_search_number?: number;
+          p_states?: string[];
+        };
+        Returns: {
+          code_kind: string;
+          created_at: string;
+          id: string;
+          item_description: string;
+          item_id: string;
+          item_size: string;
+          kind: string;
+          last_printed_at: string;
+          nfc_written_at: string;
+          number: number;
+          print_count: number;
+          retired_at: string;
+          retired_note: string;
+          retired_reason: string;
+          state: string;
+          total_count: number;
+          value: string;
+        }[];
+      };
+      inventory_tag_history: {
+        Args: { p_tag_id: string };
+        Returns: {
+          actor_name: string;
+          detail: string;
+          event: string;
+          item_description: string;
+          item_id: string;
+          occurred_at: string;
+        }[];
       };
       is_admin: { Args: never; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
@@ -10601,6 +10672,10 @@ export type Database = {
           sale_id: string;
         }[];
       };
+      record_inventory_labels_printed: {
+        Args: { p_tag_ids: string[] };
+        Returns: number;
+      };
       record_product_sale: {
         Args: {
           p_discount_amount: number;
@@ -10978,6 +11053,15 @@ export type Database = {
           table_name: string;
         }[];
       };
+      retire_inventory_tags: {
+        Args: { p_note?: string; p_reason: string; p_tag_ids: string[] };
+        Returns: {
+          code: string;
+          outcome: string;
+          released_from: string;
+          tag_id: string;
+        }[];
+      };
       review_person_claim: {
         Args: {
           p_approve: boolean;
@@ -11105,6 +11189,10 @@ export type Database = {
         Returns: undefined;
       };
       set_inventory_tag_prefix: { Args: { p_prefix: string }; Returns: string };
+      set_inventory_tags_nfc_written: {
+        Args: { p_tag_ids: string[]; p_written?: boolean };
+        Returns: number;
+      };
       set_my_contact_details: {
         Args: {
           p_address_city: string;
@@ -11305,6 +11393,7 @@ export type Database = {
         Args: { p_person_id: string };
         Returns: undefined;
       };
+      unretire_inventory_tag: { Args: { p_tag_id: string }; Returns: string };
       update_event_sponsor: {
         Args: {
           p_contribution_value: number;

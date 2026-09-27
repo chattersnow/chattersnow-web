@@ -406,8 +406,8 @@ describe("the public write paths refuse a module that is off", () => {
     expect(call).toHaveLength(1);
 
     await withModuleOff("artwork", async () => {
-      // A lookup, so it answers with nothing rather than an error -- the page
-      // renders its own "this call is closed".
+      // A lookup, so it answers with nothing rather than an error, and the
+      // page 404s as it would for an unknown code.
       const closed = await must(
         anon.rpc("get_artwork_call", {
           p_code: artworkCode,
@@ -416,6 +416,37 @@ describe("the public write paths refuse a module that is off", () => {
         "call while off",
       );
       expect(closed).toEqual([]);
+
+      // Nor as a closed call, which since #1454 would otherwise render its
+      // title: an off module must not reveal that a call exists at all.
+      const pastDeadline = new Date(Date.now() - 60_000).toISOString();
+      await must(
+        service
+          .from("event_artwork_calls")
+          .update({ closes_at: pastDeadline })
+          .eq("submission_code", artworkCode)
+          .select("id"),
+        "close the call",
+      );
+      try {
+        const expired = await must(
+          anon.rpc("get_artwork_call", {
+            p_code: artworkCode,
+            p_ip_address: uniqueIp(),
+          }),
+          "closed call while off",
+        );
+        expect(expired).toEqual([]);
+      } finally {
+        await must(
+          service
+            .from("event_artwork_calls")
+            .update({ closes_at: null })
+            .eq("submission_code", artworkCode)
+            .select("id"),
+          "reopen the call",
+        );
+      }
 
       const slots = await anon.rpc("claim_artwork_upload_slots", {
         p_code: artworkCode,

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantBranding } from "@/lib/tenant-branding";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { tagUrl } from "@/lib/inventory-tags";
 import { parseLabelCodes, parseLabelOptions } from "@/lib/inventory-labels";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import {
   LabelSheets,
+  labelLogoSrc,
   type PrintableLabel,
 } from "../../items/labels/label-sheets";
 import { LabelToolbar } from "../../items/labels/label-toolbar";
@@ -59,8 +61,9 @@ export default async function IntakeLabelsPage({
   const title = donationId ? "Print labels" : "Blank labels";
 
   const supabase = await createSupabaseServerClient();
-  const [origin, rowsResult] = await Promise.all([
+  const [origin, branding, rowsResult] = await Promise.all([
     getRequestOrigin(),
+    getTenantBranding(supabase),
     hasSource
       ? supabase.rpc("inventory_intake_labels", {
           p_donation_id: donationId as string,
@@ -72,6 +75,7 @@ export default async function IntakeLabelsPage({
 
   const labels: PrintableLabel[] = (rowsResult.data ?? []).map((row) => ({
     itemId: row.item_id ?? row.tag_id,
+    tagId: row.tag_id,
     code: row.code,
     description: row.description ?? "",
     size: row.size,
@@ -124,6 +128,7 @@ export default async function IntakeLabelsPage({
             skip={options.skip}
             barcode={options.barcode}
             printable
+            tagIds={labels.map((label) => label.tagId)}
             backHref="/portal/inventory/donations"
             backLabel="Back to donations"
           />
@@ -132,6 +137,7 @@ export default async function IntakeLabelsPage({
               labels={labels}
               layout={options.layout}
               skip={options.skip}
+              logoSrc={labelLogoSrc(branding.logoUrl)}
             />
           </div>
         </div>

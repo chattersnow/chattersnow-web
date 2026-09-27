@@ -25,7 +25,7 @@ import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import { ScanTagDialog } from "./scan-tag-dialog";
 import { Hash } from "lucide-react";
-import { NUMBERED_CODES_PATH } from "@/lib/inventory-labels";
+import { CODES_PATH } from "@/lib/inventory-codes";
 import { withTagsAndHolds } from "./item-extras";
 import {
   CONDITIONS,
@@ -271,149 +271,159 @@ export default async function InventoryPage({
       <InventoryViewProvider
         defaultView={device === "mobile" ? "gallery" : "list"}
       >
-        <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <InventoryViewToggle />
+        {/*
+          Two groups, not five evenly spread controls: proximity is what
+          tells a reader which controls belong together. Everything that
+          finds or narrows items sits together on the left; how the result is
+          shown, and the way out to the Codes page, sit on the right.
+        */}
+        <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchField
+              action="/portal/inventory/items"
+              defaultValue={search}
+              placeholder="Search description..."
+              preserve={{
+                category: categoryFilter,
+                condition: conditionFilter,
+                status: statusFilter,
+                intendedUse: intendedUseFilter,
+                sort,
+                dir,
+              }}
+            />
+            <FiltersSheet activeCount={activeFilterCount}>
+              <form method="get" className="flex flex-col gap-4">
+                <input type="hidden" name="sort" value={sort} />
+                <input type="hidden" name="dir" value={dir} />
 
-          <SearchField
-            action="/portal/inventory/items"
-            defaultValue={search}
-            placeholder="Search description..."
-            preserve={{
-              category: categoryFilter,
-              condition: conditionFilter,
-              status: statusFilter,
-              intendedUse: intendedUseFilter,
-              sort,
-              dir,
-            }}
-          />
-          <ScanTagDialog />
-          <Button
-            variant="secondary"
-            nativeButton={false}
-            render={<Link href={NUMBERED_CODES_PATH} />}
-          >
-            <Hash /> Numbered codes
-          </Button>
-          <FiltersSheet activeCount={activeFilterCount}>
-            <form method="get" className="flex flex-col gap-4">
-              <input type="hidden" name="sort" value={sort} />
-              <input type="hidden" name="dir" value={dir} />
+                {/* Search lives in the toolbar now; carry it through so
+                    applying a filter here doesn't drop the current query. */}
+                <input type="hidden" name="search" value={search} />
 
-              {/* Search lives in the toolbar now; carry it through so
-                  applying a filter here doesn't drop the current query. */}
-              <input type="hidden" name="search" value={search} />
-
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="category"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Category
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  defaultValue={categoryFilter}
-                  className={selectClassName}
-                >
-                  <option value="all">All categories</option>
-                  <option value={UNCATEGORIZED}>{UNCATEGORIZED_LABEL}</option>
-                  {categoryGroups.map((group) => (
-                    <optgroup key={group.key} label={group.label}>
-                      <option value={`group:${group.key}`}>
-                        All {group.label.toLowerCase()}
-                      </option>
-                      {group.categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="condition"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Condition
-                </label>
-                <select
-                  id="condition"
-                  name="condition"
-                  defaultValue={conditionFilter}
-                  className={selectClassName}
-                >
-                  <option value="all">All conditions</option>
-                  {CONDITIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="status"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Status
-                </label>
-                <select
-                  id="status"
-                  name="status"
-                  defaultValue={statusFilter}
-                  className={selectClassName}
-                >
-                  <option value="all">All statuses</option>
-                  {STATUSES.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label
-                  htmlFor="intendedUse"
-                  className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-                >
-                  Intended use
-                </label>
-                <select
-                  id="intendedUse"
-                  name="intendedUse"
-                  defaultValue={intendedUseFilter}
-                  className={selectClassName}
-                >
-                  <option value="all">All intended uses</option>
-                  {INTENDED_USES.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterSubmitButton />
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    nativeButton={false}
-                    render={<Link href="/portal/inventory/items" />}
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="category"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
                   >
-                    <LinkPendingPulse>Clear</LinkPendingPulse>
-                  </Button>
-                )}
-              </div>
-            </form>
-          </FiltersSheet>
+                    Category
+                  </label>
+                  <select
+                    id="category"
+                    name="category"
+                    defaultValue={categoryFilter}
+                    className={selectClassName}
+                  >
+                    <option value="all">All categories</option>
+                    <option value={UNCATEGORIZED}>{UNCATEGORIZED_LABEL}</option>
+                    {categoryGroups.map((group) => (
+                      <optgroup key={group.key} label={group.label}>
+                        <option value={`group:${group.key}`}>
+                          All {group.label.toLowerCase()}
+                        </option>
+                        {group.categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="condition"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  >
+                    Condition
+                  </label>
+                  <select
+                    id="condition"
+                    name="condition"
+                    defaultValue={conditionFilter}
+                    className={selectClassName}
+                  >
+                    <option value="all">All conditions</option>
+                    {CONDITIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="status"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  >
+                    Status
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    defaultValue={statusFilter}
+                    className={selectClassName}
+                  >
+                    <option value="all">All statuses</option>
+                    {STATUSES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="intendedUse"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  >
+                    Intended use
+                  </label>
+                  <select
+                    id="intendedUse"
+                    name="intendedUse"
+                    defaultValue={intendedUseFilter}
+                    className={selectClassName}
+                  >
+                    <option value="all">All intended uses</option>
+                    {INTENDED_USES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <FilterSubmitButton />
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      nativeButton={false}
+                      render={<Link href="/portal/inventory/items" />}
+                    >
+                      <LinkPendingPulse>Clear</LinkPendingPulse>
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </FiltersSheet>
+            <ScanTagDialog />
+          </div>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <InventoryViewToggle />
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<Link href={CODES_PATH} />}
+            >
+              <Hash /> Codes
+            </Button>
+          </div>
         </div>
 
         <ActiveFilters

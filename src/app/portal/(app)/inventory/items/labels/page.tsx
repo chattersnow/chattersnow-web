@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantBranding } from "@/lib/tenant-branding";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -14,7 +15,7 @@ import { EmptyState } from "@/components/portal/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LabelSheets, type PrintableLabel } from "./label-sheets";
+import { LabelSheets, labelLogoSrc, type PrintableLabel } from "./label-sheets";
 import { CreateCodesButton, LabelToolbar } from "./label-toolbar";
 
 export const metadata: Metadata = { title: "Print labels" };
@@ -46,37 +47,45 @@ export default async function InventoryLabelsPage({
   };
   const options = parseLabelOptions({
     items: raw("items"),
+    code: raw("code"),
     layout: raw("layout"),
     skip: raw("skip"),
     barcode: raw("barcode"),
   });
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, origin, itemsResult, tagsResult] = await Promise.all([
-    getCurrentUserPermissions(supabase),
-    getRequestOrigin(),
-    options.itemIds.length > 0
-      ? supabase
-          .from("inventory_items")
-          .select("id, description, size")
-          .in("id", options.itemIds)
-      : Promise.resolve({
-          data: [] as {
-            id: string;
-            description: string;
-            size: string | null;
-          }[],
-        }),
-    options.itemIds.length > 0
-      ? supabase
-          .from("inventory_item_tags")
-          .select("item_id, value")
-          .eq("kind", "asset_tag")
-          .in("item_id", options.itemIds)
-      : Promise.resolve({
-          data: [] as { item_id: string | null; value: string }[],
-        }),
-  ]);
+  const [permissions, origin, branding, itemsResult, tagsResult] =
+    await Promise.all([
+      getCurrentUserPermissions(supabase),
+      getRequestOrigin(),
+      getTenantBranding(supabase),
+      options.itemIds.length > 0
+        ? supabase
+            .from("inventory_items")
+            .select("id, description, size")
+            .in("id", options.itemIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              description: string;
+              size: string | null;
+            }[],
+          }),
+      options.itemIds.length > 0
+        ? supabase
+            .from("inventory_item_tags")
+            .select("id, item_id, kind, value")
+            .in("kind", ["asset_tag", "numbered"])
+            .in("item_id", options.itemIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              item_id: string | null;
+              kind: string;
+              value: string;
+            }[],
+          }),
+    ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
   // In the order they were chosen, which is the order they were on screen.
@@ -84,23 +93,36 @@ export default async function InventoryLabelsPage({
     (itemsResult.data ?? []).map((item) => [item.id, item]),
   );
   const items = options.itemIds.flatMap((id) => itemById.get(id) ?? []);
-  const codeByItemId = new Map(
-    (tagsResult.data ?? []).map((tag) => [tag.item_id, tag.value]),
-  );
+  type Tag = { id: string; value: string };
+  const tagCodes = new Map<string | null, Tag>();
+  const numberedCodes = new Map<string | null, Tag>();
+  for (const tag of tagsResult.data ?? []) {
+    (tag.kind === "numbered" ? numberedCodes : tagCodes).set(tag.item_id, tag);
+  }
+  // Either code opens the item (#1444). A numbered code is what most items
+  // are labelled with, so it is the default wherever one is on the items.
+  const hasNumbered = items.some((item) => numberedCodes.has(item.id));
+  const codeKind = options.codeKind ?? (hasNumbered ? "numbered" : "tag");
+  const tagByItemId = codeKind === "numbered" ? numberedCodes : tagCodes;
 
   const labels: PrintableLabel[] = [];
   const uncoded: string[] = [];
   for (const item of items) {
-    const code = codeByItemId.get(item.id);
-    if (!code) {
+    const tag = tagByItemId.get(item.id);
+    if (!tag) {
       uncoded.push(item.id);
       continue;
     }
+    const code = tag.value;
+    // A numbered label outlives the item it is on, so like the ones printed
+    // from the pool it carries the code alone.
+    const numbered = codeKind === "numbered";
     labels.push({
       itemId: item.id,
+      tagId: tag.id,
       code,
-      description: item.description,
-      size: item.size,
+      description: numbered ? "" : item.description,
+      size: numbered ? null : item.size,
       qrSrc: qrCodeDataUri(tagUrl(origin, code)),
       barcodeSrc: options.barcode ? code128DataUri(code) : null,
     });
@@ -142,10 +164,26 @@ export default async function InventoryLabelsPage({
             layout={options.layout.key}
             skip={options.skip}
             barcode={options.barcode}
+            codeKind={hasNumbered || codeKind === "numbered" ? codeKind : null}
             printable={labels.length > 0}
+            tagIds={labels.map((label) => label.tagId)}
           />
 
-          {uncoded.length > 0 && (
+          {uncoded.length > 0 && codeKind === "numbered" && (
+            <Alert className="print:hidden">
+              <AlertTitle>
+                {uncoded.length === 1
+                  ? "1 item has no numbered code"
+                  : `${uncoded.length} items have no numbered code`}
+              </AlertTitle>
+              <AlertDescription>
+                Assign one from the item&rsquo;s page, or print their tag codes
+                instead.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {uncoded.length > 0 && codeKind === "tag" && (
             <Alert className="print:hidden">
               <AlertTitle>
                 {uncoded.length === 1
@@ -178,6 +216,7 @@ export default async function InventoryLabelsPage({
                 labels={labels}
                 layout={options.layout}
                 skip={options.skip}
+                logoSrc={labelLogoSrc(branding.logoUrl)}
               />
             </div>
           )}
