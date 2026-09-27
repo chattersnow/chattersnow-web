@@ -23,15 +23,19 @@ import {
   type InventoryItem,
 } from "../inventory-shared";
 import { ItemActions } from "./item-actions";
+import { ItemHistoryCard } from "./item-history-card";
+import type { HistoryEntry } from "./item-history";
 
 export function ItemDetailView({
   item,
   categories,
   canManage,
+  history,
 }: {
   item: InventoryItem;
   categories: InventoryCategory[];
   canManage: boolean;
+  history: HistoryEntry[];
 }) {
   const imageUrl = resolveImageUrl(item.photo_url);
   const hasActions = canManage || !!item.assetTag;
@@ -223,6 +227,8 @@ export function ItemDetailView({
             </CardContent>
           </Card>
         )}
+
+        <ItemHistoryCard entries={history} />
       </div>
     </>
   );
