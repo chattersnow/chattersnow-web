@@ -1,4 +1,5 @@
 import { paginateLabels, type LabelLayout } from "@/lib/inventory-labels";
+import { KatasymbolLabels } from "./katasymbol-labels";
 
 export type PrintableLabel = {
   /** The item's id, or the tag's for a blank label. */
@@ -28,6 +29,21 @@ export function LabelSheets({
   layout: LabelLayout;
   skip: number;
 }) {
+  if (layout.printer === "katasymbol") {
+    // Drawn in the browser, dot for dot, since that picture is what the
+    // printer or the Katasymbol app gets (#1447).
+    return (
+      <KatasymbolLabels
+        labels={labels.map(({ code, description, size, qrSrc }) => ({
+          code,
+          description,
+          size,
+          qrSrc,
+        }))}
+      />
+    );
+  }
+
   const pages = paginateLabels(labels, layout, skip);
   const inches = (value: number) => `${value}in`;
 
