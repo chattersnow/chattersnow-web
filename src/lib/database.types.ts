@@ -9807,6 +9807,7 @@ export type Database = {
       };
       has_role: { Args: { p_role: string }; Returns: boolean };
       has_tenant_membership: { Args: never; Returns: boolean };
+      inventory_actor_name: { Args: { p_user_id: string }; Returns: string };
       inventory_intake_labels: {
         Args: { p_codes: string[]; p_donation_id: string };
         Returns: {
@@ -9824,6 +9825,32 @@ export type Database = {
           barcode_category_key: string;
           barcode_description: string;
           barcode_known: boolean;
+        }[];
+      };
+      inventory_item_history: {
+        Args: { p_item_id: string };
+        Returns: {
+          donated_on: string;
+          donation_id: string;
+          donor_id: string;
+          donor_is_anonymous: boolean;
+          donor_name: string;
+          donor_source_type: string;
+          entry_id: string;
+          entry_kind: string;
+          event_id: string;
+          event_name: string;
+          gear_request_id: string;
+          intake_route: string;
+          movement_type: string;
+          notes: string;
+          occurred_at: string;
+          quantity: number;
+          reason: string;
+          recipient_id: string;
+          recipient_name: string;
+          recorded_by: string;
+          recorded_by_name: string;
         }[];
       };
       is_admin: { Args: never; Returns: boolean };

@@ -29,7 +29,14 @@ function makeItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
 }
 
 function renderView(item: InventoryItem, canManage: boolean) {
-  render(<ItemDetailView item={item} categories={[]} canManage={canManage} />);
+  render(
+    <ItemDetailView
+      item={item}
+      categories={[]}
+      canManage={canManage}
+      history={[]}
+    />,
+  );
 }
 
 describe("ItemDetailView", () => {
@@ -87,7 +94,12 @@ describe("ItemDetailView", () => {
 
   test("a viewer with no code to act on gets no toolbar", () => {
     const { container } = render(
-      <ItemDetailView item={makeItem()} categories={[]} canManage={false} />,
+      <ItemDetailView
+        item={makeItem()}
+        categories={[]}
+        canManage={false}
+        history={[]}
+      />,
     );
     expect(container.querySelector(".rainbow-surface")).toBeNull();
     expect(
