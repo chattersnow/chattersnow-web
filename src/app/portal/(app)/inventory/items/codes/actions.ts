@@ -5,19 +5,33 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { getRequestHost } from "@/lib/request-origin";
-import { parseScannedTag } from "@/lib/inventory-tags";
+import { getInventoryTagPrefix, parseScannedTag } from "@/lib/inventory-tags";
 import {
   MAX_LABEL_ITEMS,
   NUMBERED_CODES_PATH,
   type NumberRange,
 } from "@/lib/inventory-labels";
+import {
+  codeQueryArgs,
+  formatCount,
+  isRetireReason,
+  parseCodeFilters,
+  parseTagIds,
+  type CodeTarget,
+} from "@/lib/inventory-codes";
 
 /**
- * Reusable numbered codes (#1444). Every write here is inventory:manage, and
- * each function re-checks it: these gates only give a friendlier refusal.
+ * Reusable numbered codes (#1444) and the Codes page (#1450). Generating,
+ * assigning and retiring are inventory:manage; marking a code written to NFC
+ * and reading its history are inventory:view, the same bar as reprinting its
+ * label. Each function re-checks its grant: these gates only give a
+ * friendlier refusal.
  */
 
-async function manageGuard(message: string) {
+type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type Guard = { error: string } | { supabase: ServerClient };
+
+async function manageGuard(message: string): Promise<Guard> {
   const supabase = await createSupabaseServerClient();
   const userResult = await checkUser(supabase, message);
   if ("error" in userResult) return { error: userResult.error };
@@ -26,6 +40,15 @@ async function manageGuard(message: string) {
     "inventory",
     "manage",
   );
+  if (permissionError) return permissionError;
+  return { supabase };
+}
+
+async function viewGuard(message: string): Promise<Guard> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase, message);
+  if ("error" in userResult) return { error: userResult.error };
+  const permissionError = await checkPermission(supabase, "inventory", "view");
   if (permissionError) return permissionError;
   return { supabase };
 }
@@ -144,6 +167,10 @@ export async function assignNumberedCodeAction(
       return {
         error: `This item has left inventory, so it can't take ${row.code}.`,
       };
+    case "retired":
+      return {
+        error: `${row.code} was retired because its tag was damaged or lost. Restore it on the Codes page if you found it.`,
+      };
     default:
       return { error: `No numbered code matches “${typed}”.` };
   }
@@ -212,6 +239,183 @@ export async function searchItemsForCodeAction(
     data: (data ?? []).map((item) => ({
       ...item,
       numberedCode: codeByItem.get(item.id) ?? null,
+    })),
+  };
+}
+
+/**
+ * The tag ids an action on the Codes page means: the rows chosen, or every
+ * code the filters match. "All matching" is re-read here under the caller's
+ * RLS rather than trusted from the browser, and is capped at one print run,
+ * so a filter that has grown since the page loaded is refused rather than
+ * acted on in part.
+ */
+async function resolveTarget(
+  supabase: ServerClient,
+  target: CodeTarget,
+): Promise<{ ids: string[] } | { error: string }> {
+  if ("ids" in target) {
+    const ids = parseTagIds(target.ids);
+    return ids.length > 0 ? { ids } : { error: "Choose at least one code." };
+  }
+  const filters = parseCodeFilters(
+    Object.fromEntries(new URLSearchParams(target.filter)),
+  );
+  const prefix = await getInventoryTagPrefix(supabase);
+  const { data, error } = await supabase.rpc("inventory_tag_codes", {
+    ...codeQueryArgs(filters, prefix),
+    p_limit: MAX_LABEL_ITEMS + 1,
+    p_offset: 0,
+  });
+  if (error) return { error: "Could not read the codes. Please try again." };
+  const rows = data ?? [];
+  if (rows.length === 0) return { error: "No codes match the filters." };
+  if (rows.length > MAX_LABEL_ITEMS) {
+    return {
+      error: `${formatCount(Number(rows[0].total_count), "code")} match. Narrow the filters to ${MAX_LABEL_ITEMS} or fewer.`,
+    };
+  }
+  return { ids: rows.map((row) => row.id) };
+}
+
+/**
+ * Marks codes as written to NFC tags, or takes the mark back (#1450). The
+ * iPhone's way: its tags are written in another app, so the person says so
+ * here.
+ */
+export async function setNfcWrittenAction(
+  target: CodeTarget,
+  written = true,
+): Promise<{ updated: number } | { error: string }> {
+  const guard = await viewGuard("You must be signed in to mark NFC tags.");
+  if ("error" in guard) return guard;
+  const resolved = await resolveTarget(guard.supabase, target);
+  if ("error" in resolved) return resolved;
+
+  const { data, error } = await guard.supabase.rpc(
+    "set_inventory_tags_nfc_written",
+    { p_tag_ids: resolved.ids, p_written: written },
+  );
+  if (error) return { error: "Could not save that. Please try again." };
+  revalidatePath(NUMBERED_CODES_PATH);
+  return { updated: data ?? 0 };
+}
+
+/**
+ * After a successful Web NFC write on Android (#1450): the page knows the
+ * code it wrote, not the tag's id.
+ */
+export async function recordNfcWrittenAction(
+  code: string,
+): Promise<{ updated: number } | { error: string }> {
+  const guard = await viewGuard("You must be signed in to mark NFC tags.");
+  if ("error" in guard) return guard;
+
+  const { data: tag } = await guard.supabase
+    .from("inventory_item_tags")
+    .select("id")
+    .in("kind", ["asset_tag", "numbered"])
+    .eq("value", code.trim().toUpperCase())
+    .maybeSingle();
+  if (!tag) return { updated: 0 };
+  return setNfcWrittenAction({ ids: [tag.id] });
+}
+
+export type RetireResult = {
+  retired: number;
+  /** Numbered codes taken off an item as they were retired. */
+  released: { code: string; description: string }[];
+  /** Random codes on an item: reprinted, never retired. */
+  onItem: number;
+};
+
+/**
+ * Retires codes whose physical tag is damaged or lost (#1450). A numbered
+ * code on an item comes off it; a random code on an item is left alone and
+ * counted, since its label is reprinted instead.
+ */
+export async function retireCodesAction(
+  target: CodeTarget,
+  reason: string,
+  note: string,
+): Promise<RetireResult | { error: string }> {
+  const guard = await manageGuard("You must be signed in to retire codes.");
+  if ("error" in guard) return guard;
+  if (!isRetireReason(reason)) return { error: "Choose why it is retired." };
+  if (note.trim().length > 500) {
+    return { error: "Keep the note to 500 characters." };
+  }
+  const resolved = await resolveTarget(guard.supabase, target);
+  if ("error" in resolved) return resolved;
+
+  const { data, error } = await guard.supabase.rpc("retire_inventory_tags", {
+    p_tag_ids: resolved.ids,
+    p_reason: reason,
+    p_note: note.trim() || null,
+  });
+  if (error) return { error: "Could not retire the codes. Please try again." };
+
+  const rows = data ?? [];
+  revalidateItem();
+  return {
+    retired: rows.filter((row) => row.outcome === "retired").length,
+    released: rows.flatMap((row) =>
+      row.outcome === "retired" && row.released_from
+        ? [{ code: row.code, description: row.released_from }]
+        : [],
+    ),
+    onItem: rows.filter((row) => row.outcome === "on_item").length,
+  };
+}
+
+/** "Found it", or a mistake: the code is free (or blank) again. */
+export async function unretireCodeAction(
+  tagId: string,
+): Promise<{ code: string } | { error: string }> {
+  const guard = await manageGuard("You must be signed in to restore codes.");
+  if ("error" in guard) return guard;
+  const [id] = parseTagIds([tagId]);
+  if (!id) return { error: "That code could not be found." };
+
+  const { data, error } = await guard.supabase.rpc("unretire_inventory_tag", {
+    p_tag_id: id,
+  });
+  if (error) return { error: "Could not restore the code. Please try again." };
+  if (!data) return { error: "That code is not retired." };
+  revalidatePath(NUMBERED_CODES_PATH);
+  return { code: data };
+}
+
+export type CodeHistoryEntry = {
+  occurredAt: string;
+  event: string;
+  itemId: string | null;
+  itemDescription: string | null;
+  detail: string | null;
+  actorName: string | null;
+};
+
+/** One code's history, newest first (#1450). */
+export async function codeHistoryAction(
+  tagId: string,
+): Promise<{ data: CodeHistoryEntry[] } | { error: string }> {
+  const guard = await viewGuard("You must be signed in to read history.");
+  if ("error" in guard) return guard;
+  const [id] = parseTagIds([tagId]);
+  if (!id) return { data: [] };
+
+  const { data, error } = await guard.supabase.rpc("inventory_tag_history", {
+    p_tag_id: id,
+  });
+  if (error) return { error: "Could not load the history. Please try again." };
+  return {
+    data: (data ?? []).map((row) => ({
+      occurredAt: row.occurred_at,
+      event: row.event,
+      itemId: row.item_id,
+      itemDescription: row.item_description,
+      detail: row.detail,
+      actorName: row.actor_name,
     })),
   };
 }

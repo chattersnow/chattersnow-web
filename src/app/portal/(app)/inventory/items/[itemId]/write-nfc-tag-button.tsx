@@ -5,6 +5,7 @@ import { Nfc, X } from "lucide-react";
 import { tagUrl } from "@/lib/inventory-tags";
 import { useNfcSupported, writeNfcTag } from "@/components/portal/tag-scanner";
 import { TooltipIconButton } from "@/components/portal/tooltip-icon-button";
+import { recordNfcWrittenAction } from "../codes/actions";
 
 /**
  * Writes an item's tag URL to an NFC sticker (#1420 part 3), from the item
@@ -12,6 +13,8 @@ import { TooltipIconButton } from "@/components/portal/tooltip-icon-button";
  * button renders nowhere else. An iPhone writes the tag with a free app from
  * the copied tag URL instead, which the page's Tag card explains. The tag then
  * opens /portal/t/<code> on any phone, exactly as the printed QR label does.
+ * A successful write is recorded against the code (#1450), so the Codes page
+ * can say which tags have been written.
  *
  * The status line is a flex item that takes a whole row of its own at the end
  * of the toolbar it sits in.
@@ -37,6 +40,7 @@ export function WriteNfcTagButton({ code }: { code: string }) {
         controller.signal,
       );
       setState("done");
+      void recordNfcWrittenAction(code).catch(() => null);
     } catch {
       setState(controller.signal.aborted ? "idle" : "error");
     }

@@ -59,6 +59,13 @@ export async function classifyIntakeScanAction(
         error: `Label ${tagCode} is already on another item.`,
       };
     }
+    // Its tag was reported damaged or lost (#1450): the label in hand is a
+    // copy nobody should be using.
+    if (row.asset_tag_status === "retired") {
+      return {
+        error: `Label ${tagCode} was retired as damaged or lost. Use a different label.`,
+      };
+    }
     // A six-character code nobody printed. Digits only could still be a
     // barcode, which is what the next branch is for.
     if (!candidates.barcode) {

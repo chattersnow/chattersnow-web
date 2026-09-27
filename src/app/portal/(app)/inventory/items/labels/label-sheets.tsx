@@ -4,6 +4,8 @@ import { KatasymbolLabels } from "./katasymbol-labels";
 export type PrintableLabel = {
   /** The item's id, or the tag's for a blank label. */
   itemId: string;
+  /** The code's own row, so printing it can be recorded (#1450). */
+  tagId: string;
   code: string;
   description: string;
   size: string | null;
@@ -40,6 +42,7 @@ export function LabelSheets({
           size,
           qrSrc,
         }))}
+        tagIds={labels.map((label) => label.tagId)}
       />
     );
   }
