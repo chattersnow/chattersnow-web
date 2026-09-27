@@ -7,11 +7,70 @@ import {
 } from "@/lib/auth/permissions";
 import { detailTitle } from "@/lib/portal/detail-title";
 import { toInventoryCategories } from "@/lib/inventory";
+import { resolveCurrentPersonId } from "@/lib/auth/current-person";
+import {
+  getCurrentDistributionDraft,
+  scanWarning,
+} from "@/lib/inventory-distribution-draft";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { withTagsAndHolds } from "../item-extras";
+import { getMyActiveEvents } from "../../../home/queries";
+import type { ItemDistribute } from "./item-actions";
 import { ItemDetailView } from "./item-detail-view";
 import { toHistoryEntries, type ItemHistoryRow } from "./item-history";
+
+/**
+ * What Distribute (#1443) needs: the distribution already in progress, which
+ * the item joins rather than starting another, and the events a new one can
+ * be at -- today's, the first of them the default.
+ */
+async function getItemDistribute(
+  supabase: SupabaseClient<Database>,
+  itemId: string,
+  canManageEvents: boolean,
+): Promise<ItemDistribute> {
+  const [draft, personId] = await Promise.all([
+    getCurrentDistributionDraft(supabase),
+    resolveCurrentPersonId(supabase),
+  ]);
+  const activeEvents =
+    personId || canManageEvents
+      ? await getMyActiveEvents(
+          supabase,
+          personId,
+          new Date().toISOString(),
+          canManageEvents,
+        )
+      : [];
+  const eventOptions = activeEvents.map(({ id, name }) => ({ id, name }));
+  // A list in progress at an event that is no longer today's stays choosable.
+  if (
+    draft?.eventId &&
+    draft.eventName &&
+    !eventOptions.some((option) => option.id === draft.eventId)
+  ) {
+    eventOptions.unshift({ id: draft.eventId, name: draft.eventName });
+  }
+
+  const current =
+    draft && draft.items.length > 0
+      ? {
+          eventId: draft.eventId,
+          itemCount: draft.items.length,
+          recipientName: draft.recipient?.name ?? null,
+          includesItem: draft.items.some((listed) => listed.id === itemId),
+        }
+      : null;
+
+  return {
+    current,
+    defaultEventId: eventOptions[0]?.id ?? null,
+    eventOptions,
+  };
+}
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -102,6 +161,17 @@ export default async function InventoryItemPage({
   const categories = toInventoryCategories(categoryRows).filter(
     (category) => category.isActive,
   );
+  // Offered while the item can go out: in stock, or held -- whether for this
+  // recipient is for the list to say once one is picked.
+  const distribute =
+    canManage &&
+    !scanWarning({ status: item.status, intendedUse: item.intended_use })
+      ? await getItemDistribute(
+          supabase,
+          item.id,
+          hasPermission(permissions, "events", "manage"),
+        )
+      : null;
 
   return (
     <>
@@ -111,6 +181,7 @@ export default async function InventoryItemPage({
         categories={categories}
         canManage={canManage}
         history={toHistoryEntries(historyRows)}
+        distribute={distribute}
       />
     </>
   );

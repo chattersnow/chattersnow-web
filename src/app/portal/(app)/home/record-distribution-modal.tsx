@@ -19,7 +19,9 @@ import {
 import {
   discardDistributionDraftAction,
   getDistributionDraftAction,
+  moveDistributionDraftAction,
   recordDistributionDraftAction,
+  setDistributionDraftRecipientAction,
 } from "./distribution-draft-actions";
 import { ScannedDistributionList } from "./scanned-distribution-list";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
@@ -48,17 +50,24 @@ import {
 import { useEventDateDefaults } from "../events/event-date-defaults";
 import { nowDatetimeLocalInBrowser } from "@/lib/time";
 
+const NO_EVENT = "__none__";
+
 export function RecordDistributionModal({
   triggerLabel = "Record distribution",
   open: controlledOpen,
   onOpenChange,
   withTrigger = true,
   eventId,
+  eventOptions,
   showRecipientField = false,
   onSaved,
 }: {
   triggerLabel?: string;
+  /** The event the handout is at. With `eventOptions`, only the default. */
   eventId?: string;
+  /** Offers an Event field (#1443) -- the item page, where the event is not
+   *  implied by where the modal was opened. */
+  eventOptions?: { id: string; name: string }[];
   showRecipientField?: boolean;
   onSaved?: () => void;
 } & ControlledOpenProps) {
@@ -89,7 +98,10 @@ export function RecordDistributionModal({
   const [mode, setMode] = useState<"pick" | "scan">("pick");
   const [draft, setDraft] = useState<DistributionDraft | null>(null);
   const [conflictItemId, setConflictItemId] = useState<string | null>(null);
-  const draftEventId = eventId ?? null;
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(
+    eventId ?? null,
+  );
+  const draftEventId = selectedEventId;
 
   const loadDraft = useCallback(async () => {
     const result = await getDistributionDraftAction(draftEventId);
@@ -104,6 +116,10 @@ export function RecordDistributionModal({
       if ("error" in result) return;
       setDraft(result.data);
       if (result.data && result.data.items.length > 0) setMode("scan");
+      // The recipient is kept on the list (#1443), so a list started in
+      // another tab -- or before this one was closed -- comes back with it.
+      if (showRecipientField && result.data?.recipient)
+        setRecipient(result.data.recipient);
     });
     listAvailableInventoryItemsAction().then((result) => {
       if (!("error" in result)) setAvailableItems(result.data);
@@ -137,6 +153,44 @@ export function RecordDistributionModal({
     setError(null);
     setMode("pick");
     setConflictItemId(null);
+    setSelectedEventId(eventId ?? null);
+  }
+
+  // In scan mode the recipient belongs to the server-side list, so an iPhone
+  // tap that opens a new tab adds to the same person's handout.
+  function saveRecipientToDraft(person: PickedPerson | null) {
+    startTransition(async () => {
+      const result = await setDistributionDraftRecipientAction(
+        draftEventId,
+        person?.id ?? null,
+      );
+      if ("error" in result) setError(result.error);
+    });
+  }
+
+  function selectRecipient(person: PickedPerson | null) {
+    setRecipient(person);
+    if (mode === "scan") saveRecipientToDraft(person);
+  }
+
+  function selectEvent(nextEventId: string | null) {
+    const previousEventId = selectedEventId;
+    setSelectedEventId(nextEventId);
+    if (!draft) return;
+    // The list is kept per event, so it moves with the choice.
+    startTransition(async () => {
+      const moved = await moveDistributionDraftAction(
+        previousEventId,
+        nextEventId,
+      );
+      if ("error" in moved) {
+        setError(moved.error);
+        setSelectedEventId(previousEventId);
+        return;
+      }
+      const result = await getDistributionDraftAction(nextEventId);
+      if (!("error" in result)) setDraft(result.data);
+    });
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -189,7 +243,7 @@ export function RecordDistributionModal({
         // using the user's own timezone rather than the server's.
         occurredAt: occurredAt ? new Date(occurredAt).toISOString() : undefined,
         markDistributed,
-        eventId,
+        eventId: selectedEventId ?? undefined,
         recipientPersonId: recipient?.id,
       });
       if ("error" in result) {
@@ -284,7 +338,10 @@ export function RecordDistributionModal({
             size="sm"
             onClick={() => {
               setError(null);
-              setMode(mode === "scan" ? "pick" : "scan");
+              const nextMode = mode === "scan" ? "pick" : "scan";
+              setMode(nextMode);
+              if (nextMode === "scan" && recipient)
+                saveRecipientToDraft(recipient);
             }}
           >
             {mode === "scan" ? <List /> : <ScanLine />}
@@ -295,6 +352,8 @@ export function RecordDistributionModal({
           <ScannedDistributionList
             eventId={draftEventId}
             draft={draft}
+            recipientId={recipient?.id ?? null}
+            availableItems={availableItems}
             conflictItemId={conflictItemId}
             onChanged={async () => {
               setConflictItemId(null);
@@ -368,13 +427,42 @@ export function RecordDistributionModal({
           </Field>
         </Field>
 
+        {eventOptions && (
+          <Field>
+            <FieldLabel htmlFor="dist-event">Event</FieldLabel>
+            <Select
+              value={selectedEventId ?? NO_EVENT}
+              onValueChange={(value) =>
+                selectEvent(value && value !== NO_EVENT ? value : null)
+              }
+            >
+              <SelectTrigger id="dist-event" className="w-full">
+                <SelectValue>
+                  {(value: string) =>
+                    eventOptions.find((option) => option.id === value)?.name ??
+                    "No event"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_EVENT}>No event</SelectItem>
+                {eventOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+
         {showRecipientField && (
           <Field>
             <FieldLabel>Recipient</FieldLabel>
             <PersonPicker
               people={people}
               selected={recipient}
-              onSelect={setRecipient}
+              onSelect={selectRecipient}
               onPersonCreated={(person) =>
                 setPeople((prev) => [...prev, person])
               }

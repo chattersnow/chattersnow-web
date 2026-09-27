@@ -5,7 +5,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { lookupInventoryTag, TAG_PATH_PREFIX } from "@/lib/inventory-tags";
 import {
   distributionDraftHref,
+  draftListName,
   getCurrentDistributionDraft,
+  getItemHolders,
   scanWarning,
 } from "@/lib/inventory-distribution-draft";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -122,12 +124,19 @@ export default async function InventoryTagPage({
 
   const added = typeof query.added === "string" ? query.added : null;
   const onList = draft.items.some((listed) => listed.id === found.id);
+  const heldBy =
+    item.status === "reserved"
+      ? ((await getItemHolders(supabase, [found.id])).get(found.id) ?? null)
+      : null;
   const warning = onList
     ? null
-    : scanWarning({ status: item.status, intendedUse: item.intended_use });
-  const listName = draft.eventName
-    ? `the ${draft.eventName} distribution`
-    : "your distribution";
+    : scanWarning(
+        { status: item.status, intendedUse: item.intended_use, heldBy },
+        draft.recipient?.id,
+      );
+  // Names the recipient once the list has one (#1443), so a tap in a new tab
+  // says whose handout it is adding to.
+  const listName = draftListName(draft);
   const itemName = item.size
     ? `${item.description} (${item.size})`
     : item.description;
