@@ -8,14 +8,20 @@ import { Spinner } from "@/components/ui/spinner";
 import type { Bitmap } from "@/lib/label-printer/bitmap";
 import {
   KATASYMBOL_LABEL_MM,
+  bitmapToCanvas,
   canvasToPng,
   renderLabel,
+  rotateClockwise,
   type RasterLabel,
 } from "@/lib/label-printer/raster";
 import { storedZip } from "@/lib/label-printer/zip";
 import { recordLabelsPrintedAction } from "./actions";
 
-type Rendered = { bitmap: Bitmap; png: Blob; url: string };
+/**
+ * One label: its dots as read, for the preview and for stock loaded upright,
+ * and turned to lie the way 50 × 30 stock runs, for the printer and the file.
+ */
+type Rendered = { upright: Bitmap; turned: Bitmap; png: Blob; url: string };
 type Link = "usb" | "bluetooth";
 type Driver = typeof import("@/lib/label-printer/printer");
 type Connected = Awaited<ReturnType<Driver["connectUsbPrinter"]>>;
@@ -109,11 +115,15 @@ export function KatasymbolLabels({
     (async () => {
       const next: Rendered[] = [];
       for (const label of labels) {
-        const { bitmap, canvas } = await renderLabel(label);
-        const png = await canvasToPng(canvas);
-        const url = URL.createObjectURL(png);
+        const upright = await renderLabel(label);
+        const turned = rotateClockwise(upright);
+        const [preview, png] = await Promise.all([
+          canvasToPng(bitmapToCanvas(upright)),
+          canvasToPng(bitmapToCanvas(turned)),
+        ]);
+        const url = URL.createObjectURL(preview);
         urls.push(url);
-        next.push({ bitmap, png, url });
+        next.push({ upright, turned, png, url });
       }
       if (!cancelled) setRendered(next);
     })().catch(() => {
@@ -130,10 +140,16 @@ export function KatasymbolLabels({
     };
   }, [labels]);
 
-  async function send(transport: Connected) {
+  /**
+   * `upright` when the stock is loaded 30 mm across the head, so the label
+   * already runs the way it reads.
+   */
+  async function send(transport: Connected, upright = false) {
     const { encodeLabel, printLabels } = await (driver.current ??=
       loadDriver());
-    const encoded = rendered!.map(({ bitmap }) => encodeLabel(bitmap));
+    const encoded = rendered!.map((label) =>
+      encodeLabel(upright ? label.upright : label.turned),
+    );
     setState({ step: "printing", printed: 0, total: encoded.length });
     try {
       await printLabels(transport, encoded, (printed) =>
@@ -151,6 +167,7 @@ export function KatasymbolLabels({
   async function print(link: Link) {
     setState({ step: "connecting" });
     let transport: Connected | null = null;
+    let upright = false;
     try {
       const printer = await (driver.current ??= loadDriver());
       transport = await (link === "usb"
@@ -158,7 +175,10 @@ export function KatasymbolLabels({
         : printer.connectBluetoothPrinter());
       const loaded = await transport.loadedLabels();
       const { width, height } = KATASYMBOL_LABEL_MM;
-      if (!printer.labelsMatch(loaded, width, height)) {
+      upright =
+        printer.labelsMatch(loaded, height, width) &&
+        !printer.labelsMatch(loaded, width, height);
+      if (!upright && !printer.labelsMatch(loaded, width, height)) {
         setState({
           step: "mismatch",
           loaded: `${loaded!.widthMm} × ${loaded!.heightMm} mm`,
@@ -175,7 +195,7 @@ export function KatasymbolLabels({
       }
       return;
     }
-    await send(transport);
+    await send(transport, upright);
   }
 
   async function saveImages() {
@@ -312,9 +332,10 @@ export function KatasymbolLabels({
           <div
             key={`${label.code}-${i}`}
             className="flex items-center justify-center overflow-hidden rounded-sm bg-white shadow-md ring-1 ring-black/10"
+            // Upright, as it reads on the item.
             style={{
-              width: `${KATASYMBOL_LABEL_MM.width}mm`,
-              height: `${KATASYMBOL_LABEL_MM.height}mm`,
+              width: `${KATASYMBOL_LABEL_MM.height}mm`,
+              height: `${KATASYMBOL_LABEL_MM.width}mm`,
             }}
           >
             {/* A blob: URL drawn in the browser; nothing for next/image

@@ -8,8 +8,8 @@ import { TooltipIconButton } from "@/components/portal/tooltip-icon-button";
 import { recordNfcWrittenAction } from "../codes/actions";
 
 /**
- * Writes an item's tag URL to an NFC sticker (#1420 part 3), from the item
- * page's toolbar (#1441). Web NFC exists only in Chrome on Android, so the
+ * Writes an item's tag URL to an NFC sticker (#1420 part 3), from beside the
+ * code in the item page's Tag card (#1444). Web NFC exists only in Chrome on Android, so the
  * button renders nowhere else. An iPhone writes the tag with a free app from
  * the copied tag URL instead, which the page's Tag card explains. The tag then
  * opens /portal/t/<code> on any phone, exactly as the printed QR label does.
@@ -17,7 +17,7 @@ import { recordNfcWrittenAction } from "../codes/actions";
  * can say which tags have been written.
  *
  * The status line is a flex item that takes a whole row of its own at the end
- * of the toolbar it sits in.
+ * of the row it sits in.
  */
 export function WriteNfcTagButton({ code }: { code: string }) {
   const supported = useNfcSupported();
@@ -58,7 +58,10 @@ export function WriteNfcTagButton({ code }: { code: string }) {
           <X />
         </TooltipIconButton>
       ) : (
-        <TooltipIconButton label="Write NFC tag" onClick={write}>
+        <TooltipIconButton
+          label={`Write ${code} to an NFC tag`}
+          onClick={write}
+        >
           <Nfc />
         </TooltipIconButton>
       )}
