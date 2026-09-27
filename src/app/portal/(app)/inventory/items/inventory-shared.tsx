@@ -38,6 +38,9 @@ export type InventoryItem = {
   notes: string | null;
   /** The item's asset-tag code (#1420), or null before it has one. */
   assetTag?: string | null;
+  /** The reusable numbered code (#1444) the item holds now, e.g. CSN-007.
+   *  Given back automatically in any of ITEM_EXIT_STATUSES. */
+  numberedCode?: string | null;
   holdRequester?: {
     id: string;
     name: string | null;
@@ -99,6 +102,16 @@ export const STATUSES = [
   { value: "lost", label: "Lost" },
   { value: "retired", label: "Retired" },
   { value: "other", label: "Other" },
+];
+
+/**
+ * The statuses an item has left inventory in. Entering one gives back its
+ * numbered code (#1444) -- release_numbered_tags_on_item_exit() in SQL.
+ */
+export const ITEM_EXIT_STATUSES: readonly string[] = [
+  "distributed",
+  "retired",
+  "lost",
 ];
 
 export function IntendedUseBadge({ intendedUse }: { intendedUse: string }) {

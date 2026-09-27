@@ -107,6 +107,28 @@ describe("ItemDetailView", () => {
     ).toBeInTheDocument();
   });
 
+  test("a manager can assign a numbered code, and unassign the one it holds", () => {
+    renderView(makeItem({ numberedCode: "CSN-007" }), true);
+
+    expect(
+      screen.getByText("Jacket · Available · CSN-007"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Change numbered code" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Unassign code CSN-007" }),
+    ).toBeInTheDocument();
+  });
+
+  test("an item that has left inventory is offered no numbered code", () => {
+    renderView(makeItem({ status: "distributed" }), true);
+
+    expect(
+      screen.queryByRole("button", { name: "Assign numbered code" }),
+    ).not.toBeInTheDocument();
+  });
+
   test("a reserved item shows who holds it", () => {
     renderView(
       makeItem({

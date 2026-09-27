@@ -135,6 +135,9 @@ function LabelCell({
   const padding = 0.1;
   const qrSize = layout.label.height - padding * 2;
   const large = layout.label.height >= 2;
+  // A numbered code (#1444) or a blank printed ahead of intake names no item,
+  // so its code is the whole label and is printed as large as fits.
+  const codeOnly = !label.description && !label.size;
 
   return (
     <div
@@ -170,9 +173,13 @@ function LabelCell({
         )}
         <p
           className={
-            large
-              ? "font-mono text-[16pt] font-bold tracking-[0.12em]"
-              : "font-mono text-[10pt] font-bold tracking-[0.08em]"
+            codeOnly
+              ? large
+                ? "font-mono text-[28pt] font-bold tracking-[0.04em]"
+                : "font-mono text-[16pt] font-bold tracking-[0.02em]"
+              : large
+                ? "font-mono text-[16pt] font-bold tracking-[0.12em]"
+                : "font-mono text-[10pt] font-bold tracking-[0.08em]"
           }
         >
           {label.code}

@@ -4,7 +4,7 @@ import type { InventoryItem } from "./inventory-shared";
 
 type BaseItem = Omit<
   InventoryItem,
-  "assetTag" | "holdRequester" | "holdNotes" | "holdRequest"
+  "assetTag" | "numberedCode" | "holdRequester" | "holdNotes" | "holdRequest"
 >;
 
 type Hold = {
@@ -15,7 +15,7 @@ type Hold = {
 
 /**
  * Adds what the items view can't carry to each row: its asset-tag code
- * (#1420) and, for a reserved item, who holds it (#721, #1032). Shared by the
+ * (#1420), the reusable numbered code it holds now (#1444), and, for a reserved item, who holds it (#721, #1032). Shared by the
  * items list and the item page (#1441), so the two read them the same way.
  */
 export async function withTagsAndHolds(
@@ -75,16 +75,21 @@ export async function withTagsAndHolds(
   // Read beside the view rather than embedded in it, because PostgREST embeds
   // through a foreign key, and a view has none.
   const assetTagByItemId = new Map<string, string>();
+  const numberedByItemId = new Map<string, string>();
   const { data: tags } = await supabase
     .from("inventory_item_tags")
-    .select("item_id, value")
-    .eq("kind", "asset_tag")
+    .select("item_id, kind, value")
+    .in("kind", ["asset_tag", "numbered"])
     .in(
       "item_id",
       items.map((item) => item.id),
     );
   for (const tag of tags ?? []) {
-    if (tag.item_id) assetTagByItemId.set(tag.item_id, tag.value);
+    if (!tag.item_id) continue;
+    (tag.kind === "numbered" ? numberedByItemId : assetTagByItemId).set(
+      tag.item_id,
+      tag.value,
+    );
   }
 
   return items.map((item) => {
@@ -92,6 +97,7 @@ export async function withTagsAndHolds(
     return {
       ...item,
       assetTag: assetTagByItemId.get(item.id) ?? null,
+      numberedCode: numberedByItemId.get(item.id) ?? null,
       holdRequester: hold?.requester ?? null,
       holdNotes: hold?.notes ?? null,
       holdRequest: hold?.request ?? null,

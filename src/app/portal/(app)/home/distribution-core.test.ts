@@ -67,7 +67,7 @@ describe("recordEventDistribution", () => {
 
     const result = await recordEventDistribution(supabase.client, VALID_INPUT);
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, releasedTags: [] });
     const [call] = domainRpcCalls(supabase.rpcCalls);
     expect(call.name).toBe("record_event_distribution");
     expect(call.args).toMatchObject({

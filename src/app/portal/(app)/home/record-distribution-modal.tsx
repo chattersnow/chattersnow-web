@@ -49,6 +49,17 @@ import {
 } from "@/components/portal/use-controlled-open";
 import { useEventDateDefaults } from "../events/event-date-defaults";
 import { nowDatetimeLocalInBrowser } from "@/lib/time";
+import { removeTagsMessage, type ReleasedTag } from "@/lib/inventory-tags";
+
+/**
+ * The success toast's detail when recording freed numbered codes (#1444): it
+ * stays until dismissed, because it is a job still to do -- taking the tags
+ * off the gear.
+ */
+function removeTagsToast(tags: readonly ReleasedTag[] | undefined) {
+  const description = removeTagsMessage(tags ?? []);
+  return description ? { description, timeout: 0 } : {};
+}
 
 const NO_EVENT = "__none__";
 
@@ -225,6 +236,7 @@ export function RecordDistributionModal({
           result.count === 1
             ? "Distribution recorded."
             : `${result.count} distributions recorded.`,
+          removeTagsToast(result.releasedTags),
         );
         router.refresh();
         onSaved?.();
@@ -251,7 +263,10 @@ export function RecordDistributionModal({
         return;
       }
       handleOpenChange(false);
-      toast.success("Distribution recorded.");
+      toast.success(
+        "Distribution recorded.",
+        removeTagsToast(result.releasedTags),
+      );
       router.refresh();
       onSaved?.();
     });
@@ -355,6 +370,7 @@ export function RecordDistributionModal({
             recipientId={recipient?.id ?? null}
             availableItems={availableItems}
             conflictItemId={conflictItemId}
+            releasesCodes={markDistributed}
             onChanged={async () => {
               setConflictItemId(null);
               await loadDraft();

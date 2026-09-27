@@ -68,7 +68,44 @@ export type MovementEntry = {
   recordedBy: string | null;
 };
 
-export type HistoryEntry = DonatedEntry | MovementEntry;
+/** A reusable numbered code put on the item, or taken off it (#1444). */
+export type TagEntry = {
+  kind: "tag";
+  key: string;
+  occurredAt: string;
+  action: "assigned" | "released";
+  code: string;
+  /** Why it came off, in words; null for an assignment. */
+  releaseReason: string | null;
+  recordedBy: string | null;
+};
+
+export type HistoryEntry = DonatedEntry | MovementEntry | TagEntry;
+
+const RELEASE_REASONS = [
+  { value: "distributed", label: "The item was distributed" },
+  { value: "retired", label: "The item was retired" },
+  { value: "lost", label: "The item was lost" },
+  { value: "moved", label: "Moved to another item" },
+  { value: "replaced", label: "Replaced by another code" },
+  { value: "unassigned", label: "Unassigned by hand" },
+];
+
+function toTag(row: ItemHistoryRow): TagEntry {
+  const action = row.entry_kind === "tag_assigned" ? "assigned" : "released";
+  return {
+    kind: "tag",
+    key: `${row.entry_kind}-${row.entry_id}`,
+    occurredAt: row.occurred_at,
+    action,
+    code: row.reason ?? "",
+    releaseReason:
+      action === "released"
+        ? labelFor(RELEASE_REASONS, row.notes ?? "") || row.notes
+        : null,
+    recordedBy: row.recorded_by_name?.trim() || null,
+  };
+}
 
 export const MOVEMENT_TYPES = [
   { value: "received", label: "Received" },
@@ -156,6 +193,10 @@ export function toHistoryEntries(
   rows: ItemHistoryRow[] | null | undefined,
 ): HistoryEntry[] {
   return (rows ?? []).map((row) =>
-    row.entry_kind === "donated" ? toDonated(row) : toMovement(row),
+    row.entry_kind === "donated"
+      ? toDonated(row)
+      : row.entry_kind.startsWith("tag_")
+        ? toTag(row)
+        : toMovement(row),
   );
 }

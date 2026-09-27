@@ -4,7 +4,12 @@ import { formatCalendarDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewerTime } from "@/components/viewer-time";
-import type { DonatedEntry, HistoryEntry, MovementEntry } from "./item-history";
+import type {
+  DonatedEntry,
+  HistoryEntry,
+  MovementEntry,
+  TagEntry,
+} from "./item-history";
 
 const DATE_ONLY: Intl.DateTimeFormatOptions = {
   month: "short",
@@ -137,6 +142,26 @@ function MovementItem({ entry }: { entry: MovementEntry }) {
   );
 }
 
+function TagItem({ entry }: { entry: TagEntry }) {
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="muted">
+          {entry.action === "assigned" ? "Tag assigned" : "Tag freed"}
+        </Badge>
+        <span className="font-mono text-sm tracking-wider">{entry.code}</span>
+        <span className="app-muted text-sm">
+          <ViewerTime iso={entry.occurredAt} fallbackZone="UTC" />
+        </span>
+      </div>
+      <dl className="mt-2 flex flex-col gap-1 text-sm">
+        <Detail label="Why">{entry.releaseReason}</Detail>
+        <Detail label="Recorded by">{entry.recordedBy}</Detail>
+      </dl>
+    </>
+  );
+}
+
 /**
  * The item's history (#1442): where it came from and everything that has
  * happened to it since, newest first, ending at the donation it arrived in.
@@ -161,6 +186,8 @@ export function ItemHistoryCard({ entries }: { entries: HistoryEntry[] }) {
               >
                 {entry.kind === "donated" ? (
                   <DonatedItem entry={entry} />
+                ) : entry.kind === "tag" ? (
+                  <TagItem entry={entry} />
                 ) : (
                   <MovementItem entry={entry} />
                 )}

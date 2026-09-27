@@ -30,6 +30,8 @@ mock.module("next/navigation", () => ({
   notFound: () => {
     throw new NotFound();
   },
+  // The page's client components import it; nothing here renders them.
+  useRouter: () => ({ push() {}, refresh() {} }),
 }));
 
 const { lookupInventoryTag } = await import("./inventory-tags");

@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkAnyPermission } from "@/lib/auth/permissions";
 import { getRequestHost } from "@/lib/request-origin";
-import { lookupInventoryTag } from "@/lib/inventory-tags";
+import {
+  lookupInventoryTag,
+  toReleasedTags,
+  type ReleasedTag,
+} from "@/lib/inventory-tags";
 import {
   addToDistributionDraft,
   getDistributionDraft,
@@ -214,10 +218,14 @@ export type RecordDraftInput = {
  * Records every scanned piece as its own distribution, in one transaction
  * (record_distribution_draft()), and clears the list. If one was given out by
  * someone else since it was scanned, nothing is recorded and `itemId` names it.
+ * `releasedTags` are the numbered codes the handout freed (#1444).
  */
 export async function recordDistributionDraftAction(
   input: RecordDraftInput,
-): Promise<{ count: number } | { error: string; itemId?: string }> {
+): Promise<
+  | { count: number; releasedTags: ReleasedTag[] }
+  | { error: string; itemId?: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
     ...RECORD_ACCESS,
@@ -254,5 +262,11 @@ export async function recordDistributionDraftAction(
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/inventory/distribution");
   revalidatePath("/portal/events");
-  return { count: data ?? 0 };
+  // Each numbered code the handout freed (#1444), so the modal can say which
+  // tags to take off the gear.
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    count: row?.recorded ?? 0,
+    releasedTags: toReleasedTags(row?.released_tags),
+  };
 }

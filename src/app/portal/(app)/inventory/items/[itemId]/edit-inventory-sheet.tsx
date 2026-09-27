@@ -12,6 +12,7 @@ import {
   CONDITIONS,
   GENDERS,
   INTENDED_USES,
+  ITEM_EXIT_STATUSES,
   STATUSES,
   labelFor,
   type InventoryItem,
@@ -316,6 +317,14 @@ export function EditInventorySheet({
                         ))}
                       </SelectContent>
                     </Select>
+                    {item.numberedCode &&
+                      form.status !== item.status &&
+                      ITEM_EXIT_STATUSES.includes(form.status) && (
+                        <FieldDescription>
+                          Saving frees {item.numberedCode}. Remove the tag from
+                          this item.
+                        </FieldDescription>
+                      )}
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="edit-faceValue">

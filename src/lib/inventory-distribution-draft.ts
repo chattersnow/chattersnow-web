@@ -20,6 +20,9 @@ export type DraftItem = {
   status: string;
   intendedUse: string;
   heldBy: ItemHolder | null;
+  /** The reusable numbered code on it (#1444), which comes off when it goes
+   *  out. Null when it has none, or the reader can't read tags. */
+  numberedCode: string | null;
 };
 
 export type DraftRecipient = {
@@ -101,6 +104,24 @@ export async function getItemHolders(
   return holders;
 }
 
+/** The numbered code each item holds (#1444), under the reader's RLS. */
+async function getNumberedCodes(
+  supabase: Client,
+  itemIds: string[],
+): Promise<Map<string, string>> {
+  const codes = new Map<string, string>();
+  if (itemIds.length === 0) return codes;
+  const { data } = await supabase
+    .from("inventory_item_tags")
+    .select("item_id, value")
+    .eq("kind", "numbered")
+    .in("item_id", itemIds);
+  for (const tag of data ?? []) {
+    if (tag.item_id) codes.set(tag.item_id, tag.value);
+  }
+  return codes;
+}
+
 const DRAFT_SELECT =
   "event_id, updated_at, event:events!inventory_distribution_drafts_event_in_tenant(name), recipient:people!inventory_distribution_drafts_recipient_in_tenant(id, name, email, phone), items:inventory_distribution_draft_items(created_at, item:inventory_items!inventory_distribution_draft_items_item_in_tenant(id, description, size, status, intended_use))";
 
@@ -128,7 +149,11 @@ async function toDraft(
   const reservedIds = row.items.flatMap(({ item }) =>
     item?.status === "reserved" ? [item.id] : [],
   );
-  const holders = await getItemHolders(supabase, reservedIds);
+  const itemIds = row.items.flatMap(({ item }) => (item ? [item.id] : []));
+  const [holders, numbered] = await Promise.all([
+    getItemHolders(supabase, reservedIds),
+    getNumberedCodes(supabase, itemIds),
+  ]);
   return {
     eventId: row.event_id,
     eventName: row.event?.name ?? null,
@@ -146,6 +171,7 @@ async function toDraft(
                 status: item.status,
                 intendedUse: item.intended_use,
                 heldBy: holders.get(item.id) ?? null,
+                numberedCode: numbered.get(item.id) ?? null,
               },
             ]
           : [],

@@ -25,7 +25,7 @@ export async function addTagToCurrentDistributionAction(
   const supabase = await createSupabaseServerClient();
 
   const [{ matches }, draft] = await Promise.all([
-    lookupInventoryTag(supabase, code, { kinds: ["asset_tag"] }),
+    lookupInventoryTag(supabase, code, { kinds: ["asset_tag", "numbered"] }),
     getCurrentDistributionDraft(supabase),
   ]);
   const found = matches[0]?.item;
