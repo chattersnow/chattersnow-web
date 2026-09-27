@@ -10,6 +10,7 @@ const ITEM = {
   status: "available",
   intendedUse: "gear_library",
   heldBy: null,
+  numberedCode: null,
 };
 const RECIPIENT = {
   id: "person-1",

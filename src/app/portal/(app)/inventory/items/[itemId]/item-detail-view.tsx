@@ -40,7 +40,7 @@ export function ItemDetailView({
   distribute?: ItemDistribute | null;
 }) {
   const imageUrl = resolveImageUrl(item.photo_url);
-  const hasActions = canManage || !!item.assetTag;
+  const hasActions = canManage || !!item.assetTag || !!item.numberedCode;
 
   return (
     <>
@@ -56,6 +56,7 @@ export function ItemDetailView({
             categoryLabelFor(item),
             labelFor(STATUSES, item.status),
             item.assetTag,
+            item.numberedCode,
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -169,6 +170,22 @@ export function ItemDetailView({
                     ? "Generate a code to print this item's label or write it to an NFC tag."
                     : "This item has no tag code yet."}
               </p>
+              <ReadOnlyField label="Numbered code" htmlFor="item-numberedCode">
+                {item.numberedCode ? (
+                  <span className="font-mono tracking-wider">
+                    {item.numberedCode}
+                  </span>
+                ) : (
+                  "None"
+                )}
+              </ReadOnlyField>
+              {item.numberedCode && (
+                <p className="app-muted text-sm">
+                  A reusable code: it comes off this item by itself when the
+                  item is distributed, retired or lost. Take the tag off the
+                  item then, for the next one.
+                </p>
+              )}
             </FieldGroup>
           </CardContent>
         </Card>

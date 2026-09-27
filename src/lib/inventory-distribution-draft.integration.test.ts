@@ -41,6 +41,8 @@ mock.module("next/navigation", () => ({
   notFound: () => {
     throw new NotFound();
   },
+  // The tag page's client components import it; nothing here renders them.
+  useRouter: () => ({ push() {}, refresh() {} }),
 }));
 
 const { getDistributionDraft, getCurrentDistributionDraft } =
@@ -165,7 +167,7 @@ describe("distribution drafts (integration)", () => {
       p_reason: "draft integration test",
     });
     expect(error).toBeNull();
-    expect(data).toBe(2);
+    expect(data?.[0]?.recorded).toBe(2);
 
     for (const id of itemIds.slice(0, 2)) {
       expect(await getInventoryItemStatus(id)).toBe("distributed");

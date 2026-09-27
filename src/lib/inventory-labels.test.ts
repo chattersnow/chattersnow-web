@@ -4,12 +4,14 @@ import {
   MAX_LABEL_ITEMS,
   blankLabelsHref,
   donationLabelsHref,
-  parseLabelCodes,
   labelLayoutFor,
   labelsHref,
   labelsPerPage,
+  numberedCodesHref,
   paginateLabels,
+  parseLabelCodes,
   parseLabelOptions,
+  parseNumberRange,
 } from "./inventory-labels";
 
 const A = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -153,6 +155,33 @@ describe("intake labels (#1420 part 4)", () => {
     );
     expect(blankLabelsHref(["K7M2QX", "B8N3RY"])).toBe(
       "/portal/inventory/donations/labels?codes=K7M2QX,B8N3RY",
+    );
+  });
+});
+
+describe("parseNumberRange (#1444)", () => {
+  test("a range, a single number, and one written backwards", () => {
+    expect(parseNumberRange("1-50")).toEqual({ from: 1, to: 50 });
+    expect(parseNumberRange("7")).toEqual({ from: 7, to: 7 });
+    expect(parseNumberRange("50-1")).toEqual({ from: 1, to: 50 });
+  });
+
+  test("capped at one print run", () => {
+    expect(parseNumberRange("1-1000")).toEqual({
+      from: 1,
+      to: MAX_LABEL_ITEMS,
+    });
+  });
+
+  test("nothing usable is null", () => {
+    for (const raw of [undefined, "", "0", "0-5", "a-b", "1-", "-3"]) {
+      expect(parseNumberRange(raw)).toBeNull();
+    }
+  });
+
+  test("the href round-trips", () => {
+    expect(numberedCodesHref({ from: 1, to: 30 })).toBe(
+      "/portal/inventory/items/codes?numbers=1-30",
     );
   });
 });

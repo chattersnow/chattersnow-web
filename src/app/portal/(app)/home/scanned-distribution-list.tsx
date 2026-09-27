@@ -49,6 +49,7 @@ export function ScannedDistributionList({
   availableItems,
   conflictItemId,
   onChanged,
+  releasesCodes = true,
 }: {
   eventId: string | null;
   draft: DistributionDraft | null;
@@ -60,6 +61,9 @@ export function ScannedDistributionList({
   conflictItemId: string | null;
   /** Re-read the list from the server. */
   onChanged: () => Promise<void>;
+  /** Recording marks the pieces distributed, which frees their numbered
+   *  codes (#1444) -- so each one's tag has to come off. */
+  releasesCodes?: boolean;
 }) {
   const [message, setMessage] = useState<{
     tone: "info" | "warning";
@@ -259,10 +263,17 @@ export function ScannedDistributionList({
                 >
                   <span className="min-w-0">
                     <span className="block truncate">{itemLabel(item)}</span>
-                    {warning && (
+                    {warning ? (
                       <span className="block text-xs text-destructive">
                         {warning}
                       </span>
+                    ) : (
+                      releasesCodes &&
+                      item.numberedCode && (
+                        <span className="app-muted block text-xs">
+                          Remove tag {item.numberedCode} before it goes out.
+                        </span>
+                      )
                     )}
                   </span>
                   <Tooltip>

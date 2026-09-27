@@ -24,6 +24,8 @@ import { deviceClass } from "@/lib/portal/device";
 import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import { ScanTagDialog } from "./scan-tag-dialog";
+import { Hash } from "lucide-react";
+import { NUMBERED_CODES_PATH } from "@/lib/inventory-labels";
 import { withTagsAndHolds } from "./item-extras";
 import {
   CONDITIONS,
@@ -286,6 +288,13 @@ export default async function InventoryPage({
             }}
           />
           <ScanTagDialog />
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href={NUMBERED_CODES_PATH} />}
+          >
+            <Hash /> Numbered codes
+          </Button>
           <FiltersSheet activeCount={activeFilterCount}>
             <form method="get" className="flex flex-col gap-4">
               <input type="hidden" name="sort" value={sort} />

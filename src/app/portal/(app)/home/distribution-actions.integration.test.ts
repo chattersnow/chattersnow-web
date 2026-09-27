@@ -77,7 +77,7 @@ describe("recordEventDistributionAction (integration)", () => {
     const result = await recordEventDistributionAction(
       distributionInput(itemIds[0]),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, releasedTags: [] });
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/home");
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/inventory/items");
     expect(revalidatePathMock).toHaveBeenCalledWith(
@@ -100,7 +100,7 @@ describe("recordEventDistributionAction (integration)", () => {
     const result = await recordEventDistributionAction(
       distributionInput(itemIds[0]),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, releasedTags: [] });
     expect(await getInventoryItemStatus(itemIds[0])).toBe("distributed");
 
     await cleanup();
@@ -113,7 +113,7 @@ describe("recordEventDistributionAction (integration)", () => {
     const result = await recordEventDistributionAction(
       distributionInput(itemIds[0]),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, releasedTags: [] });
     expect(await getInventoryItemStatus(itemIds[0])).toBe("distributed");
 
     await cleanup();
@@ -212,7 +212,7 @@ describe("recordEventDistributionAction (integration)", () => {
     const result = await recordEventDistributionAction(
       distributionInput(itemIds[0], { markDistributed: false }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, releasedTags: [] });
     expect(await getInventoryItemStatus(itemIds[0])).toBe("available");
 
     const movement = await getMovement(itemIds[0]);
@@ -233,7 +233,7 @@ describe("recordEventDistributionAction (integration)", () => {
         recipientPersonId: recipient.id,
       }),
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, releasedTags: [] });
 
     const movement = await getMovement(itemIds[0]);
     expect(movement.event_id).toBe(event.id);
@@ -479,7 +479,10 @@ describe("recordEventDistributionAction under concurrency", () => {
       ),
     ]);
 
-    expect(results).toEqual([{ success: true }, { success: true }]);
+    expect(results).toEqual([
+      { success: true, releasedTags: [] },
+      { success: true, releasedTags: [] },
+    ]);
     expect(await distributedMovements(itemId)).toHaveLength(2);
     expect(await getInventoryItemStatus(itemId)).toBe("available");
 

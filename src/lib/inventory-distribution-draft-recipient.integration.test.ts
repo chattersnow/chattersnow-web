@@ -35,6 +35,8 @@ mock.module("next/navigation", () => ({
   notFound: () => {
     throw new Error("not found");
   },
+  // The tag page's client components import it; nothing here renders them.
+  useRouter: () => ({ push() {}, refresh() {} }),
 }));
 
 const { getDistributionDraft, getCurrentDistributionDraft } =
@@ -150,7 +152,7 @@ describe("a distribution draft's recipient (integration)", () => {
       p_reason: reason,
     });
     expect(error).toBeNull();
-    expect(data).toBe(2);
+    expect(data?.[0]?.recorded).toBe(2);
     const rows = await movementRecipients(itemIds.slice(0, 2), reason);
     expect(rows.map((row) => row.recipient_person_id)).toEqual([
       recipient.id,

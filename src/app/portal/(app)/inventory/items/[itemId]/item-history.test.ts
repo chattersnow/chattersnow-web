@@ -171,3 +171,37 @@ describe("toHistoryEntries", () => {
     expect(toHistoryEntries(null)).toEqual([]);
   });
 });
+
+describe("numbered-code entries (#1444)", () => {
+  test("an assignment and a release carry the code and why it came off", () => {
+    const [assigned, released] = toHistoryEntries([
+      row({
+        entry_kind: "tag_assigned",
+        entry_id: "binding-1",
+        reason: "CSN-007",
+        recorded_by_name: "Sam",
+      }),
+      row({
+        entry_kind: "tag_released",
+        entry_id: "binding-1",
+        reason: "CSN-007",
+        notes: "distributed",
+      }),
+    ]);
+    expect(assigned).toEqual({
+      kind: "tag",
+      key: "tag_assigned-binding-1",
+      occurredAt: "2026-09-20T18:00:00+00:00",
+      action: "assigned",
+      code: "CSN-007",
+      releaseReason: null,
+      recordedBy: "Sam",
+    });
+    expect(released).toMatchObject({
+      kind: "tag",
+      key: "tag_released-binding-1",
+      action: "released",
+      releaseReason: "The item was distributed",
+    });
+  });
+});
