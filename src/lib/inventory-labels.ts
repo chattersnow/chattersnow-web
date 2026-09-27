@@ -11,7 +11,7 @@
  */
 
 export type LabelLayoutKey =
-  "sheet-30" | "sheet-10" | "roll" | "katasymbol-50x30";
+  "sheet-30" | "sheet-10" | "roll" | "katasymbol-50x80" | "katasymbol-40x30";
 
 /**
  * How the labels reach the printer: the browser's print dialog, or drawn in
@@ -86,14 +86,34 @@ export const LABEL_LAYOUTS: readonly LabelLayout[] = [
     gapY: 0,
     printer: "browser",
   },
-  {
-    // Die-cut 50 × 30 mm stock, 50 mm across the printhead. Sized in
-    // millimetres because that is how this stock is sold.
-    key: "katasymbol-50x30",
-    name: "Katasymbol T50M Pro",
-    description: "One 50 × 30 mm label at a time, read upright",
-    page: { width: 50 * MM, height: 30 * MM },
-    label: { width: 50 * MM, height: 30 * MM },
+  // Katasymbol die-cut stock, sized in millimetres because that is how it is
+  // sold, and named as the stock and the Katasymbol app name it: across the
+  // printhead first, then along the feed. Each label is drawn the way it runs
+  // through the printer, so neither is turned.
+  katasymbolLayout(
+    "katasymbol-50x80",
+    { width: 50, height: 80 },
+    "Upright: logo, QR and text stacked",
+  ),
+  katasymbolLayout(
+    "katasymbol-40x30",
+    { width: 40, height: 30 },
+    "Wide: the QR beside the text",
+  ),
+];
+
+function katasymbolLayout(
+  key: LabelLayoutKey,
+  mm: { width: number; height: number },
+  shape: string,
+): LabelLayout {
+  const size = { width: mm.width * MM, height: mm.height * MM };
+  return {
+    key,
+    name: `Katasymbol ${mm.width} × ${mm.height} mm`,
+    description: `T50M Pro, one label at a time. ${shape}`,
+    page: size,
+    label: size,
     columns: 1,
     rows: 1,
     marginTop: 0,
@@ -101,8 +121,17 @@ export const LABEL_LAYOUTS: readonly LabelLayout[] = [
     gapX: 0,
     gapY: 0,
     printer: "katasymbol",
-  },
-];
+  };
+}
+
+/**
+ * Layouts that have since been renamed, so a bookmarked or shared link still
+ * opens the layout it meant. The first Katasymbol layout was for 50 × 30 mm
+ * stock that turned out to be 50 × 80.
+ */
+const RENAMED_LAYOUTS: Record<string, LabelLayoutKey> = {
+  "katasymbol-50x30": "katasymbol-50x80",
+};
 
 export const DEFAULT_LABEL_LAYOUT: LabelLayoutKey = "sheet-30";
 
@@ -114,8 +143,9 @@ const UUID_PATTERN =
 
 export function labelLayoutFor(key: string | undefined): LabelLayout {
   return (
-    LABEL_LAYOUTS.find((layout) => layout.key === key) ??
-    LABEL_LAYOUTS.find((layout) => layout.key === DEFAULT_LABEL_LAYOUT)!
+    LABEL_LAYOUTS.find(
+      (layout) => layout.key === (key && (RENAMED_LAYOUTS[key] ?? key)),
+    ) ?? LABEL_LAYOUTS.find((layout) => layout.key === DEFAULT_LABEL_LAYOUT)!
   );
 }
 

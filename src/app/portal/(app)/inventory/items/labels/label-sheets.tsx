@@ -64,6 +64,10 @@ export function LabelSheets({
           size,
           qrSrc,
         }))}
+        stock={{
+          widthMm: Math.round(layout.label.width * 25.4),
+          heightMm: Math.round(layout.label.height * 25.4),
+        }}
         logoSrc={logoSrc}
         tagIds={labels.map((label) => label.tagId)}
       />

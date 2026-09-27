@@ -5,24 +5,24 @@ import { Bluetooth, Download, Usb } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import type { Bitmap } from "@/lib/label-printer/bitmap";
+import { DOTS_PER_MM, type Bitmap } from "@/lib/label-printer/bitmap";
+import { withResolution } from "@/lib/label-printer/png";
 import {
-  KATASYMBOL_LABEL_MM,
   bitmapToCanvas,
   canvasToPng,
   loadImage,
   renderLabel,
-  rotateClockwise,
+  type LabelStock,
   type RasterLabel,
 } from "@/lib/label-printer/raster";
 import { storedZip } from "@/lib/label-printer/zip";
 import { recordLabelsPrintedAction } from "./actions";
 
 /**
- * One label: its dots as read, for the preview and for stock loaded upright,
- * and turned to lie the way 50 × 30 stock runs, for the printer and the file.
+ * One label: its dots for the printer, and the same dots as a PNG for the
+ * preview and the saved file.
  */
-type Rendered = { upright: Bitmap; turned: Bitmap; png: Blob; url: string };
+type Rendered = { bitmap: Bitmap; png: Blob; url: string };
 type Link = "usb" | "bluetooth";
 type Driver = typeof import("@/lib/label-printer/printer");
 type Connected = Awaited<ReturnType<Driver["connectUsbPrinter"]>>;
@@ -91,16 +91,20 @@ function fileNames(labels: RasterLabel[]): string[] {
  */
 export function KatasymbolLabels({
   labels,
+  stock,
   logoSrc,
   tagIds,
 }: {
   labels: RasterLabel[];
+  /** The roll the layout is for. */
+  stock: LabelStock;
   /** The organization's logo, same-origin, for the top of every label. */
   logoSrc: string | null;
   /** Recorded as printed once the labels print or their images are saved
    *  (#1450). */
   tagIds: readonly string[];
 }) {
+  const { widthMm, heightMm } = stock;
   const support = useBrowserSupport();
   const [rendered, setRendered] = useState<Rendered[] | null>(null);
   const [state, setState] = useState<PrintState>({ step: "idle" });
@@ -122,15 +126,22 @@ export function KatasymbolLabels({
       const logo = logoSrc ? await loadImage(logoSrc).catch(() => null) : null;
       const next: Rendered[] = [];
       for (const label of labels) {
-        const upright = await renderLabel(label, logo);
-        const turned = rotateClockwise(upright);
-        const [preview, png] = await Promise.all([
-          canvasToPng(bitmapToCanvas(upright)),
-          canvasToPng(bitmapToCanvas(turned)),
-        ]);
-        const url = URL.createObjectURL(preview);
+        const bitmap = await renderLabel(label, { widthMm, heightMm }, logo);
+        // Stamped 8 dots/mm, so an app that reads it sizes it to the label.
+        const png = new Blob(
+          [
+            withResolution(
+              new Uint8Array(
+                await (await canvasToPng(bitmapToCanvas(bitmap))).arrayBuffer(),
+              ),
+              DOTS_PER_MM,
+            ) as Uint8Array<ArrayBuffer>,
+          ],
+          { type: "image/png" },
+        );
+        const url = URL.createObjectURL(png);
         urls.push(url);
-        next.push({ upright, turned, png, url });
+        next.push({ bitmap, png, url });
       }
       if (!cancelled) setRendered(next);
     })().catch(() => {
@@ -145,18 +156,12 @@ export function KatasymbolLabels({
       cancelled = true;
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [labels, logoSrc]);
+  }, [labels, logoSrc, widthMm, heightMm]);
 
-  /**
-   * `upright` when the stock is loaded 30 mm across the head, so the label
-   * already runs the way it reads.
-   */
-  async function send(transport: Connected, upright = false) {
+  async function send(transport: Connected) {
     const { encodeLabel, printLabels } = await (driver.current ??=
       loadDriver());
-    const encoded = rendered!.map((label) =>
-      encodeLabel(upright ? label.upright : label.turned),
-    );
+    const encoded = rendered!.map((label) => encodeLabel(label.bitmap));
     setState({ step: "printing", printed: 0, total: encoded.length });
     try {
       await printLabels(transport, encoded, (printed) =>
@@ -174,18 +179,13 @@ export function KatasymbolLabels({
   async function print(link: Link) {
     setState({ step: "connecting" });
     let transport: Connected | null = null;
-    let upright = false;
     try {
       const printer = await (driver.current ??= loadDriver());
       transport = await (link === "usb"
         ? printer.connectUsbPrinter()
         : printer.connectBluetoothPrinter());
       const loaded = await transport.loadedLabels();
-      const { width, height } = KATASYMBOL_LABEL_MM;
-      upright =
-        printer.labelsMatch(loaded, height, width) &&
-        !printer.labelsMatch(loaded, width, height);
-      if (!upright && !printer.labelsMatch(loaded, width, height)) {
+      if (!printer.labelsMatch(loaded, widthMm, heightMm)) {
         setState({
           step: "mismatch",
           loaded: `${loaded!.widthMm} × ${loaded!.heightMm} mm`,
@@ -202,7 +202,7 @@ export function KatasymbolLabels({
       }
       return;
     }
-    await send(transport, upright);
+    await send(transport);
   }
 
   async function saveImages() {
@@ -287,20 +287,22 @@ export function KatasymbolLabels({
         </p>
       </div>
 
-      {!direct && (
-        <p className="app-muted text-sm">
-          Direct printing needs Chrome or Edge (or Bluefy on iPhone). Otherwise,
-          save the images and print them from the Katasymbol app.
-        </p>
-      )}
+      <p className="app-muted text-sm">
+        {!direct &&
+          "Direct printing needs Chrome or Edge (or Bluefy on iPhone). Otherwise, save the images and print them from the Katasymbol app. "}
+        {/* The app lays an image out on whatever label it was started with,
+            shrinking it to fit a bigger one. */}
+        In the Katasymbol app, start a {widthMm} × {heightMm} mm label and
+        stretch the image to its edges.
+      </p>
 
       {state.step === "mismatch" && (
         <Alert>
           <AlertTitle>The printer has {state.loaded} labels loaded</AlertTitle>
           <AlertDescription className="flex flex-col items-start gap-2">
             <span>
-              These labels are drawn for 50 × 30 mm. Load that stock, or print
-              anyway.
+              These labels are drawn for {widthMm} × {heightMm} mm. Choose the
+              loaded size under Paper, load that stock, or print anyway.
             </span>
             <div className="flex gap-2">
               <Button
@@ -339,11 +341,8 @@ export function KatasymbolLabels({
           <div
             key={`${label.code}-${i}`}
             className="flex items-center justify-center overflow-hidden rounded-sm bg-white shadow-md ring-1 ring-black/10"
-            // Upright, as it reads on the item.
-            style={{
-              width: `${KATASYMBOL_LABEL_MM.height}mm`,
-              height: `${KATASYMBOL_LABEL_MM.width}mm`,
-            }}
+            // At its size on the roll, the way it comes out of the printer.
+            style={{ width: `${widthMm}mm`, height: `${heightMm}mm` }}
           >
             {/* A blob: URL drawn in the browser; nothing for next/image
                 to optimize. */}

@@ -1,73 +1,63 @@
 import { describe, expect, test } from "bun:test";
-import { bitmapBytesPerRow, bitmapGet, type Bitmap } from "./bitmap";
+import { bitmapGet } from "./bitmap";
 import {
-  RASTER_SIZE,
-  UPRIGHT_SIZE,
   fitFontSize,
   fitWithin,
-  rotateClockwise,
+  qrDrawSize,
+  qrModules,
+  stockDots,
   thresholdPixels,
   wrapText,
 } from "./raster";
 
-test("a 50 × 30 mm label is 400 × 240 dots at 8 dots/mm", () => {
-  expect(RASTER_SIZE).toEqual({ width: 400, height: 240 });
+test("each stock is its size in dots at 8 dots/mm, never turned", () => {
+  expect(stockDots({ widthMm: 50, heightMm: 80 })).toEqual({
+    width: 400,
+    height: 640,
+  });
+  expect(stockDots({ widthMm: 40, heightMm: 30 })).toEqual({
+    width: 320,
+    height: 240,
+  });
 });
 
-test("the label is drawn upright, taller than it is wide", () => {
-  expect(UPRIGHT_SIZE).toEqual({ width: 240, height: 400 });
+describe("qrModules", () => {
+  const svgUri = (svg: string) =>
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+  test("reads the modules, quiet zone included, off the viewBox", () => {
+    // A version 4 QR (33 modules) and its four-module quiet zone each side.
+    const src = svgUri(
+      '<svg viewBox="0 0 164 164" xmlns="http://www.w3.org/2000/svg"><path d="M16 148L44 148"/></svg>',
+    );
+    expect(qrModules(src)).toBe(41);
+  });
+
+  test("null for anything it can't read", () => {
+    expect(qrModules("data:image/png;base64,AAAA")).toBeNull();
+    expect(qrModules(svgUri("<svg></svg>"))).toBeNull();
+    expect(qrModules(svgUri('<svg viewBox="0 0 163 163"></svg>'))).toBeNull();
+    expect(qrModules("data:image/svg+xml,%E0%A4%A")).toBeNull();
+  });
 });
 
-describe("rotateClockwise", () => {
-  function bitmapWith(width: number, height: number, dots: [number, number][]) {
-    const stride = bitmapBytesPerRow(width);
-    const data = new Uint8Array(stride * height);
-    for (const [x, y] of dots) data[y * stride + (x >> 3)] |= 0x80 >> (x & 7);
-    return { width, height, data } satisfies Bitmap;
-  }
-
-  test("turns the upright label to lie the way the stock runs", () => {
-    const { width, height } = UPRIGHT_SIZE;
-    // The top-left corner, and a dot near the bottom-right.
-    const turned = rotateClockwise(
-      bitmapWith(width, height, [
-        [0, 0],
-        [width - 2, height - 1],
-      ]),
-    );
-    expect({ width: turned.width, height: turned.height }).toEqual(RASTER_SIZE);
-    // The label's top is the right-hand edge.
-    expect(bitmapGet(turned, RASTER_SIZE.width - 1, 0)).toBe(true);
-    expect(bitmapGet(turned, 0, RASTER_SIZE.height - 2)).toBe(true);
-    const inked = [...turned.data].reduce(
-      (sum, byte) => sum + byte.toString(2).replaceAll("0", "").length,
-      0,
-    );
-    expect(inked).toBe(2);
-  });
-
-  test("four turns come back to the start", () => {
-    const start = bitmapWith(13, 5, [
-      [0, 0],
-      [12, 4],
-      [7, 2],
-    ]);
-    let bitmap: Bitmap = start;
-    for (let i = 0; i < 4; i++) bitmap = rotateClockwise(bitmap);
-    expect(bitmap).toEqual(start);
-  });
+test("qrDrawSize gives every module the same whole number of dots", () => {
+  expect(qrDrawSize(41, 296)).toBe(287); // 7 dots a module
+  expect(qrDrawSize(41, 176)).toBe(164); // 4
+  expect(qrDrawSize(null, 176)).toBe(176);
+  expect(qrDrawSize(200, 176)).toBe(176);
 });
 
 describe("thresholdPixels", () => {
   test("gives a 1-bit bitmap of the canvas's size, dark pixels as ink", () => {
-    const { width, height } = RASTER_SIZE;
+    const { width, height } = stockDots({ widthMm: 40, heightMm: 30 });
     const rgba = new Uint8ClampedArray(width * height * 4).fill(255);
     const paint = (x: number, y: number, value: number, alpha = 255) => {
       const i = (y * width + x) * 4;
       rgba.set([value, value, value, alpha], i);
     };
     paint(0, 0, 0);
-    paint(399, 239, 179); // just under the threshold
+    paint(319, 239, 179); // just under the threshold
     paint(10, 10, 180); // at it: no ink
     paint(20, 20, 0, 0); // transparent black is the white label
 
@@ -75,7 +65,7 @@ describe("thresholdPixels", () => {
     expect(bitmap.data).toHaveLength((width / 8) * height);
     expect(bitmap.data.every((byte) => byte >= 0 && byte <= 255)).toBe(true);
     expect(bitmapGet(bitmap, 0, 0)).toBe(true);
-    expect(bitmapGet(bitmap, 399, 239)).toBe(true);
+    expect(bitmapGet(bitmap, 319, 239)).toBe(true);
     expect(bitmapGet(bitmap, 10, 10)).toBe(false);
     expect(bitmapGet(bitmap, 20, 20)).toBe(false);
     const inked = [...bitmap.data].reduce(
