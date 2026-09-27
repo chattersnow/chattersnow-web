@@ -34,12 +34,15 @@ export async function classifyIntakeScanAction(
   const candidates = parseScannedTag(scanned, {
     host: await getRequestHost(),
   });
-  if (!candidates.asset_tag && !candidates.barcode) {
+  // A random code or a reusable numbered one (#1444); the function tries the
+  // random code first, since `234567` can be either.
+  const tagCode = candidates.asset_tag ?? candidates.numbered;
+  if (!tagCode && !candidates.barcode) {
     return { error: `“${scanned.trim()}” is not a label or a barcode.` };
   }
 
   const { data, error } = await supabase.rpc("inventory_intake_scan", {
-    p_asset_tag: candidates.asset_tag ?? "",
+    p_asset_tag: tagCode ?? "",
     p_barcode: candidates.barcode ?? "",
   });
   const row = Array.isArray(data) ? data[0] : data;
@@ -47,19 +50,19 @@ export async function classifyIntakeScanAction(
     return { error: "Could not look up that scan. Please try again." };
   }
 
-  if (candidates.asset_tag) {
+  if (tagCode) {
     if (row.asset_tag_status === "blank") {
-      return { data: { kind: "asset_tag", code: candidates.asset_tag } };
+      return { data: { kind: "asset_tag", code: tagCode } };
     }
     if (row.asset_tag_status === "assigned") {
       return {
-        error: `Label ${candidates.asset_tag} is already on another item.`,
+        error: `Label ${tagCode} is already on another item.`,
       };
     }
     // A six-character code nobody printed. Digits only could still be a
     // barcode, which is what the next branch is for.
     if (!candidates.barcode) {
-      return { error: `No unused label has the code ${candidates.asset_tag}.` };
+      return { error: `No unused label has the code ${tagCode}.` };
     }
   }
 

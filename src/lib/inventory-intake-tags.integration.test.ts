@@ -31,6 +31,8 @@ mock.module("next/navigation", () => ({
   notFound: () => {
     throw new NotFound();
   },
+  // The tag page's client components import it; nothing here renders them.
+  useRouter: () => ({ push() {}, refresh() {} }),
 }));
 
 const { default: InventoryTagPage } =

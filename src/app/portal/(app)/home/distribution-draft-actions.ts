@@ -4,11 +4,19 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkAnyPermission } from "@/lib/auth/permissions";
 import { getRequestHost } from "@/lib/request-origin";
-import { lookupInventoryTag } from "@/lib/inventory-tags";
+import {
+  lookupInventoryTag,
+  toReleasedTags,
+  type ReleasedTag,
+} from "@/lib/inventory-tags";
 import {
   addToDistributionDraft,
   getDistributionDraft,
+  getItemHolders,
+  moveDistributionDraft,
+  setDistributionDraftRecipient,
   type DistributionDraft,
+  type ItemHolder,
 } from "@/lib/inventory-distribution-draft";
 
 /**
@@ -28,6 +36,7 @@ export type ScannedItem = {
   size: string | null;
   status: string;
   intendedUse: string;
+  heldBy: ItemHolder | null;
 };
 
 /**
@@ -63,6 +72,12 @@ export async function lookupScannedItemsAction(
   if (itemsError)
     return { error: "Could not look up that scan. Please try again." };
 
+  const holders = await getItemHolders(
+    supabase,
+    (data ?? []).flatMap((item) =>
+      item.status === "reserved" ? [item.id] : [],
+    ),
+  );
   return {
     data: (data ?? []).map((item) => ({
       id: item.id,
@@ -70,6 +85,7 @@ export async function lookupScannedItemsAction(
       size: item.size,
       status: item.status,
       intendedUse: item.intended_use,
+      heldBy: holders.get(item.id) ?? null,
     })),
   };
 }
@@ -100,6 +116,49 @@ export async function addToDistributionDraftAction(
 
   const { error } = await addToDistributionDraft(supabase, itemId, eventId);
   if (error) return { error: "Could not add that item. Please try again." };
+  return { success: true };
+}
+
+/** Stores who the list is for (#1443), so a tag tapped in another tab adds to
+ *  the same person's handout and the resolver can say whose it is. */
+export async function setDistributionDraftRecipientAction(
+  eventId: string | null,
+  personId: string | null,
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    ...RECORD_ACCESS,
+  ]);
+  if (permissionError) return permissionError;
+
+  const { error } = await setDistributionDraftRecipient(
+    supabase,
+    eventId,
+    personId,
+  );
+  if (error)
+    return { error: "Could not save the recipient. Please try again." };
+  return { success: true };
+}
+
+/** Moves the list to another event (or none), merging it into any list the
+ *  caller already has there. */
+export async function moveDistributionDraftAction(
+  fromEventId: string | null,
+  toEventId: string | null,
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    ...RECORD_ACCESS,
+  ]);
+  if (permissionError) return permissionError;
+
+  const { error } = await moveDistributionDraft(
+    supabase,
+    fromEventId,
+    toEventId,
+  );
+  if (error) return { error: "Could not change the event. Please try again." };
   return { success: true };
 }
 
@@ -159,10 +218,14 @@ export type RecordDraftInput = {
  * Records every scanned piece as its own distribution, in one transaction
  * (record_distribution_draft()), and clears the list. If one was given out by
  * someone else since it was scanned, nothing is recorded and `itemId` names it.
+ * `releasedTags` are the numbered codes the handout freed (#1444).
  */
 export async function recordDistributionDraftAction(
   input: RecordDraftInput,
-): Promise<{ count: number } | { error: string; itemId?: string }> {
+): Promise<
+  | { count: number; releasedTags: ReleasedTag[] }
+  | { error: string; itemId?: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
     ...RECORD_ACCESS,
@@ -199,5 +262,11 @@ export async function recordDistributionDraftAction(
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/inventory/distribution");
   revalidatePath("/portal/events");
-  return { count: data ?? 0 };
+  // Each numbered code the handout freed (#1444), so the modal can say which
+  // tags to take off the gear.
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    count: row?.recorded ?? 0,
+    releasedTags: toReleasedTags(row?.released_tags),
+  };
 }

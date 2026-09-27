@@ -1,5 +1,6 @@
 import type { ParseResult } from "@/lib/forms";
 import { OTHER_CATEGORY_KEY } from "@/lib/inventory";
+import { parseNumberedTag } from "@/lib/inventory-tags";
 
 export type DonationItemInput = {
   description: string;
@@ -166,7 +167,7 @@ export function parseDonationInput(
     }
     const assetTag = item.assetTag?.trim().toUpperCase();
     if (assetTag) {
-      if (!ASSET_TAG_PATTERN.test(assetTag)) {
+      if (!ASSET_TAG_PATTERN.test(assetTag) && !parseNumberedTag(assetTag)) {
         return {
           error: `${label}: “${assetTag}” is not a label code.`,
           field: `items.${i}.assetTag`,

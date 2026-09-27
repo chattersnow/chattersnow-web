@@ -367,6 +367,16 @@ begin
     (v_item2, 'asset_tag', 'SEED02', v_admin_id),
     (v_item1, 'barcode', '012345678905', v_admin_id);
 
+  -- Reusable numbered codes (#1444): EXN-001 on the boots, EXN-002 and
+  -- EXN-003 free. One insert each, since each takes the next number.
+  update public.tenants set inventory_tag_prefix = 'EXN' where slug = 'example-nonprofit';
+  insert into public.inventory_item_tags (item_id, kind, value, created_by)
+  values (v_item2, 'numbered', '', v_admin_id);
+  insert into public.inventory_item_tags (item_id, kind, value, created_by)
+  values (null, 'numbered', '', v_admin_id);
+  insert into public.inventory_item_tags (item_id, kind, value, created_by)
+  values (null, 'numbered', '', v_admin_id);
+
   insert into public.donations (id, donor_id, notes, created_by)
   values (v_donation2, v_person_donor2, 'Dropped off at office', v_admin_id);
 

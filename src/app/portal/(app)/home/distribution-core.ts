@@ -6,6 +6,7 @@ import {
   type RecordDistributionInput,
 } from "./distribution-form";
 import { checkAnyPermission } from "@/lib/auth/permissions";
+import { toReleasedTags, type ReleasedTag } from "@/lib/inventory-tags";
 import { checkUser } from "@/lib/auth/current-user";
 import {
   actionError,
@@ -16,7 +17,8 @@ import {
 
 export type { RecordDistributionInput };
 
-export type DistributionActionResult = ActionFailure | { success: true };
+export type DistributionActionResult =
+  ActionFailure | { success: true; releasedTags: ReleasedTag[] };
 
 export async function recordEventDistribution(
   supabase: SupabaseClient,
@@ -36,7 +38,7 @@ export async function recordEventDistribution(
   const parsed = parseDistributionInput(input);
   if ("error" in parsed) return fromParseError(parsed);
 
-  const { error } = await supabase.rpc(
+  const { data: movementId, error } = await supabase.rpc(
     "record_event_distribution",
     parsed.data,
   );
@@ -58,5 +60,12 @@ export async function recordEventDistribution(
     );
   }
 
-  return { success: true };
+  // The numbered codes this handout freed (#1444), tied to it by its
+  // movement. A failure here costs only the reminder, not the handout.
+  const { data: released } = movementId
+    ? await supabase.rpc("released_numbered_inventory_tags", {
+        p_movement_ids: [movementId],
+      })
+    : { data: null };
+  return { success: true, releasedTags: toReleasedTags(released) };
 }

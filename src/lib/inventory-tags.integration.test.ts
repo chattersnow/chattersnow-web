@@ -30,6 +30,8 @@ mock.module("next/navigation", () => ({
   notFound: () => {
     throw new NotFound();
   },
+  // The page's client components import it; nothing here renders them.
+  useRouter: () => ({ push() {}, refresh() {} }),
 }));
 
 const { lookupInventoryTag } = await import("./inventory-tags");
@@ -178,7 +180,7 @@ describe("lookupInventoryTag (integration)", () => {
 describe("/portal/t/[code] (integration)", () => {
   test("a known code redirects to the item", async () => {
     expect(await resolve("seed02", adminClient)).toEqual({
-      redirect: `/portal/inventory/items?item=${SEEDED_INVENTORY_IDS.boots}`,
+      redirect: `/portal/inventory/items/${SEEDED_INVENTORY_IDS.boots}`,
     });
   });
 

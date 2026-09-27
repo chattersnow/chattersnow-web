@@ -194,6 +194,10 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
     listPath: "/portal/inventory/distribution",
     linkPattern: /^\/portal\/inventory\/distribution\/[0-9a-f-]{36}$/,
   },
+  "/portal/inventory/items/[itemId]": {
+    listPath: "/portal/inventory/items",
+    linkPattern: /^\/portal\/inventory\/items\/[0-9a-f-]{36}$/,
+  },
   "/portal/inventory/requests/[requestId]": {
     listPath: "/portal/inventory/requests",
     linkPattern: /^\/portal\/inventory\/requests\/[0-9a-f-]{36}$/,

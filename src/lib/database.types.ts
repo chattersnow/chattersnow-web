@@ -5238,6 +5238,7 @@ export type Database = {
           created_at: string;
           event_id: string | null;
           id: string;
+          recipient_person_id: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
@@ -5247,6 +5248,7 @@ export type Database = {
           created_at?: string;
           event_id?: string | null;
           id?: string;
+          recipient_person_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5256,6 +5258,7 @@ export type Database = {
           created_at?: string;
           event_id?: string | null;
           id?: string;
+          recipient_person_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5267,6 +5270,20 @@ export type Database = {
             columns: ["tenant_id", "event_id"];
             isOneToOne: false;
             referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_drafts_recipient_in_tenant";
+            columns: ["tenant_id", "recipient_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_drafts_recipient_in_tenant";
+            columns: ["tenant_id", "recipient_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
             referencedColumns: ["tenant_id", "id"];
           },
           {
@@ -5285,6 +5302,71 @@ export type Database = {
           },
         ];
       };
+      inventory_item_tag_assignments: {
+        Row: {
+          assigned_at: string;
+          assigned_by: string | null;
+          id: string;
+          item_id: string;
+          release_reason: string | null;
+          released_at: string | null;
+          released_by: string | null;
+          tag_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_by?: string | null;
+          id?: string;
+          item_id: string;
+          release_reason?: string | null;
+          released_at?: string | null;
+          released_by?: string | null;
+          tag_id: string;
+          tenant_id?: string;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_by?: string | null;
+          id?: string;
+          item_id?: string;
+          release_reason?: string | null;
+          released_at?: string | null;
+          released_by?: string | null;
+          tag_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inventory_item_tag_assignments_item_in_tenant";
+            columns: ["tenant_id", "item_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_items";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_item_tag_assignments_tag_in_tenant";
+            columns: ["tenant_id", "tag_id"];
+            isOneToOne: false;
+            referencedRelation: "inventory_item_tags";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_item_tag_assignments_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_item_tag_assignments_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       inventory_item_tags: {
         Row: {
           created_at: string;
@@ -5292,6 +5374,7 @@ export type Database = {
           id: string;
           item_id: string | null;
           kind: string;
+          number: number | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
@@ -5303,6 +5386,7 @@ export type Database = {
           id?: string;
           item_id?: string | null;
           kind: string;
+          number?: number | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5314,6 +5398,7 @@ export type Database = {
           id?: string;
           item_id?: string | null;
           kind?: string;
+          number?: number | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -8170,6 +8255,7 @@ export type Database = {
           created_by: string | null;
           custom_domain: string | null;
           id: string;
+          inventory_tag_prefix: string | null;
           name: string;
           plan: string;
           slug: string;
@@ -8183,6 +8269,7 @@ export type Database = {
           created_by?: string | null;
           custom_domain?: string | null;
           id?: string;
+          inventory_tag_prefix?: string | null;
           name: string;
           plan?: string;
           slug: string;
@@ -8196,6 +8283,7 @@ export type Database = {
           created_by?: string | null;
           custom_domain?: string | null;
           id?: string;
+          inventory_tag_prefix?: string | null;
           name?: string;
           plan?: string;
           slug?: string;
@@ -9497,6 +9585,15 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      assign_numbered_inventory_tag: {
+        Args: { p_code: string; p_item_id: string; p_move?: boolean };
+        Returns: {
+          code: string;
+          holder_description: string;
+          holder_item_id: string;
+          outcome: string;
+        }[];
+      };
       available_content_packs: {
         Args: never;
         Returns: {
@@ -9710,6 +9807,10 @@ export type Database = {
           preferred_name: string;
         }[];
       };
+      format_numbered_inventory_tag: {
+        Args: { p_number: number; p_prefix: string };
+        Returns: string;
+      };
       generate_artwork_submission_code: {
         Args: { p_tenant_id?: string };
         Returns: string;
@@ -9721,6 +9822,14 @@ export type Database = {
       generate_inventory_asset_tag: {
         Args: { p_tenant_id: string };
         Returns: string;
+      };
+      generate_numbered_inventory_tags: {
+        Args: { p_count: number };
+        Returns: {
+          id: string;
+          number: number;
+          value: string;
+        }[];
       };
       generate_volunteer_reference_code: {
         Args: { p_tenant_id?: string };
@@ -9807,6 +9916,7 @@ export type Database = {
       };
       has_role: { Args: { p_role: string }; Returns: boolean };
       has_tenant_membership: { Args: never; Returns: boolean };
+      inventory_actor_name: { Args: { p_user_id: string }; Returns: string };
       inventory_intake_labels: {
         Args: { p_codes: string[]; p_donation_id: string };
         Returns: {
@@ -9825,6 +9935,36 @@ export type Database = {
           barcode_description: string;
           barcode_known: boolean;
         }[];
+      };
+      inventory_item_history: {
+        Args: { p_item_id: string };
+        Returns: {
+          donated_on: string;
+          donation_id: string;
+          donor_id: string;
+          donor_is_anonymous: boolean;
+          donor_name: string;
+          donor_source_type: string;
+          entry_id: string;
+          entry_kind: string;
+          event_id: string;
+          event_name: string;
+          gear_request_id: string;
+          intake_route: string;
+          movement_type: string;
+          notes: string;
+          occurred_at: string;
+          quantity: number;
+          reason: string;
+          recipient_id: string;
+          recipient_name: string;
+          recorded_by: string;
+          recorded_by_name: string;
+        }[];
+      };
+      inventory_numbered_tag_number: {
+        Args: { p_code: string };
+        Returns: number;
       };
       is_admin: { Args: never; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
@@ -10033,6 +10173,10 @@ export type Database = {
           enabled: boolean;
           module_key: string;
         }[];
+      };
+      move_distribution_draft: {
+        Args: { p_from_event_id?: string; p_to_event_id?: string };
+        Returns: string;
       };
       my_constituent_person_id: {
         Args: { p_module_key?: string };
@@ -10426,7 +10570,10 @@ export type Database = {
           p_reason?: string;
           p_recipient_person_id?: string;
         };
-        Returns: number;
+        Returns: {
+          recorded: number;
+          released_tags: Json;
+        }[];
       };
       record_event_distribution: {
         Args: {
@@ -10608,6 +10755,14 @@ export type Database = {
       release_inventory_item_from_giveaway: {
         Args: { p_event_id: string; p_inventory_item_id: string };
         Returns: undefined;
+      };
+      released_numbered_inventory_tags: {
+        Args: { p_movement_ids: string[] };
+        Returns: {
+          code: string;
+          description: string;
+          item_id: string;
+        }[];
       };
       remove_tenant_member: { Args: { p_user_id: string }; Returns: undefined };
       reopen_event_report: {
@@ -10912,6 +11067,10 @@ export type Database = {
         Returns: number;
       };
       set_current_tenant: { Args: { p_tenant_id: string }; Returns: undefined };
+      set_distribution_draft_recipient: {
+        Args: { p_event_id?: string; p_person_id?: string };
+        Returns: string;
+      };
       set_donation_import_mapping: {
         Args: { p_mapping: Json };
         Returns: undefined;
@@ -10945,6 +11104,7 @@ export type Database = {
         };
         Returns: undefined;
       };
+      set_inventory_tag_prefix: { Args: { p_prefix: string }; Returns: string };
       set_my_contact_details: {
         Args: {
           p_address_city: string;
@@ -11137,6 +11297,10 @@ export type Database = {
         Returns: boolean;
       };
       trigger_retention_run: { Args: { p_dry_run?: boolean }; Returns: string };
+      unassign_numbered_inventory_tag: {
+        Args: { p_item_id: string };
+        Returns: string;
+      };
       unlink_person_account: {
         Args: { p_person_id: string };
         Returns: undefined;

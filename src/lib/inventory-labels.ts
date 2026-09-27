@@ -192,3 +192,34 @@ export function parseLabelCodes(raw: string | undefined): string[] {
 export function labelsHref(itemIds: readonly string[]): string {
   return `/portal/inventory/items/labels?items=${itemIds.join(",")}`;
 }
+
+/**
+ * Reusable numbered codes (#1444): the pool, and its labels. Under Items, so
+ * the gate is `inventory:view`, like printing any other label.
+ */
+export const NUMBERED_CODES_PATH = "/portal/inventory/items/codes";
+
+export type NumberRange = { from: number; to: number };
+
+/** The page, or its print view for a range of numbers. */
+export function numberedCodesHref(range?: NumberRange): string {
+  return range
+    ? `${NUMBERED_CODES_PATH}?numbers=${range.from}-${range.to}`
+    : NUMBERED_CODES_PATH;
+}
+
+/**
+ * `?numbers=1-50` (or a single `7`) read defensively: whole numbers from 1,
+ * low to high, and no more than one print run's worth. Null when there is no
+ * usable range.
+ */
+export function parseNumberRange(raw: string | undefined): NumberRange | null {
+  const match = /^\s*(\d{1,7})\s*(?:-\s*(\d{1,7})\s*)?$/.exec(raw ?? "");
+  if (!match) return null;
+  const a = Number(match[1]);
+  const b = match[2] === undefined ? a : Number(match[2]);
+  const from = Math.min(a, b);
+  const to = Math.max(a, b);
+  if (from < 1) return null;
+  return { from, to: Math.min(to, from + MAX_LABEL_ITEMS - 1) };
+}

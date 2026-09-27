@@ -35,6 +35,7 @@ export type AvailableInventoryItem = {
   id: string;
   description: string;
   type: string | null;
+  size?: string | null;
   inventory_categories?: { key: string; label: string } | null;
 };
 
@@ -102,7 +103,7 @@ export async function listAvailableInventoryItemsAction(): Promise<
 
   const { data, error } = await supabase
     .from("inventory_items")
-    .select("id, description, type, inventory_categories(key, label)")
+    .select("id, description, type, size, inventory_categories(key, label)")
     .eq("status", "available")
     // Giveaway prizes and internal-use items are not gear-library stock, so
     // they must not be offered as something to distribute to a rider.

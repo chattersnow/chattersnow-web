@@ -16,10 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { findScannedItemsAction, type FoundItem } from "./scan-actions";
-
-function itemHref(id: string) {
-  return `/portal/inventory/items?item=${encodeURIComponent(id)}`;
-}
+import { itemHref } from "./inventory-shared";
 
 /**
  * Scan a label, a manufacturer barcode or an NFC tag and open the item it
