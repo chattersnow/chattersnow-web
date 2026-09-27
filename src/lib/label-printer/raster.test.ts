@@ -4,6 +4,7 @@ import {
   RASTER_SIZE,
   UPRIGHT_SIZE,
   fitFontSize,
+  fitWithin,
   rotateClockwise,
   thresholdPixels,
   wrapText,
@@ -128,4 +129,13 @@ test("fitFontSize shrinks until the text fits, and stops at the minimum", () => 
   expect(fitFontSize("CS1234", 144, 40, 14, at)).toBe(40);
   expect(fitFontSize("CS12345678AB", 144, 40, 14, at)).toBe(20);
   expect(fitFontSize("X".repeat(100), 144, 40, 14, at)).toBe(14);
+});
+
+test("fitWithin keeps a logo's proportions inside its band", () => {
+  // Wide: the width is the limit.
+  expect(fitWithin(400, 100, 208, 40)).toEqual({ width: 160, height: 40 });
+  expect(fitWithin(1000, 100, 208, 40)).toEqual({ width: 208, height: 20.8 });
+  // Square and tall: the height is.
+  expect(fitWithin(64, 64, 208, 40)).toEqual({ width: 40, height: 40 });
+  expect(fitWithin(50, 200, 208, 40)).toEqual({ width: 10, height: 40 });
 });
