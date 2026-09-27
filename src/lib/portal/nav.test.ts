@@ -87,6 +87,35 @@ describe("Finance section", () => {
   });
 });
 
+describe("Technology section", () => {
+  // my_permissions() reports access_management_* as `none` when the tenant
+  // has the module off, while administration:manage -- a core module -- stays.
+  test("is hidden from an admin whose tenant has Access Management off", () => {
+    const admin: PermissionMap = {
+      administration: "manage",
+      access_management_assets: "none",
+      access_management_reviews: "none",
+    };
+    expect(
+      visibleNavItems(admin).some((item) => item.value === "technology"),
+    ).toBe(false);
+  });
+
+  test("is shown to an admin whose tenant has Access Management on", () => {
+    const admin: PermissionMap = {
+      administration: "manage",
+      access_management_assets: "manage",
+    };
+    const technology = visibleNavItems(admin).find(
+      (item) => item.value === "technology",
+    );
+    expect(technology?.subItems?.map((s) => s.value)).toEqual([
+      "assets",
+      "services",
+    ]);
+  });
+});
+
 describe("activeSectionFor", () => {
   test("matches a section by its base path, including nested routes", () => {
     expect(activeSectionFor("/portal/finance/expenses/abc")).toBe("finance");

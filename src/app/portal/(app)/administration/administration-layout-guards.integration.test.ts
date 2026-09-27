@@ -48,8 +48,9 @@ const { default: OrganizationSettingsLayout } =
 const { default: AuditLogLayout } = await import("./audit-log/layout");
 const { default: DeliveryLogLayout } = await import("./delivery-log/layout");
 // Technology (formerly Administration -> Access Management) left this section
-// in #943. Its guard is unchanged and still admits administration:manage, so
-// it is exercised here from its new home.
+// in #943. Its guard no longer admits administration:manage -- that let admins
+// in with the module switched off -- but the seeded admin still passes on
+// access_management_assets:manage, so it is exercised here from its new home.
 const { default: TechnologyLayout } = await import("../technology/layout");
 
 type Layout = (props: { children: ReactNode }) => Promise<ReactNode>;
@@ -94,11 +95,11 @@ async function expectDenied(layout: Layout, email: string) {
 // layout.tsx files -- only the admin role holds that. The permissions layout
 // left this list with the page it guarded (#946): the matrix is a tab on
 // Roles now, so RolesLayout is the guard that stands in front of it.
-// technology also accepts access_management_assets/reviews:view as
-// alternatives (see its layout.tsx), but no seeded role holds either by
-// default (20260828100000_add_access_management_resources.sql grants only
-// admin), so it behaves identically to the administration-manage-only
-// group below until an admin grants those resources to another role.
+// technology gates on access_management_assets/reviews:view instead (see its
+// layout.tsx), but only the seeded admin holds either by default
+// (20260828100000_add_access_management_resources.sql), so it behaves
+// identically to the administration-manage-only group below until an admin
+// grants those resources to another role.
 describe.each([
   ["administration/users", () => UsersLayout],
   ["administration/roles", () => RolesLayout],
