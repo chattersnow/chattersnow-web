@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantBranding } from "@/lib/tenant-branding";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -14,7 +15,7 @@ import { EmptyState } from "@/components/portal/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LabelSheets, type PrintableLabel } from "./label-sheets";
+import { LabelSheets, labelLogoSrc, type PrintableLabel } from "./label-sheets";
 import { CreateCodesButton, LabelToolbar } from "./label-toolbar";
 
 export const metadata: Metadata = { title: "Print labels" };
@@ -53,36 +54,38 @@ export default async function InventoryLabelsPage({
   });
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, origin, itemsResult, tagsResult] = await Promise.all([
-    getCurrentUserPermissions(supabase),
-    getRequestOrigin(),
-    options.itemIds.length > 0
-      ? supabase
-          .from("inventory_items")
-          .select("id, description, size")
-          .in("id", options.itemIds)
-      : Promise.resolve({
-          data: [] as {
-            id: string;
-            description: string;
-            size: string | null;
-          }[],
-        }),
-    options.itemIds.length > 0
-      ? supabase
-          .from("inventory_item_tags")
-          .select("id, item_id, kind, value")
-          .in("kind", ["asset_tag", "numbered"])
-          .in("item_id", options.itemIds)
-      : Promise.resolve({
-          data: [] as {
-            id: string;
-            item_id: string | null;
-            kind: string;
-            value: string;
-          }[],
-        }),
-  ]);
+  const [permissions, origin, branding, itemsResult, tagsResult] =
+    await Promise.all([
+      getCurrentUserPermissions(supabase),
+      getRequestOrigin(),
+      getTenantBranding(supabase),
+      options.itemIds.length > 0
+        ? supabase
+            .from("inventory_items")
+            .select("id, description, size")
+            .in("id", options.itemIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              description: string;
+              size: string | null;
+            }[],
+          }),
+      options.itemIds.length > 0
+        ? supabase
+            .from("inventory_item_tags")
+            .select("id, item_id, kind, value")
+            .in("kind", ["asset_tag", "numbered"])
+            .in("item_id", options.itemIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              item_id: string | null;
+              kind: string;
+              value: string;
+            }[],
+          }),
+    ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
   // In the order they were chosen, which is the order they were on screen.
@@ -213,6 +216,7 @@ export default async function InventoryLabelsPage({
                 labels={labels}
                 layout={options.layout}
                 skip={options.skip}
+                logoSrc={labelLogoSrc(branding.logoUrl)}
               />
             </div>
           )}

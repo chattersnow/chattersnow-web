@@ -1,3 +1,4 @@
+import { getImageProps } from "next/image";
 import { paginateLabels, type LabelLayout } from "@/lib/inventory-labels";
 import { KatasymbolLabels } from "./katasymbol-labels";
 
@@ -14,6 +15,24 @@ export type PrintableLabel = {
 };
 
 /**
+ * The organization's logo, as a label draws it: through the app's own image
+ * optimizer, so it is same-origin (a canvas that draws a cross-origin image
+ * can't be read back into printer dots) and a few kilobytes rather than the
+ * original upload. The optimizer only takes the hosts `next.config.ts` allows,
+ * which are the ones a logo can already come from; anything else prints the
+ * labels without it.
+ */
+export function labelLogoSrc(logoUrl: string | null): string | null {
+  if (!logoUrl) return null;
+  try {
+    return getImageProps({ src: logoUrl, alt: "", width: 256, height: 256 })
+      .props.src;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The sheets themselves, at their printed size in inches. On screen each one
  * is drawn as a sheet of paper with the label edges dashed in, so what is
  * checked before printing is exactly what the printer gets; on paper only the
@@ -26,10 +45,13 @@ export function LabelSheets({
   labels,
   layout,
   skip,
+  logoSrc = null,
 }: {
   labels: PrintableLabel[];
   layout: LabelLayout;
   skip: number;
+  /** See `labelLogoSrc`; only the Katasymbol label has room for it. */
+  logoSrc?: string | null;
 }) {
   if (layout.printer === "katasymbol") {
     // Drawn in the browser, dot for dot, since that picture is what the
@@ -42,6 +64,7 @@ export function LabelSheets({
           size,
           qrSrc,
         }))}
+        logoSrc={logoSrc}
         tagIds={labels.map((label) => label.tagId)}
       />
     );

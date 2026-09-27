@@ -10,6 +10,7 @@ import {
   KATASYMBOL_LABEL_MM,
   bitmapToCanvas,
   canvasToPng,
+  loadImage,
   renderLabel,
   rotateClockwise,
   type RasterLabel,
@@ -90,9 +91,12 @@ function fileNames(labels: RasterLabel[]): string[] {
  */
 export function KatasymbolLabels({
   labels,
+  logoSrc,
   tagIds,
 }: {
   labels: RasterLabel[];
+  /** The organization's logo, same-origin, for the top of every label. */
+  logoSrc: string | null;
   /** Recorded as printed once the labels print or their images are saved
    *  (#1450). */
   tagIds: readonly string[];
@@ -113,9 +117,12 @@ export function KatasymbolLabels({
     let cancelled = false;
     const urls: string[] = [];
     (async () => {
+      // A logo that won't load leaves the labels without one rather than
+      // unprinted.
+      const logo = logoSrc ? await loadImage(logoSrc).catch(() => null) : null;
       const next: Rendered[] = [];
       for (const label of labels) {
-        const upright = await renderLabel(label);
+        const upright = await renderLabel(label, logo);
         const turned = rotateClockwise(upright);
         const [preview, png] = await Promise.all([
           canvasToPng(bitmapToCanvas(upright)),
@@ -138,7 +145,7 @@ export function KatasymbolLabels({
       cancelled = true;
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [labels]);
+  }, [labels, logoSrc]);
 
   /**
    * `upright` when the stock is loaded 30 mm across the head, so the label

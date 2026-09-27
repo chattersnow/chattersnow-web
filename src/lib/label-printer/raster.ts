@@ -173,31 +173,52 @@ export function bitmapToCanvas(bitmap: Bitmap): HTMLCanvasElement {
 // the 50 mm label, and a die cut wanders about as much again: nothing is
 // drawn within 2.5 mm of those ends or 2 mm of the sides. The QR is 24 mm
 // with its quiet zone, over half a millimetre a module, which a phone reads
-// easily, and leaves the lower two fifths for the text.
+// easily, and leaves the lower two fifths for the text. The organization's
+// logo, when it has one, takes a 5 mm band above the QR, and the rest moves
+// down to make room for it.
 const PAD_X = 16;
 const PAD_Y = 20;
 const CONTENT_WIDTH = UPRIGHT_SIZE.width - PAD_X * 2;
+const LOGO_HEIGHT = 40;
 const QR_SIZE = 192;
 const QR_LEFT = (UPRIGHT_SIZE.width - QR_SIZE) / 2;
 const GAP = 6;
-const TEXT_TOP = PAD_Y + QR_SIZE + GAP;
 const TEXT_BOTTOM = UPRIGHT_SIZE.height - PAD_Y;
 const CENTER_X = UPRIGHT_SIZE.width / 2;
 const LINE_GAP = 3;
 
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+export function loadImage(src: string): Promise<HTMLImageElement> {
   const image = new Image();
   image.src = src;
   return image.decode().then(() => image);
 }
 
 /**
- * Draws one label upright and returns the black and white dots the printer
- * burns, as they read on the label.
+ * The largest box of the image's own proportions that fits `maxWidth` by
+ * `maxHeight`.
  */
-export async function renderLabel(label: RasterLabel): Promise<Bitmap> {
+export function fitWithin(
+  width: number,
+  height: number,
+  maxWidth: number,
+  maxHeight: number,
+): { width: number; height: number } {
+  const scale = Math.min(maxWidth / width, maxHeight / height);
+  return { width: width * scale, height: height * scale };
+}
+
+/**
+ * Draws one label upright and returns the black and white dots the printer
+ * burns, as they read on the label. `logo` is the organization's, already
+ * loaded, since every label in a run carries the same one; it must be
+ * same-origin, or the canvas can't be read back.
+ */
+export async function renderLabel(
+  label: RasterLabel,
+  logo: HTMLImageElement | null = null,
+): Promise<Bitmap> {
   const canvas = document.createElement("canvas");
   canvas.width = UPRIGHT_SIZE.width;
   canvas.height = UPRIGHT_SIZE.height;
@@ -206,8 +227,26 @@ export async function renderLabel(label: RasterLabel): Promise<Bitmap> {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   await document.fonts.ready;
+  let qrTop = PAD_Y;
+  if (logo) {
+    const box = fitWithin(
+      logo.naturalWidth,
+      logo.naturalHeight,
+      CONTENT_WIDTH,
+      LOGO_HEIGHT,
+    );
+    ctx.drawImage(
+      logo,
+      (UPRIGHT_SIZE.width - box.width) / 2,
+      PAD_Y + (LOGO_HEIGHT - box.height) / 2,
+      box.width,
+      box.height,
+    );
+    qrTop += LOGO_HEIGHT + GAP;
+  }
   const qr = await loadImage(label.qrSrc);
-  ctx.drawImage(qr, QR_LEFT, PAD_Y, QR_SIZE, QR_SIZE);
+  ctx.drawImage(qr, QR_LEFT, qrTop, QR_SIZE, QR_SIZE);
+  const textTop = qrTop + QR_SIZE + GAP;
 
   const sans = getComputedStyle(document.body).fontFamily || "sans-serif";
   const measureAt = (font: string) => (text: string, size: number) => {
@@ -234,7 +273,7 @@ export async function renderLabel(label: RasterLabel): Promise<Bitmap> {
     ctx.fillText(
       label.code,
       CENTER_X,
-      (TEXT_TOP + TEXT_BOTTOM) / 2 + size * 0.35,
+      (textTop + TEXT_BOTTOM) / 2 + size * 0.35,
     );
   } else {
     // The code sits on the bottom edge; the name and size fill down to it.
@@ -249,8 +288,8 @@ export async function renderLabel(label: RasterLabel): Promise<Bitmap> {
     const measure = (text: string) => ctx.measureText(text).width;
     const descriptionSize = 20;
     const sizeSize = 18;
-    const room = codeTop - GAP - TEXT_TOP;
-    let y = TEXT_TOP;
+    const room = codeTop - GAP - textTop;
+    let y = textTop;
     if (label.description) {
       const sizeRoom = label.size ? sizeSize + LINE_GAP : 0;
       const maxLines = Math.max(
