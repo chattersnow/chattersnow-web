@@ -108,7 +108,7 @@ export default async function InventoryTagPage({
     return <BlankTag code={code.toUpperCase()} />;
   }
 
-  const itemHref = `/portal/inventory/items?item=${encodeURIComponent(found.id)}`;
+  const itemHref = `/portal/inventory/items/${found.id}`;
   // RLS returns no draft to a reader who may not record a distribution.
   const draft = await getCurrentDistributionDraft(supabase);
   if (!draft) redirect(itemHref);

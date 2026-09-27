@@ -208,7 +208,7 @@ describe("the tag resolver with a distribution in progress (integration)", () =>
   test("with no draft it still redirects to the item", async () => {
     const code = await assetTag(itemIds[3]);
     expect(await resolve(code, adminClient)).toEqual({
-      redirect: `/portal/inventory/items?item=${itemIds[3]}`,
+      redirect: `/portal/inventory/items/${itemIds[3]}`,
     });
   });
 
