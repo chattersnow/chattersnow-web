@@ -115,6 +115,11 @@ export function IntendedUseBadge({ intendedUse }: { intendedUse: string }) {
   );
 }
 
+/** The item's own page (#1441), which a scanned tag also lands on. */
+export function itemHref(id: string) {
+  return `/portal/inventory/items/${id}`;
+}
+
 export function formatFaceValue(value: number | string | null) {
   return formatCurrency(value);
 }

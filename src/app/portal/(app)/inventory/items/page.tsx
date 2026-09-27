@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { Button } from "@/components/ui/button";
@@ -23,12 +24,12 @@ import { deviceClass } from "@/lib/portal/device";
 import { InventoryViewProvider } from "./inventory-view-context";
 import { InventoryViewToggle } from "./inventory-view-toggle";
 import { ScanTagDialog } from "./scan-tag-dialog";
+import { withTagsAndHolds } from "./item-extras";
 import {
   CONDITIONS,
   INTENDED_USES,
   STATUSES,
   isSortColumn,
-  type InventoryItem,
   type SortColumn,
 } from "./inventory-shared";
 import {
@@ -72,11 +73,13 @@ export default async function InventoryPage({
   const conditionFilter = raw("condition") || "all";
   const statusFilter = raw("status") || "all";
   const intendedUseFilter = raw("intendedUse") || "all";
-  // One item, with its sheet open: where a scanned tag lands (#1420, the
-  // /portal/t/<code> resolver). Anything but a uuid is ignored rather than
-  // sent to Postgres to fail the cast.
+  // One item, with its sheet open, was where a scanned tag landed (#1420).
+  // The item has its own page now (#1441); links and NFC tags written before
+  // that still carry this form. Anything but a uuid is ignored.
   const itemParam = raw("item") ?? "";
-  const itemFilter = UUID_PATTERN.test(itemParam) ? itemParam : "";
+  if (UUID_PATTERN.test(itemParam)) {
+    redirect(`/portal/inventory/items/${itemParam}`);
+  }
 
   const sortParam = raw("sort");
   const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "description";
@@ -95,7 +98,6 @@ export default async function InventoryPage({
     );
   const categories = toInventoryCategories(categoryRows);
   const categoryGroups = groupInventoryCategories(categories);
-  const activeCategories = categories.filter((category) => category.isActive);
 
   // Reads from the view rather than the base table: "Category" is a sortable
   // column, and PostgREST cannot order a row by an embedded resource's column.
@@ -132,7 +134,6 @@ export default async function InventoryPage({
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
   if (intendedUseFilter !== "all")
     query = query.eq("intended_use", intendedUseFilter);
-  if (itemFilter) query = query.eq("id", itemFilter);
 
   const { offset, to } = pageRange(page, perPage);
   const { data: items, count } = await query
@@ -150,87 +151,7 @@ export default async function InventoryPage({
       }[]
     >();
 
-  const reservedIds = (items ?? [])
-    .filter((item) => item.status === "reserved")
-    .map((item) => item.id);
-
-  type Hold = {
-    requester: NonNullable<InventoryItem["holdRequester"]>;
-    notes: string | null;
-    request: InventoryItem["holdRequest"];
-  };
-  const holdByItemId = new Map<string, Hold>();
-  if (reservedIds.length > 0) {
-    // The request header (#1032) carries the notes and the delivery choice;
-    // a hold from before the header existed still has its notes on the
-    // movement, so both are read and the header wins.
-    const { data: movements } = await supabase
-      .from("inventory_movements")
-      .select(
-        "inventory_item_id, occurred_at, notes, recipient:people(id, name, email, phone), gear_request:gear_requests(id, status, delivery_method, quoted_amount, notes)",
-      )
-      .eq("movement_type", "reserved")
-      .in("inventory_item_id", reservedIds)
-      .order("occurred_at", { ascending: false });
-
-    type HoldMovement = {
-      inventory_item_id: string;
-      occurred_at: string;
-      notes: string | null;
-      recipient: NonNullable<InventoryItem["holdRequester"]> | null;
-      gear_request:
-        | (NonNullable<InventoryItem["holdRequest"]> & {
-            notes: string | null;
-          })
-        | null;
-    };
-
-    for (const movement of (movements ?? []) as unknown as HoldMovement[]) {
-      if (movement.recipient && !holdByItemId.has(movement.inventory_item_id)) {
-        holdByItemId.set(movement.inventory_item_id, {
-          requester: movement.recipient,
-          notes: movement.gear_request?.notes ?? movement.notes,
-          request: movement.gear_request
-            ? {
-                id: movement.gear_request.id,
-                status: movement.gear_request.status,
-                delivery_method: movement.gear_request.delivery_method,
-                quoted_amount: movement.gear_request.quoted_amount,
-              }
-            : null,
-        });
-      }
-    }
-  }
-
-  // The asset-tag code for each item on this page (#1420), for its sheet and
-  // its label. Read beside the view rather than embedded in it, because
-  // PostgREST embeds through a foreign key, and a view has none.
-  const assetTagByItemId = new Map<string, string>();
-  if ((items ?? []).length > 0) {
-    const { data: tags } = await supabase
-      .from("inventory_item_tags")
-      .select("item_id, value")
-      .eq("kind", "asset_tag")
-      .in(
-        "item_id",
-        (items ?? []).map((item) => item.id),
-      );
-    for (const tag of tags ?? []) {
-      if (tag.item_id) assetTagByItemId.set(tag.item_id, tag.value);
-    }
-  }
-
-  const itemsWithHolds: InventoryItem[] = (items ?? []).map((item) => {
-    const hold = holdByItemId.get(item.id);
-    return {
-      ...item,
-      assetTag: assetTagByItemId.get(item.id) ?? null,
-      holdRequester: hold?.requester ?? null,
-      holdNotes: hold?.notes ?? null,
-      holdRequest: hold?.request ?? null,
-    };
-  });
+  const itemsWithHolds = await withTagsAndHolds(supabase, items ?? []);
 
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
@@ -239,7 +160,6 @@ export default async function InventoryPage({
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (intendedUseFilter !== "all")
     filterParams.set("intendedUse", intendedUseFilter);
-  if (itemFilter) filterParams.set("item", itemFilter);
   // On filterParams rather than in each href, so sorting and paging both
   // carry the reader's choice -- including the sort links the table builds
   // from `filterQueryString` below.
@@ -270,8 +190,7 @@ export default async function InventoryPage({
     categoryFilter !== "all" ||
     conditionFilter !== "all" ||
     statusFilter !== "all" ||
-    intendedUseFilter !== "all" ||
-    !!itemFilter;
+    intendedUseFilter !== "all";
   const activeFilterCount = [
     categoryFilter !== "all",
     conditionFilter !== "all",
@@ -295,15 +214,6 @@ export default async function InventoryPage({
   // Named in the toolbar rather than hidden behind the Filters count, so a
   // partially filtered table says why it's short.
   const appliedFilters: ActiveFilter[] = [];
-  if (itemFilter) {
-    appliedFilters.push({
-      param: "item",
-      label: "Item",
-      value:
-        itemsWithHolds.find((item) => item.id === itemFilter)?.description ??
-        "Not found",
-    });
-  }
   if (search) {
     appliedFilters.push({ param: "search", label: "Search", value: search });
   }
@@ -506,7 +416,6 @@ export default async function InventoryPage({
             condition: conditionFilter,
             status: statusFilter,
             intendedUse: intendedUseFilter,
-            item: itemFilter,
             sort,
             dir,
           }}
@@ -515,12 +424,10 @@ export default async function InventoryPage({
         <div className="mt-6">
           <InventoryTable
             items={itemsWithHolds}
-            categories={activeCategories}
             sort={sort}
             dir={dir}
             filterQueryString={filterParams.toString()}
             hasActiveFilters={hasActiveFilters}
-            openItemId={itemFilter || null}
           />
         </div>
       </InventoryViewProvider>

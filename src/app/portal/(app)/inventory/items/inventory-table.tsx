@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Printer } from "lucide-react";
+import { Eye, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { labelsHref } from "@/lib/inventory-labels";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { buildHref } from "@/lib/pagination";
-import { EditInventoryModal } from "./edit-inventory-modal";
+import { IconLink } from "@/components/portal/icon-link";
 import { InventoryCard } from "./inventory-card";
 import { useInventoryView } from "./inventory-view-context";
 import {
@@ -28,30 +28,25 @@ import {
   SORT_COLUMNS,
   StatusBadge,
   formatFaceValue,
+  itemHref,
   labelFor,
   type InventoryItem,
   type SortColumn,
 } from "./inventory-shared";
 import { EmptyState } from "@/components/portal/empty-state";
-import type { InventoryCategory } from "@/lib/inventory";
 
 export function InventoryTable({
   items,
-  categories,
   sort,
   dir,
   filterQueryString,
   hasActiveFilters,
-  openItemId = null,
 }: {
   items: InventoryItem[];
-  categories: InventoryCategory[];
   sort: SortColumn;
   dir: "asc" | "desc";
   filterQueryString: string;
   hasActiveFilters: boolean;
-  /** The item whose sheet starts open -- a scanned tag's (#1420). */
-  openItemId?: string | null;
 }) {
   const { view } = useInventoryView();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -114,12 +109,7 @@ export function InventoryTable({
       {view === "gallery" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item) => (
-            <InventoryCard
-              key={item.id}
-              item={item}
-              categories={categories}
-              defaultOpen={item.id === openItemId}
-            />
+            <InventoryCard key={item.id} item={item} />
           ))}
         </div>
       ) : (
@@ -212,11 +202,9 @@ export function InventoryTable({
                       <IntendedUseBadge intendedUse={item.intended_use} />
                     </TableCell>
                     <TableCell>
-                      <EditInventoryModal
-                        item={item}
-                        categories={categories}
-                        defaultOpen={item.id === openItemId}
-                      />
+                      <IconLink href={itemHref(item.id)} label="View item">
+                        <Eye />
+                      </IconLink>
                     </TableCell>
                   </TableRow>
                 ))}
