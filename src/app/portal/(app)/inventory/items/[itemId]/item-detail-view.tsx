@@ -22,7 +22,7 @@ import {
   resolveImageUrl,
   type InventoryItem,
 } from "../inventory-shared";
-import { ItemActions } from "./item-actions";
+import { ItemActions, type ItemDistribute } from "./item-actions";
 import { ItemHistoryCard } from "./item-history-card";
 import type { HistoryEntry } from "./item-history";
 
@@ -31,11 +31,13 @@ export function ItemDetailView({
   categories,
   canManage,
   history,
+  distribute = null,
 }: {
   item: InventoryItem;
   categories: InventoryCategory[];
   canManage: boolean;
   history: HistoryEntry[];
+  distribute?: ItemDistribute | null;
 }) {
   const imageUrl = resolveImageUrl(item.photo_url);
   const hasActions = canManage || !!item.assetTag;
@@ -66,6 +68,7 @@ export function ItemDetailView({
             item={item}
             categories={categories}
             canManage={canManage}
+            distribute={distribute}
           />
         </div>
       )}

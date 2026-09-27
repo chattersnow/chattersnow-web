@@ -5238,6 +5238,7 @@ export type Database = {
           created_at: string;
           event_id: string | null;
           id: string;
+          recipient_person_id: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
@@ -5247,6 +5248,7 @@ export type Database = {
           created_at?: string;
           event_id?: string | null;
           id?: string;
+          recipient_person_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5256,6 +5258,7 @@ export type Database = {
           created_at?: string;
           event_id?: string | null;
           id?: string;
+          recipient_person_id?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
@@ -5267,6 +5270,20 @@ export type Database = {
             columns: ["tenant_id", "event_id"];
             isOneToOne: false;
             referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_drafts_recipient_in_tenant";
+            columns: ["tenant_id", "recipient_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "inventory_distribution_drafts_recipient_in_tenant";
+            columns: ["tenant_id", "recipient_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
             referencedColumns: ["tenant_id", "id"];
           },
           {
@@ -10061,6 +10078,10 @@ export type Database = {
           module_key: string;
         }[];
       };
+      move_distribution_draft: {
+        Args: { p_from_event_id?: string; p_to_event_id?: string };
+        Returns: string;
+      };
       my_constituent_person_id: {
         Args: { p_module_key?: string };
         Returns: string;
@@ -10939,6 +10960,10 @@ export type Database = {
         Returns: number;
       };
       set_current_tenant: { Args: { p_tenant_id: string }; Returns: undefined };
+      set_distribution_draft_recipient: {
+        Args: { p_event_id?: string; p_person_id?: string };
+        Returns: string;
+      };
       set_donation_import_mapping: {
         Args: { p_mapping: Json };
         Returns: undefined;

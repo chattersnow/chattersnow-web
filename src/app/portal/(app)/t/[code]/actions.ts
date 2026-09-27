@@ -6,6 +6,7 @@ import { lookupInventoryTag, TAG_PATH_PREFIX } from "@/lib/inventory-tags";
 import {
   addToDistributionDraft,
   getCurrentDistributionDraft,
+  getItemHolders,
   scanWarning,
 } from "@/lib/inventory-distribution-draft";
 
@@ -35,9 +36,16 @@ export async function addTagToCurrentDistributionAction(
     .select("status, intended_use")
     .eq("id", found.id)
     .maybeSingle();
+  const heldBy =
+    item?.status === "reserved"
+      ? ((await getItemHolders(supabase, [found.id])).get(found.id) ?? null)
+      : null;
   if (
     !item ||
-    scanWarning({ status: item.status, intendedUse: item.intended_use })
+    scanWarning(
+      { status: item.status, intendedUse: item.intended_use, heldBy },
+      draft.recipient?.id,
+    )
   ) {
     redirect(`${back}?added=error`);
   }
