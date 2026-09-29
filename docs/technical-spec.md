@@ -32,6 +32,7 @@ which file it now lives in.
 | §6 multi-tenancy                                                         | [`spec/multi-tenancy.md`](spec/multi-tenancy.md)               |
 | §5.9                                                                     | [`spec/people.md`](spec/people.md)                             |
 | §5.14, §5.15, §6 programs and impact                                     | [`spec/programs.md`](spec/programs.md)                         |
+| §5.27, §6 publications                                                   | [`spec/publications.md`](spec/publications.md)                 |
 | §5.17, §6 volunteers                                                     | [`spec/volunteers.md`](spec/volunteers.md)                     |
 | §16, §17 (review addenda)                                                | [`spec/addenda.md`](spec/addenda.md)                           |
 
@@ -312,6 +313,8 @@ src/app/
     events/
       [id]/                     # direct-link event detail page
       community/                # public Community Calendar (§5.20)
+    publications/               # a tenant's periodic publication (§5.27): the index of
+      [slug]/                   # issues, then one page per issue. Labelled by lexicon
     giveaways/
       [giveawayId]/rules/       # a promotion's published official rules (§5.8).
                                 # Its own route rather than part of the event's,

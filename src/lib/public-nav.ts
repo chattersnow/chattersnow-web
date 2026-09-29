@@ -109,6 +109,14 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { label: "Community Calendar", href: "/events/community" },
     ],
   },
+  // A tenant's periodic publication (#1471), after Events because it is the
+  // other thing that changes season to season. A plain link: the index is the
+  // only page a reader starts from, and each issue is reached from it.
+  {
+    label: "{publication_plural}",
+    href: "/publications",
+    slot: "publications",
+  },
   { label: "Programs", href: "/programs", slot: "programs" },
   { label: "Learn", href: "/learn", slot: "learn" },
   {

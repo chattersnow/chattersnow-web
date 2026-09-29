@@ -231,7 +231,13 @@ export function SiteNav({
           anybody serves. A tenth section, or a customer that really does want
           all nine, needs the nav to overflow rather than the header to wrap,
           and that is a change to this component rather than another entry in
-          this list. */}
+          this list.
+
+          #1471 added that tenth, `publications`, knowing this. It is off until
+          a tenant has an issue out, and the tenant it was built for shows
+          about five sections, so the realistic nav stays inside the eight.
+          A customer with every section on now has nine and wraps at desktop
+          widths, the same accepted cost as above, until the overflow exists. */}
       {showEventsCta && (
         <Button
           variant="rainbow"

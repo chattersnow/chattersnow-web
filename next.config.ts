@@ -61,6 +61,26 @@ const nextConfig: NextConfig = {
         port: "54321",
         pathname: "/storage/v1/object/public/site-photos/**",
       },
+      // Publication covers and pages (#1471), on the same terms. The public
+      // pages draw them with a plain `<img srcSet>` from sizes made at upload,
+      // so these are for anything that later puts one through `next/image`.
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/publication-files/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "54321",
+        pathname: "/storage/v1/object/public/publication-files/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "54321",
+        pathname: "/storage/v1/object/public/publication-files/**",
+      },
     ],
   },
   async redirects() {

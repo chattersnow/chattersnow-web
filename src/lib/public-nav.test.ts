@@ -13,7 +13,8 @@ import { PUBLIC_PAGE_SLOTS } from "./page-visibility";
  * The four sections the board had hidden when this nav was reworked, plus the
  * three that make up the Product group (#1328, #1329, #1330) -- those are off
  * for every tenant that has not deliberately turned them on, so a realistic
- * "reduced nav" has them out too, and the group itself with them.
+ * "reduced nav" has them out too, and the group itself with them. Publications
+ * (#1471) is off by default the same way.
  */
 const HIDDEN = [
   "about",
@@ -23,6 +24,7 @@ const HIDDEN = [
   "audiences",
   "modules",
   "pricing",
+  "publications",
 ];
 
 describe("NAV_GROUPS", () => {
