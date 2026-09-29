@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { GearCatalog, type GearItem } from "../gear-catalog";
+import { GEAR_ITEM_PARAM } from "../gear-item-path";
+import { resolveImageUrl } from "@/lib/inventory";
 
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import { isPageVisible } from "@/lib/page-visibility";
@@ -15,12 +17,44 @@ import {
 import { loadAccountOffer } from "@/lib/constituent/account-offer";
 import { getLegalPublication } from "@/lib/legal-publication";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
-  const site = await getPublicSite(supabase);
+  const [site, params] = await Promise.all([
+    getPublicSite(supabase),
+    searchParams,
+  ]);
   // The tab says what this organization calls its collection (#896),
   // matching the heading the page renders from `gears.library_heading`.
-  return { title: publicTitle(site, site.lexicon.collection_public) };
+  const collectionTitle = publicTitle(site, site.lexicon.collection_public);
+
+  // A shared item link names the item, in the tab and in the preview a chat
+  // app unfurls from it. Only the catalog view is read, so a link to an item
+  // that is reserved, hidden or made up falls back to the collection's title
+  // rather than revealing anything the catalog would not show.
+  const itemId = params[GEAR_ITEM_PARAM];
+  if (typeof itemId !== "string") return { title: collectionTitle };
+  const { data: item } = await supabase
+    .from("public_gear_catalog")
+    .select("description, photo_url")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!item?.description) return { title: collectionTitle };
+
+  const title = publicTitle(site, item.description);
+  const imageUrl = resolveImageUrl(item.photo_url);
+  return {
+    title,
+    openGraph: {
+      title,
+      // Only an absolute URL: there is no metadataBase to resolve a relative
+      // one against, and a relative og:image is ignored by every unfurler.
+      ...(imageUrl?.startsWith("http") ? { images: [imageUrl] } : {}),
+    },
+  };
 }
 
 export default async function GearLibraryPage() {

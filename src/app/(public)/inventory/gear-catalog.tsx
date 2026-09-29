@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { CONDITIONS, GENDERS, labelFor } from "@/lib/inventory";
 import type { NonNullColumns, Views } from "@/lib/supabase/types";
 import { GearCard } from "./gear-card";
 import { GearDetailSheet } from "./gear-detail-sheet";
+import { GEAR_ITEM_PARAM } from "./gear-item-path";
 import { GearCartTray } from "./gear-cart-tray";
 import { GearCartSheet } from "./gear-cart-sheet";
 import type {
@@ -94,8 +96,49 @@ export function GearCatalog({
   const [conditionFilter, setConditionFilter] = useState<string | null>(null);
   const [genderFilter, setGenderFilter] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [selectedItem, setSelectedItem] = useState<GearItem | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  // The open item lives in the URL, not in state, so it can be shared: a link
+  // to `?item=<id>` loads the catalog with that item's sheet already open.
+  // Opening one is a shallow `pushState`, which the router reflects into
+  // useSearchParams without a server round trip -- and without unmounting the
+  // catalog, so the cart, the filters and the page survive it.
+  const searchParams = useSearchParams();
+  const itemParam = searchParams.get(GEAR_ITEM_PARAM);
+  const detailOpen = itemParam !== null;
+  const selectedItem = itemParam
+    ? (items.find((item) => item.id === itemParam) ?? null)
+    : null;
+  // What the sheet last showed, so it keeps its contents while it animates
+  // closed rather than going blank the moment the parameter is dropped.
+  const [shownItem, setShownItem] = useState<GearItem | null>(selectedItem);
+  if (detailOpen && selectedItem !== shownItem) setShownItem(selectedItem);
+  // Whether the open sheet's history entry is one this catalog pushed. If it
+  // is, closing steps back over it, so Back after a close does not reopen the
+  // item. If the reader arrived on a shared link, there is nothing of ours
+  // behind it and Back would leave the site, so closing replaces instead.
+  const pushedDetail = useRef(false);
+
+  const openItem = (itemId: string) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set(GEAR_ITEM_PARAM, itemId);
+    window.history.pushState(null, "", `?${params}`);
+    pushedDetail.current = true;
+  };
+
+  const closeItem = () => {
+    if (pushedDetail.current) {
+      pushedDetail.current = false;
+      window.history.back();
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    params.delete(GEAR_ITEM_PARAM);
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      query ? `?${query}` : window.location.pathname,
+    );
+  };
   const [cartIds, setCartIds] = useState<Set<string>>(new Set());
   const [cartOpen, setCartOpen] = useState(false);
   // The request just submitted: its delivery method, so the receipt can say
@@ -111,7 +154,7 @@ export function GearCatalog({
   // From the detail sheet, which the cart tray cannot be seen or reached
   // through: hand the catalog straight over to the cart.
   const viewCartFromDetail = () => {
-    setDetailOpen(false);
+    closeItem();
     openCart();
   };
 
@@ -358,10 +401,7 @@ export function GearCatalog({
               <GearCard
                 key={item.id}
                 item={item}
-                onSelect={() => {
-                  setSelectedItem(item);
-                  setDetailOpen(true);
-                }}
+                onSelect={() => openItem(item.id)}
                 inCart={cartIds.has(item.id)}
                 onToggleCart={() => toggleCartItem(item.id)}
                 placeholderUrl={placeholderUrl}
@@ -400,11 +440,13 @@ export function GearCatalog({
       )}
 
       <GearDetailSheet
-        item={selectedItem}
+        item={detailOpen ? selectedItem : shownItem}
         open={detailOpen}
-        onOpenChange={setDetailOpen}
-        inCart={selectedItem ? cartIds.has(selectedItem.id) : false}
-        onToggleCart={() => selectedItem && toggleCartItem(selectedItem.id)}
+        onOpenChange={(open) => {
+          if (!open) closeItem();
+        }}
+        inCart={shownItem ? cartIds.has(shownItem.id) : false}
+        onToggleCart={() => shownItem && toggleCartItem(shownItem.id)}
         cartCount={cartItems.length}
         onViewCart={viewCartFromDetail}
         placeholderUrl={placeholderUrl}

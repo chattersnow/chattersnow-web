@@ -3,11 +3,13 @@ import { NextResponse, userAgent, type NextRequest } from "next/server";
 import { sessionCookieOptions } from "@/lib/auth/session-cookie";
 import { isMyPathname } from "@/lib/constituent/paths";
 import {
+  PORTAL_PATH_PREFIX,
   isPortalHost,
   isPortalPathname,
   portalRedirectTarget,
   stripPortalPrefix,
 } from "@/lib/portal/paths";
+import { publicCdnCacheControl } from "@/lib/public-cdn-cache";
 
 // Paths that live at the app root and must keep working unprefixed on the
 // portal host. `/portal` is a route-group prefix, not a mount point, so
@@ -63,6 +65,28 @@ const PUBLIC_EVENT_PATH = /^\/events\/([0-9a-fA-F-]{36})\/?$/;
  * 308 coming the other way and spin.
  */
 const PORTAL_CACHED_EVENT_PATH = /^\/events\/e\/([0-9a-fA-F-]{36})\/?$/;
+
+/**
+ * Where the two index paths go (#1467): the public site's `/` is `/home`, and
+ * the portal's own index is `/portal/entry`, which picks the signed-in
+ * landing page.
+ *
+ * Both used to be `page.tsx` files that did nothing but `redirect()`. That
+ * throws during render, but only after every layout above the page has run --
+ * the public one reads the tenant, its page visibility, its legal documents and
+ * the session -- so a 307 cost ~685ms of CPU, more than `/home` itself, and the
+ * two were 23% of the deployment's Active CPU over thirty days. Here they are
+ * answered before anything renders.
+ *
+ * Not `next.config.ts` `redirects()`: those are host-blind and run ahead of
+ * this proxy, which is how #1145 took the portal down. `/` is the portal on a
+ * `portal.` host and the public site everywhere else, so only a module that
+ * knows what a portal host is can say where it goes. The pages stay as the
+ * fallback for what this deliberately passes through -- an RSC fetch or a
+ * Server Action, which a redirect here would double or break.
+ */
+const PUBLIC_INDEX_TARGET = "/home";
+const PORTAL_INDEX_TARGET = "/portal/entry";
 
 /**
  * Header carrying the portal path the browser actually asked for.
@@ -173,6 +197,18 @@ export function resolvePortalRoute(
           };
     }
 
+    // The portal's index, visible here as the bare root. Straight to the
+    // unprefixed entry path, rather than through the rewrite below to a page
+    // whose only job is to redirect.
+    if (pathname === "/" && !isNonDocumentRequest) {
+      return {
+        kind: "redirect",
+        host: hostname,
+        pathname: stripPortalPrefix(PORTAL_INDEX_TARGET),
+        status: 307,
+      };
+    }
+
     // Ahead of the blanket rewrite below, which would send this to
     // `/portal/events/e/<uuid>` -- the 404 that #1145 was.
     const cached = PORTAL_CACHED_EVENT_PATH.exec(pathname);
@@ -194,6 +230,29 @@ export function resolvePortalRoute(
       pathname: stripPortalPrefix(pathname),
       status: 308,
     };
+  }
+
+  // The two index redirects, on a host that serves both surfaces by path: a
+  // preview, a local run, the demo tenant, and a tenant apex with no promised
+  // `portal.` subdomain. After the branch above, so a host that has one sends
+  // `/portal` there instead, and its portal host answers the root itself.
+  if (!isNonDocumentRequest) {
+    if (pathname === "/") {
+      return {
+        kind: "redirect",
+        host: hostname,
+        pathname: PUBLIC_INDEX_TARGET,
+        status: 307,
+      };
+    }
+    if (pathname === PORTAL_PATH_PREFIX) {
+      return {
+        kind: "redirect",
+        host: hostname,
+        pathname: PORTAL_INDEX_TARGET,
+        status: 307,
+      };
+    }
   }
 
   // The public site's legacy event URL. Deliberately after the portal branch
@@ -325,12 +384,13 @@ async function refreshSession(
 export async function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
+  // HEAD is a page load with the body left off -- crawlers probe with it -- so
+  // it takes the same redirects a GET does.
+  const isRead = request.method === "GET" || request.method === "HEAD";
   const route = resolvePortalRoute(
     hostname,
     pathname,
-    request.method !== "GET" ||
-      request.headers.has("rsc") ||
-      request.headers.has("next-action"),
+    !isRead || request.headers.has("rsc") || request.headers.has("next-action"),
   );
   // isPortalHost covers main's `hostname === PORTAL_HOST` and generalizes it to
   // any `portal.` subdomain (#707 Phase 4); isPortalPathname is the helper form
@@ -398,8 +458,32 @@ export async function proxy(request: NextRequest) {
     return withRefreshedCookies(NextResponse.redirect(url, route.status));
   }
 
+  // Lets Vercel's CDN hold the low-churn public pages (#1467). Only for a
+  // request that carries no session at all: the page is still rendered with
+  // this request's Supabase client, and a signed-in render is one RLS might
+  // show more to, so it must never become the copy every visitor is served.
+  // The reverse is safe -- a signed-in visitor served the anonymous copy sees
+  // exactly the public page, since nothing on it reads the session (the
+  // header's account control does so in the browser).
+  const cdnCacheControl =
+    isRead && !hasSession && !request.headers.has("next-action")
+      ? publicCdnCacheControl(pathname)
+      : null;
+  if (cdnCacheControl) {
+    refreshedResponse.headers.set(CDN_CACHE_CONTROL_HEADER, cdnCacheControl);
+  }
+
   return refreshedResponse;
 }
+
+/**
+ * Vercel's own cache directive, read by its CDN ahead of `Cache-Control` and
+ * stripped before the response reaches the browser. So the browser keeps the
+ * `private, no-store` Next sends for a dynamic page -- nothing stale sits in a
+ * visitor's own cache -- while the CDN keys the page on host and path. Per
+ * Vercel's caching docs the CDN honours `s-maxage` here, not a bare `max-age`.
+ */
+export const CDN_CACHE_CONTROL_HEADER = "Vercel-CDN-Cache-Control";
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png).*)"],

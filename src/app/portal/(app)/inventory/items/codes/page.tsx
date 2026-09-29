@@ -6,6 +6,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getRequestOrigin } from "@/lib/request-origin";
+import { getTenantBranding } from "@/lib/tenant-branding";
 import { getInventoryTagPrefix, tagUrl } from "@/lib/inventory-tags";
 import {
   MAX_LABEL_ITEMS,
@@ -58,7 +59,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { LabelSheets, type PrintableLabel } from "../labels/label-sheets";
+import {
+  LabelSheets,
+  labelLogoSrc,
+  type PrintableLabel,
+} from "../labels/label-sheets";
 import { LabelToolbar } from "../labels/label-toolbar";
 import { GenerateCodesForm, PrefixForm, PrintRangeForm } from "./code-forms";
 import { CodesTable, type CodeRow } from "./codes-table";
@@ -513,7 +518,10 @@ async function PrintView({
 
   const rows = data ?? [];
   const total = Number(rows[0]?.total_count ?? 0);
-  const origin = await getRequestOrigin();
+  const [origin, branding] = await Promise.all([
+    getRequestOrigin(),
+    getTenantBranding(supabase),
+  ]);
   const labels: PrintableLabel[] = rows.map((row) => {
     const named = row.kind === "asset_tag" && row.item_id;
     return {
@@ -580,6 +588,7 @@ async function PrintView({
               labels={labels}
               layout={options.layout}
               skip={options.skip}
+              logoSrc={labelLogoSrc(branding.logoUrl)}
             />
           </div>
         </div>
