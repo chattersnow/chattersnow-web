@@ -583,6 +583,25 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
       },
     ],
   },
+  publications: {
+    view: "Open Publications and read every issue, drafts included, with its pages, transcripts and files.",
+    manage:
+      "Create and edit issues, upload their pages, PDFs and cover, write alt text and transcripts, and publish or unpublish an issue.",
+    excludes: [
+      {
+        key: "site_content",
+        covers: "the rest of the copy on the public website",
+      },
+      {
+        key: "system_settings",
+        covers: "whether the publications section is shown on the public site",
+      },
+    ],
+    notes: [
+      "Belongs to the Publications module. Seeded from each role's Public site content access, so whoever edits the website edits its issues.",
+      "An issue cannot be published until every page has alt text and a transcript, and its web address cannot change once it has been published.",
+    ],
+  },
   access_management_assets: {
     view: "Open Technology and read the registry of external services, assets and access grants.",
     manage: "Add, edit and retire assets, services and access grants.",

@@ -1036,6 +1036,7 @@ same read.
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `events`            | `events`, `event_impact`, `event_incidents`, `event_volunteer_hours`                                          |
 | `artwork`           | `artwork_submissions`                                                                                         |
+| `publications`      | `publications`                                                                                                |
 | `calendar`          | `content_calendar`                                                                                            |
 | `programs`          | `programs`, `programs_reports`                                                                                |
 | `inventory`         | `inventory`, `inventory_reports`, `inventory_intake`                                                          |

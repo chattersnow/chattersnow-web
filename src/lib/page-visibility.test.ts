@@ -244,6 +244,8 @@ describe("module gating", () => {
     "governance",
     "access_management",
     "administration",
+    // Added after the catalog above (#1471).
+    "publications",
   ];
 
   test("every slot's module, where it has one, is a real module", () => {
@@ -379,6 +381,7 @@ describe("hiddenSlots", () => {
       "modules",
       "pricing",
       "programs",
+      "publications",
       "support",
     ]);
   });

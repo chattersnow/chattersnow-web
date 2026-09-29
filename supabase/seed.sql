@@ -1936,7 +1936,10 @@ insert into public.app_settings (key, value) values
   -- -- the figures belong to the platform tenant's own rows (20260920030000),
   -- and this is not that tenant.
   ('page_visibility.modules', to_jsonb(true)),
-  ('page_visibility.pricing', to_jsonb(true))
+  ('page_visibility.pricing', to_jsonb(true)),
+  -- Publications (#1471), off by default like every new section; the seeded
+  -- issues below are what the a11y sweep visits.
+  ('page_visibility.publications', to_jsonb(true))
 on conflict (tenant_id, key) do update set value = excluded.value;
 
 -- Fiscal year (20260905030000). The migration already seeds July as a
@@ -2196,3 +2199,65 @@ from public.giveaway_rules r
 join auth.users u on u.email = 'admin@example.test'
 where r.giveaway_id = 'babababa-0000-4000-8000-000000000002'
 on conflict (tenant_id, giveaway_rules_id, version) do nothing;
+
+
+-- Publications (#1471). Three issues, sized to the content extremes rather than
+-- to a tidy sample: a 26-page issue with a long title and long transcripts, a
+-- two-page one beside it so the previous/next links have somewhere to go, and a
+-- draft that must never reach the public site. The object paths name files no
+-- seed uploads -- the page renders its alt text in their place -- so the
+-- layout, the anchors and the transcripts are what this exercises.
+insert into public.publications (id, slug, title, season_label, publish_date, blurb, cover_path, cover_width, cover_height, reading_pdf_path, reading_pdf_bytes, print_pdf_path, print_pdf_bytes)
+values
+  ('b1b1b1b1-0000-4000-8000-000000000001', 'fall-2026',
+   'The First Snow Issue: Stories, Comics and Hand-Drawn Maps From Everyone Who Showed Up to the Mountain This Year',
+   'Fall 2026', '2026-09-22',
+   'Our first zine: twenty-six pages of comics, interviews, a hand-drawn trail map and a recipe for the hot chocolate we serve at the lift, made by the people who ride with us. Every page has a full transcript underneath it, and the whole issue is a download if you would rather print it.',
+   public.default_tenant_id()::text || '/b1b1b1b1-0000-4000-8000-000000000001/cover.webp', 1600, 2263,
+   public.default_tenant_id()::text || '/b1b1b1b1-0000-4000-8000-000000000001/reading.pdf', 18874368,
+   public.default_tenant_id()::text || '/b1b1b1b1-0000-4000-8000-000000000001/print.pdf', 20971520),
+  ('b1b1b1b1-0000-4000-8000-000000000002', 'summer-2026',
+   'Summer Preview', 'Summer 2026', '2026-06-21',
+   'A two-page preview of what the zine would become.',
+   null, null, null, null, null, null, null),
+  ('b1b1b1b1-0000-4000-8000-000000000003', 'winter-2027',
+   'Unfinished Winter Draft', 'Winter 2027', '2027-01-15',
+   'A draft: never on the public site.',
+   null, null, null, null, null, null, null);
+
+insert into public.publication_pages (publication_id, position, image_path, width, height, alt_text, transcript)
+select
+  'b1b1b1b1-0000-4000-8000-000000000001', n,
+  public.default_tenant_id()::text || '/b1b1b1b1-0000-4000-8000-000000000001/page-' || lpad(n::text, 2, '0') || '.webp',
+  1600, 2263,
+  'Page ' || n || ': ' || (array[
+    'cover with a snowboarder drawn in rainbow ink',
+    'comic about the first snow day and a very cold dog',
+    'interview with a volunteer who has fitted four hundred pairs of boots',
+    'hand-drawn trail map with the beginner runs circled'
+  ])[1 + (n % 4)],
+  repeat('The lift line was quiet that morning, and everybody who had come up on the bus stood in a loose half circle while somebody explained how bindings work, twice, because the wind took the first explanation away. ', 1 + (n % 5))
+    || E'\n\n'
+    || 'Lettering in the margin reads: "Nobody is bad at this on their first day. Everybody is new at it." '
+    || repeat('A second column continues the story of the afternoon, when the clouds broke and the whole group rode the same green run nine times in a row. ', 1 + (n % 3))
+from generate_series(1, 26) as n;
+
+insert into public.publication_pages (publication_id, position, image_path, width, height, alt_text, transcript)
+select
+  'b1b1b1b1-0000-4000-8000-000000000002', n,
+  public.default_tenant_id()::text || '/b1b1b1b1-0000-4000-8000-000000000002/page-' || n || '.webp',
+  1600, 2263,
+  'Page ' || n || ': preview spread',
+  'Coming this fall: the first full issue.'
+from generate_series(1, 2) as n;
+
+-- The draft has a page with no transcript, which is exactly what keeps it a
+-- draft: guard_publication_update() refuses to publish it.
+insert into public.publication_pages (publication_id, position, image_path, width, height, alt_text, transcript)
+values ('b1b1b1b1-0000-4000-8000-000000000003', 1,
+  public.default_tenant_id()::text || '/b1b1b1b1-0000-4000-8000-000000000003/page-1.webp',
+  1600, 2263, null, null);
+
+update public.publications
+set status = 'published'
+where id in ('b1b1b1b1-0000-4000-8000-000000000001', 'b1b1b1b1-0000-4000-8000-000000000002');
