@@ -13,11 +13,8 @@ import {
 } from "@/components/ui/tooltip";
 import { type NavGroup, isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
-import {
-  ACCOUNT_NAV_OFF,
-  type ConstituentAccountNav,
-} from "@/lib/constituent/account-nav";
 import { AccountMenu, AccountSheetRows } from "./account-menu";
+import { useAccountNav } from "./account-nav-provider";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -111,15 +108,8 @@ export function SiteNav({
   hiddenSlots = [],
   supportLabel,
   lexicon = DEFAULT_LEXICON,
-  account = ACCOUNT_NAV_OFF,
 }: {
   hiddenSlots?: readonly string[];
-  /**
-   * Whether this tenant offers constituent accounts, and who is signed in
-   * (#1175). Defaults to off, so a caller that says nothing renders no account
-   * control at all -- the right answer for every tenant without the module.
-   */
-  account?: ConstituentAccountNav;
   /**
    * The "Support <organization>" entry names the organization, so it is the
    * one nav label that is site content rather than structure (#707 Phase 4).
@@ -133,6 +123,10 @@ export function SiteNav({
   lexicon?: Lexicon;
 }) {
   const pathname = usePathname();
+  // Whether this tenant offers constituent accounts, and who is signed in
+  // (#1175) -- from the browser since #1467, so the page itself can be cached.
+  // Off outside the public layout's provider, which renders no control at all.
+  const account = useAccountNav();
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
   const groups = visibleGroups(hiddenSlots, lexicon).map((group) =>
