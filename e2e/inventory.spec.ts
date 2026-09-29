@@ -55,6 +55,7 @@ async function seedAvailableGearItems(admin: AdminClient, count: number) {
   return {
     suffix,
     descriptions,
+    itemIds,
     async cleanup() {
       await admin
         .from("inventory_movements")
@@ -246,5 +247,78 @@ test.describe("public inventory pages", () => {
     } finally {
       await gear.cleanup();
     }
+  });
+
+  // The open item is in the URL so it can be shared: opening pushes
+  // `?item=<id>`, Back closes the sheet, and closing leaves no entry behind.
+  test("opening an item gives it a URL, and Back closes it", async ({
+    page,
+  }) => {
+    const admin = createAdminClient();
+    const gear = await seedAvailableGearItems(admin, 1);
+
+    try {
+      await page.goto("/inventory/library");
+      await page.getByLabel("Search").fill(gear.suffix);
+
+      const card = page.getByRole("button", {
+        name: `View details for ${gear.descriptions[0]}`,
+      });
+      const detail = page.getByRole("dialog", { name: gear.descriptions[0] });
+
+      await card.click();
+      await expect(detail).toBeVisible();
+      await expect(page).toHaveURL(
+        new RegExp(`/inventory/library\\?item=${gear.itemIds[0]}$`),
+      );
+
+      await page.goBack();
+      await expect(detail).toBeHidden();
+      await expect(page).toHaveURL(/\/inventory\/library$/);
+      // The catalog was not remounted: the search the reader typed survives.
+      await expect(page.getByLabel("Search")).toHaveValue(gear.suffix);
+
+      await card.click();
+      await expect(detail).toBeVisible();
+      await detail.getByRole("button", { name: "Close" }).click();
+      await expect(detail).toBeHidden();
+      await expect(page).toHaveURL(/\/inventory\/library$/);
+    } finally {
+      await gear.cleanup();
+    }
+  });
+
+  test("a shared item link opens that item and names it in the title", async ({
+    page,
+  }) => {
+    const admin = createAdminClient();
+    const gear = await seedAvailableGearItems(admin, 1);
+
+    try {
+      await page.goto(`/inventory/library?item=${gear.itemIds[0]}`);
+
+      const detail = page.getByRole("dialog", { name: gear.descriptions[0] });
+      await expect(detail).toBeVisible();
+      await expect(detail.getByRole("button", { name: "Share" })).toBeVisible();
+      await expect(page).toHaveTitle(new RegExp(`^${gear.descriptions[0]}`));
+
+      // Nothing of ours is behind a shared link, so closing replaces the
+      // entry rather than stepping Back off the site.
+      await detail.getByRole("button", { name: "Close" }).click();
+      await expect(detail).toBeHidden();
+      await expect(page).toHaveURL(/\/inventory\/library$/);
+    } finally {
+      await gear.cleanup();
+    }
+  });
+
+  test("a link to an item no longer in the catalog says so", async ({
+    page,
+  }) => {
+    await page.goto(`/inventory/library?item=${crypto.randomUUID()}`);
+
+    await expect(
+      page.getByRole("dialog", { name: "This item is no longer available" }),
+    ).toBeVisible();
   });
 });
