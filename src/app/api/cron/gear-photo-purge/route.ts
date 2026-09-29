@@ -19,7 +19,8 @@ import { runArtworkPurge } from "@/lib/storage/artwork-purge";
  * read as "delete everything".
  *
  * The two sweeps share a route rather than taking one schedule each: Vercel's
- * Hobby plan allows a single cron a day. The artwork sweep is deliberately
+ * Hobby plan allowed a single cron a day when this was written. Pro lifts
+ * that, but one daily run is still all either sweep needs. The artwork sweep is deliberately
  * *not* inside a try that swallows -- a failure there should be as visible as
  * one in the gear sweep -- but it runs second, so a gear sweep that succeeded
  * still happened.

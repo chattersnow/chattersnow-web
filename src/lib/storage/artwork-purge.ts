@@ -11,8 +11,9 @@ import { ARTWORK_BUCKET } from "./artwork-submissions";
  * every image behind a submission a curator later deleted.
  *
  * Runs beside runGearPhotoPurge on the same daily cron rather than on one of
- * its own -- Vercel's Hobby plan allows a single cron a day, and two sweeps
- * that both need the service-role client have no reason to be separate jobs.
+ * its own -- chosen when Vercel's Hobby plan allowed a single cron a day, and
+ * still right on Pro: two daily sweeps that both need the service-role client
+ * have no reason to be separate jobs.
  *
  * The Storage API rather than SQL against `storage.objects`: deleting those
  * rows leaves the bytes on disk on hosted Supabase, and the `storage` schema
