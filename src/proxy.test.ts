@@ -29,8 +29,20 @@ describe("resolvePortalRoute on the portal host", () => {
     });
   });
 
-  test("rewrites the root to the portal index", () => {
+  // #1467: answered here rather than by rendering the portal index page, whose
+  // only job was to redirect -- after the whole layout tree had run.
+  test("redirects the root straight to the unprefixed entry path", () => {
     expect(resolvePortalRoute(PORTAL, "/")).toEqual({
+      kind: "redirect",
+      host: PORTAL,
+      pathname: "/entry",
+      status: 307,
+    });
+  });
+
+  // The page stays as the fallback for requests a redirect would break.
+  test("rewrites an RSC fetch of the root to the portal index", () => {
+    expect(resolvePortalRoute(PORTAL, "/", true)).toEqual({
       kind: "rewrite",
       pathname: "/portal/",
     });
@@ -153,6 +165,76 @@ describe("resolvePortalRoute on the public hosts", () => {
 
   test("does not touch preview or local hosts", () => {
     expect(resolvePortalRoute("localhost:3000", "/portal/home")).toEqual({
+      kind: "pass",
+    });
+  });
+});
+
+// #1467. Both index paths were pages that only redirected, and each cost more
+// CPU than the page it sent people to, because every layout above them ran
+// first. Every host shape has to land where the page used to send it.
+describe("the index redirects", () => {
+  test("sends the public root to /home on a public host", () => {
+    expect(resolvePortalRoute(PUBLIC, "/")).toEqual({
+      kind: "redirect",
+      host: PUBLIC,
+      pathname: "/home",
+      status: 307,
+    });
+  });
+
+  test("sends a tenant apex's root to its own /home", () => {
+    expect(resolvePortalRoute("second.org", "/")).toEqual({
+      kind: "redirect",
+      host: "second.org",
+      pathname: "/home",
+      status: 307,
+    });
+  });
+
+  // A preview, a local run and the demo tenant (`demo.rickiecruz.com/portal`)
+  // serve the portal as a path, so `/portal` is its index there.
+  test("sends /portal to the portal entry where the portal is a path", () => {
+    for (const host of [
+      "localhost:3000",
+      "chattersnow-web-git-development-x.vercel.app",
+      "demo.example.com",
+    ]) {
+      expect(resolvePortalRoute(host, "/portal")).toEqual({
+        kind: "redirect",
+        host,
+        pathname: "/portal/entry",
+        status: 307,
+      });
+      expect(resolvePortalRoute(host, "/")).toEqual({
+        kind: "redirect",
+        host,
+        pathname: "/home",
+        status: 307,
+      });
+    }
+  });
+
+  // Where a portal subdomain is promised, `/portal` still goes there first;
+  // that host then answers its own root (above).
+  test("leaves a promised portal subdomain's 308 in charge of /portal", () => {
+    expect(resolvePortalRoute(PUBLIC, "/portal")).toEqual({
+      kind: "redirect",
+      host: PORTAL,
+      pathname: "/",
+      status: 308,
+    });
+  });
+
+  test("passes RSC fetches and actions through to the fallback pages", () => {
+    expect(resolvePortalRoute(PUBLIC, "/", true)).toEqual({ kind: "pass" });
+    expect(resolvePortalRoute("localhost:3000", "/portal", true)).toEqual({
+      kind: "pass",
+    });
+  });
+
+  test("does not redirect deeper portal paths on a path-served host", () => {
+    expect(resolvePortalRoute("localhost:3000", "/portal/entry")).toEqual({
       kind: "pass",
     });
   });

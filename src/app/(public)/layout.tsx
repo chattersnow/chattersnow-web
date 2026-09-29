@@ -13,16 +13,14 @@ import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
 import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import type { Lexicon } from "@/lib/lexicon";
 import { documentsInForce, getLegalPublication } from "@/lib/legal-publication";
-import {
-  constituentAreaEnabled,
-  getConstituentAccountNav,
-} from "@/lib/constituent/guard";
+import { constituentAreaEnabled } from "@/lib/constituent/guard";
 import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { servesPublicApp, surfaceAtRoot } from "@/lib/pwa/host";
 import { APP_ICONS_METADATA, PUBLIC_MANIFEST_PATH } from "@/lib/pwa/manifest";
 import { serviceWorkerScope } from "@/lib/pwa/service-worker";
-import { MY_PATH_PREFIX, MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
 import { SiteNav } from "./site-nav";
+import { AccountFooterLink } from "./account-menu";
+import { AccountNavProvider } from "./account-nav-provider";
 
 /**
  * Whether this request's host should advertise the supporter app (#1171).
@@ -80,9 +78,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+const FOOTER_LINK_CLASS = "app-muted text-sm hover:text-foreground";
+
 function FooterLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="app-muted text-sm hover:text-foreground">
+    <Link href={href} className={FOOTER_LINK_CLASS}>
       {label}
     </Link>
   );
@@ -125,15 +125,15 @@ export default async function PublicLayout({
     createSupabaseServerClient(),
     headers(),
   ]);
-  const [visibility, site, publication, account] = await Promise.all([
+  const [visibility, site, publication, accountEnabled] = await Promise.all([
     getPageVisibility(supabase),
     getPublicSite(supabase),
     getLegalPublication(supabase),
-    // Joins the same wave rather than following it: the module half of this
-    // read is already in flight as part of getPageVisibility (both go through
-    // the cached getPublicTenantModules), and the session half is a local JWT
-    // verification, so the layout's critical path is unchanged.
-    getConstituentAccountNav(supabase),
+    // Whether the tenant offers accounts, not whether this visitor has one:
+    // that is read in the browser (#1467), so this layout renders the same for
+    // every visitor to a host and the CDN may hold its pages. Free here --
+    // getPageVisibility already reads the same cached module map.
+    constituentAreaEnabled(),
   ]);
   // The public site is the one surface that belongs to a host rather than to a
   // session, so a host no tenant claims has nothing to serve (#795 Phase 4).
@@ -164,7 +164,7 @@ export default async function PublicLayout({
   const supportLabel = `Support ${content.text("org.short_name")}`;
 
   return (
-    <>
+    <AccountNavProvider enabled={accountEnabled}>
       <BrandStyle branding={branding} />
       {/* The supporter app's half of the PWA (#1171). Mounted at the top of
           the public tree, the way the portal's shells mount it at the top of
@@ -198,7 +198,6 @@ export default async function PublicLayout({
             hiddenSlots={hidden}
             supportLabel={supportLabel}
             lexicon={lexicon}
-            account={account}
           />
         </div>
       </header>
@@ -257,20 +256,13 @@ export default async function PublicLayout({
                   pasted into an email to a sponsor or a print shop, not browsed
                   to -- so it stays out of the header. The guard covers both, so
                   the landmark is never announced empty. */}
-              {(isSlotVisible(hidden, "brand") || account.enabled) && (
+              {(isSlotVisible(hidden, "brand") || accountEnabled) && (
                 <div className="flex flex-col gap-2">
                   <span className="app-eyebrow" aria-hidden="true">
                     Resources
                   </span>
                   <nav aria-label="Resources" className="flex flex-col gap-1">
-                    {account.enabled && (
-                      <FooterLink
-                        href={
-                          account.signedIn ? MY_PATH_PREFIX : MY_SIGN_IN_PATH
-                        }
-                        label={account.signedIn ? "Your account" : "Sign in"}
-                      />
-                    )}
+                    <AccountFooterLink className={FOOTER_LINK_CLASS} />
                     {isSlotVisible(hidden, "brand") && (
                       <FooterLink href="/brand" label="Brand & Design" />
                     )}
@@ -322,6 +314,6 @@ export default async function PublicLayout({
           </div>
         </div>
       </footer>
-    </>
+    </AccountNavProvider>
   );
 }

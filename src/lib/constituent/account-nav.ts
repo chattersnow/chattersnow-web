@@ -1,4 +1,3 @@
-import { type ModuleMap, moduleEnabled } from "@/lib/portal/modules";
 import { accountLabel } from "@/lib/constituent/account-label";
 
 /**
@@ -34,30 +33,31 @@ export type ConstituentAccountNav =
 /** The state for a tenant without the module -- the default everywhere. */
 export const ACCOUNT_NAV_OFF: ConstituentAccountNav = { enabled: false };
 
-/** As much of a verified access token as the control needs. */
+/** As much of the signed-in user as the control needs. */
 export type AccountClaims = {
   email?: unknown;
   user_metadata?: { full_name?: unknown; name?: unknown } | null;
 };
 
 /**
- * The control's state, from an entitlement map and a verified token.
+ * The control's state, from whether the tenant offers accounts and who is
+ * signed in in this browser.
  *
- * Pure, and in this file rather than in `guard.ts` beside the read that feeds
- * it, because the client component that renders the result imports the type and
- * the `ACCOUNT_NAV_OFF` default from here. A `guard.ts` import would pull
- * `next/headers` into the browser bundle -- which Turbopack refuses outright,
- * and which nothing but running the app would have caught.
+ * Pure, and in this file rather than in `guard.ts`, because the client
+ * component that computes it imports from here (#1467 moved the session read
+ * into the browser). A `guard.ts` import would pull `next/headers` into the
+ * browser bundle -- which Turbopack refuses outright, and which nothing but
+ * running the app would have caught.
  *
- * `claims` of null covers signed out and "the token did not verify" alike. They
- * are the same thing to a visitor: there is nothing to act on, and the
+ * `claims` of null covers signed out and "no session could be read" alike.
+ * They are the same thing to a visitor: there is nothing to act on, and the
  * signed-out control is the honest thing to render.
  */
 export function constituentAccountNav(
-  modules: ModuleMap,
+  enabled: boolean,
   claims: AccountClaims | null,
 ): ConstituentAccountNav {
-  if (!moduleEnabled(modules, CONSTITUENT_MODULE)) return ACCOUNT_NAV_OFF;
+  if (!enabled) return ACCOUNT_NAV_OFF;
   if (!claims) return { enabled: true, signedIn: false };
 
   return {

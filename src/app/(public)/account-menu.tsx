@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { MY_PATH_PREFIX, MY_SIGN_IN_PATH } from "@/lib/constituent/paths";
 import type { ConstituentAccountNav } from "@/lib/constituent/account-nav";
 import { useConstituentSignOut } from "@/lib/constituent/use-sign-out";
+import { useAccountNav } from "./account-nav-provider";
 
 /**
  * The control's own box, shared by the signed-out link and the signed-in
@@ -224,5 +225,24 @@ export function AccountSheetRows({
         </Link>
       )}
     </div>
+  );
+}
+
+/**
+ * The footer's account link: the header control's quiet twin (#1175), so a
+ * returning visitor who has scrolled to the bottom of a page need not scroll
+ * back up to find their way in. A client component of its own, like the
+ * control, because who is signed in is read in the browser (#1467).
+ */
+export function AccountFooterLink({ className }: { className?: string }) {
+  const account = useAccountNav();
+  if (!account.enabled) return null;
+  return (
+    <Link
+      href={account.signedIn ? MY_PATH_PREFIX : MY_SIGN_IN_PATH}
+      className={className}
+    >
+      {account.signedIn ? "Your account" : "Sign in"}
+    </Link>
   );
 }
