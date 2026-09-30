@@ -5,14 +5,17 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   DownloadIcon,
+  EyeOffIcon,
   PrinterIcon,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
 import {
   getPublicPublication,
   getPublicPublications,
+  getPublicationPreview,
 } from "@/lib/public-publications";
 import {
   adjacentIssues,
@@ -23,17 +26,33 @@ import { formatCalendarDate } from "@/lib/format";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+/**
+ * The published issue, or -- for the tenant's own editors only -- the draft
+ * at this address (#1472). `preview` is what the page marks it with.
+ */
+async function readIssue(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  slug: string,
+) {
+  const published = await getPublicPublication(supabase, slug);
+  if (published) return { issue: published, preview: false };
+  const draft = await getPublicationPreview(supabase, slug);
+  return { issue: draft, preview: draft !== null };
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const supabase = await createSupabaseServerClient();
-  const [issue, site] = await Promise.all([
-    getPublicPublication(supabase, (await params).slug),
+  const [{ issue, preview }, site] = await Promise.all([
+    readIssue(supabase, (await params).slug),
     getPublicSite(supabase),
   ]);
   return {
     title: publicTitle(site, issue?.title ?? site.lexicon.publication_plural),
     description: issue?.blurb ?? undefined,
+    // A draft is at a real address; it must not be indexed from there.
+    ...(preview ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
@@ -46,8 +65,8 @@ export async function generateMetadata({
 export default async function PublicationIssuePage({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createSupabaseServerClient();
-  const [issue, issues, { lexicon, content }] = await Promise.all([
-    getPublicPublication(supabase, slug),
+  const [{ issue, preview }, issues, { lexicon, content }] = await Promise.all([
+    readIssue(supabase, slug),
     getPublicPublications(supabase),
     getPublicSite(supabase),
   ]);
@@ -55,6 +74,9 @@ export default async function PublicationIssuePage({ params }: PageProps) {
 
   const { newer, older } = adjacentIssues(issues, issue.slug);
   const email = content.text("org.email_general");
+  const printInstructions = content.paragraphs(
+    "publications.print_instructions",
+  );
   const dateline = [
     issue.seasonLabel,
     issue.publishDate ? formatCalendarDate(issue.publishDate) : null,
@@ -62,6 +84,16 @@ export default async function PublicationIssuePage({ params }: PageProps) {
 
   return (
     <article className="mx-auto max-w-3xl">
+      {preview && (
+        <Alert className="mb-6">
+          <EyeOffIcon />
+          <AlertDescription>
+            A draft preview. Only people who can edit{" "}
+            {lexicon.publication_plural.toLowerCase()} see this page; publish
+            the issue in the portal to put it on the site.
+          </AlertDescription>
+        </Alert>
+      )}
       <Link
         href="/publications"
         className="app-muted inline-flex items-center gap-1 text-sm hover:text-foreground"
@@ -107,6 +139,18 @@ export default async function PublicationIssuePage({ params }: PageProps) {
               </Button>
             )}
           </div>
+        )}
+        {issue.printPdf && printInstructions.length > 0 && (
+          <details className="mt-4 rounded-lg border border-[var(--line)]">
+            <summary className="cursor-pointer rounded-lg px-4 py-3 text-sm font-medium hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              How to fold the printed copy
+            </summary>
+            <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed break-words">
+              {printInstructions.map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
+          </details>
         )}
       </header>
 

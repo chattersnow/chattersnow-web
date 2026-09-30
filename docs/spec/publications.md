@@ -17,8 +17,9 @@ label is a lexicon term and its visibility a `page_visibility.*` row
 zine, newsletter, magazine or lookbook — on its public site: an index of issues
 at `/publications`, newest first, and one page per issue at
 `/publications/<slug>`. #1471 is the module, the schema, the bucket and the
-read-only public pages; the portal editor is #1472 and the reader enhancements
-(lightbox, spreads, deep-link sharing) are #1473.
+read-only public pages; #1472 is the portal editor, under Website →
+Publications; the reader enhancements (lightbox, spreads, deep-link sharing)
+are #1473.
 
 ### Requirements
 
@@ -50,6 +51,28 @@ read-only public pages; the portal editor is #1472 and the reader enhancements
 - **PDFs are optional downloads**, never the reading source: a reading-order
   PDF ("Download PDF") and a print-ready, possibly imposed one ("Print at
   home"), each shown with its size.
+  "Print at home" carries the `publications.print_instructions` Site Content
+  block, folding instructions shared by every issue.
+- **Edited in the portal, one issue at a time.** Website → Publications lists
+  the issues and starts a draft; each issue is one object on its own page, so
+  it has no tabs. The editor holds the details (title, season label, publish
+  date, blurb, cover), the pages and the two PDFs. The web address is suggested
+  as `<season>-<yyyy>` and read-only once the issue has been published.
+- **Pages go in as scans, in order.** Several JPEG or PNG files at once, added
+  in filename order (numbers compared as numbers), then reordered by drag or by
+  the up/down buttons, which are the keyboard's way. The browser resizes each
+  page to WebP at about 480, 960 and 1600 px wide (JPEG where the browser
+  cannot encode WebP) and uploads those; the scan itself is never stored.
+- **Save writes the whole issue at once.** Files upload when picked; the rows
+  are written on Save, through `save_publication()`, in one transaction.
+  Publishing moves only what is saved, and the editor shows how many pages
+  still lack alt text or a transcript.
+- **Drafts are previewed where they will live.** A signed-in editor of the
+  tenant the host serves sees a draft at `/publications/<slug>`, marked as a
+  preview and not indexed, even while the section is hidden. Nobody else does.
+- **Nothing is deleted by hand.** A removed page, a replaced cover or PDF and
+  every file of a deleted issue are collected by the daily orphan sweep
+  (`/api/cron/gear-photo-purge`) once a day old and unreferenced.
 
 ## 6. Data model — Publications
 
@@ -72,7 +95,9 @@ read-only public pages; the portal editor is #1472 and the reader enhancements
   `public_publication_pages`, definer views that serve published issues of the
   host's tenant while its module is on. `guard_publication_update()` and
   `guard_published_publication_pages()` hold the slug freeze and the
-  alt-text-and-transcript rule.
+  alt-text-and-transcript rule. `save_publication(id, issue, pages)` (#1472)
+  writes an issue's details and its ordered page list in one transaction, with
+  invoker rights, so RLS and those guards decide what it may write.
 - **Bucket.** `publication-files` is public (these are the public site's files),
   accepts JPEG, PNG, WebP and PDF up to 25 MiB, and admits writes only under the
   caller's own tenant folder, at `publications:manage`, and never from the demo

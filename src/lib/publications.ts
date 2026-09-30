@@ -114,3 +114,114 @@ export function adjacentIssues<T extends { slug: string }>(
     older: issues[at + 1] ?? null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// The editor's rules (#1472). Pure, so the portal and its tests share them.
+// ---------------------------------------------------------------------------
+
+/**
+ * The widths the editor stores for each page and cover, in pixels. The largest
+ * is also the `image_path` a page renders as `src`; the smaller two are what
+ * lets a phone fetch a ~60 KB page instead of a ~400 KB one.
+ */
+export const PUBLICATION_IMAGE_WIDTHS = [480, 960, 1600] as const;
+
+/** The bucket's own cap (20260929100000), checked before a PDF is sent. */
+export const PUBLICATION_PDF_MAX_BYTES = 25 * 1024 * 1024;
+
+/** The database's `publications_slug_format`, so a bad slug is a sentence. */
+const PUBLICATION_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const PUBLICATION_SLUG_MAX = 80;
+
+export function isValidPublicationSlug(value: string): boolean {
+  return (
+    value.length <= PUBLICATION_SLUG_MAX && PUBLICATION_SLUG_PATTERN.test(value)
+  );
+}
+
+/** Lower-case words joined by single hyphens, as the slug check wants. */
+export function publicationSlugify(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, PUBLICATION_SLUG_MAX)
+    .replace(/-+$/, "");
+}
+
+/**
+ * The slug the editor suggests: `<season>-<yyyy>`, "fall-2026". The year comes
+ * from the publish date, and is not repeated when the season label already
+ * carries it ("Fall 2026"). Empty when there is nothing to suggest from.
+ */
+export function suggestPublicationSlug(
+  seasonLabel: string,
+  publishDate: string,
+): string {
+  const season = publicationSlugify(seasonLabel);
+  const year = /^(\d{4})-/.exec(publishDate)?.[1] ?? "";
+  if (!season) return year;
+  if (!year || season.split("-").includes(year)) return season;
+  return `${season}-${year}`;
+}
+
+/**
+ * Picked files in reading order: by name, with numbers compared as numbers, so
+ * `page-2.jpg` comes before `page-10.jpg` the way a person numbered them.
+ */
+export function byFileName<T extends { name: string }>(
+  files: readonly T[],
+): T[] {
+  return [...files].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }),
+  );
+}
+
+/**
+ * The widths worth storing for an image `sourceWidth` pixels wide: each target
+ * that does not enlarge it, plus the source's own width when it is narrower
+ * than the largest target, so a small scan is kept at its real size rather than
+ * blown up. Always at least one.
+ */
+export function renditionWidths(
+  sourceWidth: number,
+  targets: readonly number[] = PUBLICATION_IMAGE_WIDTHS,
+): number[] {
+  const widths = new Set<number>();
+  for (const target of targets) {
+    if (target <= sourceWidth) widths.add(target);
+  }
+  const largest = Math.max(...targets);
+  if (sourceWidth < largest) widths.add(Math.max(1, Math.round(sourceWidth)));
+  return [...widths].sort((a, b) => a - b);
+}
+
+/** Moves one entry of a list, for the page order's up/down and drag. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || from >= list.length) return [...list];
+  const clamped = Math.max(0, Math.min(list.length - 1, to));
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(clamped, 0, item);
+  return next;
+}
+
+/** Whether a page has what publishing needs: alt text and a transcript. */
+export function pageHasText(page: {
+  altText: string;
+  transcript: string;
+}): boolean {
+  return page.altText.trim() !== "" && page.transcript.trim() !== "";
+}
+
+/** How many pages still lack alt text or a transcript. */
+export function pagesMissingText(
+  pages: readonly { altText: string; transcript: string }[],
+): number {
+  return pages.filter((page) => !pageHasText(page)).length;
+}
