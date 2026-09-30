@@ -17,6 +17,8 @@ export type PublicationImage = {
   height: number;
   /** `url 480w, url 960w, ...`, or undefined when only the original exists. */
   srcSet?: string;
+  /** The same entries as `srcSet`, smallest first, for the lightbox (#1473). */
+  sources?: { url: string; width: number }[];
 };
 
 export type PublicationFile = { url: string; bytes: number };
@@ -83,11 +85,13 @@ export function publicationImage(
   }
   if (!entries.has(width)) entries.set(width, url);
 
-  const srcSet = [...entries.entries()]
+  const sources = [...entries.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([w, u]) => `${u} ${w}w`)
+    .map(([w, u]) => ({ url: u, width: w }));
+  const srcSet = sources
+    .map((source) => `${source.url} ${source.width}w`)
     .join(", ");
-  return { url, width, height, srcSet };
+  return { url, width, height, srcSet, sources };
 }
 
 /** A download's size as a reader thinks of it: "820 KB", "18 MB". */
@@ -113,6 +117,48 @@ export function adjacentIssues<T extends { slug: string }>(
     newer: issues[at - 1] ?? null,
     older: issues[at + 1] ?? null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// The reader (#1473). Pure, so they are tested without a browser.
+// ---------------------------------------------------------------------------
+
+/** Where a page sits when the reader shows facing pages. */
+export type SpreadSide = "alone" | "left" | "right";
+
+/**
+ * How an issue's pages pair up as a printed copy opens: the cover alone, then
+ * 2-3, 4-5 and so on, and the back cover alone. A page left over in the middle
+ * (an odd count, which a folded zine never has) stands alone too. Indexed by
+ * position - 1.
+ */
+export function spreadSides(count: number): SpreadSide[] {
+  const sides: SpreadSide[] = [];
+  for (let position = 1; position <= count; position += 1) {
+    const isEnd = position === 1 || position === count;
+    const hasPartner =
+      position % 2 === 0 ? position + 1 < count : position - 1 > 1;
+    sides.push(
+      isEnd || !hasPartner ? "alone" : position % 2 === 0 ? "left" : "right",
+    );
+  }
+  return sides;
+}
+
+/** The positions shown together with `position`: itself and its facing page. */
+export function spreadOf(position: number, count: number): number[] {
+  const side = spreadSides(count)[position - 1];
+  if (side === "left") return [position, position + 1];
+  if (side === "right") return [position - 1, position];
+  return [position];
+}
+
+/** The page a `#page-N` hash points at, or null when it names no page. */
+export function pageFromHash(hash: string, count: number): number | null {
+  const match = /^#page-(\d+)$/.exec(hash);
+  if (!match) return null;
+  const position = Number(match[1]);
+  return position >= 1 && position <= count ? position : null;
 }
 
 // ---------------------------------------------------------------------------

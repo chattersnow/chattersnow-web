@@ -13,7 +13,7 @@ label is a lexicon term and its visibility a `page_visibility.*` row
 
 ## 5.27 Publications
 
-**Implemented in part** (#1470). A tenant publishes a periodic publication — a
+**Implemented** (#1470). A tenant publishes a periodic publication — a
 zine, newsletter, magazine or lookbook — on its public site: an index of issues
 at `/publications`, newest first, and one page per issue at
 `/publications/<slug>`. #1471 is the module, the schema, the bucket and the
@@ -38,6 +38,22 @@ are #1473.
   with native pinch-zoom; each page is an `id="page-N"` anchor. No embedded PDF
   viewer and no page-turn library: both work badly on phones and with screen
   readers.
+- **A reader around the pages** (#1473), none of which takes over scrolling or
+  zoom, and without which the page is still the plain scroll:
+  - a sticky "Page N of M" counter, taken from the page crossing a line 40%
+    down the viewport;
+  - the address follows the reader as `#page-N` through
+    `history.replaceState`, so Back still leaves the issue, and opening a
+    `#page-N` link lands on that page;
+  - **Share** offers the issue at the current page through the Web Share API,
+    or copies the link where there is none;
+  - a full-screen view (`yet-another-react-lightbox` with its zoom,
+    thumbnails and counter plugins, loaded on first use) opens on the page
+    that was tapped or on its own button, pages with swipe, the arrow keys,
+    Home and End, and closes onto the page the reader ended on;
+  - on wide screens (`lg`), **Single** or **Spread**: the cover alone, then
+    2–3, 4–5 and so on, and the back cover alone, remembered per browser in
+    `localStorage`. Phones always get single pages.
 - **A real-text equivalent for every page** (WCAG 1.1.1, 1.4.5). Each page has
   short alt text and a transcript, rendered in a collapsible block beneath it
   and present in the server-rendered HTML. An issue cannot be published while
