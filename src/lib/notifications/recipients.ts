@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
+import {
+  CONSTITUENT_NOTIFICATION_KINDS,
+  NOTIFICATION_KINDS,
+} from "@/lib/notifications/kinds";
 import { personDisplayName } from "@/lib/format";
 
 /**
@@ -86,4 +89,59 @@ export async function getNotificationRecipients(
     });
   }
   return byKind;
+}
+
+/**
+ * How each receipt to the public actually goes out (#1484).
+ *
+ * The recipient read above cannot answer this. A receipt is opt-*out*
+ * (`defaultEnabled`), so it goes to whoever fills in the form, and most of
+ * them have no preference row at all; `notification_recipients()` only
+ * returns the `enabled` rows, so the card used to say "Nobody receives this"
+ * about receipts that go to every submitter. What an administrator can
+ * usefully see is the other side: how many people turned it off, and whether
+ * the organization switched the reply off in Automatic Replies.
+ */
+export type ReceiptDelivery = {
+  /** People with an explicit `enabled = false` row for this kind. */
+  optedOut: number;
+  /** The reply is switched off under Administration -> Automatic Replies. */
+  switchedOff: boolean;
+};
+
+/** Keyed by kind; null means either read failed. */
+export async function getReceiptDelivery(
+  supabase: SupabaseClient,
+): Promise<Record<string, ReceiptDelivery> | null> {
+  const kinds = CONSTITUENT_NOTIFICATION_KINDS.map((kind) => kind.key);
+  const [optOuts, replies] = await Promise.all([
+    supabase
+      .from("person_notification_preferences")
+      .select("kind")
+      .in("kind", kinds)
+      .eq("enabled", false),
+    supabase
+      .from("auto_reply_templates")
+      .select("kind")
+      .in("kind", kinds)
+      .eq("enabled", false),
+  ]);
+
+  if (optOuts.error || replies.error) {
+    console.error(
+      "[notifications] could not resolve how receipts are delivered",
+      optOuts.error ?? replies.error,
+    );
+    return null;
+  }
+
+  const switchedOff = new Set(replies.data.map((row) => row.kind as string));
+  const delivery: Record<string, ReceiptDelivery> = {};
+  for (const kind of kinds) {
+    delivery[kind] = { optedOut: 0, switchedOff: switchedOff.has(kind) };
+  }
+  for (const row of optOuts.data) {
+    delivery[row.kind as string].optedOut += 1;
+  }
+  return delivery;
 }

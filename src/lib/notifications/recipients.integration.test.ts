@@ -19,7 +19,7 @@ import {
   signInAs,
 } from "../../../test/integration-setup";
 import { SEEDED_PERSON_IDS } from "../../../test/seed-fixtures";
-import { getNotificationRecipients } from "./recipients";
+import { getNotificationRecipients, getReceiptDelivery } from "./recipients";
 import type { NotificationRecipient } from "./recipients";
 
 const service = serviceRoleClient();
@@ -333,5 +333,87 @@ describe("it cannot drift from the senders", () => {
     expect(reported).toEqual(expected);
     // Not vacuous: the fixtures above put somebody in that intersection.
     expect(reported).toContain(adminPersonId);
+  });
+});
+
+// #1484: a receipt is opt-out, so the RPC above has nobody to list for it.
+// What the card shows instead is who turned it off, and whether the
+// organization switched the reply off in Automatic Replies. Counted as a
+// delta from a baseline, since other files write receipts of their own.
+describe("how receipts are delivered", () => {
+  /** Nobody else's fixtures write this receipt's preference rows. */
+  const OPTED_OUT_KIND = "contact_message_confirmation";
+  /** Nor this one's auto-reply row. */
+  const SWITCHED_OFF_KIND = "artwork_submission_confirmation";
+
+  afterAll(async () => {
+    for (const personId of [
+      coordinatorPersonId,
+      DONOR_WITHOUT_AN_ACCOUNT,
+      otherPersonId,
+    ]) {
+      await service
+        .from("person_notification_preferences")
+        .delete()
+        .eq("person_id", personId)
+        .eq("kind", OPTED_OUT_KIND);
+    }
+    await service
+      .from("auto_reply_templates")
+      .delete()
+      .eq("tenant_id", chatterTenantId)
+      .eq("kind", SWITCHED_OFF_KIND);
+  });
+
+  async function delivery() {
+    const byKind = await getReceiptDelivery(adminClient);
+    if (byKind === null) throw new Error("the receipt read failed");
+    return byKind;
+  }
+
+  test("counts opt-outs and reads the Automatic Replies switch", async () => {
+    const before = await delivery();
+
+    const { error: prefError } = await service
+      .from("person_notification_preferences")
+      .insert([
+        {
+          tenant_id: chatterTenantId,
+          person_id: coordinatorPersonId,
+          kind: OPTED_OUT_KIND,
+          enabled: false,
+        },
+        // Opted back in: not an opt-out.
+        {
+          tenant_id: chatterTenantId,
+          person_id: DONOR_WITHOUT_AN_ACCOUNT,
+          kind: OPTED_OUT_KIND,
+          enabled: true,
+        },
+        // Another tenant's opt-out is not this one's.
+        {
+          tenant_id: otherTenantId,
+          person_id: otherPersonId,
+          kind: OPTED_OUT_KIND,
+          enabled: false,
+        },
+      ]);
+    if (prefError) throw prefError;
+    const { error: replyError } = await service
+      .from("auto_reply_templates")
+      .upsert(
+        { tenant_id: chatterTenantId, kind: SWITCHED_OFF_KIND, enabled: false },
+        { onConflict: "tenant_id,kind" },
+      );
+    if (replyError) throw replyError;
+
+    const after = await delivery();
+    expect(after[OPTED_OUT_KIND].optedOut).toBe(
+      before[OPTED_OUT_KIND].optedOut + 1,
+    );
+    expect(after[OPTED_OUT_KIND].switchedOff).toBe(false);
+    expect(after[SWITCHED_OFF_KIND].switchedOff).toBe(true);
+    // Staff kinds are not receipts and never appear.
+    expect(after[ROLE_KIND]).toBeUndefined();
   });
 });

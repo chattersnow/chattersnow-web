@@ -1686,7 +1686,7 @@ export const helpContent: Record<string, HelpEntry> = {
   "/portal/administration/organization-settings": {
     title: "How these settings are used",
     description:
-      "Where the fiscal year, time zone, vocabulary, approval thresholds and sales tax rate take effect.",
+      "Where the fiscal year, time zone, vocabulary, approval thresholds, sales tax rate and email settings take effect.",
     body: (
       <>
         <HowToSection heading="The fiscal year">
@@ -1779,6 +1779,63 @@ export const helpContent: Record<string, HelpEntry> = {
             separately from income. Changing the rate here never alters a sale
             already recorded.
           </p>
+        </HowToSection>
+        <HowToSection heading="The outbound email switch">
+          <p>
+            It is a stop, not a preference. Each person chooses what they want
+            in{" "}
+            <Link
+              href="/portal/account"
+              className="underline hover:text-foreground"
+            >
+              My Account
+            </Link>
+            , and this overrides all of them, including the public receipts and
+            the daily ops report. Turn it off if messages are going somewhere
+            they shouldn&apos;t. Nothing queues while it is off, so turning it
+            back on does not send what was missed.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who your email comes from">
+          <p>
+            Everything the portal sends goes out under your organization&apos;s
+            name, from a sending address that nobody reads. The Reply-To is
+            where a reply lands instead; without it, a reply bounces. Sending
+            from your own address needs your platform operator to verify your
+            domain with the email provider first, and the field stays read-only
+            until they have.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The daily ops report">
+          <p>
+            Each morning the listed addresses get a summary of the day:
+            approvals waiting, events and shift gaps in the next week, new
+            messages and applications, and donations received. It goes by
+            address rather than to a person, because it is usually a shared
+            inbox such as board@ or leadership@, so nobody can opt in or out of
+            it on their own account.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Reading who receives what">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Staff notifications</strong>{" "}
+              reach a person only if they hold the role that owns the queue{" "}
+              <em>and</em> turned the notification on themselves. A warning
+              badge marks either gap: someone with the role who has not opted
+              in, or someone opted in without the role, who gets nothing.
+              Preferences are each person&apos;s own, so this page shows them
+              but cannot change them.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Receipts to the public
+              </strong>{" "}
+              go to whoever fills in the form, unless they turned that receipt
+              off for themselves. The count shows how many have. A receipt
+              switched off under Automatic Replies goes to nobody.
+            </li>
+          </ul>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>

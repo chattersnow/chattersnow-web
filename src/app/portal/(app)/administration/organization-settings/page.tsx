@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { TabsContent } from "@/components/ui/tabs";
 import { WorkflowThresholdsForm } from "./workflow-thresholds-form";
@@ -19,7 +18,10 @@ import { LexiconPanel } from "./lexicon-panel";
 import { PersonRolesPanel } from "./person-roles-panel";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
-import { getNotificationRecipients } from "@/lib/notifications/recipients";
+import {
+  getNotificationRecipients,
+  getReceiptDelivery,
+} from "@/lib/notifications/recipients";
 import {
   OPS_REPORT_RECIPIENTS_SETTING_KEY,
   parseOpsReportRecipients,
@@ -99,6 +101,7 @@ export default async function OrganizationSettingsPage() {
     storedLexicon,
     storedPersonRoleLabels,
     recipientsByKind,
+    receiptDelivery,
   ] = await Promise.all([
     getFiscalYearStartMonth(supabase),
     getOrgTimeZone(supabase),
@@ -108,6 +111,7 @@ export default async function OrganizationSettingsPage() {
     getStoredLexicon(supabase),
     getStoredPersonRoleLabels(supabase),
     getNotificationRecipients(supabase),
+    getReceiptDelivery(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
@@ -196,26 +200,17 @@ export default async function OrganizationSettingsPage() {
           <BrandingPanel branding={branding} />
         </TabsContent>
 
+        {/* The switch, then Sending beside Who receives what (#1484). The
+            reasoning each card used to carry is in the help sheet. */}
         <TabsContent value="notifications" className="mt-6 space-y-4">
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            The organization-wide switch for every email this portal sends. It
-            is a stop, not a preference: individual people choose what they want
-            in{" "}
-            <Link
-              href="/portal/account"
-              className="underline underline-offset-4"
-            >
-              My Account &rarr; Email notifications
-            </Link>
-            , and this overrides all of them &mdash; including the daily ops
-            report below, which goes to a shared inbox rather than to
-            anyone&rsquo;s account. Every change here is recorded in the audit
-            log.
+            Every change here is recorded in the audit log.
           </p>
           <NotificationsPanel
             emailEnabled={emailEnabled}
             kinds={NOTIFICATION_KINDS}
             recipientsByKind={recipientsByKind}
+            receiptDelivery={receiptDelivery}
             orgName={orgName}
             platformFrom={bareAddress(platformFrom)}
             sendingDomain={sendingDomain}
