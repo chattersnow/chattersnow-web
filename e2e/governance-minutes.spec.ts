@@ -18,6 +18,23 @@ function uniqueSuffix() {
 }
 
 /**
+ * `YYYY-MM-DD`, `days` from today in UTC.
+ *
+ * The meeting sits past the reach of `supabase/seed.sql`, which scatters its
+ * bulk calendar items up to 200 days either side of the day it ran. Inside a
+ * minutes card the "Next 30 days" block shows only the first three rows, so a
+ * meeting on a fixed date filled up with seed items as the calendar caught up
+ * with it, and the event below sorted off the end of the list.
+ */
+function isoDayFromToday(days: number) {
+  const day = new Date();
+  day.setUTCDate(day.getUTCDate() + days);
+  return day.toISOString().slice(0, 10);
+}
+
+const MEETING_DAY = isoDayFromToday(400);
+
+/**
  * An event inside the meeting's 30-day lookahead, so the Events section of the
  * minutes has a reference to open (#1223/#1225).
  *
@@ -43,7 +60,7 @@ async function seedLookaheadEvent(
     .insert({
       name,
       // Six days after the meeting below, and well inside its lookahead.
-      starts_at: "2026-11-25T18:00:00.000Z",
+      starts_at: `${isoDayFromToday(406)}T18:00:00.000Z`,
       timezone: "America/Denver",
       location: "Riverside Park",
       status: "published",
@@ -79,7 +96,9 @@ test.describe("portal governance minutes", () => {
       await page.goto("/portal/governance/meetings");
       await page.getByRole("button", { name: "Schedule meeting" }).click();
       const scheduleDialog = modal(page);
-      await scheduleDialog.getByLabel("Date & time").fill("2026-11-19T18:30");
+      await scheduleDialog
+        .getByLabel("Date & time")
+        .fill(`${MEETING_DAY}T18:30`);
       await scheduleDialog.getByLabel("Location").fill(location);
       await scheduleDialog
         .getByRole("button", { name: "Schedule meeting" })

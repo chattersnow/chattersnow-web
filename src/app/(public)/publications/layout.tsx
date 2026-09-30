@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
 import { PageShell } from "@/components/page-shell";
-import { isPageVisible } from "@/lib/page-visibility";
+import { requireVisiblePage } from "@/lib/page-visibility";
 import { canPreviewPublications } from "@/lib/public-publications";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -19,11 +18,8 @@ export default async function PublicationsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  if (
-    !(await isPageVisible("publications")) &&
-    !(await canPreviewPublications(await createSupabaseServerClient()))
-  ) {
-    notFound();
-  }
+  await requireVisiblePage("publications", async () =>
+    canPreviewPublications(await createSupabaseServerClient()),
+  );
   return <PageShell>{children}</PageShell>;
 }
