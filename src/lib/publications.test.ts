@@ -5,11 +5,14 @@ import {
   formatFileSize,
   isValidPublicationSlug,
   moveItem,
+  pageFromHash,
   pagesMissingText,
   parseRenditions,
   publicationImage,
   publicationSlugify,
   renditionWidths,
+  spreadOf,
+  spreadSides,
   suggestPublicationSlug,
 } from "./publications";
 
@@ -60,6 +63,67 @@ describe("publicationImage", () => {
     expect(image.srcSet).toBe(
       "https://cdn.test/p-480.webp 480w, https://cdn.test/p-960.webp 960w, https://cdn.test/p-1600.webp 1600w",
     );
+    expect(image.sources).toEqual([
+      { url: "https://cdn.test/p-480.webp", width: 480 },
+      { url: "https://cdn.test/p-960.webp", width: 960 },
+      { url: "https://cdn.test/p-1600.webp", width: 1600 },
+    ]);
+  });
+});
+
+describe("spreadSides", () => {
+  test("cover alone, then facing pairs, then the back cover alone", () => {
+    expect(spreadSides(8)).toEqual([
+      "alone",
+      "left",
+      "right",
+      "left",
+      "right",
+      "left",
+      "right",
+      "alone",
+    ]);
+  });
+
+  test("a page left over in the middle stands alone", () => {
+    expect(spreadSides(5)).toEqual([
+      "alone",
+      "left",
+      "right",
+      "alone",
+      "alone",
+    ]);
+  });
+
+  test("short issues have no pairs", () => {
+    expect(spreadSides(0)).toEqual([]);
+    expect(spreadSides(1)).toEqual(["alone"]);
+    expect(spreadSides(2)).toEqual(["alone", "alone"]);
+    expect(spreadSides(3)).toEqual(["alone", "alone", "alone"]);
+  });
+});
+
+describe("spreadOf", () => {
+  test("a page and its facing page, whichever side it is on", () => {
+    expect(spreadOf(2, 8)).toEqual([2, 3]);
+    expect(spreadOf(3, 8)).toEqual([2, 3]);
+    expect(spreadOf(1, 8)).toEqual([1]);
+    expect(spreadOf(8, 8)).toEqual([8]);
+  });
+});
+
+describe("pageFromHash", () => {
+  test("reads #page-N when N is a page of the issue", () => {
+    expect(pageFromHash("#page-3", 8)).toBe(3);
+    expect(pageFromHash("#page-8", 8)).toBe(8);
+  });
+
+  test("ignores anything else", () => {
+    expect(pageFromHash("", 8)).toBeNull();
+    expect(pageFromHash("#page-0", 8)).toBeNull();
+    expect(pageFromHash("#page-9", 8)).toBeNull();
+    expect(pageFromHash("#page-2x", 8)).toBeNull();
+    expect(pageFromHash("#main-content", 8)).toBeNull();
   });
 });
 
