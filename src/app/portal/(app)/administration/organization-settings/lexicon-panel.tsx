@@ -4,7 +4,13 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -60,10 +66,15 @@ export function LexiconPanel({ stored }: { stored: Lexicon }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
+    <form onSubmit={handleSubmit} className="h-full">
+      <Card className="h-full">
         <CardHeader>
           <CardTitle>What you call what you lend</CardTitle>
+          {/* Where these words appear is in the help sheet (#1482); each
+              field says which of them it is. */}
+          <CardDescription>
+            Leave a field blank to keep the platform&rsquo;s word.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -86,36 +97,37 @@ export function LexiconPanel({ stored }: { stored: Lexicon }) {
               </Field>
             ))}
           </FieldGroup>
+          {error && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Save wording"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isPending}
+              onClick={() =>
+                setTerms(
+                  Object.fromEntries(LEXICON_TERMS.map((t) => [t.key, ""])),
+                )
+              }
+            >
+              Reset to defaults
+            </Button>
+          </div>
         </CardContent>
       </Card>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? (
-            <>
-              <Spinner /> Saving...
-            </>
-          ) : (
-            "Save wording"
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={isPending}
-          onClick={() =>
-            setTerms(Object.fromEntries(LEXICON_TERMS.map((t) => [t.key, ""])))
-          }
-        >
-          Reset to defaults
-        </Button>
-      </div>
     </form>
   );
 }

@@ -32,6 +32,7 @@ describe("parseReimbursementForm", () => {
         amount: 42.5,
         currency: "CAD",
         receipt_url: "https://example.com/receipt.pdf",
+        receipt_path: null,
         notes: "Split with a second driver.",
       },
     });
@@ -44,6 +45,7 @@ describe("parseReimbursementForm", () => {
     expect("data" in result && result.data).toMatchObject({
       event_id: null,
       receipt_url: null,
+      receipt_path: null,
       notes: null,
     });
   });

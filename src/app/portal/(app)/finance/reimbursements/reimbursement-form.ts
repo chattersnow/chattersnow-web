@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseReceiptFields } from "@/lib/finance/receipt";
 
 export type ReimbursementFormData = {
   person_id: string;
@@ -7,6 +8,7 @@ export type ReimbursementFormData = {
   amount: number;
   currency: string;
   receipt_url: string | null;
+  receipt_path: string | null;
   notes: string | null;
 };
 
@@ -18,7 +20,6 @@ export function parseReimbursementForm(
   const description = String(formData.get("description") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "").trim();
   const currency = String(formData.get("currency") ?? "USD").trim() || "USD";
-  const receiptUrl = String(formData.get("receiptUrl") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!personId) return { error: "Select who is requesting reimbursement." };
@@ -29,6 +30,9 @@ export function parseReimbursementForm(
     return { error: "Amount must be a positive number." };
   }
 
+  const receipt = parseReceiptFields(formData);
+  if ("error" in receipt) return receipt;
+
   return {
     data: {
       person_id: personId,
@@ -36,7 +40,7 @@ export function parseReimbursementForm(
       description,
       amount,
       currency,
-      receipt_url: receiptUrl || null,
+      ...receipt.data,
       notes: notes || null,
     },
   };

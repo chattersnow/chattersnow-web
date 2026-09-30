@@ -1685,7 +1685,8 @@ export const helpContent: Record<string, HelpEntry> = {
   },
   "/portal/administration/organization-settings": {
     title: "How these settings are used",
-    description: "Where the fiscal year and approval thresholds take effect.",
+    description:
+      "Where the fiscal year, time zone, vocabulary, approval thresholds, sales tax rate and email settings take effect.",
     body: (
       <>
         <HowToSection heading="The fiscal year">
@@ -1703,6 +1704,41 @@ export const helpContent: Record<string, HelpEntry> = {
             Under the bylaws the fiscal year is set by Board resolution, so
             changing the month here should follow that resolution rather than
             lead it. The change is written to the audit log either way.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The time zone">
+          <p>
+            The time zone says where this organization&apos;s days begin and
+            end, so reports count a day the way the staff would. A sale rung or
+            a reimbursement filed at 7pm on the last day of February counts in
+            February, not in March. It sets the default period on Financial
+            Reports, the dashboard&apos;s &ldquo;this month&rdquo; figures and
+            the annual planning review.
+          </p>
+          <p>
+            It does not change how times are shown. The portal always shows you
+            a time in your own browser&apos;s zone, and the public site shows an
+            event in the zone the event is held in.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Vocabulary">
+          <p>
+            The platform says &ldquo;inventory&rdquo; and &ldquo;items&rdquo;;
+            yours may be a gear library, a tool library or a pantry. Those words
+            are what the public navigation, this portal&apos;s sidebar and the
+            unwritten parts of your site copy use.
+          </p>
+          <p>
+            The platform says &ldquo;donors&rdquo; and &ldquo;volunteers&rdquo;;
+            yours may have members, students, customers or clients. Those words
+            are what the People section of the sidebar, its pages, the role
+            filter and every person&apos;s profile use. Only the words change: a
+            role is still set by the donation, registration or shift behind it,
+            whatever you call the person who did it.
+          </p>
+          <p>
+            A blank field keeps the platform&apos;s word, and every change is
+            written to the audit log.
           </p>
         </HowToSection>
         <HowToSection heading="Approval thresholds">
@@ -1734,6 +1770,72 @@ export const helpContent: Record<string, HelpEntry> = {
               to approve or reject it instead.
             </li>
           </ol>
+        </HowToSection>
+        <HowToSection heading="The sales tax rate">
+          <p>
+            The rate is prefilled on every sale at the register, where the
+            cashier can change it for that one sale. Tax is added on top of the
+            pre-tax prices in the catalog, and what is collected is reported
+            separately from income. Changing the rate here never alters a sale
+            already recorded.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The outbound email switch">
+          <p>
+            It is a stop, not a preference. Each person chooses what they want
+            in{" "}
+            <Link
+              href="/portal/account"
+              className="underline hover:text-foreground"
+            >
+              My Account
+            </Link>
+            , and this overrides all of them, including the public receipts and
+            the daily ops report. Turn it off if messages are going somewhere
+            they shouldn&apos;t. Nothing queues while it is off, so turning it
+            back on does not send what was missed.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Who your email comes from">
+          <p>
+            Everything the portal sends goes out under your organization&apos;s
+            name, from a sending address that nobody reads. The Reply-To is
+            where a reply lands instead; without it, a reply bounces. Sending
+            from your own address needs your platform operator to verify your
+            domain with the email provider first, and the field stays read-only
+            until they have.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The daily ops report">
+          <p>
+            Each morning the listed addresses get a summary of the day:
+            approvals waiting, events and shift gaps in the next week, new
+            messages and applications, and donations received. It goes by
+            address rather than to a person, because it is usually a shared
+            inbox such as board@ or leadership@, so nobody can opt in or out of
+            it on their own account.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Reading who receives what">
+          <ul className="list-disc space-y-2 pl-4">
+            <li>
+              <strong className="text-foreground">Staff notifications</strong>{" "}
+              reach a person only if they hold the role that owns the queue{" "}
+              <em>and</em> turned the notification on themselves. A warning
+              badge marks either gap: someone with the role who has not opted
+              in, or someone opted in without the role, who gets nothing.
+              Preferences are each person&apos;s own, so this page shows them
+              but cannot change them.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Receipts to the public
+              </strong>{" "}
+              go to whoever fills in the form, unless they turned that receipt
+              off for themselves. The count shows how many have. A receipt
+              switched off under Automatic Replies goes to nobody.
+            </li>
+          </ul>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>

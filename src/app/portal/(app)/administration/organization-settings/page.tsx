@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { TabsContent } from "@/components/ui/tabs";
 import { WorkflowThresholdsForm } from "./workflow-thresholds-form";
@@ -19,7 +18,10 @@ import { LexiconPanel } from "./lexicon-panel";
 import { PersonRolesPanel } from "./person-roles-panel";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/kinds";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
-import { getNotificationRecipients } from "@/lib/notifications/recipients";
+import {
+  getNotificationRecipients,
+  getReceiptDelivery,
+} from "@/lib/notifications/recipients";
 import {
   OPS_REPORT_RECIPIENTS_SETTING_KEY,
   parseOpsReportRecipients,
@@ -99,6 +101,7 @@ export default async function OrganizationSettingsPage() {
     storedLexicon,
     storedPersonRoleLabels,
     recipientsByKind,
+    receiptDelivery,
   ] = await Promise.all([
     getFiscalYearStartMonth(supabase),
     getOrgTimeZone(supabase),
@@ -108,6 +111,7 @@ export default async function OrganizationSettingsPage() {
     getStoredLexicon(supabase),
     getStoredPersonRoleLabels(supabase),
     getNotificationRecipients(supabase),
+    getReceiptDelivery(supabase),
   ]);
   const orgName = currentTenant(tenantContext)?.name ?? "this organization";
 
@@ -148,51 +152,36 @@ export default async function OrganizationSettingsPage() {
       </div>
 
       <OrganizationSettingsTabs>
-        <TabsContent value="general" className="mt-6 space-y-4">
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            Organization-wide settings that the rest of the portal reads. The
-            fiscal year is set by Board resolution under the bylaws, so changing
-            it here should follow that resolution — every change is recorded in
-            the audit log.
-          </p>
-          <FiscalYearPanel fiscalYearStartMonth={fiscalYearStartMonth} />
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            Where this organization&apos;s days begin and end. Reports count a
-            day in this zone, so an evening sale on the last day of the month
-            lands in the month the staff would put it in — and, like the fiscal
-            year, every change is recorded in the audit log.
-          </p>
-          <TimeZonePanel timeZone={orgTimeZone} />
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            What this organization calls the things it lends. The platform says
-            &ldquo;inventory&rdquo; and &ldquo;items&rdquo;; yours may be a gear
-            library, a tool library or a pantry, and these words are what the
-            public navigation, this portal&rsquo;s sidebar and the unwritten
-            parts of your site copy use. Leave a field blank to keep the
-            platform&rsquo;s word.
-          </p>
-          <LexiconPanel stored={storedLexicon} />
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            What this organization calls the people in its directory. The
-            platform says &ldquo;donors&rdquo; and &ldquo;volunteers&rdquo;;
-            yours may have members, students, customers or clients, and these
-            words are what the People section of the sidebar, its pages, the
-            role filter and every person&rsquo;s profile use. Only the words
-            change: a role is still set by the donation, registration or shift
-            behind it, whatever you call the person who did it. Leave a field
-            blank to keep the platform&rsquo;s word.
-          </p>
-          <PersonRolesPanel stored={storedPersonRoleLabels} />
+        {/* Two groups of paired cards (#1482), so every card's heading is in
+            the first screen at desktop width. The explanations that used to
+            sit between the cards are in the help sheet; each card keeps the
+            one line to know before saving. Below `lg` (`xl` for the naming
+            cards, whose role rows need the width) it is one column in the
+            order the cards always had. */}
+        <TabsContent value="general" className="mt-6 space-y-8">
+          <section aria-labelledby="settings-calendar" className="space-y-3">
+            <h2 id="settings-calendar" className="app-eyebrow text-sm">
+              Calendar
+            </h2>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <FiscalYearPanel fiscalYearStartMonth={fiscalYearStartMonth} />
+              <TimeZonePanel timeZone={orgTimeZone} />
+            </div>
+          </section>
+          <section aria-labelledby="settings-vocabulary" className="space-y-3">
+            <h2 id="settings-vocabulary" className="app-eyebrow text-sm">
+              Vocabulary
+            </h2>
+            <div className="grid gap-6 xl:grid-cols-2">
+              <LexiconPanel stored={storedLexicon} />
+              <PersonRolesPanel stored={storedPersonRoleLabels} />
+            </div>
+          </section>
         </TabsContent>
 
-        <TabsContent value="workflow" className="mt-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="app-muted max-w-2xl text-sm leading-relaxed">
-              These thresholds control who can approve an expense or
-              reimbursement on their own. The sales tax rate is what the
-              register charges on merchandise.
-            </p>
-          </div>
+        {/* Approvals and Register groups (#1483); the groups replace the
+            intro line, and the sales tax detail is in the help sheet. */}
+        <TabsContent value="workflow" className="mt-6">
           <WorkflowThresholdsForm
             expenseApprovalThreshold={parseThreshold(expenseSetting?.value)}
             reimbursementApprovalThreshold={parseThreshold(
@@ -211,26 +200,17 @@ export default async function OrganizationSettingsPage() {
           <BrandingPanel branding={branding} />
         </TabsContent>
 
+        {/* The switch, then Sending beside Who receives what (#1484). The
+            reasoning each card used to carry is in the help sheet. */}
         <TabsContent value="notifications" className="mt-6 space-y-4">
           <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            The organization-wide switch for every email this portal sends. It
-            is a stop, not a preference: individual people choose what they want
-            in{" "}
-            <Link
-              href="/portal/account"
-              className="underline underline-offset-4"
-            >
-              My Account &rarr; Email notifications
-            </Link>
-            , and this overrides all of them &mdash; including the daily ops
-            report below, which goes to a shared inbox rather than to
-            anyone&rsquo;s account. Every change here is recorded in the audit
-            log.
+            Every change here is recorded in the audit log.
           </p>
           <NotificationsPanel
             emailEnabled={emailEnabled}
             kinds={NOTIFICATION_KINDS}
             recipientsByKind={recipientsByKind}
+            receiptDelivery={receiptDelivery}
             orgName={orgName}
             platformFrom={bareAddress(platformFrom)}
             sendingDomain={sendingDomain}

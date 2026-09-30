@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, FieldLabel } from "@/components/ui/field";
+import { DocumentField } from "@/components/portal/document-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -9,6 +10,7 @@ export type DisclosureFormState = {
   onFileDate: string;
   notes: string;
   externalLink: string;
+  documentPath: string;
   bodyText: string;
 };
 
@@ -23,6 +25,7 @@ export function emptyDisclosureForm(defaultYear: number): DisclosureFormState {
     onFileDate: "",
     notes: "",
     externalLink: "",
+    documentPath: "",
     bodyText: "",
   };
 }
@@ -31,6 +34,7 @@ export function DisclosureFormFields({
   form,
   update,
   idPrefix,
+  documentUrl = null,
 }: {
   form: DisclosureFormState;
   update: <K extends keyof DisclosureFormState>(
@@ -38,6 +42,8 @@ export function DisclosureFormFields({
     value: DisclosureFormState[K],
   ) => void;
   idPrefix: string;
+  /** The signed URL for the saved `documentPath`, when editing a record. */
+  documentUrl?: string | null;
 }) {
   return (
     <>
@@ -77,18 +83,16 @@ export function DisclosureFormFields({
         />
       </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-external-link`}>
-          External link
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-external-link`}
-          type="url"
-          placeholder="https://..."
-          value={form.externalLink}
-          onChange={(event) => update("externalLink", event.target.value)}
-        />
-      </Field>
+      <DocumentField
+        value={{ link: form.externalLink, path: form.documentPath }}
+        onChange={({ link, path }) => {
+          update("externalLink", link);
+          update("documentPath", path);
+        }}
+        signedUrl={documentUrl}
+        idPrefix={idPrefix}
+        module="governance"
+      />
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-body-text`}>
@@ -110,6 +114,7 @@ export function packDisclosureFormData(form: DisclosureFormState) {
   formData.set("onFileDate", form.onFileDate);
   formData.set("notes", form.notes);
   formData.set("externalLink", form.externalLink);
+  formData.set("documentPath", form.documentPath);
   formData.set("bodyText", form.bodyText);
   return formData;
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -11,7 +12,7 @@ import type { ResolutionMeetingOption } from "./resolutions-shared";
 import type { PersonListItem } from "../../people/actions";
 
 const RESOLUTION_SELECT =
-  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!resolutions_mover_person_id_fkey(id, name, preferred_name, email, phone), seconder:people!resolutions_seconder_person_id_fkey(id, name, preferred_name, email, phone)";
+  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, document_path, body_text, mover:people!resolutions_mover_person_id_fkey(id, name, preferred_name, email, phone), seconder:people!resolutions_seconder_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Resolutions",
@@ -43,6 +44,12 @@ export default async function ResolutionsPage() {
   const peopleOptions = (people ?? []) as PersonListItem[];
   const meetingOptions = (meetings ?? []) as ResolutionMeetingOption[];
 
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const resolutionsWithDocuments = await withDocumentUrls(
+    supabase,
+    (resolutions ?? []) as unknown as Resolution[],
+  );
+
   return (
     <>
       <div className="w-fit">
@@ -54,7 +61,7 @@ export default async function ResolutionsPage() {
 
       <div className="mt-6">
         <ResolutionsTable
-          resolutions={(resolutions ?? []) as unknown as Resolution[]}
+          resolutions={resolutionsWithDocuments}
           people={peopleOptions}
           meetings={meetingOptions}
           canManage={canManage}

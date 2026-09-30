@@ -99,7 +99,7 @@ export async function createReimbursementFromExpenseAction(
   const { data: expense, error: expenseError } = await supabase
     .from("event_expenses")
     .select(
-      "id, event_id, description, amount, currency, receipt_url, paid_by_person_id",
+      "id, event_id, description, amount, currency, receipt_url, receipt_path, paid_by_person_id",
     )
     .eq("id", expenseId)
     .single();
@@ -117,6 +117,9 @@ export async function createReimbursementFromExpenseAction(
     amount: expense.amount,
     currency: expense.currency,
     receipt_url: expense.receipt_url,
+    // The same object, not a copy: the file is the one receipt for both
+    // records, and the sweep keeps it while either still points at it.
+    receipt_path: expense.receipt_path,
     source_expense_id: expense.id,
   });
   if (error) {

@@ -11,6 +11,7 @@ import {
 } from "./expenses-shared";
 import { parseExpenseForm, parseRejectReason } from "./expense-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
+import { withReceiptUrls } from "@/lib/storage/documents-sign";
 
 export type ExpenseActionResult = { error: string } | { success: true };
 
@@ -91,7 +92,12 @@ export async function listEventExpensesAction(
       error: "Could not load expenses for this event. Please try again.",
     };
   }
-  return { data: (data ?? []) as unknown as ExpenseRow[] };
+  return {
+    data: await withReceiptUrls(
+      supabase,
+      (data ?? []) as unknown as ExpenseRow[],
+    ),
+  };
 }
 
 export async function getExpenseApprovalContextAction(): Promise<ExpenseApprovalContext> {

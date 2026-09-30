@@ -10,13 +10,14 @@ import {
 } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
@@ -24,7 +25,9 @@ import { RequiredFieldsNote } from "@/components/required-fields-note";
 
 /**
  * One numeric setting with its own Save. The field defaults describe a USD
- * threshold; the sales tax card below overrides them for a percent.
+ * threshold; the sales tax card below overrides them for a percent. The
+ * description is the one line to know before saving (#1483); the reasoning
+ * is in the help sheet.
  */
 function ThresholdCard({
   title,
@@ -72,36 +75,37 @@ function ThresholdCard({
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <RequiredFieldsNote />
-            <Field>
-              <FieldLabel htmlFor={`${idPrefix}-${fieldName}`} required>
-                {fieldLabel}
-              </FieldLabel>
-              <Input
-                id={`${idPrefix}-${fieldName}`}
-                name={fieldName}
-                type="number"
-                min="0"
-                max={max}
-                step={step}
-                required
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-              />
-              <FieldDescription>{description}</FieldDescription>
-            </Field>
-
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <div>
+            {/* One field, so its Save sits beside it rather than on a row
+                of its own, as the other settings cards' buttons do. */}
+            <div className="flex items-end gap-3">
+              <Field className="flex-1">
+                <FieldLabel htmlFor={`${idPrefix}-${fieldName}`} required>
+                  {fieldLabel}
+                </FieldLabel>
+                <Input
+                  id={`${idPrefix}-${fieldName}`}
+                  name={fieldName}
+                  type="number"
+                  min="0"
+                  max={max}
+                  step={step}
+                  required
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                />
+              </Field>
               <Button type="submit" disabled={isPending}>
                 {isPending ? (
                   <>
@@ -129,33 +133,51 @@ export function WorkflowThresholdsForm({
   /** Percent. */
   salesTaxRate: number | null;
 }) {
+  // Two groups by subject (#1483), so the group labels do the explaining a
+  // tab intro used to. From `lg` each card takes half the width -- the sales
+  // tax card too, alone in its row, rather than stretching one input across
+  // the page. Below `lg` it is one column in the order the cards always had.
   return (
-    <div className="space-y-6">
-      <ThresholdCard
-        title="Expense approval threshold"
-        idPrefix="expense"
-        description="Below this amount, finance can self-approve their own expense submissions. At or above it, a second approval from admin or board is required."
-        initialValue={expenseApprovalThreshold}
-        action={updateExpenseApprovalThresholdAction}
-      />
-      <ThresholdCard
-        title="Reimbursement approval threshold"
-        idPrefix="reimbursement"
-        description="Below this amount, finance can self-approve their own reimbursement submissions. At or above it, a second approval from admin or board is required."
-        initialValue={reimbursementApprovalThreshold}
-        action={updateReimbursementApprovalThresholdAction}
-      />
-      <ThresholdCard
-        title="Sales tax rate"
-        idPrefix="sales-tax"
-        fieldName="rate"
-        fieldLabel="Rate (%)"
-        max="100"
-        step="0.001"
-        description="Prefilled on every sale at the register, where the cashier can change it for one sale. Tax is added on top of the pre-tax prices in the catalog, and what is collected is reported separately from income. Changing it here never alters a sale already recorded."
-        initialValue={salesTaxRate}
-        action={updateSalesTaxRateAction}
-      />
+    <div className="space-y-8">
+      <section aria-labelledby="settings-approvals" className="space-y-3">
+        <h2 id="settings-approvals" className="app-eyebrow text-sm">
+          Approvals
+        </h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ThresholdCard
+            title="Expense approval threshold"
+            idPrefix="expense"
+            description="Below this, finance can self-approve an expense; at or above it, admin or board must approve."
+            initialValue={expenseApprovalThreshold}
+            action={updateExpenseApprovalThresholdAction}
+          />
+          <ThresholdCard
+            title="Reimbursement approval threshold"
+            idPrefix="reimbursement"
+            description="Below this, finance can self-approve a reimbursement; at or above it, admin or board must approve."
+            initialValue={reimbursementApprovalThreshold}
+            action={updateReimbursementApprovalThresholdAction}
+          />
+        </div>
+      </section>
+      <section aria-labelledby="settings-register" className="space-y-3">
+        <h2 id="settings-register" className="app-eyebrow text-sm">
+          Register
+        </h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ThresholdCard
+            title="Sales tax rate"
+            idPrefix="sales-tax"
+            fieldName="rate"
+            fieldLabel="Rate (%)"
+            max="100"
+            step="0.001"
+            description="Prefilled on every sale at the register; changing it never alters a sale already recorded."
+            initialValue={salesTaxRate}
+            action={updateSalesTaxRateAction}
+          />
+        </div>
+      </section>
     </div>
   );
 }

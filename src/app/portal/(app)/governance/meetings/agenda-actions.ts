@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { signDocumentPaths } from "@/lib/storage/documents-sign";
 import {
   parseAgendaForm,
   type AgendaOngoingItem,
@@ -18,6 +19,10 @@ export type Agenda = {
   id: string;
   meeting_id: string;
   external_link: string | null;
+  /** Object path in the private documents bucket (#1489). */
+  document_path: string | null;
+  /** A short-lived signed URL for `document_path`. */
+  document_url: string | null;
   body_text: string | null;
   template_id: string | null;
   template_version_id: string | null;
@@ -46,7 +51,7 @@ export async function getAgendaAction(
   const { data, error } = await supabase
     .from("agendas")
     .select(
-      "id, meeting_id, external_link, body_text, template_id, template_version_id, ongoing_items, new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, agenda_template_versions!agendas_template_version_id_fkey(sections)",
+      "id, meeting_id, external_link, document_path, body_text, template_id, template_version_id, ongoing_items, new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, agenda_template_versions!agendas_template_version_id_fkey(sections)",
     )
     .eq("meeting_id", meetingId)
     .maybeSingle();
@@ -60,6 +65,7 @@ export async function getAgendaAction(
     id: string;
     meeting_id: string;
     external_link: string | null;
+    document_path: string | null;
     body_text: string | null;
     template_id: string | null;
     template_version_id: string | null;
@@ -72,11 +78,17 @@ export async function getAgendaAction(
     agenda_template_versions: { sections: AgendaTemplateSection[] } | null;
   };
 
+  const documentUrls = await signDocumentPaths(supabase, [row.document_path]);
+
   return {
     data: {
       id: row.id,
       meeting_id: row.meeting_id,
       external_link: row.external_link,
+      document_path: row.document_path,
+      document_url: row.document_path
+        ? (documentUrls.get(row.document_path) ?? null)
+        : null,
       body_text: row.body_text,
       template_id: row.template_id,
       template_version_id: row.template_version_id,

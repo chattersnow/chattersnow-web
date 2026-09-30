@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, FieldLabel } from "@/components/ui/field";
+import { DocumentField } from "@/components/portal/document-field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -17,6 +18,7 @@ export type ResolutionFormState = {
   voteOutcome: VoteOutcome;
   effectiveDate: string;
   externalLink: string;
+  documentPath: string;
   bodyText: string;
 };
 
@@ -26,6 +28,7 @@ export function emptyResolutionForm(): ResolutionFormState {
     voteOutcome: "pending",
     effectiveDate: "",
     externalLink: "",
+    documentPath: "",
     bodyText: "",
   };
 }
@@ -34,6 +37,7 @@ export function ResolutionFormFields({
   form,
   update,
   idPrefix,
+  documentUrl = null,
 }: {
   form: ResolutionFormState;
   update: <K extends keyof ResolutionFormState>(
@@ -41,6 +45,8 @@ export function ResolutionFormFields({
     value: ResolutionFormState[K],
   ) => void;
   idPrefix: string;
+  /** The signed URL for the saved `documentPath`, when editing a record. */
+  documentUrl?: string | null;
 }) {
   return (
     <>
@@ -91,18 +97,16 @@ export function ResolutionFormFields({
         </Field>
       </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-external-link`}>
-          External link
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-external-link`}
-          type="url"
-          placeholder="https://..."
-          value={form.externalLink}
-          onChange={(event) => update("externalLink", event.target.value)}
-        />
-      </Field>
+      <DocumentField
+        value={{ link: form.externalLink, path: form.documentPath }}
+        onChange={({ link, path }) => {
+          update("externalLink", link);
+          update("documentPath", path);
+        }}
+        signedUrl={documentUrl}
+        idPrefix={idPrefix}
+        module="governance"
+      />
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-body-text`}>
@@ -124,6 +128,7 @@ export function packResolutionFormData(form: ResolutionFormState) {
   formData.set("voteOutcome", form.voteOutcome);
   formData.set("effectiveDate", form.effectiveDate);
   formData.set("externalLink", form.externalLink);
+  formData.set("documentPath", form.documentPath);
   formData.set("bodyText", form.bodyText);
   return formData;
 }

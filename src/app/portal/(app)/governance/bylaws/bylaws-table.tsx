@@ -7,6 +7,7 @@ import { NewBylawsDialog } from "./new-bylaws-dialog";
 import type { Bylaws } from "./bylaws-actions";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   PortalDataTable,
   type PortalDataTableColumn,
@@ -105,15 +106,14 @@ export function BylawsTable({
           <p className="app-muted text-sm">
             Effective {formatCalendarDate(current.effective_date)}
           </p>
-          {current.external_link && (
-            <a
-              href={current.external_link}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-[var(--purple-deep)] underline"
-            >
-              {current.external_link}
-            </a>
+          {(current.external_link || current.document_path) && (
+            <div className="max-w-md">
+              <DocumentPreview
+                link={current.external_link}
+                path={current.document_path}
+                url={current.document_url}
+              />
+            </div>
           )}
           {canManage && (
             <div>
