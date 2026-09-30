@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, FieldLabel } from "@/components/ui/field";
+import { DocumentField } from "@/components/portal/document-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -9,6 +10,7 @@ export type BylawsFormState = {
   effectiveDate: string;
   amendmentSummary: string;
   externalLink: string;
+  documentPath: string;
   bodyText: string;
 };
 
@@ -18,6 +20,7 @@ export function emptyBylawsForm(): BylawsFormState {
     effectiveDate: "",
     amendmentSummary: "",
     externalLink: "",
+    documentPath: "",
     bodyText: "",
   };
 }
@@ -26,6 +29,7 @@ export function BylawsFormFields({
   form,
   update,
   idPrefix,
+  documentUrl = null,
 }: {
   form: BylawsFormState;
   update: <K extends keyof BylawsFormState>(
@@ -33,6 +37,8 @@ export function BylawsFormFields({
     value: BylawsFormState[K],
   ) => void;
   idPrefix: string;
+  /** The signed URL for the saved `documentPath`, when editing a record. */
+  documentUrl?: string | null;
 }) {
   return (
     <>
@@ -75,18 +81,16 @@ export function BylawsFormFields({
         />
       </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-external-link`}>
-          External link
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-external-link`}
-          type="url"
-          placeholder="https://..."
-          value={form.externalLink}
-          onChange={(event) => update("externalLink", event.target.value)}
-        />
-      </Field>
+      <DocumentField
+        value={{ link: form.externalLink, path: form.documentPath }}
+        onChange={({ link, path }) => {
+          update("externalLink", link);
+          update("documentPath", path);
+        }}
+        signedUrl={documentUrl}
+        idPrefix={idPrefix}
+        module="governance"
+      />
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-body-text`}>Bylaws text</FieldLabel>
@@ -106,6 +110,7 @@ export function packBylawsFormData(form: BylawsFormState) {
   formData.set("effectiveDate", form.effectiveDate);
   formData.set("amendmentSummary", form.amendmentSummary);
   formData.set("externalLink", form.externalLink);
+  formData.set("documentPath", form.documentPath);
   formData.set("bodyText", form.bodyText);
   return formData;
 }

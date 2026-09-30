@@ -1471,13 +1471,25 @@ hosted Supabase. Run `deleteTenantGearPhotos(serviceRoleClient(), tenantId)`
 from `src/lib/storage/orphan-purge.ts` **before** `delete_tenant()` -- afterwards
 the tenant id is gone and there is nothing left to derive the prefix from.
 
+The private `documents` bucket (#1489) is laid out as
+`{tenant_id}/{module}/{uuid}/{file name}` and has the same obligation: run
+`deleteTenantDocuments(serviceRoleClient(), tenantId)` from
+`src/lib/storage/documents-purge.ts` before `delete_tenant()` too. Its policies
+(20260930120000) check the tenant prefix and the module's permission, and
+`src/lib/storage/documents.integration.test.ts` asserts them.
+
 **The export deliberately carries no bytes.** `inventory_items.photo_url` holds
 a public, durable URL that resolves with no credentials, so a receiving
 organization can fetch every photo from the export as it stands. Inlining
-megabytes of base64 into a JSON document would be worse in every way.
+megabytes of base64 into a JSON document would be worse in every way. A
+governance `document_path` is different -- the bucket is private and the path
+resolves to nothing without a session in that tenant -- so moving an
+organization's uploaded documents means downloading them with the service-role
+client before teardown.
 
 ## Still owed
 
-- Nothing beyond `gear-photos` is per tenant in Supabase Storage today. A second
-  bucket needs the same two things: a tenant prefix with policies to enforce it,
-  and a line in the teardown procedure above.
+- The teardown procedure above covers `gear-photos` and `documents`. The other
+  per-tenant buckets (`artwork-submissions`, `site-photos`,
+  `publication-files`) have tenant-prefix policies but no teardown helper yet.
+  Every new bucket needs both.

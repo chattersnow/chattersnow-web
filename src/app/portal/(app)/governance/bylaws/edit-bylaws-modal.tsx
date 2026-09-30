@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -49,6 +50,7 @@ function formStateFor(bylaws: Bylaws): BylawsFormState {
     effectiveDate: bylaws.effective_date,
     amendmentSummary: bylaws.amendment_summary ?? "",
     externalLink: bylaws.external_link ?? "",
+    documentPath: bylaws.document_path ?? "",
     bodyText: bylaws.body_text ?? "",
   };
 }
@@ -60,6 +62,7 @@ function isDirty(form: BylawsFormState, bylaws: Bylaws) {
     form.effectiveDate !== baseline.effectiveDate ||
     form.amendmentSummary !== baseline.amendmentSummary ||
     form.externalLink !== baseline.externalLink ||
+    form.documentPath !== baseline.documentPath ||
     form.bodyText !== baseline.bodyText
   );
 }
@@ -239,22 +242,12 @@ export function EditBylawsModal({ bylaws }: { bylaws: Bylaws }) {
                     {bylaws.amendment_summary || "—"}
                   </span>
                 </ReadOnlyField>
-                <ReadOnlyField
-                  label="External link"
-                  htmlFor="edit-bylaws-external-link"
-                >
-                  {bylaws.external_link ? (
-                    <a
-                      href={bylaws.external_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[var(--purple-deep)] underline"
-                    >
-                      {bylaws.external_link}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
+                <ReadOnlyField label="Document" htmlFor="edit-bylaws-document">
+                  <DocumentPreview
+                    link={bylaws.external_link}
+                    path={bylaws.document_path}
+                    url={bylaws.document_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Bylaws text"
@@ -276,6 +269,7 @@ export function EditBylawsModal({ bylaws }: { bylaws: Bylaws }) {
                 <FieldGroup>
                   <RequiredFieldsNote />
                   <BylawsFormFields
+                    documentUrl={bylaws.document_url}
                     form={form}
                     update={update}
                     idPrefix="edit-bylaws"

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -11,7 +12,7 @@ import type { PersonListItem } from "../../people/actions";
 import { fiscalYearForDate, getFiscalYearStartMonth } from "@/lib/fiscal-year";
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, document_path, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Conflict of Interest",
@@ -45,6 +46,12 @@ export default async function ConflictOfInterestPage() {
     await getFiscalYearStartMonth(supabase),
   );
 
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const disclosuresWithDocuments = await withDocumentUrls(
+    supabase,
+    (disclosures ?? []) as unknown as Disclosure[],
+  );
+
   return (
     <>
       <div className="w-fit">
@@ -56,7 +63,7 @@ export default async function ConflictOfInterestPage() {
 
       <div className="mt-6">
         <DisclosuresTable
-          disclosures={(disclosures ?? []) as unknown as Disclosure[]}
+          disclosures={disclosuresWithDocuments}
           people={peopleOptions}
           canManage={canManage}
           newAction={

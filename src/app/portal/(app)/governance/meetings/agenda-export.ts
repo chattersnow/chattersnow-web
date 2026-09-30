@@ -21,6 +21,7 @@ import {
   formatInstantDate,
   personDisplayName,
 } from "@/lib/format";
+import { documentNameFromPath } from "@/lib/storage/documents";
 
 export type AgendaExportInput = {
   meetingDate: string;
@@ -127,6 +128,14 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
 
   if (agenda.external_link) {
     lines.push(`External link: ${agenda.external_link}`);
+    lines.push("");
+  }
+  if (agenda.document_path) {
+    // Named, never linked: a signed URL in an exported file stops working
+    // within the hour, and the file is private to the portal (#1489).
+    lines.push(
+      `Document: ${documentNameFromPath(agenda.document_path)} (in the portal)`,
+    );
     lines.push("");
   }
 
@@ -243,6 +252,14 @@ export function formatAgendaPlainText(input: AgendaExportInput): string {
 
   if (agenda.external_link) {
     lines.push(`External link: ${agenda.external_link}`);
+    lines.push("");
+  }
+  if (agenda.document_path) {
+    // Named, never linked: a signed URL in an exported file stops working
+    // within the hour, and the file is private to the portal (#1489).
+    lines.push(
+      `Document: ${documentNameFromPath(agenda.document_path)} (in the portal)`,
+    );
     lines.push("");
   }
 

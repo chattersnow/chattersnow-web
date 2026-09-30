@@ -27,6 +27,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -67,6 +68,7 @@ function formStateFor(resolution: Resolution): ResolutionFormState {
     voteOutcome: resolution.vote_outcome,
     effectiveDate: resolution.effective_date ?? "",
     externalLink: resolution.external_link ?? "",
+    documentPath: resolution.document_path ?? "",
     bodyText: resolution.body_text ?? "",
   };
 }
@@ -83,6 +85,7 @@ function isDirty(
     form.voteOutcome !== baseline.voteOutcome ||
     form.effectiveDate !== baseline.effectiveDate ||
     form.externalLink !== baseline.externalLink ||
+    form.documentPath !== baseline.documentPath ||
     form.bodyText !== baseline.bodyText ||
     mover?.id !== resolution.mover.id ||
     (seconder?.id ?? null) !== (resolution.seconder?.id ?? null)
@@ -314,21 +317,14 @@ export function EditResolutionModal({
                   {formatCalendarDate(resolution.effective_date)}
                 </ReadOnlyField>
                 <ReadOnlyField
-                  label="External link"
-                  htmlFor="edit-resolution-external-link"
+                  label="Document"
+                  htmlFor="edit-resolution-document"
                 >
-                  {resolution.external_link ? (
-                    <a
-                      href={resolution.external_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[var(--purple-deep)] underline"
-                    >
-                      {resolution.external_link}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
+                  <DocumentPreview
+                    link={resolution.external_link}
+                    path={resolution.document_path}
+                    url={resolution.document_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Resolution text"
@@ -377,6 +373,7 @@ export function EditResolutionModal({
                   </div>
 
                   <ResolutionFormFields
+                    documentUrl={resolution.document_url}
                     form={form}
                     update={update}
                     idPrefix="edit-resolution"

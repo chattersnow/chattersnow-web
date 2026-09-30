@@ -450,7 +450,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
 
   // ------------------------------------------------------------ Governance
   governance: {
-    view: "Read governance records where a page offers them: meeting agendas and the approved minutes, and the governance figures on the dashboard.",
+    view: "Read governance records where a page offers them: meeting agendas and the approved minutes, and the governance figures on the dashboard. Also what opens a document uploaded to a governance record: the private file is signed only for someone holding at least View in the same organization.",
     manage:
       "Open the Governance section and work all of it -- board members, meetings, agendas, minutes, decisions and action items, resolutions, bylaws, policies, conflict-of-interest disclosures, grants, partnerships, annual requirements and nonprofit status.",
     excludes: [

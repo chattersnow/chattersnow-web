@@ -257,6 +257,7 @@ export type Database = {
           body_text: string | null;
           created_at: string;
           created_by: string;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           meeting_id: string;
@@ -276,6 +277,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id: string;
@@ -295,6 +297,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id?: string;
@@ -355,6 +358,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           due_date: string;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           name: string;
@@ -370,6 +374,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           due_date: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           name: string;
@@ -385,6 +390,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           due_date?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           name?: string;
@@ -1134,6 +1140,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           effective_date: string;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           tenant_id: string;
@@ -1147,6 +1154,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           effective_date: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           tenant_id?: string;
@@ -1160,6 +1168,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           effective_date?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           tenant_id?: string;
@@ -1798,6 +1807,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           disclosure_year: number;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           notes: string | null;
@@ -1812,6 +1822,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           disclosure_year: number;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           notes?: string | null;
@@ -1826,6 +1837,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           disclosure_year?: number;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           notes?: string | null;
@@ -6962,6 +6974,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           effective_date: string;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           name: string;
@@ -6976,6 +6989,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           effective_date: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           name: string;
@@ -6990,6 +7004,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           effective_date?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           name?: string;
@@ -7578,6 +7593,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           effective_date: string | null;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           meeting_id: string | null;
@@ -7594,6 +7610,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           effective_date?: string | null;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id?: string | null;
@@ -7610,6 +7627,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           effective_date?: string | null;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id?: string | null;

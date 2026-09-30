@@ -29,6 +29,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -61,6 +62,7 @@ function formStateFor(
     dueDate: requirement.due_date,
     status: requirement.status,
     externalLink: requirement.external_link ?? "",
+    documentPath: requirement.document_path ?? "",
     bodyText: requirement.body_text ?? "",
   };
 }
@@ -76,6 +78,7 @@ function isDirty(
     form.dueDate !== baseline.dueDate ||
     form.status !== baseline.status ||
     form.externalLink !== baseline.externalLink ||
+    form.documentPath !== baseline.documentPath ||
     form.bodyText !== baseline.bodyText ||
     (responsible?.id ?? null) !== (requirement.responsible?.id ?? null)
   );
@@ -282,21 +285,14 @@ export function EditRequirementModal({
                   {personDisplayName(requirement.responsible)}
                 </ReadOnlyField>
                 <ReadOnlyField
-                  label="External link"
-                  htmlFor="edit-requirement-external-link"
+                  label="Document"
+                  htmlFor="edit-requirement-document"
                 >
-                  {requirement.external_link ? (
-                    <a
-                      href={requirement.external_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[var(--purple-deep)] underline"
-                    >
-                      {requirement.external_link}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
+                  <DocumentPreview
+                    link={requirement.external_link}
+                    path={requirement.document_path}
+                    url={requirement.document_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-requirement-notes">
                   <span className="whitespace-pre-wrap">
@@ -315,6 +311,7 @@ export function EditRequirementModal({
                 <FieldGroup>
                   <RequiredFieldsNote />
                   <AnnualRequirementFormFields
+                    documentUrl={requirement.document_url}
                     form={form}
                     update={update}
                     idPrefix="edit-requirement"
