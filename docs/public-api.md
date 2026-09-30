@@ -151,19 +151,20 @@ A minute is short enough that an organization publishing a correction sees it
 on an embed about as fast as on its own site, and long enough that an embed on
 a busy page costs one Supabase request a minute rather than one per visitor.
 
-That is also the whole of the free-tier argument, and it is worth being precise
-about which limit binds (checked 2026-09-14):
+That is also the whole of the plan-limit argument, and it is worth being
+precise about which limit binds (Supabase checked 2026-09-14, Vercel 2026-09-29):
 
 - **Supabase Free** includes _unlimited API requests_ but **5 GB egress and
   5 GB cached egress per month**. So the thing to conserve is bytes leaving the
   database, not request count — and a CDN hit never reaches it at all. A Free
   project is also paused after a week of inactivity, which matters more for a
   quiet tenant than for a busy embed.
-- **Vercel Hobby** includes the first 100 GB of Fast Data Transfer, the first
-  10 GB of Fast Origin Transfer and the first 1,000,000 function invocations a
-  month. Note also that Hobby is **non-commercial use only** — a customer's
-  paid embed is not that, so a real second consumer is a reason to be on Pro
-  regardless of any number here.
+- **Vercel Pro** (the project moved off Hobby on 2026-09-29) includes 1 TB of
+  Fast Data Transfer, 10,000,000 Edge Requests and 1,000,000 function
+  invocations a month; Fast Origin Transfer is billed on demand from the first
+  byte. So a cache hit is still the cheap path, and a miss that reaches a
+  function is what costs. Pro also permits commercial use, which Hobby did not,
+  so a customer's paid embed needs no plan change.
 
 No edge-level read limiter is deployed. On these plans the cache is the lever,
 and adding a per-IP counter in front of a document a CDN is already serving

@@ -25,8 +25,10 @@ export const SITE_PHOTO_MAX_EDGE = 2400;
  * never change, so there is nothing to revalidate. Supabase defaults this to
  * an hour, and Next 16 raises anything shorter to its own `minimumCacheTTL` of
  * four hours: roughly 46 slots x 3 widths x 6 revalidations a day, which is
- * about 25k Vercel image transformations a month against Hobby's 5,000. With a
- * year it collapses to a one-time transformation per slot and width (#921).
+ * about 25k Vercel image transformations a month. On Pro only the first 1,000
+ * a month are included and the rest are billed, so that would be a bill rather
+ * than a cap. With a year it collapses to a one-time transformation per slot
+ * and width (#921).
  */
 const CACHE_CONTROL_SECONDS = 31536000;
 
