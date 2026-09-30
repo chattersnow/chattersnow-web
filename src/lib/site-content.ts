@@ -1561,12 +1561,18 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   // request.
   //
   // **What the defaults below do and do not say.** The *shape* of the price
-  // list is the platform's own decision and is written here: three sizes, every
-  // module on every plan, sized by how many people need a login rather than by
-  // which parts of the system you may use. The *figures* are this deployment's
-  // commercial terms -- another operator running this code charges its own --
-  // so every default price is an em dash, and the platform tenant's real
-  // numbers are its own `site_content` rows (20260920030000). The `pricing`
+  // list is the platform's own decision and is written here: three plans that
+  // differ by which modules come with them, each one adding to the last, with
+  // the people directory, the public website and the administration that runs
+  // it in every plan. That follows the entitlements model (#900, `plan_modules`)
+  // rather than fighting it: a plan is a set of modules, which is the one thing
+  // the platform can already switch per tenant. It replaced the first shape,
+  // sized by how many people need a login, on 2026-09-29 -- the platform's costs
+  // do not grow with logins, and a volunteer-run organization is exactly who a
+  // per-login price punishes. The *figures* are this deployment's commercial
+  // terms -- another operator running this code charges its own -- so every
+  // default price is an em dash, and the platform tenant's real numbers are its
+  // own `site_content` rows (20260920030000, 20260929200000). The `pricing`
   // visibility slot stays off until somebody has agreed to them.
 
   {
@@ -1584,7 +1590,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Introduction",
     type: "text",
     default:
-      "Plans are sized by how many people need a login, not by which parts of the system you are allowed to use. Everything is in every plan.",
+      "Plans differ by which parts of the system come with them, and each one includes everything in the one before it. Your people, your public website and the tools that run it are in every plan.",
   },
   {
     key: "pricing.plans",
@@ -1600,28 +1606,40 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
         name: "Starter",
         price: "—",
         period: "per month",
-        who: "An organization of two or three people, running today on one spreadsheet and a shared drive.",
-        includes: ["Up to 3 people with logins."],
+        who: "A volunteer-run organization or a one-person business: a website, a contact list, events and a way to be reached.",
+        includes: [
+          "People and the public website.",
+          "Events, with registration.",
+          "Volunteers, programs and messages.",
+        ],
         cta_label: "",
         cta_href: "",
         shown: true,
       },
       {
-        name: "Standard",
+        name: "Operations",
         price: "—",
         period: "per month",
-        who: "A small staff, a board, and whoever coordinates the volunteers.",
-        includes: ["Up to 10 people with logins."],
+        who: "An organization that handles money and things: somebody keeps the books, somebody keeps the stock.",
+        includes: [
+          "Everything in Starter.",
+          "Finance and reimbursements.",
+          "Inventory, the content calendar and open calls.",
+        ],
         cta_label: "",
         cta_href: "",
         shown: true,
       },
       {
-        name: "Full",
+        name: "Complete",
         price: "—",
         period: "per month",
-        who: "Everybody who needs to be in the system is in it, and somebody wants a reply the same day.",
-        includes: ["Unlimited logins.", "Priority support."],
+        who: "An organization with a board to answer to, or one that wants every part of the system.",
+        includes: [
+          "Everything in Operations.",
+          "Governance, for nonprofits: meetings, minutes, resolutions and grants.",
+          "Conduct reports, technology and access reviews, and accounts for the people you serve.",
+        ],
         cta_label: "",
         cta_href: "",
         shown: true,
@@ -1645,7 +1663,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
       "The things that do not differ between plans. #998 asks this page to say three of them plainly: the modules, the custom domain, and the public website.",
     type: "paragraphs",
     default: [
-      "Every module: finance, people, events, volunteers, programs, inventory, governance and the content calendar. Nothing is held back for a larger plan.",
+      "The people directory, and the administration that decides who can see and change what. Every plan's modules work from the same records, so moving up a plan adds modules rather than moving your data.",
       "Your own domain, and a public website on it that reads from the same records as the staff portal — your events listing, your programs and your volunteer form are the ones already in the system.",
       "An export of everything you have, whenever you ask for it. If you leave, you leave with your data.",
     ],
