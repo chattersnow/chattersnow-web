@@ -2488,6 +2488,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejected_by: string | null;
@@ -2513,6 +2514,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           paid_by_person_id?: string | null;
+          receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
           rejected_by?: string | null;
@@ -2538,6 +2540,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           paid_by_person_id?: string | null;
+          receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
           rejected_by?: string | null;
@@ -7484,6 +7487,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           person_id: string;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejection_reason: string | null;
@@ -7508,6 +7512,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           person_id: string;
+          receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
           rejection_reason?: string | null;
@@ -7532,6 +7537,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           person_id?: string;
+          receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
           rejection_reason?: string | null;
@@ -9805,6 +9811,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejected_by: string | null;
@@ -9838,6 +9845,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           person_id: string;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejection_reason: string | null;
@@ -10421,6 +10429,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejected_by: string | null;
@@ -10454,6 +10463,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           person_id: string;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejection_reason: string | null;
@@ -11027,6 +11037,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejected_by: string | null;
@@ -11060,6 +11071,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           person_id: string;
+          receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
           rejection_reason: string | null;

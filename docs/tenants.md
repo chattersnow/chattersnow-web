@@ -1482,7 +1482,7 @@ The private `documents` bucket (#1489) is laid out as
 a public, durable URL that resolves with no credentials, so a receiving
 organization can fetch every photo from the export as it stands. Inlining
 megabytes of base64 into a JSON document would be worse in every way. A
-governance `document_path` is different -- the bucket is private and the path
+governance `document_path` or a finance `receipt_path` is different -- the bucket is private and the path
 resolves to nothing without a session in that tenant -- so moving an
 organization's uploaded documents means downloading them with the service-role
 client before teardown.

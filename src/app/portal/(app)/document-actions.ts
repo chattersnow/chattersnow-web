@@ -1,7 +1,10 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPermission } from "@/lib/auth/permissions";
+import {
+  checkAnyPermission,
+  type PermissionCheck,
+} from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import {
   documentFileName,
@@ -10,6 +13,18 @@ import {
 } from "@/lib/storage/documents";
 
 export type DocumentPathResult = { error: string } | { path: string };
+
+/**
+ * Who may upload into each module's folder: the grant its insert policy
+ * checks. Receipts (#1490) take either kind of spend's manage grant.
+ */
+const UPLOAD_PERMISSIONS: Record<DocumentModule, readonly PermissionCheck[]> = {
+  governance: [{ resource: "governance", level: "manage" }],
+  receipts: [
+    { resource: "event_expenses", level: "manage" },
+    { resource: "reimbursements", level: "manage" },
+  ],
+};
 
 /**
  * Where the next document goes: `{tenant_id}/{module}/{uuid}/{file name}`
@@ -34,7 +49,14 @@ export async function createDocumentPathAction(
   );
   if ("error" in userResult) return userResult;
 
-  const permissionError = await checkPermission(supabase, module, "manage");
+  // A Server Action's argument is whatever the caller sent.
+  if (!Object.hasOwn(UPLOAD_PERMISSIONS, module)) {
+    return { error: "Documents can't be uploaded here." };
+  }
+  const permissionError = await checkAnyPermission(
+    supabase,
+    UPLOAD_PERMISSIONS[module],
+  );
   if (permissionError) return permissionError;
 
   const { data: tenantId, error } = await supabase.rpc("current_tenant_id");

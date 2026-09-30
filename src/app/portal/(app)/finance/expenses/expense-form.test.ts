@@ -68,6 +68,7 @@ describe("parseExpenseForm", () => {
         amount: 150.5,
         currency: "CAD",
         receipt_url: "https://example.com/receipt.pdf",
+        receipt_path: null,
         notes: "Reimbursed",
         paid_by_person_id: "person-1",
       },

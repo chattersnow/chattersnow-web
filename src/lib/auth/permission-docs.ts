@@ -88,9 +88,9 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   event_expenses: {
-    view: "See an event's expenses on its Expenses tab, and the expense figures the dashboard totals.",
+    view: "See an event's expenses on its Expenses tab, and the expense figures the dashboard totals. Also what opens an uploaded expense receipt: the private file is signed only for someone who can see the expense it belongs to.",
     manage:
-      "Record and edit expenses against an event from Finance → Expenses and from the event itself.",
+      "Record and edit expenses against an event from Finance → Expenses and from the event itself, including uploading a receipt or a photo of one.",
     excludes: [
       {
         key: "finance_approvals",
@@ -297,7 +297,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   reimbursements: {
     view: "See reimbursement figures in the dashboard and in a meeting's context pack.",
     manage:
-      "Open Finance → Reimbursements and submit, edit and withdraw reimbursement requests.",
+      "Open Finance → Reimbursements and submit, edit and withdraw reimbursement requests, including uploading a receipt or a photo of one. An uploaded receipt opens for whoever can see the request.",
     excludes: [
       {
         key: "reimbursement_approvals",
@@ -312,7 +312,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   reimbursement_approvals: {
     view: null,
     manage:
-      "Approve, reject or mark paid any submitted reimbursement, and see the queue in the attention bell.",
+      "Approve, reject or mark paid any submitted reimbursement, see the queue in the attention bell, and open the receipt attached to a request.",
     excludes: [
       { key: "reimbursements", covers: "submitting and editing the requests" },
       {

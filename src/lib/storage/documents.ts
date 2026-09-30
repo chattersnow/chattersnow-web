@@ -10,8 +10,11 @@ import { compressImage } from "./compress-image";
  */
 export const DOCUMENTS_BUCKET = "documents";
 
-/** The folder under the tenant prefix, one per module whose permission governs it. */
-export type DocumentModule = "governance";
+/**
+ * The folder under the tenant prefix, one per module whose policies govern it:
+ * `governance` (#1489) and finance `receipts` (#1490).
+ */
+export type DocumentModule = "governance" | "receipts";
 
 /** Matching the bucket's own `file_size_limit`. */
 export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
@@ -73,9 +76,9 @@ export function isImageDocument(path: string): boolean {
 }
 
 /**
- * The shape `createDocumentPathAction` mints and every governance form accepts:
+ * The shape `createDocumentPathAction` mints and every document form accepts:
  * `{tenant uuid}/{module}/{upload uuid}/{file name}`. The database's
- * `*_document_path_in_tenant` constraints check the tenant; this rejects
+ * `*_path_in_tenant` constraints check the tenant; this rejects
  * anything that isn't a path at all before it gets that far.
  */
 export function isDocumentPath(path: string, module: DocumentModule): boolean {
