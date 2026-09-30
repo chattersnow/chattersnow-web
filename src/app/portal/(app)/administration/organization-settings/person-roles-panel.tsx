@@ -4,7 +4,13 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -75,10 +81,15 @@ export function PersonRolesPanel({ stored }: { stored: StoredLabels }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
+    <form onSubmit={handleSubmit} className="h-full">
+      <Card className="h-full">
         <CardHeader>
           <CardTitle>What you call the people you work with</CardTitle>
+          {/* Where these words appear, and that only the words change, is in
+              the help sheet (#1482). */}
+          <CardDescription>
+            Leave a field blank to keep the platform&rsquo;s word.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
@@ -110,45 +121,44 @@ export function PersonRolesPanel({ stored }: { stored: StoredLabels }) {
               </Field>
             ))}
           </FieldGroup>
+          {error && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Save wording"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isPending}
+              onClick={() =>
+                setLabels(
+                  Object.fromEntries(
+                    PERSON_ROLES.flatMap((role) =>
+                      FORMS.map((form) => [
+                        personRoleLabelField(role.key, form),
+                        "",
+                      ]),
+                    ),
+                  ),
+                )
+              }
+            >
+              Reset to defaults
+            </Button>
+          </div>
         </CardContent>
       </Card>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? (
-            <>
-              <Spinner /> Saving...
-            </>
-          ) : (
-            "Save wording"
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={isPending}
-          onClick={() =>
-            setLabels(
-              Object.fromEntries(
-                PERSON_ROLES.flatMap((role) =>
-                  FORMS.map((form) => [
-                    personRoleLabelField(role.key, form),
-                    "",
-                  ]),
-                ),
-              ),
-            )
-          }
-        >
-          Reset to defaults
-        </Button>
-      </div>
     </form>
   );
 }

@@ -1685,7 +1685,8 @@ export const helpContent: Record<string, HelpEntry> = {
   },
   "/portal/administration/organization-settings": {
     title: "How these settings are used",
-    description: "Where the fiscal year and approval thresholds take effect.",
+    description:
+      "Where the fiscal year, time zone, vocabulary and approval thresholds take effect.",
     body: (
       <>
         <HowToSection heading="The fiscal year">
@@ -1703,6 +1704,41 @@ export const helpContent: Record<string, HelpEntry> = {
             Under the bylaws the fiscal year is set by Board resolution, so
             changing the month here should follow that resolution rather than
             lead it. The change is written to the audit log either way.
+          </p>
+        </HowToSection>
+        <HowToSection heading="The time zone">
+          <p>
+            The time zone says where this organization&apos;s days begin and
+            end, so reports count a day the way the staff would. A sale rung or
+            a reimbursement filed at 7pm on the last day of February counts in
+            February, not in March. It sets the default period on Financial
+            Reports, the dashboard&apos;s &ldquo;this month&rdquo; figures and
+            the annual planning review.
+          </p>
+          <p>
+            It does not change how times are shown. The portal always shows you
+            a time in your own browser&apos;s zone, and the public site shows an
+            event in the zone the event is held in.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Vocabulary">
+          <p>
+            The platform says &ldquo;inventory&rdquo; and &ldquo;items&rdquo;;
+            yours may be a gear library, a tool library or a pantry. Those words
+            are what the public navigation, this portal&apos;s sidebar and the
+            unwritten parts of your site copy use.
+          </p>
+          <p>
+            The platform says &ldquo;donors&rdquo; and &ldquo;volunteers&rdquo;;
+            yours may have members, students, customers or clients. Those words
+            are what the People section of the sidebar, its pages, the role
+            filter and every person&apos;s profile use. Only the words change: a
+            role is still set by the donation, registration or shift behind it,
+            whatever you call the person who did it.
+          </p>
+          <p>
+            A blank field keeps the platform&apos;s word, and every change is
+            written to the audit log.
           </p>
         </HowToSection>
         <HowToSection heading="Approval thresholds">
