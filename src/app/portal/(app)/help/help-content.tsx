@@ -1686,7 +1686,7 @@ export const helpContent: Record<string, HelpEntry> = {
   "/portal/administration/organization-settings": {
     title: "How these settings are used",
     description:
-      "Where the fiscal year, time zone, vocabulary and approval thresholds take effect.",
+      "Where the fiscal year, time zone, vocabulary, approval thresholds and sales tax rate take effect.",
     body: (
       <>
         <HowToSection heading="The fiscal year">
@@ -1770,6 +1770,15 @@ export const helpContent: Record<string, HelpEntry> = {
               to approve or reject it instead.
             </li>
           </ol>
+        </HowToSection>
+        <HowToSection heading="The sales tax rate">
+          <p>
+            The rate is prefilled on every sale at the register, where the
+            cashier can change it for that one sale. Tax is added on top of the
+            pre-tax prices in the catalog, and what is collected is reported
+            separately from income. Changing the rate here never alters a sale
+            already recorded.
+          </p>
         </HowToSection>
         <HowToSection heading="Who can do this">
           <p>
