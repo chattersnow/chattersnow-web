@@ -357,8 +357,8 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           created_by: string;
-          due_date: string;
           document_path: string | null;
+          due_date: string;
           external_link: string | null;
           id: string;
           name: string;
@@ -373,8 +373,8 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string;
-          due_date: string;
           document_path?: string | null;
+          due_date: string;
           external_link?: string | null;
           id?: string;
           name: string;
@@ -389,8 +389,8 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string;
-          due_date?: string;
           document_path?: string | null;
+          due_date?: string;
           external_link?: string | null;
           id?: string;
           name?: string;
@@ -1139,8 +1139,8 @@ export type Database = {
           body_text: string | null;
           created_at: string;
           created_by: string;
-          effective_date: string;
           document_path: string | null;
+          effective_date: string;
           external_link: string | null;
           id: string;
           tenant_id: string;
@@ -1153,8 +1153,8 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
-          effective_date: string;
           document_path?: string | null;
+          effective_date: string;
           external_link?: string | null;
           id?: string;
           tenant_id?: string;
@@ -1167,8 +1167,8 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
-          effective_date?: string;
           document_path?: string | null;
+          effective_date?: string;
           external_link?: string | null;
           id?: string;
           tenant_id?: string;
@@ -6973,8 +6973,8 @@ export type Database = {
           category: string | null;
           created_at: string;
           created_by: string;
-          effective_date: string;
           document_path: string | null;
+          effective_date: string;
           external_link: string | null;
           id: string;
           name: string;
@@ -6988,8 +6988,8 @@ export type Database = {
           category?: string | null;
           created_at?: string;
           created_by?: string;
-          effective_date: string;
           document_path?: string | null;
+          effective_date: string;
           external_link?: string | null;
           id?: string;
           name: string;
@@ -7003,8 +7003,8 @@ export type Database = {
           category?: string | null;
           created_at?: string;
           created_by?: string;
-          effective_date?: string;
           document_path?: string | null;
+          effective_date?: string;
           external_link?: string | null;
           id?: string;
           name?: string;
@@ -7592,8 +7592,8 @@ export type Database = {
           body_text: string | null;
           created_at: string;
           created_by: string;
-          effective_date: string | null;
           document_path: string | null;
+          effective_date: string | null;
           external_link: string | null;
           id: string;
           meeting_id: string | null;
@@ -7609,8 +7609,8 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
-          effective_date?: string | null;
           document_path?: string | null;
+          effective_date?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id?: string | null;
@@ -7626,8 +7626,8 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
-          effective_date?: string | null;
           document_path?: string | null;
+          effective_date?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id?: string | null;

@@ -38,7 +38,7 @@ mock.module("@/app/portal/(app)/document-actions", () => ({
 URL.createObjectURL = () => "blob:local-preview";
 URL.revokeObjectURL = () => {};
 
-const { DocumentField } = await import("./document-field");
+const { DocumentField, DocumentPreview } = await import("./document-field");
 type DocumentValue = { link: string; path: string };
 
 function pdf(name = "Bylaws 2024.pdf") {
@@ -90,6 +90,14 @@ describe("DocumentField", () => {
     expect(
       screen.getByRole("link", { name: "Open link on drive.google.com" }),
     ).toHaveAttribute("href", "https://drive.google.com/file/d/abc");
+  });
+
+  test("a link that isn't http(s) is named but never made live", () => {
+    render(
+      <DocumentPreview link="javascript:alert(1)" path={null} url={null} />,
+    );
+    expect(screen.getByText("javascript:alert(1)")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   // Waits for the result: the upload awaits the action and Storage before it

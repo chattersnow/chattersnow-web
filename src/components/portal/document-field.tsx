@@ -34,6 +34,23 @@ function hostOf(link: string): string {
   }
 }
 
+/**
+ * `value` if it is safe to put in an `href` or `src`: http(s) for a pasted
+ * link or a signed URL, blob: for a file picked a moment ago. Anything else
+ * -- a stored `javascript:` link above all -- is shown but never made live.
+ */
+export function safeDocumentUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "http:" || protocol === "blob:"
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function OpenButton({ href, label }: { href: string; label: string }) {
   return (
     <a
@@ -70,16 +87,17 @@ export function DocumentPreview({
   url: string | null;
   bytes?: number | null;
 }) {
+  const href = safeDocumentUrl(path ? url : link);
   if (path) {
     const name = documentNameFromPath(path);
     return (
       <div className="flex items-center gap-3 rounded-lg border border-[var(--line)] p-2">
-        {url && isImageDocument(path) ? (
+        {href && isImageDocument(path) ? (
           // A signed URL whose token rotates hourly, or a blob: URL: next/image
           // would cache a key that is stale by the next render.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={url}
+            src={href}
             alt=""
             className="size-14 shrink-0 rounded-md bg-muted object-cover"
           />
@@ -93,14 +111,14 @@ export function DocumentPreview({
             {name}
           </p>
           <p className="app-muted text-xs">
-            {url
+            {href
               ? bytes
                 ? formatFileSize(bytes)
                 : "Uploaded file"
               : "This file could not be loaded."}
           </p>
         </div>
-        {url && <OpenButton href={url} label={`Open ${name}`} />}
+        {href && <OpenButton href={href} label={`Open ${name}`} />}
       </div>
     );
   }
@@ -115,7 +133,7 @@ export function DocumentPreview({
         <p className="min-w-0 flex-1 truncate text-sm font-medium" title={link}>
           {host}
         </p>
-        <OpenButton href={link} label={`Open link on ${host}`} />
+        {href && <OpenButton href={href} label={`Open link on ${host}`} />}
       </div>
     );
   }
