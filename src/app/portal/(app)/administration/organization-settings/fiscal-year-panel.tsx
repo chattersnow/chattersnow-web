@@ -8,7 +8,13 @@ import {
 } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -63,61 +69,57 @@ export function FiscalYearPanel({
   }
 
   return (
-    <div className="space-y-4">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+    <Card>
+      <CardHeader>
+        <CardTitle>Fiscal year</CardTitle>
+        {/* The Board-resolution rule and the list of figures it drives are in
+            the help sheet (#1482); the card keeps what to know before saving. */}
+        <CardDescription>
+          Set by Board resolution. Every change is recorded in the audit log.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="fiscal-year-start-month">
+                Fiscal year starts in
+              </FieldLabel>
+              <select
+                id="fiscal-year-start-month"
+                name="startMonth"
+                className={selectClassName}
+                value={startMonth}
+                onChange={(event) => setStartMonth(Number(event.target.value))}
+                disabled={isPending}
+              >
+                {FISCAL_YEAR_START_MONTH_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <FieldDescription>
+                Runs {describeFiscalYearSpan(startMonth)}, and is named for the
+                year it ends in, so we are in {label} now. Every annual figure
+                in the portal counts from this month.
+              </FieldDescription>
+            </Field>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Fiscal year</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="fiscal-year-start-month">
-                  Fiscal year starts in
-                </FieldLabel>
-                <select
-                  id="fiscal-year-start-month"
-                  name="startMonth"
-                  className={selectClassName}
-                  value={startMonth}
-                  onChange={(event) =>
-                    setStartMonth(Number(event.target.value))
-                  }
-                  disabled={isPending}
-                >
-                  {FISCAL_YEAR_START_MONTH_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <FieldDescription>
-                  Runs {describeFiscalYearSpan(startMonth)}. A fiscal year is
-                  named for the calendar year it ends in, so the one we are in
-                  now is {label}. Every annual figure in the portal — the
-                  dashboard&apos;s &ldquo;this fiscal year&rdquo; totals, the
-                  default range on Financial Reports, the annual planning
-                  review, and the year a conflict-of-interest disclosure covers
-                  — is counted from this date rather than from January 1.
-                </FieldDescription>
-              </Field>
-
-              <div className="flex items-center gap-2">
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? <Spinner className="size-4" /> : null}
-                  Save fiscal year
-                </Button>
-              </div>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={isPending}>
+                {isPending ? <Spinner className="size-4" /> : null}
+                Save fiscal year
+              </Button>
+            </div>
+          </FieldGroup>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

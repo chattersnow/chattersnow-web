@@ -148,41 +148,31 @@ export default async function OrganizationSettingsPage() {
       </div>
 
       <OrganizationSettingsTabs>
-        <TabsContent value="general" className="mt-6 space-y-4">
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            Organization-wide settings that the rest of the portal reads. The
-            fiscal year is set by Board resolution under the bylaws, so changing
-            it here should follow that resolution — every change is recorded in
-            the audit log.
-          </p>
-          <FiscalYearPanel fiscalYearStartMonth={fiscalYearStartMonth} />
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            Where this organization&apos;s days begin and end. Reports count a
-            day in this zone, so an evening sale on the last day of the month
-            lands in the month the staff would put it in — and, like the fiscal
-            year, every change is recorded in the audit log.
-          </p>
-          <TimeZonePanel timeZone={orgTimeZone} />
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            What this organization calls the things it lends. The platform says
-            &ldquo;inventory&rdquo; and &ldquo;items&rdquo;; yours may be a gear
-            library, a tool library or a pantry, and these words are what the
-            public navigation, this portal&rsquo;s sidebar and the unwritten
-            parts of your site copy use. Leave a field blank to keep the
-            platform&rsquo;s word.
-          </p>
-          <LexiconPanel stored={storedLexicon} />
-          <p className="app-muted max-w-3xl text-sm leading-relaxed">
-            What this organization calls the people in its directory. The
-            platform says &ldquo;donors&rdquo; and &ldquo;volunteers&rdquo;;
-            yours may have members, students, customers or clients, and these
-            words are what the People section of the sidebar, its pages, the
-            role filter and every person&rsquo;s profile use. Only the words
-            change: a role is still set by the donation, registration or shift
-            behind it, whatever you call the person who did it. Leave a field
-            blank to keep the platform&rsquo;s word.
-          </p>
-          <PersonRolesPanel stored={storedPersonRoleLabels} />
+        {/* Two groups of paired cards (#1482), so every card's heading is in
+            the first screen at desktop width. The explanations that used to
+            sit between the cards are in the help sheet; each card keeps the
+            one line to know before saving. Below `lg` (`xl` for the naming
+            cards, whose role rows need the width) it is one column in the
+            order the cards always had. */}
+        <TabsContent value="general" className="mt-6 space-y-8">
+          <section aria-labelledby="settings-calendar" className="space-y-3">
+            <h2 id="settings-calendar" className="app-eyebrow text-sm">
+              Calendar
+            </h2>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <FiscalYearPanel fiscalYearStartMonth={fiscalYearStartMonth} />
+              <TimeZonePanel timeZone={orgTimeZone} />
+            </div>
+          </section>
+          <section aria-labelledby="settings-vocabulary" className="space-y-3">
+            <h2 id="settings-vocabulary" className="app-eyebrow text-sm">
+              Vocabulary
+            </h2>
+            <div className="grid gap-6 xl:grid-cols-2">
+              <LexiconPanel stored={storedLexicon} />
+              <PersonRolesPanel stored={storedPersonRoleLabels} />
+            </div>
+          </section>
         </TabsContent>
 
         <TabsContent value="workflow" className="mt-6 space-y-4">

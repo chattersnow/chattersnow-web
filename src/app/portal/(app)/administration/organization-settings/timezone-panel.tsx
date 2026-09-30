@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { updateOrgTimeZoneAction, type SettingActionResult } from "./actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -43,61 +49,57 @@ export function TimeZonePanel({ timeZone }: { timeZone: string }) {
   }
 
   return (
-    <div className="space-y-4">
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+    <Card>
+      <CardHeader>
+        <CardTitle>Time zone</CardTitle>
+        {/* The evening-sale example and what the zone drives are in the help
+            sheet (#1482). */}
+        <CardDescription>
+          Where a reporting day begins and ends. Every change is recorded in the
+          audit log.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="org-time-zone">
+                This organization is in
+              </FieldLabel>
+              <select
+                id="org-time-zone"
+                name="timeZone"
+                className={selectClassName}
+                value={zone}
+                onChange={(event) => setZone(event.target.value)}
+                disabled={isPending}
+              >
+                {TIMEZONE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <FieldDescription>
+                It does <strong>not</strong> change how times are shown:
+                everyone sees their own browser&apos;s zone.
+              </FieldDescription>
+            </Field>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Time zone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="org-time-zone">
-                  This organization is in
-                </FieldLabel>
-                <select
-                  id="org-time-zone"
-                  name="timeZone"
-                  className={selectClassName}
-                  value={zone}
-                  onChange={(event) => setZone(event.target.value)}
-                  disabled={isPending}
-                >
-                  {TIMEZONE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <FieldDescription>
-                  Where a reporting day begins and ends. A sale rung or a
-                  reimbursement filed at 7pm on the last day of February counts
-                  in February, not in March, because this says which day that
-                  moment was. It sets the default period on Financial Reports,
-                  the dashboard&apos;s &ldquo;this month&rdquo; figures and the
-                  annual planning review. It does <strong>not</strong> change
-                  how times are shown: the portal always shows you a time in
-                  your own browser&apos;s zone, and the public site shows an
-                  event in the zone the event is held in.
-                </FieldDescription>
-              </Field>
-
-              <div className="flex items-center gap-2">
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? <Spinner className="size-4" /> : null}
-                  Save time zone
-                </Button>
-              </div>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={isPending}>
+                {isPending ? <Spinner className="size-4" /> : null}
+                Save time zone
+              </Button>
+            </div>
+          </FieldGroup>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
