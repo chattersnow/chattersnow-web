@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -8,7 +9,7 @@ import { BylawsTable } from "./bylaws-table";
 import type { Bylaws } from "./bylaws-actions";
 
 const BYLAWS_SELECT =
-  "id, version, effective_date, amendment_summary, external_link, body_text";
+  "id, version, effective_date, amendment_summary, external_link, document_path, body_text";
 
 export const metadata: Metadata = {
   title: "Bylaws",
@@ -24,6 +25,12 @@ export default async function BylawsPage() {
     .select(BYLAWS_SELECT)
     .order("effective_date", { ascending: false });
 
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const bylawsWithDocuments = await withDocumentUrls(
+    supabase,
+    (bylaws ?? []) as unknown as Bylaws[],
+  );
+
   return (
     <>
       <div className="w-fit">
@@ -34,10 +41,7 @@ export default async function BylawsPage() {
       </div>
 
       <div className="mt-6">
-        <BylawsTable
-          bylaws={(bylaws ?? []) as unknown as Bylaws[]}
-          canManage={canManage}
-        />
+        <BylawsTable bylaws={bylawsWithDocuments} canManage={canManage} />
       </div>
     </>
   );

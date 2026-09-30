@@ -257,6 +257,7 @@ export type Database = {
           body_text: string | null;
           created_at: string;
           created_by: string;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           meeting_id: string;
@@ -276,6 +277,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id: string;
@@ -295,6 +297,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           meeting_id?: string;
@@ -354,6 +357,7 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           created_by: string;
+          document_path: string | null;
           due_date: string;
           external_link: string | null;
           id: string;
@@ -369,6 +373,7 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           due_date: string;
           external_link?: string | null;
           id?: string;
@@ -384,6 +389,7 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           due_date?: string;
           external_link?: string | null;
           id?: string;
@@ -1133,6 +1139,7 @@ export type Database = {
           body_text: string | null;
           created_at: string;
           created_by: string;
+          document_path: string | null;
           effective_date: string;
           external_link: string | null;
           id: string;
@@ -1146,6 +1153,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           effective_date: string;
           external_link?: string | null;
           id?: string;
@@ -1159,6 +1167,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           effective_date?: string;
           external_link?: string | null;
           id?: string;
@@ -1798,6 +1807,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           disclosure_year: number;
+          document_path: string | null;
           external_link: string | null;
           id: string;
           notes: string | null;
@@ -1812,6 +1822,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           disclosure_year: number;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           notes?: string | null;
@@ -1826,6 +1837,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           disclosure_year?: number;
+          document_path?: string | null;
           external_link?: string | null;
           id?: string;
           notes?: string | null;
@@ -6961,6 +6973,7 @@ export type Database = {
           category: string | null;
           created_at: string;
           created_by: string;
+          document_path: string | null;
           effective_date: string;
           external_link: string | null;
           id: string;
@@ -6975,6 +6988,7 @@ export type Database = {
           category?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           effective_date: string;
           external_link?: string | null;
           id?: string;
@@ -6989,6 +7003,7 @@ export type Database = {
           category?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           effective_date?: string;
           external_link?: string | null;
           id?: string;
@@ -7577,6 +7592,7 @@ export type Database = {
           body_text: string | null;
           created_at: string;
           created_by: string;
+          document_path: string | null;
           effective_date: string | null;
           external_link: string | null;
           id: string;
@@ -7593,6 +7609,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           effective_date?: string | null;
           external_link?: string | null;
           id?: string;
@@ -7609,6 +7626,7 @@ export type Database = {
           body_text?: string | null;
           created_at?: string;
           created_by?: string;
+          document_path?: string | null;
           effective_date?: string | null;
           external_link?: string | null;
           id?: string;

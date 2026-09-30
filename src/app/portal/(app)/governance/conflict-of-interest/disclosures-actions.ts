@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { friendlyError } from "@/lib/db-errors";
@@ -21,6 +22,10 @@ export type Disclosure = {
   on_file_date: string | null;
   notes: string | null;
   external_link: string | null;
+  /** Object path in the private documents bucket (#1489). */
+  document_path: string | null;
+  /** A short-lived signed URL for `document_path`, minted by the page. */
+  document_url: string | null;
   body_text: string | null;
   person: DisclosurePerson;
 };
@@ -28,7 +33,7 @@ export type Disclosure = {
 export type DisclosureActionResult = { error: string } | { success: true };
 
 const DISCLOSURE_SELECT =
-  "id, disclosure_year, on_file_date, notes, external_link, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
+  "id, disclosure_year, on_file_date, notes, external_link, document_path, body_text, person:people!conflict_of_interest_disclosures_person_id_fkey(id, name, preferred_name, email, phone)";
 
 const DUPLICATE_MESSAGE =
   "This person already has a disclosure recorded for this year. Edit their existing entry instead.";
@@ -53,7 +58,12 @@ export async function listDisclosuresAction(): Promise<
   if (error) {
     return { error: "Could not load disclosures. Please try again." };
   }
-  return { data: (data ?? []) as unknown as Disclosure[] };
+  return {
+    data: await withDocumentUrls(
+      supabase,
+      (data ?? []) as unknown as Disclosure[],
+    ),
+  };
 }
 
 export async function createDisclosureAction(

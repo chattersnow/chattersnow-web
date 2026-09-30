@@ -86,6 +86,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
+  DocumentField,
+  DocumentPreview,
+} from "@/components/portal/document-field";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -470,6 +474,7 @@ function AgendaForm({
 }) {
   const router = useRouter();
   const [externalLink, setExternalLink] = useState(agenda?.external_link ?? "");
+  const [documentPath, setDocumentPath] = useState(agenda?.document_path ?? "");
   const [bodyText, setBodyText] = useState(agenda?.body_text ?? "");
   const [ongoingItems, setOngoingItems] = useState<
     Record<string, AgendaOngoingItem>
@@ -496,6 +501,7 @@ function AgendaForm({
   // agenda, regardless of later prop changes (e.g. a background refresh).
   const baselineRef = useRef({
     externalLink: agenda?.external_link ?? "",
+    documentPath: agenda?.document_path ?? "",
     bodyText: agenda?.body_text ?? "",
     ongoingItems: agenda?.ongoing_items ?? {},
     newBusiness: agenda?.new_business ?? [],
@@ -509,6 +515,7 @@ function AgendaForm({
     const baseline = baselineRef.current;
     const dirty =
       externalLink !== baseline.externalLink ||
+      documentPath !== baseline.documentPath ||
       bodyText !== baseline.bodyText ||
       JSON.stringify(ongoingItems) !== JSON.stringify(baseline.ongoingItems) ||
       JSON.stringify(newBusiness) !== JSON.stringify(baseline.newBusiness) ||
@@ -520,6 +527,7 @@ function AgendaForm({
     onDirtyChange?.(dirty);
   }, [
     externalLink,
+    documentPath,
     bodyText,
     ongoingItems,
     newBusiness,
@@ -577,6 +585,7 @@ function AgendaForm({
 
     const formData = new FormData();
     formData.set("externalLink", externalLink);
+    formData.set("documentPath", documentPath);
     formData.set("bodyText", bodyText);
     formData.set("templateId", templateId ?? "");
     formData.set("templateVersionId", templateVersionId ?? "");
@@ -601,16 +610,16 @@ function AgendaForm({
   return (
     <form onSubmit={handleSubmit}>
       <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="agenda-link">External link</FieldLabel>
-          <Input
-            id="agenda-link"
-            type="url"
-            placeholder="https://..."
-            value={externalLink}
-            onChange={(event) => setExternalLink(event.target.value)}
-          />
-        </Field>
+        <DocumentField
+          value={{ link: externalLink, path: documentPath }}
+          onChange={({ link, path }) => {
+            setExternalLink(link);
+            setDocumentPath(path);
+          }}
+          signedUrl={agenda?.document_url ?? null}
+          idPrefix="agenda"
+          module="governance"
+        />
 
         <div>
           <p className="text-sm font-semibold">Ongoing board items</p>
@@ -1038,19 +1047,12 @@ export function AgendaTab({
           </div>
 
           <FieldGroup>
-            <ReadOnlyField label="External link" htmlFor="agenda-link-view">
-              {agenda.external_link ? (
-                <a
-                  href={agenda.external_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[var(--purple-deep)] underline"
-                >
-                  {agenda.external_link}
-                </a>
-              ) : (
-                "—"
-              )}
+            <ReadOnlyField label="Document" htmlFor="agenda-document-view">
+              <DocumentPreview
+                link={agenda.external_link}
+                path={agenda.document_path}
+                url={agenda.document_url}
+              />
             </ReadOnlyField>
           </FieldGroup>
 

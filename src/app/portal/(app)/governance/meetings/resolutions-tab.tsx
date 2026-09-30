@@ -188,6 +188,7 @@ function EditResolutionDialog({
     voteOutcome: resolution.vote_outcome,
     effectiveDate: resolution.effective_date ?? "",
     externalLink: resolution.external_link ?? "",
+    documentPath: resolution.document_path ?? "",
     bodyText: resolution.body_text ?? "",
   }));
   const [error, setError] = useState<string | null>(null);
@@ -275,6 +276,7 @@ function EditResolutionDialog({
         </Field>
 
         <ResolutionFormFields
+          documentUrl={resolution.document_url}
           form={form}
           update={update}
           idPrefix={`edit-resolution-tab-${resolution.id}`}

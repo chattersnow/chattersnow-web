@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -50,6 +51,7 @@ function formStateFor(policy: Policy): PolicyFormState {
     effectiveDate: policy.effective_date,
     version: policy.version,
     externalLink: policy.external_link ?? "",
+    documentPath: policy.document_path ?? "",
     bodyText: policy.body_text ?? "",
   };
 }
@@ -62,6 +64,7 @@ function isDirty(form: PolicyFormState, policy: Policy) {
     form.effectiveDate !== baseline.effectiveDate ||
     form.version !== baseline.version ||
     form.externalLink !== baseline.externalLink ||
+    form.documentPath !== baseline.documentPath ||
     form.bodyText !== baseline.bodyText
   );
 }
@@ -239,22 +242,12 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
                 >
                   {formatCalendarDate(policy.effective_date)}
                 </ReadOnlyField>
-                <ReadOnlyField
-                  label="External link"
-                  htmlFor="edit-policy-external-link"
-                >
-                  {policy.external_link ? (
-                    <a
-                      href={policy.external_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[var(--purple-deep)] underline"
-                    >
-                      {policy.external_link}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
+                <ReadOnlyField label="Document" htmlFor="edit-policy-document">
+                  <DocumentPreview
+                    link={policy.external_link}
+                    path={policy.document_path}
+                    url={policy.document_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Policy text"
@@ -276,6 +269,7 @@ export function EditPolicyModal({ policy }: { policy: Policy }) {
                 <FieldGroup>
                   <RequiredFieldsNote />
                   <PolicyFormFields
+                    documentUrl={policy.document_url}
                     form={form}
                     update={update}
                     idPrefix="edit-policy"

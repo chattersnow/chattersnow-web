@@ -14,6 +14,10 @@ export type Policy = {
   effective_date: string;
   version: string;
   external_link: string | null;
+  /** Object path in the private documents bucket (#1489). */
+  document_path: string | null;
+  /** A short-lived signed URL for `document_path`, minted by the page. */
+  document_url: string | null;
   body_text: string | null;
 };
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import { parseResolutionForm } from "./resolution-form";
@@ -23,13 +24,17 @@ export type Resolution = {
   vote_outcome: "pending" | "passed" | "failed" | "tabled";
   effective_date: string | null;
   external_link: string | null;
+  /** Object path in the private documents bucket (#1489). */
+  document_path: string | null;
+  /** A short-lived signed URL for `document_path`, minted by the page. */
+  document_url: string | null;
   body_text: string | null;
 };
 
 export type ResolutionActionResult = { error: string } | { success: true };
 
 const RESOLUTION_SELECT =
-  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, body_text, mover:people!resolutions_mover_person_id_fkey(id, name, preferred_name, email, phone), seconder:people!resolutions_seconder_person_id_fkey(id, name, preferred_name, email, phone)";
+  "id, meeting_id, motion_text, vote_outcome, effective_date, external_link, document_path, body_text, mover:people!resolutions_mover_person_id_fkey(id, name, preferred_name, email, phone), seconder:people!resolutions_seconder_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export async function listResolutionsAction(
   meetingId?: string,
@@ -53,7 +58,12 @@ export async function listResolutionsAction(
   if (error) {
     return { error: "Could not load resolutions. Please try again." };
   }
-  return { data: (data ?? []) as unknown as Resolution[] };
+  return {
+    data: await withDocumentUrls(
+      supabase,
+      (data ?? []) as unknown as Resolution[],
+    ),
+  };
 }
 
 export async function createResolutionAction(

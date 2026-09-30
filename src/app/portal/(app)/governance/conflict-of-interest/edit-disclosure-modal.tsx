@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -51,6 +52,7 @@ function formStateFor(disclosure: Disclosure): DisclosureFormState {
     onFileDate: disclosure.on_file_date ?? "",
     notes: disclosure.notes ?? "",
     externalLink: disclosure.external_link ?? "",
+    documentPath: disclosure.document_path ?? "",
     bodyText: disclosure.body_text ?? "",
   };
 }
@@ -66,6 +68,7 @@ function isDirty(
     form.onFileDate !== baseline.onFileDate ||
     form.notes !== baseline.notes ||
     form.externalLink !== baseline.externalLink ||
+    form.documentPath !== baseline.documentPath ||
     form.bodyText !== baseline.bodyText ||
     person?.id !== disclosure.person.id
   );
@@ -274,21 +277,14 @@ export function EditDisclosureModal({
                   </span>
                 </ReadOnlyField>
                 <ReadOnlyField
-                  label="External link"
-                  htmlFor="edit-disclosure-external-link"
+                  label="Document"
+                  htmlFor="edit-disclosure-document"
                 >
-                  {disclosure.external_link ? (
-                    <a
-                      href={disclosure.external_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[var(--purple-deep)] underline"
-                    >
-                      {disclosure.external_link}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
+                  <DocumentPreview
+                    link={disclosure.external_link}
+                    path={disclosure.document_path}
+                    url={disclosure.document_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField
                   label="Disclosure details"
@@ -320,6 +316,7 @@ export function EditDisclosureModal({
                   </div>
 
                   <DisclosureFormFields
+                    documentUrl={disclosure.document_url}
                     form={form}
                     update={update}
                     idPrefix="edit-disclosure"

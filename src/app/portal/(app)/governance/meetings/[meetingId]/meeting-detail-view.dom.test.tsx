@@ -181,7 +181,7 @@ describe("MeetingDetailView", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Agenda" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit agenda" }));
-    fireEvent.change(await screen.findByLabelText("External link"), {
+    fireEvent.change(await screen.findByLabelText("Link"), {
       target: { value: "https://example.com/agenda" },
     });
 
@@ -193,7 +193,7 @@ describe("MeetingDetailView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("External link")).toHaveValue(
+    expect(screen.getByLabelText("Link")).toHaveValue(
       "https://example.com/agenda",
     );
 
@@ -215,7 +215,7 @@ describe("MeetingDetailView", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Agenda" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit agenda" }));
-    await screen.findByLabelText("External link");
+    await screen.findByLabelText("Link");
 
     fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
 

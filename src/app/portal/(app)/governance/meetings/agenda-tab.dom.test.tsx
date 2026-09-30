@@ -294,6 +294,8 @@ function agenda(
     id: "agenda-1",
     meeting_id: "meeting-1",
     external_link: null,
+    document_path: null,
+    document_url: null,
     body_text: null,
     template_id: "template-1",
     template_version_id: "version-1",

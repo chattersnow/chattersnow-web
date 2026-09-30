@@ -22,6 +22,8 @@ const baseAgenda: Agenda = {
   id: "agenda-1",
   meeting_id: "meeting-1",
   external_link: null,
+  document_path: null,
+  document_url: null,
   body_text: null,
   template_id: null,
   template_version_id: null,
@@ -323,6 +325,25 @@ const seededSections = [
 ];
 
 describe("formatAgendaMarkdown", () => {
+  test("names an uploaded document without linking its signed URL", () => {
+    const input: AgendaExportInput = {
+      ...emptyInput,
+      agenda: {
+        ...baseAgenda,
+        document_path:
+          "11111111-2222-4333-8444-555555555555/governance/66666666-7777-4888-8999-aaaaaaaaaaaa/Board-packet.pdf",
+        document_url: "https://storage.example/signed?token=secret",
+      },
+    };
+    for (const text of [
+      formatAgendaMarkdown(input),
+      formatAgendaPlainText(input),
+    ]) {
+      expect(text).toContain("Document: Board-packet.pdf (in the portal)");
+      expect(text).not.toContain("token=secret");
+    }
+  });
+
   test("renders empty-state placeholders for an agenda with no content", () => {
     const markdown = formatAgendaMarkdown(emptyInput);
     expect(markdown).toContain("# Agenda — Aug 31, 2026");

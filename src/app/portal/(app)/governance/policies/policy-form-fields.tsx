@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, FieldLabel } from "@/components/ui/field";
+import { DocumentField } from "@/components/portal/document-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -10,6 +11,7 @@ export type PolicyFormState = {
   effectiveDate: string;
   version: string;
   externalLink: string;
+  documentPath: string;
   bodyText: string;
 };
 
@@ -20,6 +22,7 @@ export function emptyPolicyForm(): PolicyFormState {
     effectiveDate: "",
     version: "",
     externalLink: "",
+    documentPath: "",
     bodyText: "",
   };
 }
@@ -28,6 +31,7 @@ export function PolicyFormFields({
   form,
   update,
   idPrefix,
+  documentUrl = null,
 }: {
   form: PolicyFormState;
   update: <K extends keyof PolicyFormState>(
@@ -35,6 +39,8 @@ export function PolicyFormFields({
     value: PolicyFormState[K],
   ) => void;
   idPrefix: string;
+  /** The signed URL for the saved `documentPath`, when editing a record. */
+  documentUrl?: string | null;
 }) {
   return (
     <>
@@ -88,18 +94,16 @@ export function PolicyFormFields({
         />
       </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-external-link`}>
-          External link
-        </FieldLabel>
-        <Input
-          id={`${idPrefix}-external-link`}
-          type="url"
-          placeholder="https://..."
-          value={form.externalLink}
-          onChange={(event) => update("externalLink", event.target.value)}
-        />
-      </Field>
+      <DocumentField
+        value={{ link: form.externalLink, path: form.documentPath }}
+        onChange={({ link, path }) => {
+          update("externalLink", link);
+          update("documentPath", path);
+        }}
+        signedUrl={documentUrl}
+        idPrefix={idPrefix}
+        module="governance"
+      />
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-body-text`}>Policy text</FieldLabel>
@@ -120,6 +124,7 @@ export function packPolicyFormData(form: PolicyFormState) {
   formData.set("version", form.version);
   formData.set("effectiveDate", form.effectiveDate);
   formData.set("externalLink", form.externalLink);
+  formData.set("documentPath", form.documentPath);
   formData.set("bodyText", form.bodyText);
   return formData;
 }

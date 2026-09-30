@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -9,7 +10,7 @@ import { NewPolicyDialog } from "./new-policy-dialog";
 import type { Policy } from "./policies-actions";
 
 const POLICY_SELECT =
-  "id, name, category, effective_date, version, external_link, body_text";
+  "id, name, category, effective_date, version, external_link, document_path, body_text";
 
 export const metadata: Metadata = {
   title: "Policies",
@@ -26,6 +27,12 @@ export default async function PoliciesPage() {
     .order("name", { ascending: true })
     .order("effective_date", { ascending: false });
 
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const policiesWithDocuments = await withDocumentUrls(
+    supabase,
+    (policies ?? []) as unknown as Policy[],
+  );
+
   return (
     <>
       <div className="w-fit">
@@ -37,7 +44,7 @@ export default async function PoliciesPage() {
 
       <div className="mt-6">
         <PoliciesTable
-          policies={(policies ?? []) as unknown as Policy[]}
+          policies={policiesWithDocuments}
           canManage={canManage}
           newAction={canManage ? <NewPolicyDialog /> : undefined}
         />

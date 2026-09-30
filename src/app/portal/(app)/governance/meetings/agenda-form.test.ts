@@ -32,6 +32,7 @@ describe("parseAgendaForm", () => {
     expect(parseAgendaForm(formData(validFields))).toEqual({
       data: {
         external_link: "https://docs.example.com/agenda",
+        document_path: null,
         body_text: "Called to order at 6pm.",
         template_id: "template-1",
         template_version_id: "version-1",
@@ -56,6 +57,7 @@ describe("parseAgendaForm", () => {
     expect(parseAgendaForm(new FormData())).toEqual({
       data: {
         external_link: null,
+        document_path: null,
         body_text: null,
         template_id: null,
         template_version_id: null,
@@ -83,6 +85,7 @@ describe("parseAgendaForm", () => {
     );
     expect("data" in result && result.data).toMatchObject({
       external_link: null,
+      document_path: null,
       body_text: null,
       template_id: null,
       template_version_id: null,

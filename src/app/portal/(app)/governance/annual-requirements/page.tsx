@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import {
   getCurrentUserPermissions,
   hasPermission,
@@ -9,7 +10,7 @@ import type { AnnualRequirement } from "./annual-requirements-actions";
 import type { PersonListItem } from "../../people/actions";
 
 const REQUIREMENT_SELECT =
-  "id, name, due_date, status, completed_at, external_link, body_text, responsible:people!annual_requirements_responsible_person_id_fkey(id, name, preferred_name, email, phone)";
+  "id, name, due_date, status, completed_at, external_link, document_path, body_text, responsible:people!annual_requirements_responsible_person_id_fkey(id, name, preferred_name, email, phone)";
 
 export const metadata: Metadata = {
   title: "Annual Requirements",
@@ -34,6 +35,12 @@ export default async function AnnualRequirementsPage() {
       .order("name", { ascending: true }),
   ]);
 
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const requirementsWithDocuments = await withDocumentUrls(
+    supabase,
+    (requirements ?? []) as unknown as AnnualRequirement[],
+  );
+
   return (
     <>
       <div className="w-fit">
@@ -45,7 +52,7 @@ export default async function AnnualRequirementsPage() {
 
       <div className="mt-6">
         <AnnualRequirementsChecklist
-          requirements={(requirements ?? []) as unknown as AnnualRequirement[]}
+          requirements={requirementsWithDocuments}
           people={(people ?? []) as PersonListItem[]}
           canManage={canManage}
         />

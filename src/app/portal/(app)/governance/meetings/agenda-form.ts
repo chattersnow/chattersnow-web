@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseDocumentFields } from "./content-form";
 
 /**
  * One standing section's per-meeting text (#1240).
@@ -42,6 +43,7 @@ export type AgendaUpcomingDate = {
 
 export type AgendaFormData = {
   external_link: string | null;
+  document_path: string | null;
   body_text: string | null;
   template_id: string | null;
   template_version_id: string | null;
@@ -106,7 +108,8 @@ function isUpcomingDates(value: unknown): value is AgendaUpcomingDate[] {
 export function parseAgendaForm(
   formData: FormData,
 ): ParseResult<AgendaFormData> {
-  const externalLink = String(formData.get("externalLink") ?? "").trim();
+  const document = parseDocumentFields(formData);
+  if ("error" in document) return document;
   const bodyText = String(formData.get("bodyText") ?? "").trim();
   const templateId = String(formData.get("templateId") ?? "").trim();
   const templateVersionId = String(
@@ -163,7 +166,7 @@ export function parseAgendaForm(
 
   return {
     data: {
-      external_link: externalLink || null,
+      ...document.data,
       body_text: bodyText || null,
       template_id: templateId || null,
       template_version_id: templateVersionId || null,
