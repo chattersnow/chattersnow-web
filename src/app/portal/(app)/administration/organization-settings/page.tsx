@@ -175,14 +175,9 @@ export default async function OrganizationSettingsPage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="workflow" className="mt-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="app-muted max-w-2xl text-sm leading-relaxed">
-              These thresholds control who can approve an expense or
-              reimbursement on their own. The sales tax rate is what the
-              register charges on merchandise.
-            </p>
-          </div>
+        {/* Approvals and Register groups (#1483); the groups replace the
+            intro line, and the sales tax detail is in the help sheet. */}
+        <TabsContent value="workflow" className="mt-6">
           <WorkflowThresholdsForm
             expenseApprovalThreshold={parseThreshold(expenseSetting?.value)}
             reimbursementApprovalThreshold={parseThreshold(
