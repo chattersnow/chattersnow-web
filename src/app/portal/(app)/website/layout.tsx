@@ -28,6 +28,9 @@ import { requireAnyPermission } from "@/lib/auth/permissions";
  * section is reachable by whoever writes the website *or* decides what of it
  * is published.
  *
+ * #1472 added a third, `publications:view`, for the same reason: the issues
+ * of the tenant's publication are edited here, on a resource of their own.
+ *
  * Because this no longer proves `site_content:view` on its own, the CMS routes
  * under it say so themselves: `website/page.tsx` and `website/articles/
  * layout.tsx`. Without that a board member would reach the page editor.
@@ -43,6 +46,9 @@ export default async function WebsiteLayout({
     [
       { resource: "site_content", level: "view" },
       { resource: "system_settings", level: "manage" },
+      // #1472: the publication is website content on its own resource, and
+      // `publications/layout.tsx` checks it for the routes under it.
+      { resource: "publications", level: "view" },
     ],
     "Website",
   );

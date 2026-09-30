@@ -78,33 +78,85 @@ export async function compressImage(
       bitmap.height,
       maxEdge,
     );
-
-    if (typeof OffscreenCanvas !== "undefined") {
-      const canvas = new OffscreenCanvas(width, height);
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("No 2d canvas context");
-      context.drawImage(bitmap, 0, 0, width, height);
-      return await canvas.convertToBlob({
-        type: "image/jpeg",
-        quality: JPEG_QUALITY,
-      });
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("No 2d canvas context");
-    context.drawImage(bitmap, 0, 0, width, height);
-    return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) =>
-          blob ? resolve(blob) : reject(new Error("Canvas produced no blob")),
-        "image/jpeg",
-        JPEG_QUALITY,
-      );
-    });
+    return await encode(bitmap, width, height, "image/jpeg", JPEG_QUALITY);
   } finally {
     bitmap.close();
   }
+}
+
+export type EncodedImage = { blob: Blob; width: number; height: number };
+
+/**
+ * Encodes one picked image at several widths, decoding it once (#1472).
+ *
+ * `compressImage` sizes by the longest edge because a photo may be either way
+ * round; this sizes by *width*, because what it makes is a `srcset`, whose `w`
+ * descriptors are widths. Never enlarges: a width wider than the image is
+ * encoded at the image's own width. The widths are chosen from the decoded
+ * width, which is the only one that counts once EXIF rotation is applied --
+ * `renditionWidths()` in `src/lib/publications.ts` is what the editor passes.
+ *
+ * Asks for WebP and checks what came back. Safari's canvas cannot encode WebP
+ * and quietly returns a PNG instead -- several times the size of the JPEG it
+ * could have made -- so anything other than the type asked for is re-encoded
+ * as JPEG, which every browser can make and the bucket accepts.
+ */
+export async function encodeImageWidths(
+  file: File,
+  widthsFor: (sourceWidth: number) => readonly number[],
+  type: "image/webp" | "image/jpeg" = "image/webp",
+  quality: number = JPEG_QUALITY,
+): Promise<EncodedImage[]> {
+  const bitmap = await createImageBitmap(file, {
+    imageOrientation: "from-image",
+  });
+  try {
+    const results: EncodedImage[] = [];
+    for (const target of widthsFor(bitmap.width)) {
+      const width = Math.max(1, Math.min(bitmap.width, Math.round(target)));
+      const height = Math.max(
+        1,
+        Math.round((bitmap.height * width) / bitmap.width),
+      );
+      let blob = await encode(bitmap, width, height, type, quality);
+      if (blob.type !== type) {
+        blob = await encode(bitmap, width, height, "image/jpeg", quality);
+      }
+      results.push({ blob, width, height });
+    }
+    return results;
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function encode(
+  bitmap: ImageBitmap,
+  width: number,
+  height: number,
+  type: string,
+  quality: number,
+): Promise<Blob> {
+  if (typeof OffscreenCanvas !== "undefined") {
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("No 2d canvas context");
+    context.drawImage(bitmap, 0, 0, width, height);
+    return await canvas.convertToBlob({ type, quality });
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No 2d canvas context");
+  context.drawImage(bitmap, 0, 0, width, height);
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error("Canvas produced no blob")),
+      type,
+      quality,
+    );
+  });
 }

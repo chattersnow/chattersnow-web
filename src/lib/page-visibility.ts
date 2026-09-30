@@ -131,6 +131,17 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     gate: "(public)/inventory/layout.tsx",
     module: "inventory",
   },
+  {
+    key: "publications",
+    label: "{publication_plural}",
+    description:
+      "The {publication_plural:lower} section: every published issue, each on its own page.",
+    // Off until the tenant has an issue to show (#1470) -- the section is empty
+    // otherwise, and the switch is theirs to flip once the first one is
+    // published. No migration turns it on for anybody.
+    defaultVisible: false,
+    module: "publications",
+  },
   // The one slot that gates a single route rather than a section, and the
   // reason is the content rather than the shape: the sizing charts are
   // snow-sports specific (ski lengths, mondopoint, DIN settings), authored by

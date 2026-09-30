@@ -18,7 +18,7 @@ test.describe("the price list", () => {
     await page.goto("/pricing");
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    for (const plan of ["Starter", "Standard", "Full"]) {
+    for (const plan of ["Starter", "Operations", "Complete"]) {
       await expect(
         page.getByRole("heading", { level: 2, name: plan }),
       ).toBeVisible();

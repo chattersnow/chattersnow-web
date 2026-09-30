@@ -20,8 +20,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * **Resist growing this.** A lexicon with fifty terms is a translation system
  * nobody maintains, and every term added is one more thing a new tenant has to
  * fill in before its site reads as written rather than as configured. The
- * value is in the four words below, each of which is read by navigation that
- * no slot could reach; a fifth has to argue for itself.
+ * value is in the six words below, each of which is read by navigation that
+ * no slot could reach; a seventh has to argue for itself.
  *
  * What is deliberately *not* renamed by any of this: the internal identifiers.
  * The `gears` visibility slot key, the `gears.*` content slot keys, the
@@ -69,6 +69,24 @@ export const LEXICON_TERMS: readonly LexiconTerm[] = [
     description:
       "The plural, which is often not the singular plus an s: Items, Gear, Tools.",
     default: "Items",
+  },
+  // The publications section (#1471). Both words reach navigation -- the plural
+  // is the nav label, the singular names one issue's back link and download
+  // buttons -- and neither is inventory's, so they are the fifth and sixth
+  // terms rather than a Site Content slot the nav could not read.
+  {
+    key: "publication",
+    label: "One publication",
+    description:
+      "One issue of the organization's periodic publication: Publication, Zine, Newsletter, Issue.",
+    default: "Publication",
+  },
+  {
+    key: "publication_plural",
+    label: "The publication, in the nav",
+    description:
+      "What the public site's navigation calls the section holding every issue: Publications, Zine, Newsletter.",
+    default: "Publications",
   },
 ] as const;
 

@@ -529,6 +529,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
         access: [{ resource: "site_content", level: "view" }],
         alsoRequires: [{ resource: "platform_tenants", level: "manage" }],
       },
+      // The tenant's periodic publication (#1472), on its own resource and
+      // module: `publications` carries module_key = 'publications', so a tenant
+      // without the module never sees the link. Labelled with the tenant's own
+      // word ("Zine" for Chatter Snow).
+      {
+        value: "publications",
+        label: "{publication_plural}",
+        href: "/portal/website/publications",
+        group: "Content",
+        access: [{ resource: "publications", level: "view" }],
+      },
       // The three settings panels #990 moved out of System Settings, grouped
       // because they are a different job from writing the copy above -- and
       // because they are what a different reader comes here for. `board` holds
