@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useOptimistic, useState, useTransition } from "react";
+import {
+  FormEvent,
+  type ReactNode,
+  useOptimistic,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -9,9 +15,18 @@ import {
   updateSenderIdentityAction,
   type SettingActionResult,
 } from "./actions";
+import { TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -31,12 +46,15 @@ import type { NotificationKind } from "@/lib/notifications/kinds";
 import type {
   NotificationRecipient,
   NotificationRecipientsByKind,
+  ReceiptDelivery,
 } from "@/lib/notifications/recipients";
+import { cn } from "@/lib/utils";
 
 export function NotificationsPanel({
   emailEnabled,
   kinds,
   recipientsByKind,
+  receiptDelivery,
   opsReportRecipients,
   orgName,
   platformFrom,
@@ -48,6 +66,8 @@ export function NotificationsPanel({
   kinds: NotificationKind[];
   /** Null when the recipient read failed; the card says so rather than lying. */
   recipientsByKind: NotificationRecipientsByKind | null;
+  /** Null when the read failed, like `recipientsByKind`. */
+  receiptDelivery: Record<string, ReceiptDelivery> | null;
   opsReportRecipients: string[];
   orgName: string;
   /** EMAIL_FROM, as the address recipients see when nothing overrides it. */
@@ -84,56 +104,69 @@ export function NotificationsPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <Card>
-        <CardContent>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p id="email-enabled-label" className="text-sm font-medium">
-                Send outbound email
-              </p>
-              <p className="app-muted mt-1 text-sm leading-relaxed">
-                When this is off, the portal sends no email at all — no
-                reminders, no notifications — no matter what anyone has turned
-                on for themselves. Turn it off if messages are going somewhere
-                they shouldn&rsquo;t; nothing queues up while it is off.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2 pt-0.5">
-              {isPending ? <Spinner className="size-4" /> : null}
-              <span className="app-muted w-8 text-right text-xs">
-                {checked ? "On" : "Off"}
-              </span>
-              <Switch
-                checked={checked}
-                onCheckedChange={handleChange}
-                disabled={isPending}
-                aria-labelledby="email-enabled-label"
-              />
-            </div>
-          </div>
-        </CardContent>
+      {/* First and full width (#1484): it outranks everything below it, and
+          when it is off the tint says so from across the room. */}
+      <Card
+        className={cn(!checked && "bg-warning/5 ring-warning/50")}
+        data-state={checked ? "on" : "off"}
+      >
+        <CardHeader>
+          <CardTitle id="email-enabled-label">Outbound email</CardTitle>
+          <CardDescription>
+            {checked
+              ? "Off means the portal sends no email at all, whatever anyone has turned on. Nothing queues up."
+              : "No email is going out: no reminders, notifications, receipts or ops report. Nothing is queued to send later."}
+          </CardDescription>
+          <CardAction className="flex items-center gap-2 pt-0.5">
+            {isPending ? <Spinner className="size-4" /> : null}
+            <span className="app-muted w-8 text-right text-xs">
+              {checked ? "On" : "Off"}
+            </span>
+            <Switch
+              checked={checked}
+              onCheckedChange={handleChange}
+              disabled={isPending}
+              aria-labelledby="email-enabled-label"
+            />
+          </CardAction>
+        </CardHeader>
       </Card>
 
-      <AutomaticRepliesCard />
+      {/* Two columns from lg, after My Account (#1437): the forms in a narrow
+          column, the reference list in the wide one. Below lg it is one column
+          in this DOM order, which is the order the cards always had except
+          that Automatic replies moved down beside the other sending items. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[23rem_minmax(0,1fr)]">
+        <section aria-labelledby="notifications-sending" className="space-y-3">
+          <h2 id="notifications-sending" className="app-eyebrow text-sm">
+            Sending
+          </h2>
+          <div className="space-y-4">
+            <SenderIdentityCard
+              orgName={orgName}
+              platformFrom={platformFrom}
+              sendingDomain={sendingDomain}
+              replyTo={replyTo}
+              fromAddress={fromAddress}
+            />
+            <OpsReportRecipientsCard recipients={opsReportRecipients} />
+            <AutomaticRepliesCard />
+          </div>
+        </section>
 
-      <SenderIdentityCard
-        orgName={orgName}
-        platformFrom={platformFrom}
-        sendingDomain={sendingDomain}
-        replyTo={replyTo}
-        fromAddress={fromAddress}
-      />
-
-      <OpsReportRecipientsCard recipients={opsReportRecipients} />
-
-      <WhoReceivesWhatCard kinds={kinds} recipientsByKind={recipientsByKind} />
+        <WhoReceivesWhat
+          kinds={kinds}
+          recipientsByKind={recipientsByKind}
+          receiptDelivery={receiptDelivery}
+        />
+      </div>
     </div>
   );
 }
@@ -144,95 +177,164 @@ export function NotificationsPanel({
  * This page owns whether mail goes out and who it comes from; the wording of
  * the receipts the public forms send back is five templates rather than one
  * object, so it is a page of its own rather than a sixth tab here. The two
- * link both ways so neither reads as the whole of the subject.
+ * link both ways so neither reads as the whole of the subject. A compact row
+ * since #1484: it holds no setting, only the way there.
  */
 function AutomaticRepliesCard() {
   return (
-    <Card>
-      <CardContent>
-        <p className="app-eyebrow">Automatic replies</p>
-        <p className="app-muted mt-1 text-sm leading-relaxed">
-          What the portal writes back to somebody who registers for an event,
-          applies to volunteer or requests an item is yours to word, under{" "}
-          <Link
-            href="/portal/administration/automatic-replies"
-            className="underline underline-offset-4"
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>Automatic replies</CardTitle>
+        <CardDescription>
+          The wording of each receipt, and a switch for each.
+        </CardDescription>
+        <CardAction>
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/portal/administration/automatic-replies" />}
           >
-            Administration &rarr; Automatic Replies
-          </Link>
-          . Each of those replies can be switched off on its own there; the
-          switch above outranks all of them.
-        </p>
-      </CardContent>
+            Open
+          </Button>
+        </CardAction>
+      </CardHeader>
     </Card>
   );
 }
 
 /**
- * What the portal can send, and who actually gets it (#1044).
+ * What the portal can send, and who actually gets it (#1044), split by
+ * audience (#1484) because the two halves answer different questions.
  *
- * Two sets have to agree for an email to arrive: the sender resolves the people
- * who hold the role that owns the queue, then mails only those of them who
- * turned that kind on for themselves. Before this card both halves were silent
- * -- an opt-in without the role produced nothing, a role holder who never opted
- * in was simply missing -- and the only way to answer "who gets the volunteer
- * application notice?" was a database query.
+ * Staff kinds: two sets have to agree for an email to arrive. The sender
+ * resolves the people who hold the role that owns the queue, then mails only
+ * those of them who turned that kind on for themselves. Before this card both
+ * halves were silent -- an opt-in without the role produced nothing, a role
+ * holder who never opted in was simply missing -- and the only way to answer
+ * "who gets the volunteer application notice?" was a database query. Each row
+ * leads with a count and a badge per gap so eleven rows scan for problems;
+ * the full lists stay visible, since this is reference material.
+ *
+ * Receipts are opt-out and go to whoever filled in the form, so there is no
+ * list of names to show -- only who turned them off (ReceiptDelivery).
  *
  * Read-only, deliberately. A preference is the person's own record (the
  * `enabled = false` row is the evidence an opt-out was honoured) and the table's
  * write policies pin writes to my_person_id(); the two gaps below therefore name
  * what to ask for rather than offering a switch.
  */
-function WhoReceivesWhatCard({
+function WhoReceivesWhat({
   kinds,
   recipientsByKind,
+  receiptDelivery,
 }: {
   kinds: NotificationKind[];
   recipientsByKind: NotificationRecipientsByKind | null;
+  receiptDelivery: Record<string, ReceiptDelivery> | null;
 }) {
-  return (
-    <Card>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="app-eyebrow">Who receives what</p>
-          <p className="app-muted mt-1 text-sm leading-relaxed">
-            Each person chooses which of these they want on their own{" "}
-            <Link
-              href="/portal/account"
-              className="underline underline-offset-4"
-            >
-              account page
-            </Link>
-            , and most kinds also go only to the people who hold the role that
-            owns the queue. Nobody receives anything they have not turned on.
-            The daily ops report is the exception and is set above, by address.
-          </p>
-        </div>
+  const staffKinds = kinds.filter((kind) => kind.audience !== "constituent");
+  const receiptKinds = kinds.filter((kind) => kind.audience === "constituent");
 
-        {recipientsByKind === null ? (
-          <Alert variant="destructive">
-            <AlertDescription>
-              The recipient list could not be loaded. Everything else on this
-              page is unaffected.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <ul className="space-y-5">
-            {kinds.map((kind) => (
-              <KindRecipients
-                key={kind.key}
-                kind={kind}
-                people={recipientsByKind[kind.key] ?? []}
-              />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+  return (
+    <section aria-labelledby="notifications-recipients" className="space-y-3">
+      <h2 id="notifications-recipients" className="app-eyebrow text-sm">
+        Who receives what
+      </h2>
+
+      {recipientsByKind === null || receiptDelivery === null ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            The recipient list could not be loaded. Everything else on this page
+            is unaffected.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Staff notifications{" "}
+                <span className="app-muted font-normal">
+                  ({staffKinds.length})
+                </span>
+              </CardTitle>
+              <CardDescription>
+                Sent to people who hold the role and turned it on in{" "}
+                <Link
+                  href="/portal/account"
+                  className="underline underline-offset-4"
+                >
+                  My Account
+                </Link>
+                .
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y">
+                {staffKinds.map((kind) => (
+                  <StaffKindRecipients
+                    key={kind.key}
+                    kind={kind}
+                    people={recipientsByKind[kind.key] ?? []}
+                  />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Receipts to the public{" "}
+                <span className="app-muted font-normal">
+                  ({receiptKinds.length})
+                </span>
+              </CardTitle>
+              <CardDescription>
+                Sent to whoever fills in the form, unless they opted out.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y">
+                {receiptKinds.map((kind) => (
+                  <ReceiptKindDelivery
+                    key={kind.key}
+                    kind={kind}
+                    delivery={
+                      receiptDelivery[kind.key] ?? {
+                        optedOut: 0,
+                        switchedOff: false,
+                      }
+                    }
+                  />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </section>
   );
 }
 
-function KindRecipients({
+/** A kind's name with its summary badges, wrapping under it when narrow. */
+function KindHeading({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <p className="text-sm font-medium">{label}</p>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+function StaffKindRecipients({
   kind,
   people,
 }: {
@@ -248,12 +350,28 @@ function KindRecipients({
   );
 
   return (
-    <li className="space-y-1.5">
-      <p className="text-sm font-medium">{kind.label}</p>
+    <li className="space-y-1.5 py-4 first:pt-0 last:pb-0">
+      <KindHeading label={kind.label}>
+        <Badge variant={receiving.length > 0 ? "success" : "muted"}>
+          {receiving.length} recipient{receiving.length === 1 ? "" : "s"}
+        </Badge>
+        {roleWithoutOptIn.length > 0 && (
+          <Badge variant="warning">
+            <TriangleAlert aria-hidden="true" />
+            {roleWithoutOptIn.length} not opted in
+          </Badge>
+        )}
+        {optInWithoutRole.length > 0 && (
+          <Badge variant="warning">
+            <TriangleAlert aria-hidden="true" />
+            {optInWithoutRole.length} without the role
+          </Badge>
+        )}
+      </KindHeading>
       <p className="app-muted text-sm leading-relaxed">{kind.description}</p>
 
       {receiving.length > 0 ? (
-        <p className="text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed break-words">
           <span className="font-medium">Receives it:</span>{" "}
           {nameList(receiving)}
         </p>
@@ -264,7 +382,7 @@ function KindRecipients({
       )}
 
       {roleWithoutOptIn.length > 0 && (
-        <p className="app-muted text-sm leading-relaxed">
+        <p className="app-muted text-sm leading-relaxed break-words">
           Holds the role but has not opted in: {nameList(roleWithoutOptIn)}.
           They can turn it on themselves under My Account &rarr; Email
           notifications.
@@ -272,12 +390,48 @@ function KindRecipients({
       )}
 
       {optInWithoutRole.length > 0 && (
-        <p className="app-muted text-sm leading-relaxed">
+        <p className="app-muted text-sm leading-relaxed break-words">
           Opted in, but holds no role that receives this:{" "}
           {nameList(optInWithoutRole)}. Give them the role, or expect them to
           get nothing.
         </p>
       )}
+    </li>
+  );
+}
+
+function ReceiptKindDelivery({
+  kind,
+  delivery,
+}: {
+  kind: NotificationKind;
+  delivery: ReceiptDelivery;
+}) {
+  const { optedOut, switchedOff } = delivery;
+
+  return (
+    <li className="space-y-1.5 py-4 first:pt-0 last:pb-0">
+      <KindHeading label={kind.label}>
+        {switchedOff ? (
+          <Badge variant="warning">
+            <TriangleAlert aria-hidden="true" />
+            Switched off
+          </Badge>
+        ) : (
+          <Badge variant="success">Sent</Badge>
+        )}
+        {optedOut > 0 && <Badge variant="muted">{optedOut} opted out</Badge>}
+      </KindHeading>
+      <p className="app-muted text-sm leading-relaxed">{kind.description}</p>
+      <p className="text-sm leading-relaxed">
+        {switchedOff
+          ? "Switched off under Automatic Replies, so nobody gets it."
+          : optedOut === 0
+            ? "Sent to everyone who submits the form. Nobody has opted out."
+            : `Sent to everyone who submits the form, except the ${optedOut} ${
+                optedOut === 1 ? "person who has" : "people who have"
+              } opted out.`}
+      </p>
     </li>
   );
 }
@@ -346,21 +500,19 @@ function SenderIdentityCard({
 
   return (
     <Card>
+      <CardHeader>
+        <CardTitle>Who your email comes from</CardTitle>
+        <CardDescription className="wrap-anywhere">
+          Recipients see{" "}
+          <span className="text-foreground">
+            {sender ? `"${orgName}" <${sender}>` : `"${orgName}"`}
+          </span>
+          .
+        </CardDescription>
+      </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
-            <div>
-              <p className="app-eyebrow">Who your email comes from</p>
-              <p className="app-muted mt-1 text-sm leading-relaxed">
-                Everything this portal sends goes out under your
-                organization&rsquo;s name. Recipients see{" "}
-                <span className="text-foreground">
-                  {sender ? `"${orgName}" <${sender}>` : `"${orgName}"`}
-                </span>
-                .
-              </p>
-            </div>
-
             <Field>
               <FieldLabel htmlFor="mail-reply-to">Reply-To address</FieldLabel>
               <Input
@@ -373,9 +525,7 @@ function SenderIdentityCard({
                 onChange={(event) => setReplyToValue(event.target.value)}
               />
               <FieldDescription>
-                Where a reply lands when somebody answers one of these messages.
-                The address above is a sending address that nobody reads, so
-                without this a reply bounces. Leave it empty to use the
+                Where replies land; without it they bounce. Empty uses the
                 platform&rsquo;s.
               </FieldDescription>
             </Field>
@@ -395,8 +545,7 @@ function SenderIdentityCard({
                   onChange={(event) => setFromValue(event.target.value)}
                 />
                 <FieldDescription>
-                  Must be an address at {sendingDomain}. Leave it empty to send
-                  from the platform&rsquo;s address instead.
+                  Must be at {sendingDomain}. Empty uses the platform&rsquo;s.
                 </FieldDescription>
               </Field>
             ) : (
@@ -409,9 +558,7 @@ function SenderIdentityCard({
                   {platformFrom ?? "Not configured"}
                 </ReadOnlyField>
                 <FieldDescription>
-                  Sending from your own domain needs your platform operator to
-                  verify it with the email provider first. Ask them to set it up
-                  and this becomes editable.
+                  Editable once your platform operator verifies your domain.
                 </FieldDescription>
               </>
             )}
@@ -474,12 +621,18 @@ function OpsReportRecipientsCard({ recipients }: { recipients: string[] }) {
 
   return (
     <Card>
+      <CardHeader>
+        <CardTitle>Daily ops report</CardTitle>
+        <CardDescription>
+          A morning summary of the day, sent by address. Empty sends none.
+        </CardDescription>
+      </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="ops-report-recipients">
-                Daily ops report recipients
+                Recipients
               </FieldLabel>
               <Textarea
                 id="ops-report-recipients"
@@ -491,11 +644,7 @@ function OpsReportRecipientsCard({ recipients }: { recipients: string[] }) {
                 onChange={(event) => setValue(event.target.value)}
               />
               <FieldDescription>
-                One address per line (commas work too). Each morning these
-                addresses get a summary of the day: approvals waiting, events
-                and shift gaps in the next week, new messages and applications,
-                and donations received. Leave this empty to send no report at
-                all. Every change here is recorded in the audit log.
+                One address per line (commas work too).
               </FieldDescription>
             </Field>
 
