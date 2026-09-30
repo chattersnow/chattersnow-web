@@ -35,6 +35,10 @@ export type ReimbursementRow = {
   amount: number | string;
   currency: string;
   receipt_url: string | null;
+  /** Object path in the private documents bucket (#1490). */
+  receipt_path: string | null;
+  /** A short-lived signed URL for `receipt_path`, minted server-side. */
+  receipt_signed_url: string | null;
   notes: string | null;
   people: { name: string | null; email: string | null } | null;
   events: { name: string } | null;
@@ -56,7 +60,7 @@ export type EventOption = { id: string; name: string };
 export const CURRENCIES = [{ value: "USD", label: "USD" }];
 
 export const REIMBURSEMENT_COLUMNS =
-  "id, person_id, event_id, description, amount, currency, receipt_url, notes, people(name, email), events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at, created_at, source_expense_id, source_expense:event_expenses!reimbursements_source_expense_id_fkey(id, description)";
+  "id, person_id, event_id, description, amount, currency, receipt_url, receipt_path, notes, people(name, email), events(name), status, submitted_by, approved_by, approved_at, rejected_at, rejection_reason, paid_by, paid_at, created_at, source_expense_id, source_expense:event_expenses!reimbursements_source_expense_id_fkey(id, description)";
 
 export type ReimbursementApprovalContext = ApprovalContext;
 

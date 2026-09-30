@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { parseReceiptFields } from "@/lib/finance/receipt";
 
 export type ExpenseFormData = {
   description: string;
@@ -7,6 +8,7 @@ export type ExpenseFormData = {
   amount: number;
   currency: string;
   receipt_url: string | null;
+  receipt_path: string | null;
   notes: string | null;
   paid_by_person_id: string | null;
 };
@@ -19,7 +21,6 @@ export function parseExpenseForm(
   const expenseDate = String(formData.get("expenseDate") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "").trim();
   const currency = String(formData.get("currency") ?? "USD").trim() || "USD";
-  const receiptUrl = String(formData.get("receiptUrl") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
   const paidByPersonId = String(formData.get("paidByPersonId") ?? "").trim();
 
@@ -31,6 +32,9 @@ export function parseExpenseForm(
     return { error: "Amount must be a positive number." };
   }
 
+  const receipt = parseReceiptFields(formData);
+  if ("error" in receipt) return receipt;
+
   return {
     data: {
       description,
@@ -38,7 +42,7 @@ export function parseExpenseForm(
       expense_date: expenseDate,
       amount,
       currency,
-      receipt_url: receiptUrl || null,
+      ...receipt.data,
       notes: notes || null,
       paid_by_person_id: paidByPersonId || null,
     },

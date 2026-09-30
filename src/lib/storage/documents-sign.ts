@@ -59,3 +59,25 @@ export async function withDocumentUrls<
       : null,
   }));
 }
+
+/**
+ * Attaches `receipt_signed_url` to each expense or reimbursement row that has
+ * a `receipt_path` (#1490). `receipt_url` is already taken by the pasted link.
+ */
+export async function withReceiptUrls<
+  T extends { receipt_path: string | null },
+>(
+  supabase: SupabaseClient,
+  rows: T[],
+): Promise<(T & { receipt_signed_url: string | null })[]> {
+  const urls = await signDocumentPaths(
+    supabase,
+    rows.map((row) => row.receipt_path),
+  );
+  return rows.map((row) => ({
+    ...row,
+    receipt_signed_url: row.receipt_path
+      ? (urls.get(row.receipt_path) ?? null)
+      : null,
+  }));
+}

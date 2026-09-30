@@ -1,6 +1,7 @@
 import { humanizeStatus } from "@/components/portal/status-badge";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { withReceiptUrls } from "@/lib/storage/documents-sign";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
@@ -145,8 +146,11 @@ export default async function ReimbursementsPage({
     getReimbursementApprovalContext(supabase),
   ]);
 
-  const reimbursementRows = (reimbursements ??
-    []) as unknown as ReimbursementRow[];
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const reimbursementRows = await withReceiptUrls(
+    supabase,
+    (reimbursements ?? []) as unknown as ReimbursementRow[],
+  );
   const peopleOptions = (people ?? []) as PersonListItem[];
   const eventOptions = (events ?? []) as EventOption[];
 

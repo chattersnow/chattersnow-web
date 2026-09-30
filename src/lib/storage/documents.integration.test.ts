@@ -1,5 +1,6 @@
-// Integration coverage for the private `documents` bucket and the governance
-// `document_path` columns (#1489), against a real local Supabase stack.
+// Integration coverage for the private `documents` bucket, the governance
+// `document_path` columns (#1489) and the finance `receipt_path` columns
+// (#1490), against a real local Supabase stack.
 //
 // The bucket's isolation lives in object paths and `storage.objects` policies,
 // where `tenant_isolation_gaps()` can't see it, so this file is what asserts
@@ -30,6 +31,7 @@ function pdfBlob() {
 
 let admin: SupabaseClient;
 let board: SupabaseClient;
+let coordinator: SupabaseClient;
 let finance: SupabaseClient;
 let volunteer: SupabaseClient;
 let tenantId: string;
@@ -38,6 +40,8 @@ let otherTenantId: string;
 /** Every path written here, cleaned up as service_role regardless of policy. */
 const created: string[] = [];
 const createdBylaws: string[] = [];
+const createdExpenses: string[] = [];
+const createdReimbursements: string[] = [];
 
 function path(tenant: string, module = "governance", name = "doc.pdf") {
   const value = `${tenant}/${module}/${crypto.randomUUID()}/${name}`;
@@ -77,11 +81,21 @@ beforeAll(async () => {
 
   admin = await signInAs(SEEDED_USERS.admin);
   board = await signInAs(SEEDED_USERS.board);
+  coordinator = await signInAs(SEEDED_USERS.coordinator);
   finance = await signInAs(SEEDED_USERS.finance);
   volunteer = await signInAs(SEEDED_USERS.volunteer);
 });
 
 afterAll(async () => {
+  if (createdReimbursements.length) {
+    await service
+      .from("reimbursements")
+      .delete()
+      .in("id", createdReimbursements);
+  }
+  if (createdExpenses.length) {
+    await service.from("event_expenses").delete().in("id", createdExpenses);
+  }
   if (createdBylaws.length) {
     await service.from("bylaws").delete().in("id", createdBylaws);
   }
@@ -231,6 +245,167 @@ describe("governance document_path", () => {
     ]) {
       const { error } = await insertBylaws({ document_path: documentPath });
       expect(error?.message).toContain("bylaws_document_path_in_tenant");
+    }
+  });
+});
+
+describe("receipts", () => {
+  async function insertExpense(
+    client: SupabaseClient,
+    fields: Record<string, string | null>,
+  ) {
+    const { data, error } = await client
+      .from("event_expenses")
+      .insert({
+        description: `Receipt test ${crypto.randomUUID().slice(0, 8)}`,
+        expense_date: "2026-01-01",
+        amount: 12.5,
+        ...fields,
+      })
+      .select("id")
+      .maybeSingle();
+    if (data?.id) createdExpenses.push(data.id as string);
+    return { data, error };
+  }
+
+  async function insertReimbursement(
+    client: SupabaseClient,
+    fields: Record<string, string | null>,
+  ) {
+    const { data: person, error: personError } = await service
+      .from("people")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .limit(1)
+      .single();
+    if (personError) throw personError;
+    const { data, error } = await client
+      .from("reimbursements")
+      .insert({
+        person_id: person.id,
+        description: `Receipt test ${crypto.randomUUID().slice(0, 8)}`,
+        amount: 12.5,
+        ...fields,
+      })
+      .select("id")
+      .maybeSingle();
+    if (data?.id) createdReimbursements.push(data.id as string);
+    return { data, error };
+  }
+
+  async function canRead(client: SupabaseClient, objectPath: string) {
+    const { data } = await client.storage
+      .from(DOCUMENTS_BUCKET)
+      .createSignedUrl(objectPath, 60);
+    return !!data?.signedUrl;
+  }
+
+  test("whoever records spend can upload one; nobody else can", async () => {
+    for (const client of [admin, finance, coordinator]) {
+      const { error } = await upload(client, path(tenantId, "receipts"));
+      expect(error).toBeNull();
+    }
+    for (const client of [board, volunteer, anon]) {
+      const { error } = await upload(client, path(tenantId, "receipts"));
+      expect(error).not.toBeNull();
+    }
+  });
+
+  test("another tenant's prefix or the wrong depth is refused", async () => {
+    for (const objectPath of [
+      path(otherTenantId, "receipts"),
+      `${tenantId}/receipts/flat.pdf`,
+    ]) {
+      created.push(objectPath);
+      const { error } = await upload(finance, objectPath);
+      expect(error).not.toBeNull();
+    }
+  });
+
+  test("an unsaved upload is readable only by the person who uploaded it", async () => {
+    const objectPath = path(tenantId, "receipts");
+    const { error } = await upload(coordinator, objectPath);
+    if (error) throw error;
+
+    expect(await canRead(coordinator, objectPath)).toBe(true);
+    for (const client of [admin, finance, board, volunteer, anon]) {
+      expect(await canRead(client, objectPath)).toBe(false);
+    }
+  });
+
+  test("an expense's receipt reads for whoever can see the expense", async () => {
+    const objectPath = path(tenantId, "receipts");
+    const { error: uploadError } = await upload(coordinator, objectPath);
+    if (uploadError) throw uploadError;
+    const { error } = await insertExpense(coordinator, {
+      receipt_path: objectPath,
+    });
+    expect(error).toBeNull();
+
+    // finance and admin hold event_expenses; board and volunteer do not.
+    for (const client of [coordinator, finance, admin]) {
+      expect(await canRead(client, objectPath)).toBe(true);
+    }
+    for (const client of [board, volunteer, anon]) {
+      expect(await canRead(client, objectPath)).toBe(false);
+    }
+  });
+
+  // The ticket's acceptance case: an approver outside finance sees the
+  // receipt they are deciding on; nobody else outside it does.
+  test("a reimbursement's receipt reads for its approver, not for others outside finance", async () => {
+    const objectPath = path(tenantId, "receipts");
+    const { error: uploadError } = await upload(coordinator, objectPath);
+    if (uploadError) throw uploadError;
+    const { error } = await insertReimbursement(coordinator, {
+      receipt_path: objectPath,
+    });
+    expect(error).toBeNull();
+
+    for (const client of [coordinator, finance, board]) {
+      expect(await canRead(client, objectPath)).toBe(true);
+    }
+    for (const client of [volunteer, anon]) {
+      expect(await canRead(client, objectPath)).toBe(false);
+    }
+  });
+
+  test("only the uploader can delete a receipt object", async () => {
+    const objectPath = path(tenantId, "receipts");
+    const { error: uploadError } = await upload(coordinator, objectPath);
+    if (uploadError) throw uploadError;
+    await insertExpense(coordinator, { receipt_path: objectPath });
+
+    const { data: removed } = await finance.storage
+      .from(DOCUMENTS_BUCKET)
+      .remove([objectPath]);
+    expect(removed ?? []).toEqual([]);
+    expect(await canRead(finance, objectPath)).toBe(true);
+  });
+
+  test("refuses a link and a path together", async () => {
+    const { error: expenseError } = await insertExpense(finance, {
+      receipt_url: "https://example.com/receipt.pdf",
+      receipt_path: path(tenantId, "receipts"),
+    });
+    expect(expenseError?.message).toContain("event_expenses_one_receipt");
+
+    const { error: reimbursementError } = await insertReimbursement(finance, {
+      receipt_url: "https://example.com/receipt.pdf",
+      receipt_path: path(tenantId, "receipts"),
+    });
+    expect(reimbursementError?.message).toContain("reimbursements_one_receipt");
+  });
+
+  test("refuses another tenant's path or another module's", async () => {
+    for (const receiptPath of [
+      path(otherTenantId, "receipts"),
+      path(tenantId, "governance"),
+    ]) {
+      const { error } = await insertExpense(finance, {
+        receipt_path: receiptPath,
+      });
+      expect(error?.message).toContain("event_expenses_receipt_path_in_tenant");
     }
   });
 });

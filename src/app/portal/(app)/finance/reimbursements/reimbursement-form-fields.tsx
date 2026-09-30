@@ -2,6 +2,7 @@
 
 import { CURRENCIES, type EventOption } from "./reimbursements-shared";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { DocumentField } from "@/components/portal/document-field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,6 +19,7 @@ export type ReimbursementFormState = {
   amount: string;
   currency: string;
   receiptUrl: string;
+  receiptPath: string;
   notes: string;
 };
 
@@ -30,6 +32,7 @@ export function emptyReimbursementForm(
     amount: "",
     currency: "USD",
     receiptUrl: "",
+    receiptPath: "",
     notes: "",
   };
 }
@@ -39,6 +42,7 @@ export function ReimbursementFormFields({
   update,
   events,
   idPrefix,
+  receiptSignedUrl = null,
 }: {
   form: ReimbursementFormState;
   update: <K extends keyof ReimbursementFormState>(
@@ -47,6 +51,8 @@ export function ReimbursementFormFields({
   ) => void;
   events: EventOption[];
   idPrefix: string;
+  /** The signed URL for the saved `receiptPath`, when editing a record. */
+  receiptSignedUrl?: string | null;
 }) {
   return (
     <>
@@ -126,16 +132,18 @@ export function ReimbursementFormFields({
         </Field>
       </Field>
 
-      <Field>
-        <FieldLabel htmlFor={`${idPrefix}-receiptUrl`}>Receipt link</FieldLabel>
-        <Input
-          id={`${idPrefix}-receiptUrl`}
-          type="url"
-          placeholder="https://..."
-          value={form.receiptUrl}
-          onChange={(event) => update("receiptUrl", event.target.value)}
-        />
-      </Field>
+      <DocumentField
+        value={{ link: form.receiptUrl, path: form.receiptPath }}
+        onChange={({ link, path }) => {
+          update("receiptUrl", link);
+          update("receiptPath", path);
+        }}
+        signedUrl={receiptSignedUrl}
+        idPrefix={`${idPrefix}-receipt`}
+        module="receipts"
+        label="Receipt"
+        description="Take a photo of a paper receipt, pick a PDF or image up to 10 MB, or paste a link."
+      />
 
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
@@ -160,6 +168,7 @@ export function packReimbursementFormData(
   formData.set("amount", form.amount);
   formData.set("currency", form.currency);
   formData.set("receiptUrl", form.receiptUrl);
+  formData.set("receiptPath", form.receiptPath);
   formData.set("notes", form.notes);
   return formData;
 }

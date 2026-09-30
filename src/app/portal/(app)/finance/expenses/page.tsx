@@ -1,6 +1,7 @@
 import { humanizeStatus } from "@/components/portal/status-badge";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { withReceiptUrls } from "@/lib/storage/documents-sign";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { SortHeaderLink } from "@/components/portal/sort-header-link";
@@ -133,7 +134,11 @@ export default async function ExpensesPage({
       getExpenseApprovalContext(supabase),
     ]);
 
-  const expenseRows = (expenses ?? []) as unknown as ExpenseRow[];
+  // Signed on the reader's own client: the bucket decides who resolves one.
+  const expenseRows = await withReceiptUrls(
+    supabase,
+    (expenses ?? []) as unknown as ExpenseRow[],
+  );
   const eventOptions = (events ?? []) as EventOption[];
 
   const filterParams = new URLSearchParams();
@@ -284,9 +289,9 @@ export default async function ExpensesPage({
             <HowToSection heading="Common mistakes">
               <ul className="list-disc space-y-2 pl-4">
                 <li>
-                  Submitting an expense without a receipt link — nothing blocks
-                  it, but it slows the approver down since there&apos;s no
-                  upload, only a link field.
+                  Submitting an expense without a receipt — nothing blocks it,
+                  but it slows the approver down. Take a photo of a paper
+                  receipt from your phone, upload a PDF, or paste a link.
                 </li>
                 <li>
                   Trying to approve your own submission when it&apos;s at or

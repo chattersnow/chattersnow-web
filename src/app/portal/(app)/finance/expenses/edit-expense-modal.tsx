@@ -55,6 +55,7 @@ import {
 } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -89,6 +90,7 @@ function formStateFor(expense: ExpenseRow): ExpenseFormState {
     amount: String(expense.amount),
     currency: expense.currency,
     receiptUrl: expense.receipt_url ?? "",
+    receiptPath: expense.receipt_path ?? "",
     notes: expense.notes ?? "",
   };
 }
@@ -505,11 +507,12 @@ export function EditExpenseModal({
                     {formatAmount(expense.amount, expense.currency)}
                   </ReadOnlyField>
                 </Field>
-                <ReadOnlyField
-                  label="Receipt link"
-                  htmlFor="edit-expense-receiptUrl"
-                >
-                  {expense.receipt_url || "—"}
+                <ReadOnlyField label="Receipt" htmlFor="edit-expense-receipt">
+                  <DocumentPreview
+                    link={expense.receipt_url}
+                    path={expense.receipt_path}
+                    url={expense.receipt_signed_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-expense-notes">
                   {expense.notes || "—"}
@@ -611,6 +614,7 @@ export function EditExpenseModal({
                   </Field>
 
                   <ExpenseFormFields
+                    receiptSignedUrl={expense.receipt_signed_url}
                     form={form}
                     update={update}
                     events={events}

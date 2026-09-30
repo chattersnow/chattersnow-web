@@ -16,17 +16,20 @@ import { DOCUMENTS_BUCKET } from "./documents";
  */
 
 /**
- * Every table with a `document_path` column. A module that starts storing
- * documents (#1490's receipts) adds its tables here, or the sweep deletes its
- * files a day after they are saved.
+ * Every column that holds a path in this bucket. A module that starts storing
+ * documents adds its columns here, or the sweep deletes its files a day after
+ * they are saved.
  */
-export const DOCUMENT_TABLES = [
-  "bylaws",
-  "policies",
-  "resolutions",
-  "conflict_of_interest_disclosures",
-  "annual_requirements",
-  "agendas",
+export const DOCUMENT_COLUMNS = [
+  { table: "bylaws", column: "document_path" },
+  { table: "policies", column: "document_path" },
+  { table: "resolutions", column: "document_path" },
+  { table: "conflict_of_interest_disclosures", column: "document_path" },
+  { table: "annual_requirements", column: "document_path" },
+  { table: "agendas", column: "document_path" },
+  // Finance receipts (#1490).
+  { table: "event_expenses", column: "receipt_path" },
+  { table: "reimbursements", column: "receipt_path" },
 ] as const;
 
 /** How long an object is left alone before it counts as abandoned. */
@@ -82,18 +85,19 @@ export async function liveDocumentPaths(
   supabase: SupabaseClient,
 ): Promise<Set<string>> {
   const paths = new Set<string>();
-  for (const table of DOCUMENT_TABLES) {
+  for (const { table, column } of DOCUMENT_COLUMNS) {
     for (let from = 0; ; from += ROW_PAGE) {
       const { data, error } = await supabase
         .from(table)
-        .select("id, document_path")
-        .not("document_path", "is", null)
+        .select(`id, ${column}`)
+        .not(column, "is", null)
         .order("id")
         .range(from, from + ROW_PAGE - 1);
       if (error) throw new Error(`Could not read ${table}: ${error.message}`);
-      const page = (data ?? []) as { document_path: string | null }[];
+      const page = (data ?? []) as unknown as Record<string, string | null>[];
       for (const row of page) {
-        if (row.document_path) paths.add(row.document_path);
+        const path = row[column];
+        if (path) paths.add(path);
       }
       if (page.length < ROW_PAGE) break;
     }

@@ -43,6 +43,7 @@ import {
 } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import { DocumentPreview } from "@/components/portal/document-field";
 import {
   Sheet,
   SheetClose,
@@ -75,6 +76,7 @@ function formStateFor(reimbursement: ReimbursementRow): ReimbursementFormState {
     amount: String(reimbursement.amount),
     currency: reimbursement.currency,
     receiptUrl: reimbursement.receipt_url ?? "",
+    receiptPath: reimbursement.receipt_path ?? "",
     notes: reimbursement.notes ?? "",
   };
 }
@@ -395,10 +397,14 @@ export function EditReimbursementModal({
                   </ReadOnlyField>
                 </Field>
                 <ReadOnlyField
-                  label="Receipt link"
-                  htmlFor="edit-reimbursement-receiptUrl"
+                  label="Receipt"
+                  htmlFor="edit-reimbursement-receipt"
                 >
-                  {reimbursement.receipt_url || "—"}
+                  <DocumentPreview
+                    link={reimbursement.receipt_url}
+                    path={reimbursement.receipt_path}
+                    url={reimbursement.receipt_signed_url}
+                  />
                 </ReadOnlyField>
                 <ReadOnlyField label="Notes" htmlFor="edit-reimbursement-notes">
                   {reimbursement.notes || "—"}
@@ -473,6 +479,7 @@ export function EditReimbursementModal({
                   </Field>
 
                   <ReimbursementFormFields
+                    receiptSignedUrl={reimbursement.receipt_signed_url}
                     form={form}
                     update={update}
                     events={events}
