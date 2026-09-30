@@ -519,7 +519,7 @@ describe("navGroups", () => {
         group.items.map((sub) => sub.value),
       ]),
     ).toEqual([
-      ["Content", ["pages", "articles", "content-packs"]],
+      ["Content", ["pages", "articles", "content-packs", "publications"]],
       [
         "Site settings",
         [

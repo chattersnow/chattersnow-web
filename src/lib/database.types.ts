@@ -7273,6 +7273,166 @@ export type Database = {
           },
         ];
       };
+      publication_pages: {
+        Row: {
+          alt_text: string | null;
+          created_at: string;
+          created_by: string | null;
+          height: number;
+          id: string;
+          image_path: string;
+          image_renditions: Json;
+          position: number;
+          publication_id: string;
+          tenant_id: string;
+          transcript: string | null;
+          updated_at: string;
+          updated_by: string | null;
+          width: number;
+        };
+        Insert: {
+          alt_text?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          height: number;
+          id?: string;
+          image_path: string;
+          image_renditions?: Json;
+          position: number;
+          publication_id: string;
+          tenant_id?: string;
+          transcript?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          width: number;
+        };
+        Update: {
+          alt_text?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          height?: number;
+          id?: string;
+          image_path?: string;
+          image_renditions?: Json;
+          position?: number;
+          publication_id?: string;
+          tenant_id?: string;
+          transcript?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+          width?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "publication_pages_publication_in_tenant";
+            columns: ["tenant_id", "publication_id"];
+            isOneToOne: false;
+            referencedRelation: "publications";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "publication_pages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "publication_pages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      publications: {
+        Row: {
+          blurb: string | null;
+          cover_height: number | null;
+          cover_path: string | null;
+          cover_renditions: Json;
+          cover_width: number | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          print_pdf_bytes: number | null;
+          print_pdf_path: string | null;
+          publish_date: string | null;
+          published_at: string | null;
+          reading_pdf_bytes: number | null;
+          reading_pdf_path: string | null;
+          season_label: string | null;
+          slug: string;
+          status: string;
+          tenant_id: string;
+          title: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          blurb?: string | null;
+          cover_height?: number | null;
+          cover_path?: string | null;
+          cover_renditions?: Json;
+          cover_width?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          print_pdf_bytes?: number | null;
+          print_pdf_path?: string | null;
+          publish_date?: string | null;
+          published_at?: string | null;
+          reading_pdf_bytes?: number | null;
+          reading_pdf_path?: string | null;
+          season_label?: string | null;
+          slug: string;
+          status?: string;
+          tenant_id?: string;
+          title: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          blurb?: string | null;
+          cover_height?: number | null;
+          cover_path?: string | null;
+          cover_renditions?: Json;
+          cover_width?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          print_pdf_bytes?: number | null;
+          print_pdf_path?: string | null;
+          publish_date?: string | null;
+          published_at?: string | null;
+          reading_pdf_bytes?: number | null;
+          reading_pdf_path?: string | null;
+          season_label?: string | null;
+          slug?: string;
+          status?: string;
+          tenant_id?: string;
+          title?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "publications_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "publications_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       rate_limit_hits: {
         Row: {
           created_at: string;
@@ -9317,6 +9477,74 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_publication_pages: {
+        Row: {
+          alt_text: string | null;
+          height: number | null;
+          id: string | null;
+          image_path: string | null;
+          image_renditions: Json | null;
+          position: number | null;
+          publication_id: string | null;
+          transcript: string | null;
+          width: number | null;
+        };
+        Relationships: [];
+      };
+      public_publications: {
+        Row: {
+          blurb: string | null;
+          cover_height: number | null;
+          cover_path: string | null;
+          cover_renditions: Json | null;
+          cover_width: number | null;
+          id: string | null;
+          print_pdf_bytes: number | null;
+          print_pdf_path: string | null;
+          publish_date: string | null;
+          published_at: string | null;
+          reading_pdf_bytes: number | null;
+          reading_pdf_path: string | null;
+          season_label: string | null;
+          slug: string | null;
+          title: string | null;
+        };
+        Insert: {
+          blurb?: string | null;
+          cover_height?: number | null;
+          cover_path?: string | null;
+          cover_renditions?: Json | null;
+          cover_width?: number | null;
+          id?: string | null;
+          print_pdf_bytes?: number | null;
+          print_pdf_path?: string | null;
+          publish_date?: string | null;
+          published_at?: string | null;
+          reading_pdf_bytes?: number | null;
+          reading_pdf_path?: string | null;
+          season_label?: string | null;
+          slug?: string | null;
+          title?: string | null;
+        };
+        Update: {
+          blurb?: string | null;
+          cover_height?: number | null;
+          cover_path?: string | null;
+          cover_renditions?: Json | null;
+          cover_width?: number | null;
+          id?: string | null;
+          print_pdf_bytes?: number | null;
+          print_pdf_path?: string | null;
+          publish_date?: string | null;
+          published_at?: string | null;
+          reading_pdf_bytes?: number | null;
+          reading_pdf_path?: string | null;
+          season_label?: string | null;
+          slug?: string | null;
+          title?: string | null;
+        };
+        Relationships: [];
+      };
       public_registration_settings: {
         Row: {
           asks_about_minors: boolean | null;
@@ -10620,6 +10848,10 @@ export type Database = {
       };
       public_origin_allowed: { Args: { p_origin: string }; Returns: boolean };
       public_tenant_id: { Args: never; Returns: string };
+      publication_pages_missing_text: {
+        Args: { p_publication_id: string };
+        Returns: number;
+      };
       publish_article_category: { Args: { p_id: string }; Returns: number };
       publish_giveaway_rules: {
         Args: { p_content: Json; p_giveaway_id: string };
@@ -11120,6 +11352,10 @@ export type Database = {
           p_notes: Json;
         };
         Returns: string;
+      };
+      save_publication: {
+        Args: { p_id: string; p_issue: Json; p_pages: Json };
+        Returns: undefined;
       };
       save_registrant_rider_profile: {
         Args: {

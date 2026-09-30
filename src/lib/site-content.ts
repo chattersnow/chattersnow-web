@@ -158,6 +158,12 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
   },
   { key: "events", label: "Events", route: "/events", visibilityKey: "events" },
   {
+    key: "publications",
+    label: "Publications",
+    route: "/publications",
+    visibilityKey: "publications",
+  },
+  {
     key: "programs",
     label: "Programs",
     route: "/programs",
@@ -311,6 +317,14 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     page: "events",
     label: "Community calendar",
     route: "/events/community",
+  },
+
+  {
+    key: "publications:print",
+    page: "publications",
+    label: "Print at home",
+    description:
+      "Shown beside an issue's “Print at home” download, on every issue that has one.",
   },
 
   { key: "programs:opening", page: "programs", label: "Opening" },
@@ -2035,6 +2049,22 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
   },
 
   // Programs --------------------------------------------------------------------
+  // #1472. One block for every issue: how to fold what the print PDF prints.
+  // The default describes a saddle-stitched booklet, the common imposition;
+  // a tenant printing a one-sheet mini-zine rewrites it.
+  {
+    key: "publications.print_instructions",
+    page: "publications",
+    section: "publications:print",
+    label: "Folding instructions",
+    description:
+      "How to turn the print PDF into a booklet. Leave the default if your print file is a stapled booklet; rewrite it if you fold a single sheet instead.",
+    type: "paragraphs",
+    default: [
+      "Print double-sided on letter paper, flipping on the short edge, at actual size.",
+      "Keep the sheets in the order they came out, fold the stack in half, and staple twice along the fold.",
+    ],
+  },
   {
     key: "programs.heading",
     page: "programs",

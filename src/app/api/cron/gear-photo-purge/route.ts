@@ -3,10 +3,11 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isAuthorizedCronRequest } from "@/lib/notifications/cron-auth";
 import { runGearPhotoPurge } from "@/lib/storage/orphan-purge";
 import { runArtworkPurge } from "@/lib/storage/artwork-purge";
+import { runPublicationPurge } from "@/lib/storage/publication-purge";
 
 /**
- * The daily orphan sweep over both Storage buckets, on a Vercel Cron (#781,
- * #870).
+ * The daily orphan sweep over three Storage buckets, on a Vercel Cron (#781,
+ * #870, #1472).
  *
  * Structurally identical to /api/cron/ops-report and /api/cron/task-reminders:
  * the same shared CRON_SECRET guard, the same counts-only response. It needs no
@@ -22,7 +23,7 @@ import { runArtworkPurge } from "@/lib/storage/artwork-purge";
  * Hobby plan allows a single cron a day. The artwork sweep is deliberately
  * *not* inside a try that swallows -- a failure there should be as visible as
  * one in the gear sweep -- but it runs second, so a gear sweep that succeeded
- * still happened.
+ * still happened. The publication sweep (#1472) runs third on the same terms.
  */
 export async function GET(request: Request) {
   if (
@@ -39,5 +40,6 @@ export async function GET(request: Request) {
   const admin = createSupabaseAdminClient();
   const gearPhotos = await runGearPhotoPurge(admin);
   const artwork = await runArtworkPurge(admin);
-  return NextResponse.json({ gearPhotos, artwork });
+  const publications = await runPublicationPurge(admin);
+  return NextResponse.json({ gearPhotos, artwork, publications });
 }
