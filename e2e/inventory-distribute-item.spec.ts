@@ -115,10 +115,17 @@ test.describe("distribute an item from its page", () => {
       await tab.close();
     }
 
-    // Closing and reopening reads the list back from the server.
+    // Closing and reopening reads the list back from the server. The footer's
+    // Close, not the corner X: that one is named "Close" too, and on a phone
+    // (a sheet) it also carries the word as screen-reader text, so matching
+    // on text alone finds both.
     await dialog
       .getByRole("button", { name: "Close", exact: true })
-      .filter({ hasText: "Close" })
+      .and(
+        page.locator(
+          ':not([data-slot="sheet-close"]):not([data-slot="dialog-close"])',
+        ),
+      )
       .click();
     await expect(dialog).not.toBeVisible();
     const reopen = page.getByRole("button", {

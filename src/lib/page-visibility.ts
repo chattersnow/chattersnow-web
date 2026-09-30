@@ -517,9 +517,16 @@ export async function isPageVisible(slot: string): Promise<boolean> {
 /**
  * Route gate. Call at the top of a section's layout: hiding a section from the
  * nav doesn't make its URLs unreachable, so the section itself has to 404.
+ *
+ * `unlessAllowed` lets a hidden section through for somebody specific -- a
+ * tenant's editors previewing it before it goes live (#1472). It is only asked
+ * when the section is hidden, so a visible one costs nothing extra.
  */
-export async function requireVisiblePage(slot: string): Promise<void> {
-  if (!(await isPageVisible(slot))) {
+export async function requireVisiblePage(
+  slot: string,
+  unlessAllowed?: () => Promise<boolean>,
+): Promise<void> {
+  if (!(await isPageVisible(slot)) && !(await unlessAllowed?.())) {
     notFound();
   }
 }

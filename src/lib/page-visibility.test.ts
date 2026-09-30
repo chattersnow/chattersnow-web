@@ -109,8 +109,10 @@ describe("PUBLIC_PAGE_SLOTS", () => {
           );
         }
 
+        // Up to the key's closing quote, not the call's closing paren: a gate
+        // may pass a preview exception after the slot (#1472).
         expect(
-          source.includes(`requireVisiblePage("${slot.key}")`),
+          source.includes(`requireVisiblePage("${slot.key}"`),
           `${gate} must call requireVisiblePage("${slot.key}")`,
         ).toBe(true);
       }
