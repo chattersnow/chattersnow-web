@@ -398,6 +398,7 @@ export function RegistrantDetailSheet({
                 orgName={orgName}
                 replyTo={replyTo}
                 onSent={onSent}
+                asksQuestions={registrationQuestions.length > 0}
                 disabledReason={messagingDisabledReason(
                   orgEmailEnabled,
                   registrant.email,

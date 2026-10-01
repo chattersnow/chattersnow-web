@@ -33,3 +33,13 @@
 export function publicEventPath(id: string): string {
   return `/events/e/${id}`;
 }
+
+/**
+ * Where an emailed request for missing registration answers lands (#1502).
+ * The token rides in the query string because the link has to work from a
+ * mailbox; the page renders it into its form and sends no referrer, so it
+ * goes no further than this one request.
+ */
+export function publicEventAnswersPath(id: string, token: string): string {
+  return `${publicEventPath(id)}/answers?t=${encodeURIComponent(token)}`;
+}

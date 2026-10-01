@@ -33,6 +33,7 @@ const REGISTRANT: EventRegistrant = {
   photo_consent_text: null,
   option_counts: [],
   answers: [],
+  answer_request: null,
   rider: null,
   minorContacts: null,
 };

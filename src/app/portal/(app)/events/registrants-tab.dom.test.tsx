@@ -46,6 +46,7 @@ const registrants: EventRegistrant[] = [
     photo_consent_text: "We use photos on our site and socials.",
     option_counts: [],
     answers: [],
+    answer_request: null,
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -92,6 +93,7 @@ const registrants: EventRegistrant[] = [
     photo_consent_text: "We use photos on our site and socials.",
     option_counts: [],
     answers: [],
+    answer_request: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",

@@ -13,6 +13,7 @@ import {
 } from "./kinds";
 import {
   EVENT_ANNOUNCEMENT_KIND,
+  REGISTRATION_ANSWERS_REQUEST_KIND,
   STAFF_MESSAGE_KIND,
 } from "@/lib/outbound-messages";
 
@@ -119,5 +120,14 @@ describe("the registry", () => {
     // the gate an announcement obeys, and the composer says so.
     expect(isNotificationKind(EVENT_ANNOUNCEMENT_KIND)).toBe(false);
     expect(notificationKindDefault(EVENT_ANNOUNCEMENT_KIND)).toBe(false);
+  });
+
+  test("registration_answers_request is not a kind either (#1502)", () => {
+    // The same trap again: a preference nobody was offered would suppress a
+    // request for answers to an event the person signed up for.
+    expect(isNotificationKind(REGISTRATION_ANSWERS_REQUEST_KIND)).toBe(false);
+    expect(notificationKindDefault(REGISTRATION_ANSWERS_REQUEST_KIND)).toBe(
+      false,
+    );
   });
 });
