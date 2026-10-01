@@ -1059,7 +1059,7 @@ export async function sendEventRegistrationConfirmation(
   // (tenant_id, id) foreign key, so an embed could not name its tenant -- and on
   // the service-role client there is no policy underneath to catch a mistake.
   // Inside the same Promise.all it costs no latency.
-  const [event, mail, reply, optionCounts] = await Promise.all([
+  const [event, mail, reply, optionCounts, answerRows] = await Promise.all([
     admin
       .from("events")
       .select("name, starts_at, ends_at, location, timezone")
@@ -1080,6 +1080,14 @@ export async function sendEventRegistrationConfirmation(
     admin
       .from("event_registration_option_counts")
       .select("label, quantity, sort_order")
+      .eq("registration_id", data.id)
+      .eq("tenant_id", data.tenant_id)
+      .order("sort_order", { ascending: true }),
+    // #1501. The answers to the event's registration questions, in the words
+    // they were given in, for the same reason and with the same tolerance.
+    admin
+      .from("event_registration_answers")
+      .select("prompt_as_shown, answer_text, sort_order")
       .eq("registration_id", data.id)
       .eq("tenant_id", data.tenant_id)
       .order("sort_order", { ascending: true }),
@@ -1125,6 +1133,12 @@ export async function sendEventRegistrationConfirmation(
             label,
             quantity,
           })),
+          answers: (answerRows.data ?? []).map(
+            ({ prompt_as_shown, answer_text }) => ({
+              prompt: prompt_as_shown,
+              answer: answer_text,
+            }),
+          ),
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,

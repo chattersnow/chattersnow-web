@@ -152,6 +152,8 @@ describe("parseEventRegistrationForm", () => {
         option_counts: null,
         // Nor riding questions (#1415).
         riding: null,
+        // Nor event questions (#1501).
+        answers: null,
       },
     });
   });
@@ -203,6 +205,30 @@ describe("parseEventRegistrationForm", () => {
     // Blank is none, and the sum is left for the RPC, which knows whether
     // the event asks at all.
     expect(result.data.option_counts).toEqual({ a: 2, b: 1, c: 0 });
+  });
+
+  test("carries the event's question answers as one JSON field (#1501)", () => {
+    const base = {
+      name: "Jane",
+      email: "jane@example.com",
+      partyIncludesMinor: "no",
+    };
+    const result = parseEventRegistrationForm(
+      formData({
+        ...base,
+        registrationAnswers: JSON.stringify({ q1: "opt", q2: true }),
+      }),
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.answers).toEqual({ q1: "opt", q2: true });
+
+    // Not an object: a client that did not use the module, refused on the
+    // step the questions are on.
+    expect(
+      parseEventRegistrationForm(
+        formData({ ...base, registrationAnswers: "[1]" }),
+      ),
+    ).toMatchObject({ field: "answers" });
   });
 
   // #1376 removed the box, the parser's `photo_consent` field and

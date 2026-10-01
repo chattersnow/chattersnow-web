@@ -9,6 +9,7 @@ import {
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
+import { toEventRegistrationQuestion } from "../registration-questions-draft";
 import { eventPhases, isTabValue, type TabValue } from "../event-tabs-config";
 import { eventCardTaskLabels, isPhaseKey } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
@@ -20,8 +21,14 @@ import { EventDetailView } from "./event-detail-view";
  * and are flattened to `EventRow["program_ids"]` below, the same normalisation
  * the calendar does for `calendar_item_programs`.
  */
-type RawEventRow = Omit<EventRow, "program_ids"> & {
+type RawEventRow = Omit<EventRow, "program_ids" | "registration_questions"> & {
   event_programs: { program_id: string }[] | null;
+  registration_questions:
+    | (Parameters<typeof toEventRegistrationQuestion>[0] & {
+        sort_order: number;
+        archived_at: string | null;
+      })[]
+    | null;
 };
 
 export async function generateMetadata({
@@ -85,7 +92,7 @@ export default async function EventDetailPage({
   const { data: eventRow, error } = await supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, sort_order)",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
     )
     .eq("id", eventId)
     .maybeSingle<RawEventRow>();
@@ -101,13 +108,26 @@ export default async function EventDetailPage({
   }
   if (!eventRow) notFound();
 
-  const { event_programs, registration_options, ...rest } = eventRow;
+  const {
+    event_programs,
+    registration_options,
+    registration_questions,
+    ...rest
+  } = eventRow;
   const event: EventRow = {
     ...rest,
     program_ids: (event_programs ?? []).map((link) => link.program_id),
     registration_options: [...(registration_options ?? [])].sort(
       (a, b) => a.sort_order - b.sort_order,
     ),
+    // #1501. Archived questions are kept only for the answers already given.
+    registration_questions: (registration_questions ?? [])
+      .filter((question) => question.archived_at === null)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .flatMap((row) => {
+        const question = toEventRegistrationQuestion(row);
+        return question ? [question] : [];
+      }),
   };
 
   const [

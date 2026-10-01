@@ -84,6 +84,7 @@ const b = {
   publicTeamId: "",
   taggedSponsorPersonId: "",
   registrationOptionId: "",
+  registrationQuestionId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
   disabledModuleKey: "",
   giveawayId: "",
@@ -105,6 +106,7 @@ const aPublic = {
   publicProgramId: "",
   publicTeamId: "",
   registrationOptionId: "",
+  registrationQuestionId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
 // One `<prefix>.<token>` app_settings / site_content key per tenant, so the
@@ -444,6 +446,23 @@ beforeAll(async () => {
       "b registration option",
     )
   ).id as string;
+  // #1501. The same, for a registration question. Optional, so the
+  // host-registration check below need not answer it.
+  b.registrationQuestionId = (
+    await must(
+      service
+        .from("event_registration_questions")
+        .insert({
+          tenant_id: tenantB,
+          event_id: b.eventId,
+          kind: "short_text",
+          prompt: "Isolation question",
+        })
+        .select("id")
+        .single(),
+      "b registration question",
+    )
+  ).id as string;
   await must(
     service
       .from("events")
@@ -764,6 +783,17 @@ beforeAll(async () => {
   aPublic.registrationOptionId = await fixture(
     "event_registration_options",
     { tenant_id: tenantA, event_id: aOptionsEventId, label: "Isolation" },
+    service,
+  );
+  // #1501, on the same event and for the same reason.
+  aPublic.registrationQuestionId = await fixture(
+    "event_registration_questions",
+    {
+      tenant_id: tenantA,
+      event_id: aOptionsEventId,
+      kind: "short_text",
+      prompt: "Isolation",
+    },
     service,
   );
   // A's own hand-published organization, distinct from the event-credited one
@@ -1673,6 +1703,12 @@ describe("every anon-readable view follows the host", () => {
       column: "id",
       inA: () => aPublic.registrationOptionId,
       inB: () => b.registrationOptionId,
+    },
+    {
+      view: "public_event_registration_questions",
+      column: "id",
+      inA: () => aPublic.registrationQuestionId,
+      inB: () => b.registrationQuestionId,
     },
     {
       view: "public_sponsor_wall",

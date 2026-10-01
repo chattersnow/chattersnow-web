@@ -36,6 +36,16 @@ import {
   registrationOptionsDraft,
   sameRegistrationOptions,
 } from "./registration-options-editor";
+import { RegistrationQuestionsEditor } from "./registration-questions-editor";
+import {
+  REGISTRATION_QUESTIONS_FIELD,
+  questionDrafts,
+  questionsDraftError,
+  questionsPayload,
+  sameQuestions,
+  type QuestionDraft,
+} from "./registration-questions-draft";
+import { QUESTION_KIND_LABELS } from "@/lib/registration-questions";
 
 function toDatetimeLocalValue(iso: string | null) {
   // The browser's zone, so the prefill and the save agree (#1063).
@@ -56,6 +66,7 @@ function formStateFor(event: EventRow) {
       event.registration_options_prompt,
       event.registration_options,
     ),
+    registrationQuestions: questionDrafts(event.registration_questions),
   };
 }
 
@@ -71,6 +82,12 @@ function isDirty(form: FormState, event: EventRow) {
       return !sameRegistrationOptions(
         form.registrationOptions,
         baseline.registrationOptions,
+      );
+    }
+    if (key === "registrationQuestions") {
+      return !sameQuestions(
+        form.registrationQuestions,
+        baseline.registrationQuestions,
       );
     }
     return form[key] !== baseline[key];
@@ -129,6 +146,11 @@ export function PlanningTab({
   function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     setError(null);
+    const questionsError = questionsDraftError(form.registrationQuestions);
+    if (questionsError) {
+      setError(questionsError);
+      return;
+    }
 
     const formData = new FormData();
     formData.set("eventLeadId", form.eventLead?.id ?? "");
@@ -162,6 +184,19 @@ export function PlanningTab({
             ({ id, label, cap }) => ({ id, label, cap }),
           ),
         }),
+      );
+    }
+
+    // #1501, the same way.
+    if (
+      !sameQuestions(
+        form.registrationQuestions,
+        formStateFor(event).registrationQuestions,
+      )
+    ) {
+      formData.set(
+        REGISTRATION_QUESTIONS_FIELD,
+        JSON.stringify(questionsPayload(form.registrationQuestions)),
       );
     }
 
@@ -251,6 +286,12 @@ export function PlanningTab({
               ))}
             </>
           )}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Registration questions"
+          htmlFor="planning-registration-questions"
+        >
+          <QuestionsSummary questions={form.registrationQuestions} />
         </ReadOnlyField>
       </FieldGroup>
     );
@@ -361,6 +402,13 @@ export function PlanningTab({
           disabled={isPending}
         />
 
+        <RegistrationQuestionsEditor
+          eventId={event.id}
+          value={form.registrationQuestions}
+          onChange={(next) => update("registrationQuestions", next)}
+          disabled={isPending}
+        />
+
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -368,5 +416,35 @@ export function PlanningTab({
         )}
       </FieldGroup>
     </form>
+  );
+}
+
+/** The read-only view of an event's questions (#1501), one per line. */
+function QuestionsSummary({ questions }: { questions: QuestionDraft[] }) {
+  if (questions.length === 0) return <>—</>;
+  return (
+    <>
+      {questions.map((question) => {
+        const parent = question.showIf
+          ? questions.find((other) => other.id === question.showIf?.question_id)
+          : undefined;
+        const details = [
+          QUESTION_KIND_LABELS[question.kind],
+          question.kind !== "consent" && question.required ? "required" : null,
+          question.kind === "consent" && question.sharesContact
+            ? "shares contact details in the answers export"
+            : null,
+          parent ? `only after “${parent.prompt}”` : null,
+        ].filter(Boolean);
+        return (
+          <span key={question.id} className="block">
+            {question.prompt}
+            <span className="app-muted block text-xs">
+              {details.join(" · ")}
+            </span>
+          </span>
+        );
+      })}
+    </>
   );
 }

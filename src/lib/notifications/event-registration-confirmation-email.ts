@@ -40,6 +40,10 @@ import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
  * reason the gear confirmation omits the postal address: they typed both a
  * minute ago, and a copy sitting in a mailbox is one more copy outside the
  * retention clock. Someone adding a field here should have an answer for that.
+ * The registration answers (#1501) are the one exception, and the answer is
+ * that they are what the organizer acts on, so a party has to be able to
+ * check them. They leave the mailbox's copy to the same judgement the tenant
+ * made in asking: a question nobody needed should not be asked.
  *
  * Every time reads in the *event's* own timezone with the zone named (#1057).
  * An email has no browser to infer a zone from, the server thinks in UTC, and
@@ -73,6 +77,12 @@ export type EventRegistrationConfirmation = {
    * order. Empty or omitted where the event asks none, which renders no row.
    */
   options?: { label: string; quantity: number }[];
+  /**
+   * The answers to the event's registration questions (#1501), in the event's
+   * order, each in the words it was given in. Empty or omitted where the event
+   * asks none, which renders no section.
+   */
+  answers?: { prompt: string; answer: string }[];
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -102,6 +112,7 @@ export function renderEventRegistrationConfirmationEmail(
   });
   const url = `${normalizeOrigin(confirmation.siteUrl)}${publicEventPath(confirmation.eventId)}`;
   const rows = detailRows(confirmation);
+  const answers = confirmation.answers ?? [];
   const calendarNote =
     "A calendar file is attached, so you can add it to your own calendar.";
 
@@ -114,9 +125,20 @@ export function renderEventRegistrationConfirmationEmail(
     .filter(Boolean)
     .join("\n");
 
+  // A section of its own rather than more rows: the prompts are the
+  // tenant's own sentences, and run longer than "When" or "Where".
+  const answersText =
+    answers.length > 0
+      ? [
+          "Your answers:",
+          ...answers.map(({ prompt, answer }) => `  ${prompt}: ${answer}`),
+        ].join("\n")
+      : "";
+
   const text = joinTextBlocks([
     words.greeting,
     details,
+    answersText,
     `Event details: ${url}`,
     calendarNote,
     words.closing,
@@ -130,10 +152,24 @@ export function renderEventRegistrationConfirmationEmail(
     )
     .join("\n");
 
+  const answersHtml =
+    answers.length > 0
+      ? [
+          `  <p style="margin: 0 0 8px;"><strong>Your answers</strong></p>`,
+          `  <ul style="margin: 0 0 20px; padding-left: 20px;">`,
+          ...answers.map(
+            ({ prompt, answer }) =>
+              `      <li style="margin: 0 0 4px;"><strong>${escapeHtml(prompt)}:</strong> ${escapeHtml(answer)}</li>`,
+          ),
+          `  </ul>`,
+        ].join("\n")
+      : "";
+
   const body = joinHtmlLines([
     copyParagraphHtml(words.greeting, "margin: 0 0 16px;"),
     copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
     `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${rowsHtml}\n  </ul>`,
+    answersHtml,
     `  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">See the event page</a></p>`,
     `  <p style="margin: 0 0 12px;">${escapeHtml(calendarNote)}</p>`,
     copyParagraphHtml(words.closing, "margin: 0 0 12px;"),

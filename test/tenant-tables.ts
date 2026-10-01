@@ -31,6 +31,12 @@
  * `public_event_registration_options` in the isolation suite and directly in
  * `src/lib/registration-options.integration.test.ts`.
  *
+ * `event_registration_questions` and `event_registration_answers` (#1501) are
+ * absent for the same reason as #1407's: the seed gives no event a
+ * registration question. Their isolation is asserted by the host probe on
+ * `public_event_registration_questions` in the isolation suite and directly in
+ * `src/lib/registration-questions.integration.test.ts`.
+ *
  * `inventory_distribution_drafts` and `inventory_distribution_draft_items`
  * (#1420) are absent for the same reason: a draft exists only while one
  * person is scanning a handout, and is deleted when it is recorded, so the

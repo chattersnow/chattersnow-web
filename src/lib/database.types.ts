@@ -2840,6 +2840,74 @@ export type Database = {
           },
         ];
       };
+      event_registration_answers: {
+        Row: {
+          answer_text: string;
+          answered_at: string;
+          id: string;
+          kind: string;
+          prompt_as_shown: string;
+          question_id: string | null;
+          registration_id: string;
+          sort_order: number;
+          tenant_id: string;
+          value: Json;
+        };
+        Insert: {
+          answer_text: string;
+          answered_at?: string;
+          id?: string;
+          kind: string;
+          prompt_as_shown: string;
+          question_id?: string | null;
+          registration_id: string;
+          sort_order?: number;
+          tenant_id?: string;
+          value: Json;
+        };
+        Update: {
+          answer_text?: string;
+          answered_at?: string;
+          id?: string;
+          kind?: string;
+          prompt_as_shown?: string;
+          question_id?: string | null;
+          registration_id?: string;
+          sort_order?: number;
+          tenant_id?: string;
+          value?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_registration_answers_question_fkey";
+            columns: ["tenant_id", "question_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registration_questions";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_answers_registration_fkey";
+            columns: ["tenant_id", "registration_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registrations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_answers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_registration_answers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_registration_option_counts: {
         Row: {
           id: string;
@@ -2944,6 +3012,85 @@ export type Database = {
           },
           {
             foreignKeyName: "event_registration_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_registration_questions: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          event_id: string;
+          help: string | null;
+          id: string;
+          kind: string;
+          max_value: number | null;
+          min_value: number | null;
+          options: Json;
+          prompt: string;
+          required: boolean;
+          shares_contact: boolean;
+          show_if: Json | null;
+          sort_order: number;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          event_id: string;
+          help?: string | null;
+          id?: string;
+          kind: string;
+          max_value?: number | null;
+          min_value?: number | null;
+          options?: Json;
+          prompt: string;
+          required?: boolean;
+          shares_contact?: boolean;
+          show_if?: Json | null;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          event_id?: string;
+          help?: string | null;
+          id?: string;
+          kind?: string;
+          max_value?: number | null;
+          min_value?: number | null;
+          options?: Json;
+          prompt?: string;
+          required?: boolean;
+          shares_contact?: boolean;
+          show_if?: Json | null;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_registration_questions_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_questions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_registration_questions_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -9295,6 +9442,22 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_event_registration_questions: {
+        Row: {
+          event_id: string | null;
+          help: string | null;
+          id: string | null;
+          kind: string | null;
+          max_value: number | null;
+          min_value: number | null;
+          options: Json | null;
+          prompt: string | null;
+          required: boolean | null;
+          show_if: Json | null;
+          sort_order: number | null;
+        };
+        Relationships: [];
+      };
       public_event_sponsors: {
         Row: {
           event_id: string | null;
@@ -9762,6 +9925,16 @@ export type Database = {
         Returns: string;
       };
       adopt_content_pack: { Args: { p_pack_id: string }; Returns: Json };
+      apply_registration_answers: {
+        Args: {
+          p_answers: Json;
+          p_event_id: string;
+          p_registration_id: string;
+          p_required: boolean;
+          p_tenant_id: string;
+        };
+        Returns: undefined;
+      };
       apply_registration_cancellation: {
         Args: {
           p_note: string;
@@ -10644,6 +10817,23 @@ export type Database = {
           quantity: number;
         }[];
       };
+      my_registration_questions: {
+        Args: { p_registration_id: string };
+        Returns: {
+          answer_text: string;
+          editable: boolean;
+          help: string;
+          kind: string;
+          max_value: number;
+          min_value: number;
+          options: Json;
+          prompt: string;
+          question_id: string;
+          required: boolean;
+          show_if: Json;
+          value: Json;
+        }[];
+      };
       my_roles: { Args: never; Returns: string[] };
       my_tenant_ids: { Args: never; Returns: string[] };
       my_volunteer_history: {
@@ -10963,6 +11153,7 @@ export type Database = {
           p_accompanying_adult_name?: string;
           p_accompanying_adult_phone?: string;
           p_adults_only_confirmed?: boolean;
+          p_answers?: Json;
           p_attended_before?: boolean;
           p_email: string;
           p_emergency_contact_name?: string;
@@ -10993,6 +11184,7 @@ export type Database = {
           p_accompanying_adult_name?: string;
           p_accompanying_adult_phone?: string;
           p_adults_only_confirmed?: boolean;
+          p_answers?: Json;
           p_attended_before?: boolean;
           p_emergency_contact_name?: string;
           p_emergency_contact_phone?: string;
@@ -11374,6 +11566,10 @@ export type Database = {
         Args: { p_event_id: string; p_options: Json; p_prompt: string };
         Returns: undefined;
       };
+      save_event_registration_questions: {
+        Args: { p_event_id: string; p_questions: Json };
+        Returns: undefined;
+      };
       save_meeting_minutes_draft: {
         Args: {
           p_body_text: string;
@@ -11508,6 +11704,10 @@ export type Database = {
         Returns: undefined;
       };
       set_my_pronouns: { Args: { p_pronouns: string }; Returns: undefined };
+      set_my_registration_answers: {
+        Args: { p_answers: Json; p_registration_id: string };
+        Returns: undefined;
+      };
       set_my_registration_option_counts: {
         Args: { p_counts: Json; p_registration_id: string };
         Returns: undefined;
@@ -11547,6 +11747,10 @@ export type Database = {
           p_ski_experience_level?: string;
           p_snowboard_experience_level?: string;
         };
+        Returns: undefined;
+      };
+      set_registration_answers: {
+        Args: { p_answers: Json; p_registration_id: string };
         Returns: undefined;
       };
       set_registration_asks_about_minors: {

@@ -7,6 +7,7 @@ import type {
 } from "./registrants-actions";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import type { TabData } from "@/hooks/use-tab-data";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { NO_RECORD_MESSAGES } from "@/lib/outbound-messages";
 
 // The #1082 Phase 2 envelope these actions answer with: `message` is the
@@ -44,6 +45,7 @@ const registrants: EventRegistrant[] = [
     photo_consent_at: "2026-08-01T12:00:00Z",
     photo_consent_text: "We use photos on our site and socials.",
     option_counts: [],
+    answers: [],
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -89,6 +91,7 @@ const registrants: EventRegistrant[] = [
     photo_consent_at: "2026-08-01T12:05:00Z",
     photo_consent_text: "We use photos on our site and socials.",
     option_counts: [],
+    answers: [],
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",
@@ -175,6 +178,7 @@ function payload(
     messaging: null,
     waiverInForce: false,
     registrationOptions: null,
+    registrationQuestions: [],
     photoConsentInForce: false,
     riderMountains: null,
     ...overrides,
@@ -680,5 +684,183 @@ describe("cancelled registrations (#1418)", () => {
       screen.getByRole("button", { name: "Restore registration for Sam Gone" }),
     );
     expect(restoreRegistrationActionMock).toHaveBeenCalledWith("reg-cancelled");
+  });
+});
+
+// #1501. Per-event registration questions on the tab: answers in the table,
+// the "missing required answers" filter, and the export link's gate.
+describe("RegistrantsTab registration questions", () => {
+  const getThere: RegistrationQuestion = {
+    id: "q-there",
+    kind: "single_choice",
+    prompt: "Getting there",
+    help: null,
+    required: true,
+    options: [
+      { id: "opt-drive", label: "Driving" },
+      { id: "opt-ride", label: "Need a ride" },
+    ],
+    min_value: null,
+    max_value: null,
+    show_if: null,
+  };
+  const leaving: RegistrationQuestion = {
+    ...getThere,
+    id: "q-leaving",
+    kind: "short_text",
+    prompt: "Leaving from",
+    required: false,
+    options: [],
+  };
+
+  // Jamie answered; Alex registered before the questions existed.
+  const answered = [
+    {
+      ...registrants[0],
+      answers: [
+        {
+          question_id: "q-there",
+          prompt_as_shown: "Getting there",
+          answer_text: "Need a ride",
+          sort_order: 0,
+          value: "opt-ride",
+        },
+      ],
+    },
+    registrants[1],
+  ];
+
+  function questionSlices(
+    questions: RegistrationQuestion[],
+    overrides: Partial<EventRegistrantsData> = {},
+  ) {
+    const base = slices();
+    return {
+      ...base,
+      registrants: {
+        ...base.registrants,
+        data: payload({
+          registrants: answered,
+          registrationQuestions: questions,
+          ...overrides,
+        }),
+      },
+    };
+  }
+
+  const manager = {
+    orgName: "Chatter Snow",
+    replyTo: null,
+    orgEmailEnabled: true,
+  };
+
+  test("a column per question, blank where unanswered", async () => {
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="view"
+        {...questionSlices([getThere, leaving])}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+
+    expect(
+      screen.getByRole("button", { name: /^Getting there,/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Leaving from,/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Need a ride")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Answers,/ })).toBeNull();
+  });
+
+  test("past three questions they share one Answers column", async () => {
+    const many = [0, 1, 2, 3].map((index) => ({
+      ...leaving,
+      id: `q-${index}`,
+      prompt: `Question ${index}`,
+    }));
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="view"
+        {...questionSlices([getThere, ...many])}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+
+    expect(
+      screen.getByRole("button", { name: /^Answers,/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Question 0,/ })).toBeNull();
+    expect(screen.getByText("Getting there: Need a ride")).toBeInTheDocument();
+  });
+
+  test("filters to registrations missing a required answer", async () => {
+    const user = userEvent.setup();
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="view"
+        {...questionSlices([getThere, leaving])}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+
+    const filter = screen.getByRole("button", {
+      name: "Missing required answers (1)",
+    });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    await user.click(filter);
+
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Jamie Rivera")).toBeNull();
+    expect(screen.getByText("Alex Chen")).toBeInTheDocument();
+  });
+
+  test("no filter where nothing is required, and no columns where nothing is asked", async () => {
+    const { unmount } = render(
+      <RegistrantsTab
+        capacity={null}
+        mode="view"
+        {...questionSlices([leaving])}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+    expect(
+      screen.queryByRole("button", { name: /Missing required answers/ }),
+    ).toBeNull();
+    unmount();
+
+    render(<RegistrantsTab capacity={null} mode="view" {...slices()} />);
+    await screen.findByText("Jamie Rivera");
+    expect(
+      screen.queryByRole("button", { name: /^Getting there,/ }),
+    ).toBeNull();
+  });
+
+  test("the answers download is offered to a manager only", async () => {
+    const { unmount } = render(
+      <RegistrantsTab
+        capacity={null}
+        mode="view"
+        {...questionSlices([getThere])}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+    expect(screen.queryByRole("link", { name: /Download answers/ })).toBeNull();
+    unmount();
+
+    render(
+      <RegistrantsTab
+        capacity={null}
+        mode="view"
+        {...questionSlices([getThere], { messaging: manager })}
+      />,
+    );
+    await screen.findByText("Jamie Rivera");
+    expect(
+      screen.getByRole("link", { name: "Download answers (CSV)" }),
+    ).toHaveAttribute("href", "/portal/events/event-1/registrants/answers");
   });
 });

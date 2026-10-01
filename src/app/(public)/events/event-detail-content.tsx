@@ -36,6 +36,8 @@ import {
 import type { AccountOffer } from "@/lib/constituent/account-offer";
 import type { RegistrationOptionsQuestion } from "@/lib/registration-options";
 import { loadRegistrationOptions } from "./registration-options-data";
+import { loadRegistrationQuestions } from "./registration-questions-data";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { canCancelOwnRegistration } from "@/lib/registration-cancellation";
 import { CantMakeItButton } from "@/app/(public)/my/cant-make-it-button";
 
@@ -82,6 +84,7 @@ function EventDetailBody({
   minorAccompaniment,
   photoConsent,
   registrationOptions,
+  registrationQuestions,
   riderProfile,
 }: {
   event: PublicEvent;
@@ -114,6 +117,8 @@ function EventDetailBody({
   photoConsent: string[];
   /** The event's registration question (#1407), or null. */
   registrationOptions: RegistrationOptionsQuestion | null;
+  /** The event's registration questions (#1501), empty for most events. */
+  registrationQuestions: RegistrationQuestion[];
   /** The riding questions on step 2 (#1415), or null without the module. */
   riderProfile: PublicRiderProfile | null;
 }) {
@@ -208,6 +213,7 @@ function EventDetailBody({
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
+                  registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
                 />
               ) : (
@@ -226,6 +232,7 @@ function EventDetailBody({
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   registrationOptions={registrationOptions}
+                  registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
                 />
               )}
@@ -282,6 +289,10 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
   const registrationOptions = event.registration_enabled
     ? await loadRegistrationOptions(supabase, event.id)
     : null;
+  // And its typed questions (#1501), under the same condition.
+  const registrationQuestions = event.registration_enabled
+    ? await loadRegistrationQuestions(supabase, event.id)
+    : [];
   // The riding questions on registration's step 2 (#1408, #1415), only for a
   // tenant with the module and only where there is a registration form.
   const riderProfile = event.registration_enabled
@@ -375,6 +386,7 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             minorAccompaniment={minorAccompaniment}
             photoConsent={photoConsent}
             registrationOptions={registrationOptions}
+            registrationQuestions={registrationQuestions}
             riderProfile={riderProfile}
           />
         </div>

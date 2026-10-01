@@ -184,6 +184,23 @@ export const eventRegistrationSchema = z
         description:
           "How many people in the party chose each of the event's registration options, keyed by option id, adding up to party_size. Required when GET /events/{event} lists registration_options; omit it otherwise.",
       }),
+    // #1501. Optional in the schema for the reason option_counts is; the RPC
+    // validates each answer by its question's kind.
+    answers: z
+      .record(
+        z.string(),
+        z.union([
+          z.string().max(500),
+          z.array(z.string()).max(20),
+          z.int(),
+          z.boolean(),
+        ]),
+      )
+      .optional()
+      .meta({
+        description:
+          "Answers to the event's registration_questions, keyed by question id, once for the whole registration: an option id for single_choice, an array of option ids for multi_choice, text for short_text, a whole number for number, true or false for consent. Leave out a question whose show_if is not met. Required when any visible question is required.",
+      }),
   })
   .meta({ id: "EventRegistration" });
 

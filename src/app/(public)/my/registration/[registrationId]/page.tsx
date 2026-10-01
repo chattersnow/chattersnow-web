@@ -4,7 +4,13 @@ import { requireConstituentSession } from "@/lib/constituent/guard";
 import { myRegistrationClaimPath } from "@/lib/constituent/paths";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite, publicTitle } from "@/lib/public-site";
+import {
+  answerRowsToAnswers,
+  toRegistrationQuestion,
+  type RegistrationQuestion,
+} from "@/lib/registration-questions";
 import { PhotoConsentCard } from "./photo-consent-card";
+import { RegistrationAnswersCard } from "./registration-answers-card";
 import { RegistrationOptionsCard } from "./registration-options-card";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -82,6 +88,36 @@ export default async function MyRegistrationPage({
         editable={options[0].editable}
       />
     ) : null;
+
+  // #1501. The event's registration questions with this person's answers.
+  // Same person resolution again, so somebody else's id renders nothing, and
+  // an event with no questions returns no rows and renders no card. This is
+  // also where somebody who registered before the questions existed answers
+  // them.
+  const { data: questionRows } = await supabase.rpc(
+    "my_registration_questions",
+    { p_registration_id: registrationId },
+  );
+  const answerRows = questionRows ?? [];
+  const questions = answerRows
+    .map(toRegistrationQuestion)
+    .filter((question): question is RegistrationQuestion => question !== null);
+  const answersCard =
+    questions.length > 0 ? (
+      <RegistrationAnswersCard
+        registrationId={registrationId}
+        questions={questions}
+        initialAnswers={answerRowsToAnswers(answerRows)}
+        answerTexts={Object.fromEntries(
+          answerRows.flatMap((row) =>
+            row.answer_text
+              ? [[row.question_id, row.answer_text] as const]
+              : [],
+          ),
+        )}
+        editable={answerRows[0].editable}
+      />
+    ) : null;
   const { content } = await getPublicSite(supabase);
 
   return (
@@ -91,9 +127,10 @@ export default async function MyRegistrationPage({
       record={{ kind: "registration", id: registrationId }}
       personId={personId}
       after={
-        optionsCard || photo?.asked ? (
+        optionsCard || answersCard || photo?.asked ? (
           <div className="flex flex-col gap-6">
             {optionsCard}
+            {answersCard}
             {photo?.asked ? (
               <PhotoConsentCard
                 registrationId={registrationId}
