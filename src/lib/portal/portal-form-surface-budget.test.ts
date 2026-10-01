@@ -39,6 +39,10 @@ const EXEMPT: Record<string, string> = {
   "administration/users/pending-access-section.tsx":
     "Shows a minted invite link to copy. Read-only, and the only control is " +
     "Copy.",
+  "events/registration-questions-editor.tsx":
+    "Copy from another event (#1501): picks a source event and drops its " +
+    "questions into the Planning tab's own unsaved form. Nothing is " +
+    "submitted from here; a <form> of its own would submit the tab's.",
   "governance/meetings/meeting-export-dialog.tsx":
     "The agenda's or the minutes' print preview. It renders the export's own " +
     "Markdown with copy and print buttons -- a document, not an editor.",
