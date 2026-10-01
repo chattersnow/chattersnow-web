@@ -134,8 +134,9 @@ describe("RegistrantAnswers", () => {
     expect(
       await screen.findByText("That registration no longer exists."),
     ).toBeInTheDocument();
+    // Still open once the transition settles.
     expect(
-      screen.getByRole("button", { name: "Save answers" }),
+      await screen.findByRole("button", { name: "Save answers" }),
     ).toBeInTheDocument();
   });
 });
