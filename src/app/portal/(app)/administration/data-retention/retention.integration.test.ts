@@ -220,7 +220,13 @@ const OWNED_TABLES = [
   "pending_role_grants",
   "person_merges",
   "inventory_movements",
+  // #1501. Both cascade (from the registration and the event), but the list
+  // reads as the dependency order it documents.
+  "event_registration_answers",
+  // #1502. Cascades from the registration too.
+  "event_registration_answer_requests",
   "event_registrations",
+  "event_registration_questions",
   "inventory_items",
   "donations",
   "events",
@@ -802,6 +808,98 @@ describe("run_retention_purge", () => {
         .single();
       expect(data!.name).toBe("Retention Registrant");
       expect(data!.phone).toBe("555-0100");
+    });
+  });
+
+  // #1501. Free text can hold an address, and a consent to share contact
+  // details with a partner is worthless once the row names nobody, so rule C
+  // deletes a registration's answers when it anonymizes it -- and picks a row
+  // up again on a later run if answers are all it has left.
+  describe("event registration answers go with the name", () => {
+    async function answeredRegistration(endedAt: number) {
+      const event = await createPublishedEvent(
+        {
+          startsAt: new Date(endedAt).toISOString(),
+          endsAt: new Date(endedAt).toISOString(),
+        },
+        admin,
+      );
+      const questionId = crypto.randomUUID();
+      const { error: saveError } = await admin.rpc(
+        "save_event_registration_questions",
+        {
+          p_event_id: event.id,
+          p_questions: [
+            { id: questionId, kind: "short_text", prompt: "Leaving from" },
+          ],
+        },
+      );
+      if (saveError) throw saveError;
+      const { data, error } = await admin
+        .from("event_registrations")
+        .insert({
+          event_id: event.id,
+          name: "Retention Answerer",
+          email: uniqueEmail("retention-answerer"),
+          party_size: 1,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      // As above: the registration goes before its event.
+      cleanups.push(event.cleanup);
+      cleanups.push(async () => {
+        await admin.from("event_registrations").delete().eq("id", data.id);
+      });
+      await answer(data.id as string, questionId, "12 Elm Street");
+      return { registrationId: data.id as string, questionId };
+    }
+
+    async function answer(
+      registrationId: string,
+      questionId: string,
+      text: string,
+    ) {
+      const { error } = await admin.rpc("set_registration_answers", {
+        p_registration_id: registrationId,
+        p_answers: { [questionId]: text },
+      });
+      if (error) throw error;
+    }
+
+    async function answersOf(registrationId: string) {
+      const { data, error } = await serviceRoleClient()
+        .from("event_registration_answers")
+        .select("answer_text")
+        .eq("registration_id", registrationId);
+      if (error) throw error;
+      return (data ?? []).map((row) => row.answer_text);
+    }
+
+    test("an anonymized registration loses its answers, and one inside the window keeps them", async () => {
+      const old = await answeredRegistration(Date.now() - 7 * DAY);
+      const recent = await answeredRegistration(Date.now() + 10 * DAY);
+      expect(await answersOf(old.registrationId)).toEqual(["12 Elm Street"]);
+
+      await setMode("event_registrations", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      expect(await answersOf(old.registrationId)).toEqual([]);
+      expect(await answersOf(recent.registrationId)).toEqual(["12 Elm Street"]);
+      // The question itself is configuration, not personal data.
+      const { data: question } = await admin
+        .from("event_registration_questions")
+        .select("id")
+        .eq("id", old.questionId)
+        .single();
+      expect(question?.id).toBe(old.questionId);
+
+      // An answer recorded on the anonymized row afterwards is all it has
+      // left, and the next run still finds it.
+      await answer(old.registrationId, old.questionId, "Somewhere else");
+      expect(await answersOf(old.registrationId)).toEqual(["Somewhere else"]);
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+      expect(await answersOf(old.registrationId)).toEqual([]);
     });
   });
 

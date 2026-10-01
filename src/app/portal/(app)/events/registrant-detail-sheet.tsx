@@ -3,6 +3,8 @@
 import { ArrowLeft } from "lucide-react";
 import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantMessageActions } from "./registrant-message-actions";
+import { RegistrantAnswers } from "./registrant-answers";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -69,8 +71,10 @@ export function RegistrantDetailSheet({
   waiverInForce,
   photoConsentInForce,
   optionsPrompt = null,
+  registrationQuestions = [],
   onClosed,
   onSent,
+  onAnswersSaved,
 }: {
   registrant: EventRegistrant;
   eventName: string;
@@ -107,9 +111,15 @@ export function RegistrantDetailSheet({
    * after it was given -- and the answer is shown under a plain label.
    */
   optionsPrompt?: string | null;
+  /**
+   * The event's current registration questions (#1501). Answers to questions
+   * archived since still show, from the registration's own rows.
+   */
+  registrationQuestions?: readonly RegistrationQuestion[];
   /** The sheet is mounted per target, so closing it unmounts it. */
   onClosed: () => void;
   onSent?: () => void;
+  onAnswersSaved?: () => void;
 }) {
   // Always mounted open: the tab renders this only once it has a registrant to
   // show, so the hook's job here is the other half of its contract -- taking
@@ -369,6 +379,14 @@ export function RegistrantDetailSheet({
             ) : null}
           </FieldGroup>
 
+          <RegistrantAnswers
+            registrationId={registrant.id}
+            questions={registrationQuestions}
+            answers={registrant.answers}
+            canManage={canManage}
+            onSaved={onAnswersSaved}
+          />
+
           {canManage ? (
             <section className="mt-6 flex flex-col gap-3">
               <h3 className="app-muted text-sm font-semibold">Messages</h3>
@@ -380,6 +398,7 @@ export function RegistrantDetailSheet({
                 orgName={orgName}
                 replyTo={replyTo}
                 onSent={onSent}
+                asksQuestions={registrationQuestions.length > 0}
                 disabledReason={messagingDisabledReason(
                   orgEmailEnabled,
                   registrant.email,

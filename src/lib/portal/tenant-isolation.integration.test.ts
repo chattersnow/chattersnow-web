@@ -40,6 +40,7 @@ import {
   SEEDED_USER_IDS,
 } from "../../../test/seed-fixtures";
 import { TENANT_TABLES } from "../../../test/tenant-tables";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
 
 const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
@@ -84,6 +85,7 @@ const b = {
   publicTeamId: "",
   taggedSponsorPersonId: "",
   registrationOptionId: "",
+  registrationQuestionId: "",
   siteContentKey: `home.isolation_probe_b_${run}`,
   disabledModuleKey: "",
   giveawayId: "",
@@ -105,6 +107,7 @@ const aPublic = {
   publicProgramId: "",
   publicTeamId: "",
   registrationOptionId: "",
+  registrationQuestionId: "",
   siteContentKey: `home.isolation_probe_${run}`,
 };
 // One `<prefix>.<token>` app_settings / site_content key per tenant, so the
@@ -444,6 +447,23 @@ beforeAll(async () => {
       "b registration option",
     )
   ).id as string;
+  // #1501. The same, for a registration question. Optional, so the
+  // host-registration check below need not answer it.
+  b.registrationQuestionId = (
+    await must(
+      service
+        .from("event_registration_questions")
+        .insert({
+          tenant_id: tenantB,
+          event_id: b.eventId,
+          kind: "short_text",
+          prompt: "Isolation question",
+        })
+        .select("id")
+        .single(),
+      "b registration question",
+    )
+  ).id as string;
   await must(
     service
       .from("events")
@@ -764,6 +784,17 @@ beforeAll(async () => {
   aPublic.registrationOptionId = await fixture(
     "event_registration_options",
     { tenant_id: tenantA, event_id: aOptionsEventId, label: "Isolation" },
+    service,
+  );
+  // #1501, on the same event and for the same reason.
+  aPublic.registrationQuestionId = await fixture(
+    "event_registration_questions",
+    {
+      tenant_id: tenantA,
+      event_id: aOptionsEventId,
+      kind: "short_text",
+      prompt: "Isolation",
+    },
     service,
   );
   // A's own hand-published organization, distinct from the event-credited one
@@ -1594,6 +1625,60 @@ describe("the public surface follows the host", () => {
     expect(row.tenant_id).toBe(tenantB);
   });
 
+  test("an answers link works only on its own tenant's site (#1502)", async () => {
+    const registration = await must(
+      service
+        .from("event_registrations")
+        .insert({
+          tenant_id: tenantB,
+          event_id: b.eventId,
+          name: "Link Holder",
+          email: uniqueEmail("b-answers-link"),
+        })
+        .select("id")
+        .single(),
+      "b answers-link registration",
+    );
+    // Written directly: the hash is all the public functions see, and staff in
+    // B minting it through request_registration_answers() is the ordinary path
+    // the answers suite already covers.
+    const tokenHash = mintConfirmationToken().hash;
+    await must(
+      service
+        .from("event_registration_answer_requests")
+        .insert({
+          tenant_id: tenantB,
+          registration_id: registration.id,
+          token_hash: tokenHash,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .select("id")
+        .single(),
+      "b answers-link request",
+    );
+    const args = { p_token_hash: tokenHash, p_ip_address: uniqueIp() };
+
+    const onA = anonClient({ host: A_HOST });
+    expect(
+      (await onA.rpc("get_registration_answer_request", args)).error?.message,
+    ).toBe("LINK_INVALID");
+    expect(
+      (
+        await onA.rpc("submit_registration_answers_by_token", {
+          ...args,
+          p_answers: {},
+        })
+      ).error?.message,
+    ).toBe("LINK_INVALID");
+
+    const onB = await anonClient({ host: B_HOST }).rpc(
+      "get_registration_answer_request",
+      { ...args, p_ip_address: uniqueIp() },
+    );
+    expect(onB.error).toBeNull();
+    expect((onB.data as { event_id: string }).event_id).toBe(b.eventId);
+  });
+
   test("a first sign-in on a tenant's host joins nothing", async () => {
     // The inverse of what this asserted until #1191. The host used to decide
     // which tenant a membership-less account was joined to, which made the
@@ -1673,6 +1758,12 @@ describe("every anon-readable view follows the host", () => {
       column: "id",
       inA: () => aPublic.registrationOptionId,
       inB: () => b.registrationOptionId,
+    },
+    {
+      view: "public_event_registration_questions",
+      column: "id",
+      inA: () => aPublic.registrationQuestionId,
+      inB: () => b.registrationQuestionId,
     },
     {
       view: "public_sponsor_wall",

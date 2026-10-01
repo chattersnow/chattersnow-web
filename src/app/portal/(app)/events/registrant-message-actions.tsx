@@ -8,14 +8,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { runAction } from "@/components/portal/action-toast";
 import { MessagePersonDialog } from "@/components/portal/message-person-dialog";
 import {
+  askRegistrantForAnswersAction,
   resendEventRegistrationConfirmationAction,
   sendEventRegistrantMessageAction,
 } from "./registrants-actions";
 import { registrantMessageSubject } from "./registrant-messaging";
 
 /**
- * The two things an organizer can do about one registration's correspondence:
- * write to the person, and send their confirmation again (#1317).
+ * What an organizer can do about one registration's correspondence: write to
+ * the person, send their confirmation again (#1317), and send them a link to
+ * answer the event's registration questions (#1502).
  *
  * A client island of its own, the same shape as the artwork submission's and
  * the volunteer application's: the sheet around it passes data, and the Server
@@ -30,6 +32,7 @@ export function RegistrantMessageActions({
   orgName,
   replyTo,
   disabledReason,
+  asksQuestions = false,
   onSent,
 }: {
   registrationId: string;
@@ -43,12 +46,18 @@ export function RegistrantMessageActions({
   replyTo: string | null;
   /** Set when messaging is impossible: no address, or org email switched off. */
   disabledReason?: string;
+  /**
+   * Whether the event asks registration questions (#1502), which is what
+   * makes "Ask for answers" worth offering at all.
+   */
+  asksQuestions?: boolean;
   /** Reloads the tab's own copy of the list, which carries the history. */
   onSent?: () => void;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isResending, startResend] = useTransition();
+  const [isAsking, startAsk] = useTransition();
 
   function refresh() {
     onSent?.();
@@ -66,6 +75,17 @@ export function RegistrantMessageActions({
           onSuccess: refresh,
         },
       );
+    });
+  }
+
+  function handleAsk() {
+    setError(null);
+    startAsk(async () => {
+      await runAction(() => askRegistrantForAnswersAction(registrationId), {
+        success: "Sent them a link to answer the questions.",
+        onError: setError,
+        onSuccess: refresh,
+      });
     });
   }
 
@@ -98,6 +118,18 @@ export function RegistrantMessageActions({
           {isResending ? <Spinner className="size-4" /> : null}
           Resend confirmation
         </Button>
+        {asksQuestions ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleAsk}
+            disabled={isAsking || !!disabledReason}
+          >
+            {isAsking ? <Spinner className="size-4" /> : null}
+            Ask for answers
+          </Button>
+        ) : null}
       </div>
       {error ? (
         <Alert variant="destructive">

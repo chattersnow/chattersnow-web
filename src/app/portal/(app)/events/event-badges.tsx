@@ -3,6 +3,7 @@ import {
   StatusBadge as StatusPill,
   type StatusTone,
 } from "@/components/portal/status-badge";
+import type { EventRegistrationQuestion } from "./registration-questions-draft";
 
 export type EventLeadPerson = {
   id: string;
@@ -57,6 +58,11 @@ export type EventRow = {
     cap: number | null;
     sort_order: number;
   }[];
+  /**
+   * The event's current registration questions (#1501), in order. Loaded by
+   * the event detail page, where the Planning tab edits them; absent elsewhere.
+   */
+  registration_questions?: EventRegistrationQuestion[];
 };
 
 const STATUS_STYLES: Record<string, StatusTone> = {

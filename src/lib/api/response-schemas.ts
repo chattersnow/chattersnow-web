@@ -196,10 +196,46 @@ const registrationOptionsSchema = z
       "The event's registration question (#1407). Registering then requires option_counts: how many people in the party chose each option, adding up to party_size.",
   });
 
+const registrationQuestionSchema = z
+  .object({
+    id: z.string(),
+    kind: z.enum([
+      "single_choice",
+      "multi_choice",
+      "short_text",
+      "number",
+      "consent",
+    ]),
+    prompt: z.string(),
+    help: z.union([z.string(), z.null()]),
+    required: z.boolean(),
+    options: z.array(z.object({ id: z.string(), label: z.string() })),
+    min_value: z.union([z.int(), z.null()]),
+    max_value: z.union([z.int(), z.null()]),
+    show_if: z
+      .union([
+        z.object({
+          question_id: z.string(),
+          option_ids: z.array(z.string()),
+        }),
+        z.null(),
+      ])
+      .meta({
+        description:
+          "Asked only when the named earlier single_choice question is answered with one of these option ids.",
+      }),
+  })
+  .meta({
+    id: "EventRegistrationQuestion",
+    description:
+      "One of the event's registration questions (#1501), answered once per registration in `answers`.",
+  });
+
 export const eventResponse = z
   .object({
     event: eventSchema.extend({
       registration_options: z.union([registrationOptionsSchema, z.null()]),
+      registration_questions: z.array(registrationQuestionSchema),
     }),
   })
   .meta({ id: "EventResponse" });

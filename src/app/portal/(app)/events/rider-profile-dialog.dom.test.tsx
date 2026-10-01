@@ -51,6 +51,8 @@ function registrant(
     photo_consent_at: null,
     photo_consent_text: null,
     option_counts: [],
+    answers: [],
+    answer_request: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: null,

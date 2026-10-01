@@ -17,6 +17,7 @@ import {
 } from "@/lib/adults-only";
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { REGISTRATION_OPTION_ERROR_MESSAGES } from "@/lib/registration-options";
+import { REGISTRATION_ANSWER_ERROR_MESSAGES } from "@/lib/registration-questions";
 import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventPath } from "./event-path";
 import {
@@ -66,6 +67,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
   // #1407
   ...REGISTRATION_OPTION_ERROR_MESSAGES,
+  // #1501
+  ...REGISTRATION_ANSWER_ERROR_MESSAGES,
 };
 
 // Public, unauthenticated action: anyone can register for a published event
@@ -124,6 +127,9 @@ export async function registerForEventAction(
     // #1407. `undefined` when the form showed no question, so the RPC's own
     // default stands; an event with options then refuses it.
     p_option_counts: parsed.data.option_counts ?? undefined,
+    // #1501. `undefined` when the form showed no questions; an event with a
+    // required one then refuses it.
+    p_answers: parsed.data.answers ?? undefined,
     // #1417. Sent as ticked; the RPC ignores it on an event that is not 18+.
     p_adults_only_confirmed: parsed.data.adults_only_confirmed,
     // #1415. `undefined` when the form did not ask, so nothing is written;

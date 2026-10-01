@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantDetailSheet } from "./registrant-detail-sheet";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 
 const REGISTRANT: EventRegistrant = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -31,6 +32,8 @@ const REGISTRANT: EventRegistrant = {
   photo_consent_at: null,
   photo_consent_text: null,
   option_counts: [],
+  answers: [],
+  answer_request: null,
   rider: null,
   minorContacts: null,
 };
@@ -42,6 +45,7 @@ function renderSheet(
     orgEmailEnabled?: boolean;
     waiverInForce?: boolean;
     photoConsentInForce?: boolean;
+    registrationQuestions?: RegistrationQuestion[];
   } = {},
 ) {
   render(
@@ -56,6 +60,7 @@ function renderSheet(
       canManage={overrides.canManage ?? true}
       waiverInForce={overrides.waiverInForce ?? false}
       photoConsentInForce={overrides.photoConsentInForce ?? false}
+      registrationQuestions={overrides.registrationQuestions}
       onClosed={() => {}}
     />,
   );
@@ -332,6 +337,80 @@ describe("RegistrantDetailSheet", () => {
         screen.getByText("We use photos on our site and socials."),
       ).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: /photo/i })).toBeNull();
+    });
+  });
+
+  // #1501. Current questions against their stored answers; an answer whose
+  // question was archived since keeps its own words and stays read-only.
+  describe("registration answers", () => {
+    const GETTING_THERE: RegistrationQuestion = {
+      id: "q-there",
+      kind: "single_choice",
+      prompt: "Getting there",
+      help: null,
+      required: true,
+      options: [{ id: "opt-ride", label: "Need a ride" }],
+      min_value: null,
+      max_value: null,
+      show_if: null,
+    };
+    const LEAVING_FROM: RegistrationQuestion = {
+      ...GETTING_THERE,
+      id: "q-leaving",
+      kind: "short_text",
+      prompt: "Leaving from",
+      required: false,
+      options: [],
+    };
+    const ANSWERS: EventRegistrant["answers"] = [
+      {
+        question_id: "q-there",
+        prompt_as_shown: "Getting there",
+        answer_text: "Need a ride",
+        sort_order: 0,
+        value: "opt-ride",
+      },
+      {
+        question_id: "q-old",
+        prompt_as_shown: "Bringing snacks?",
+        answer_text: "Yes",
+        sort_order: 5,
+        value: true,
+      },
+    ];
+
+    test("shows each current answer, the unanswered, and archived ones", () => {
+      renderSheet({
+        registrant: { answers: ANSWERS },
+        registrationQuestions: [GETTING_THERE, LEAVING_FROM],
+      });
+
+      expect(screen.getByText("Answers")).toBeInTheDocument();
+      expect(screen.getByText("Need a ride")).toBeInTheDocument();
+      expect(screen.getByText("Not answered")).toBeInTheDocument();
+      expect(
+        screen.getByText("Bringing snacks? (question removed)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Edit answers" }),
+      ).toBeInTheDocument();
+    });
+
+    test("door staff read the answers but cannot edit them", () => {
+      renderSheet({
+        canManage: false,
+        registrant: { answers: ANSWERS },
+        registrationQuestions: [GETTING_THERE],
+      });
+
+      expect(screen.getByText("Need a ride")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit answers" })).toBeNull();
+    });
+
+    test("an event that asks nothing shows no answers section", () => {
+      renderSheet();
+
+      expect(screen.queryByText("Answers")).toBeNull();
     });
   });
 });

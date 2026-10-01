@@ -1,6 +1,7 @@
 import { ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE } from "@/lib/adults-only";
 import { MINOR_CONTACTS_REQUIRED_CODE } from "@/lib/minors";
 import { REGISTRATION_OPTION_ERROR_CODES } from "@/lib/registration-options";
+import { REGISTRATION_ANSWER_ERROR_CODES } from "@/lib/registration-questions";
 
 /**
  * The three steps of a registration form (#1413), at every width: the
@@ -35,6 +36,8 @@ const EVENT_ERROR_CODES = new Set([
   // #1407. The question sits beside the party size, and a full option is
   // corrected there too.
   ...REGISTRATION_OPTION_ERROR_CODES,
+  // #1501. The event's questions are asked on this step too.
+  ...REGISTRATION_ANSWER_ERROR_CODES,
   // #1415. The riding questions are asked on this step.
   "INVALID_RIDER_PROFILE",
 ]);
@@ -59,6 +62,7 @@ const EVENT_FIELDS = new Set([
   "partyIncludesMinor",
   "minorContacts",
   "riding",
+  "answers",
 ]);
 
 /** The step that owns a field the form parser refused. */

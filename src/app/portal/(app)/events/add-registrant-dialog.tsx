@@ -19,6 +19,12 @@ import {
   type OptionCounts,
 } from "@/lib/registration-options";
 import { useRegistrationOptions } from "./use-registration-options";
+import { RegistrationQuestionsFields } from "@/components/registration-questions-fields";
+import { answersError, type AnswerDraft } from "@/lib/registration-questions";
+import {
+  staffAnswersFromDraft,
+  useRegistrationQuestions,
+} from "./use-registration-questions";
 
 export function AddRegistrantDialog({
   eventId,
@@ -39,6 +45,9 @@ export function AddRegistrantDialog({
   // #1407. Optional for staff: left blank, the registration is "not asked".
   const [optionCounts, setOptionCounts] = useState<OptionCounts>({});
   const registrationOptions = useRegistrationOptions(eventId, open);
+  // #1501. Optional for staff too, and never required.
+  const [answerDraft, setAnswerDraft] = useState<AnswerDraft>({});
+  const registrationQuestions = useRegistrationQuestions(eventId, open);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -57,6 +66,7 @@ export function AddRegistrantDialog({
     setSelectedPerson(null);
     setPartySize("1");
     setOptionCounts({});
+    setAnswerDraft({});
     setError(null);
   }
 
@@ -86,6 +96,14 @@ export function AddRegistrantDialog({
       setError(optionsError);
       return;
     }
+    const answers = staffAnswersFromDraft(registrationQuestions, answerDraft);
+    const answersInvalid = answers
+      ? answersError(registrationQuestions, answers, { required: false })
+      : null;
+    if (answersInvalid) {
+      setError(answersInvalid.message);
+      return;
+    }
 
     startTransition(async () => {
       const result = await addRegistrantAction(
@@ -93,6 +111,7 @@ export function AddRegistrantDialog({
         selectedPerson,
         size,
         answered ? optionCounts : null,
+        answers,
       );
       if ("error" in result) {
         setError(result.error.message);
@@ -177,6 +196,17 @@ export function AddRegistrantDialog({
             required={false}
             allowFull
             description="One per person in the party. Leave blank if you didn't ask."
+            disabled={isPending}
+          />
+        )}
+
+        {registrationQuestions.length > 0 && (
+          <RegistrationQuestionsFields
+            idPrefix="registrant"
+            questions={registrationQuestions}
+            draft={answerDraft}
+            onChange={setAnswerDraft}
+            required={false}
             disabled={isPending}
           />
         )}

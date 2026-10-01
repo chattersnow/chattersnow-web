@@ -23,6 +23,7 @@ const { EventRegistrationForm } =
   await import("./event-registration-form-fields");
 
 import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 
 // Structural rather than `typeof userEvent`: the default export and what
 // `userEvent.setup()` returns are different types, and both are passed here.
@@ -814,5 +815,104 @@ describe("EventRegistrationForm on an adults-only event (#1417)", () => {
       screen.getByRole("button", { name: "Complete registration" }),
     );
     expect(lastSubmission().adultsOnlyConfirmed).toBe("on");
+  });
+});
+
+describe("EventRegistrationForm and the event's questions (#1501)", () => {
+  beforeEach(() => {
+    registerForEventActionMock.mockClear();
+  });
+
+  const questions: RegistrationQuestion[] = [
+    {
+      id: "getting",
+      kind: "single_choice",
+      prompt: "Getting there",
+      help: null,
+      required: true,
+      options: [
+        { id: "drive", label: "Driving, can offer seats" },
+        { id: "own", label: "Making my own way" },
+      ],
+      min_value: null,
+      max_value: null,
+      show_if: null,
+    },
+    {
+      id: "seats",
+      kind: "number",
+      prompt: "Seats available",
+      help: null,
+      required: true,
+      options: [],
+      min_value: 1,
+      max_value: 7,
+      show_if: { question_id: "getting", option_ids: ["drive"] },
+    },
+    {
+      id: "share",
+      kind: "consent",
+      prompt: "OK to share my contact details",
+      help: null,
+      required: false,
+      options: [],
+      min_value: null,
+      max_value: null,
+      show_if: null,
+    },
+  ];
+
+  test("an event without questions posts no answers field", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou();
+    await sayNoMinors();
+    await submit();
+    expect(lastSubmission().registrationAnswers).toBeUndefined();
+  });
+
+  test("a required question stops the submission on this step", async () => {
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        registrationQuestions={questions}
+      />,
+    );
+    await fillAboutYou();
+    await sayNoMinors();
+    // The step's own `required` holds the reader on it.
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByRole("group", { name: /This event/ })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Complete registration" }),
+    ).toBeNull();
+    expect(registerForEventActionMock).not.toHaveBeenCalled();
+  });
+
+  test("a condition reveals its question, and the answers post as JSON", async () => {
+    const user = userEvent.setup();
+    render(
+      <EventRegistrationForm
+        eventId="event-1"
+        registrationQuestions={questions}
+      />,
+    );
+    await fillAboutYou(user);
+    await sayNoMinors(user);
+    expect(screen.queryByLabelText(/Seats available/)).toBeNull();
+
+    await user.click(screen.getByLabelText(/Getting there/));
+    await user.click(
+      screen.getByRole("option", { name: "Driving, can offer seats" }),
+    );
+    await user.type(screen.getByLabelText(/Seats available/), "3");
+    await submit(user);
+
+    expect(JSON.parse(lastSubmission().registrationAnswers)).toEqual({
+      getting: "drive",
+      seats: 3,
+      // Unticked is an answer: "no".
+      share: false,
+    });
   });
 });

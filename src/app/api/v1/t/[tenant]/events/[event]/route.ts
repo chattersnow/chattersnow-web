@@ -1,5 +1,6 @@
 import { ApiError } from "@/lib/api/errors";
 import { publicRead, unwrap } from "@/lib/api/handler";
+import { toRegistrationQuestion } from "@/lib/registration-questions";
 
 /** One published event. A draft, a private one, or another tenant's is a 404. */
 const route = publicRead<{ tenant: string; event: string }>(
@@ -16,7 +17,7 @@ const route = publicRead<{ tenant: string; event: string }>(
 
     if (!event) throw new ApiError("not_found", "No such published event.");
 
-    const [sponsors, programs, options] = await Promise.all([
+    const [sponsors, programs, options, questions] = await Promise.all([
       supabase
         .from("public_event_sponsors")
         .select("sponsor_id, name, logo_url, website")
@@ -29,6 +30,14 @@ const route = publicRead<{ tenant: string; event: string }>(
       supabase
         .from("public_event_registration_options")
         .select("id, label, prompt, is_full")
+        .eq("event_id", params.event)
+        .order("sort_order", { ascending: true }),
+      // #1501
+      supabase
+        .from("public_event_registration_questions")
+        .select(
+          "id, kind, prompt, help, required, options, min_value, max_value, show_if",
+        )
         .eq("event_id", params.event)
         .order("sort_order", { ascending: true }),
     ]);
@@ -51,6 +60,10 @@ const route = publicRead<{ tenant: string; event: string }>(
                 })),
               }
             : null,
+        registration_questions: (unwrap(questions) ?? []).flatMap((row) => {
+          const question = toRegistrationQuestion(row);
+          return question ? [question] : [];
+        }),
       },
     };
   },
