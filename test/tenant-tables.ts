@@ -37,6 +37,11 @@
  * `public_event_registration_questions` in the isolation suite and directly in
  * `src/lib/registration-questions.integration.test.ts`.
  *
+ * `event_registration_answer_requests` (#1502) is absent for the same reason:
+ * a row exists only once staff email a registrant a link, which the seed never
+ * does. Its isolation -- including a link from another tenant -- is asserted
+ * directly in `src/lib/registration-answer-requests.integration.test.ts`.
+ *
  * `inventory_distribution_drafts` and `inventory_distribution_draft_items`
  * (#1420) are absent for the same reason: a draft exists only while one
  * person is scanning a handout, and is deleted when it is recorded, so the

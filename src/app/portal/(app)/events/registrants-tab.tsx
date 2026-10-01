@@ -33,6 +33,8 @@ import {
 } from "./registrant-detail-sheet";
 import { RegistrantAnnouncements } from "./registrant-announcements";
 import { AnnounceToRegistrantsDialog } from "./announce-to-registrants-dialog";
+import { AskForMissingAnswersDialog } from "./ask-for-missing-answers-dialog";
+import { answerRequestState } from "@/lib/registration-answer-requests";
 import { announcementBatches } from "@/lib/event-announcements";
 import { NO_RECORD_MESSAGES } from "@/lib/outbound-messages";
 import {
@@ -71,7 +73,7 @@ import {
   LIST_PREVIEW_ROWS,
   ListPreviewSheet,
 } from "@/components/portal/list-preview-sheet";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatInstantDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { runAction } from "@/components/portal/action-toast";
 
@@ -140,6 +142,25 @@ function isMissingRequired(
   return (
     missingRequiredQuestions(questions, answerRowsToAnswers(registrant.answers))
       .length > 0
+  );
+}
+
+/**
+ * "Asked {date}" or "Answered" under the name (#1502), for a registration that
+ * has been sent a link. Under the name for the reason the other badges are:
+ * the table is already wide, and a column would be the first thing dropped.
+ */
+function AnswerRequestBadge({ registrant }: { registrant: EventRegistrant }) {
+  const state = answerRequestState(registrant.answer_request);
+  if (!state) return null;
+  return state.state === "answered" ? (
+    <StatusBadge tone="success" className="mt-1 font-normal">
+      Answered
+    </StatusBadge>
+  ) : (
+    <StatusBadge tone="info" className="mt-1 font-normal">
+      {`Asked ${formatInstantDate(state.at)}`}
+    </StatusBadge>
   );
 }
 
@@ -388,6 +409,7 @@ export function RegistrantsTab({
                 No photos
               </StatusBadge>
             )}
+            <AnswerRequestBadge registrant={registrant} />
           </>
         ),
       },
@@ -791,6 +813,24 @@ export function RegistrantsTab({
       </Button>
     ) : null;
 
+  // #1502. Beside the announcement composer, and only where there is
+  // something to ask: a required question somebody has left unanswered.
+  const askAction =
+    canManage && messaging && missingCount > 0 ? (
+      <AskForMissingAnswersDialog
+        eventId={eventId}
+        eventName={eventName}
+        registrations={list}
+        questions={registrationQuestions}
+        onSent={refreshAll}
+        disabledReason={
+          messaging.orgEmailEnabled
+            ? undefined
+            : "Outbound email is switched off for this organization."
+        }
+      />
+    ) : null;
+
   const announceAction =
     canManage && messaging ? (
       <AnnounceToRegistrantsDialog
@@ -815,12 +855,17 @@ export function RegistrantsTab({
         </Alert>
       )}
 
-      {(summary || announceAction || downloadAction || missingFilter) && (
+      {(summary ||
+        announceAction ||
+        askAction ||
+        downloadAction ||
+        missingFilter) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {summary ? <p className="app-muted text-sm">{summary}</p> : <span />}
           <div className="flex flex-wrap gap-2">
             {missingFilter}
             {downloadAction}
+            {askAction}
             {announceAction}
           </div>
         </div>
@@ -866,6 +911,7 @@ export function RegistrantsTab({
                 <>
                   {headerActions}
                   {downloadAction}
+                  {askAction}
                   {announceAction}
                 </>
               }

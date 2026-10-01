@@ -47,6 +47,21 @@ import { sendStaffMessage } from "@/lib/notifications/staff-message";
 import { recordOutboundMessage } from "@/lib/notifications/outbound-messages";
 import { sendEventAnnouncement } from "@/lib/notifications/event-announcement";
 import {
+  sendRegistrationAnswersRequests,
+  type AnswersRequestRecipientWithToken,
+  type RegistrationAnswersRequestBatch,
+} from "@/lib/notifications/registration-answers-request";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
+import {
+  ANSWER_REQUEST_ERRORS,
+  answersRequestSubject,
+  defaultAnswersRequestIntro,
+  MAX_ANSWERS_REQUEST_INTRO_LENGTH,
+  resolveAnswerRequests,
+  type AnswerRequestRecipient,
+  type AnswerRequestStatus,
+} from "@/lib/registration-answer-requests";
+import {
   explainSkippedSend,
   RECORD_MESSAGE_ERRORS,
   validateRecordMessage,
@@ -215,6 +230,12 @@ export type EventRegistrant = {
    * at `events: view`.
    */
   answers: RegistrantAnswerRow[];
+  /**
+   * When this registration was last emailed a link to complete its answers,
+   * and when answers were last saved through one (#1502). Null where nobody
+   * has been asked. Read at `events: view`, like the answers themselves.
+   */
+  answer_request: AnswerRequestStatus | null;
   /**
    * When and why this registration was cancelled (#1418). Null on every row
    * of `registrants`; only `cancelled` carries them.
@@ -539,12 +560,18 @@ export async function listEventRegistrantsAction(
 // `option_counts` and `answers` are embeds, not columns of this table (#1407,
 // #1501).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value)";
+  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
 
-type RegistrantRow = Omit<EventRegistrant, "rider" | "minorContacts"> & {
+type RegistrantRow = Omit<
+  EventRegistrant,
+  "rider" | "minorContacts" | "answer_request"
+> & {
+  // One-to-one, so PostgREST embeds an object; an array is tolerated in case
+  // it ever reads the relationship as one-to-many.
+  answer_request?: AnswerRequestStatus | AnswerRequestStatus[] | null;
   riding_discipline_at_event?: string | null;
   ski_experience_level_at_event?: string | null;
   snowboard_experience_level_at_event?: string | null;
@@ -564,12 +591,16 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
     snowboard_experience_level_at_event,
     option_counts,
     answers,
+    answer_request,
     ...fields
   } = row as RegistrantRow;
   const rest = {
     ...fields,
     option_counts: option_counts ?? [],
     answers: answers ?? [],
+    answer_request:
+      (Array.isArray(answer_request) ? answer_request[0] : answer_request) ??
+      null,
   };
 
   if (!canSeeRider) return { ...rest, rider: null, minorContacts: null };
@@ -1145,6 +1176,248 @@ export async function resendEventRegistrationConfirmationAction(
     status: outcome,
     sentBy: guard.user.id,
   });
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Asking for missing answers by emailed link (#1502)
+// ---------------------------------------------------------------------------
+
+export type AnswerRequestResult =
+  { error: string } | { success: true; recipients: number };
+
+type AnswerRequestEvent = {
+  id: string;
+  name: string;
+  tenant_id: string;
+  timezone: string;
+};
+
+/**
+ * Mints a token per recipient, stores the hashes, and hands back the
+ * recipients whose links were written with the raw token beside each -- the
+ * only place it exists apart from the email. A registration the RPC skipped
+ * (cancelled since the list was read) is dropped here, so it is never mailed
+ * a link that does not work.
+ */
+async function writeAnswerRequests(
+  supabase: SupabaseClient,
+  eventId: string,
+  recipients: readonly AnswerRequestRecipient[],
+): Promise<
+  | { recipients: AnswersRequestRecipientWithToken[]; expiresAt: string }
+  | { error: string }
+> {
+  const minted = recipients.map((recipient) => ({
+    ...recipient,
+    ...mintToken(),
+  }));
+  const { data, error } = await supabase.rpc("request_registration_answers", {
+    p_event_id: eventId,
+    p_requests: minted.map((recipient) => ({
+      registration_id: recipient.registrationId,
+      token_hash: recipient.tokenHash,
+    })),
+  });
+  if (error) {
+    if (error.message === "EVENT_ENDED") {
+      return { error: ANSWER_REQUEST_ERRORS.EVENT_ENDED };
+    }
+    if (error.message === "EVENT_NOT_FOUND") {
+      return { error: REGISTRANT_MESSAGE_ERRORS.EVENT_NOT_FOUND };
+    }
+    return { error: ANSWER_REQUEST_ERRORS.FAILED };
+  }
+  const rows = (data ?? []) as {
+    registration_id: string;
+    expires_at: string;
+  }[];
+  const written = new Set(rows.map((row) => row.registration_id));
+  const kept = minted.filter((recipient) =>
+    written.has(recipient.registrationId),
+  );
+  if (kept.length === 0) return { error: ANSWER_REQUEST_ERRORS.NO_RECIPIENTS };
+  return { recipients: kept, expiresAt: rows[0].expires_at };
+}
+
+function mintToken(): { token: string; tokenHash: string } {
+  const { token, hash } = mintConfirmationToken();
+  return { token, tokenHash: hash };
+}
+
+async function loadAnswerRequestEvent(
+  supabase: SupabaseClient,
+  eventId: string,
+) {
+  return supabase
+    .from("events")
+    .select("id, name, tenant_id, timezone")
+    .eq("id", eventId)
+    .maybeSingle<AnswerRequestEvent>();
+}
+
+/**
+ * Email every active registration still missing a required answer its own
+ * link to complete them (#1502).
+ *
+ * Shaped like sendEventAnnouncementAction(): who is mailed is resolved here,
+ * under the caller's session and from the same pure function the dialog
+ * counted with, so the number shown is the number sent and the browser never
+ * names a recipient. The links are written before the response -- so a link
+ * works the moment it arrives -- and only the mail is deferred.
+ */
+export async function askForMissingAnswersAction(input: {
+  batchId: string;
+  eventId: string;
+  includeRecent: boolean;
+  intro: string;
+}): Promise<AnswerRequestResult> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return guard;
+
+  const intro = input.intro.trim();
+  if (!intro) return { error: ANSWER_REQUEST_ERRORS.INTRO_EMPTY };
+  if (intro.length > MAX_ANSWERS_REQUEST_INTRO_LENGTH) {
+    return { error: ANSWER_REQUEST_ERRORS.INTRO_TOO_LONG };
+  }
+
+  const [event, registrations, questions] = await Promise.all([
+    loadAnswerRequestEvent(guard.supabase, input.eventId),
+    guard.supabase
+      .from("event_registrations")
+      .select(
+        "id, name, email, person_id, answers:event_registration_answers(question_id, value), answer_request:event_registration_answer_requests(requested_at, answered_at)",
+      )
+      .eq("event_id", input.eventId)
+      .is("cancelled_at", null)
+      .order("created_at", { ascending: true }),
+    loadRegistrationQuestions(guard.supabase, input.eventId),
+  ]);
+
+  if (event.error || registrations.error) {
+    return { error: RECORD_MESSAGE_ERRORS.FAILED };
+  }
+  if (!event.data) return { error: REGISTRANT_MESSAGE_ERRORS.EVENT_NOT_FOUND };
+  if (questions.length === 0)
+    return { error: ANSWER_REQUEST_ERRORS.NO_QUESTIONS };
+
+  const resolved = resolveAnswerRequests(
+    (registrations.data ?? []).map((row) => toRegistrant(row, false)),
+    questions,
+    { includeRecent: input.includeRecent },
+  );
+  if (resolved.recipients.length === 0) {
+    return { error: ANSWER_REQUEST_ERRORS.NO_RECIPIENTS };
+  }
+  if (!(await getOrgEmailEnabled(guard.supabase))) {
+    return { error: RECORD_MESSAGE_ERRORS.EMAIL_OFF };
+  }
+
+  const written = await writeAnswerRequests(
+    guard.supabase,
+    input.eventId,
+    resolved.recipients,
+  );
+  if ("error" in written) return written;
+
+  const batch: RegistrationAnswersRequestBatch = {
+    tenantId: event.data.tenant_id,
+    eventId: event.data.id,
+    eventName: event.data.name,
+    timeZone: event.data.timezone,
+    expiresAt: written.expiresAt,
+    batchId: input.batchId,
+    subject: answersRequestSubject(event.data.name),
+    intro,
+    recipients: written.recipients,
+    sentBy: guard.user.id,
+    // Read before after(), for the announcement's reason.
+    fallbackOrigin: await getRequestOrigin(),
+  };
+  const admin = createSupabaseAdminClient();
+
+  after(async () => {
+    try {
+      await sendRegistrationAnswersRequests(admin, batch);
+    } catch (error) {
+      console.error("[registration-answers-request] the batch threw", error);
+    }
+  });
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true, recipients: written.recipients.length };
+}
+
+/**
+ * The same request, to one registrant, from the detail sheet (#1502). Sent
+ * while the staffer waits -- one email is a single provider round trip -- so
+ * a failure is reported here rather than discovered in the history later.
+ * Not limited to registrations missing an answer: it is also how somebody is
+ * given a way to correct one.
+ */
+export async function askRegistrantForAnswersAction(
+  registrationId: string,
+): Promise<RegistrantMessageResult> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return guard;
+
+  const { data, error } = await guard.supabase
+    .from("event_registrations")
+    .select(REGISTRATION_MESSAGE_SELECT)
+    .eq("id", registrationId)
+    .maybeSingle<RegistrationRow>();
+
+  if (error) return { error: RECORD_MESSAGE_ERRORS.FAILED };
+  if (!data) return { error: REGISTRANT_MESSAGE_ERRORS.NOT_FOUND };
+  if (data.cancelled_at) return { error: REGISTRANT_MESSAGE_ERRORS.CANCELLED };
+  const toEmail = data.email?.trim();
+  if (!toEmail) return { error: REGISTRANT_MESSAGE_ERRORS.NO_EMAIL };
+
+  const [event, questions] = await Promise.all([
+    loadAnswerRequestEvent(guard.supabase, data.event_id),
+    loadRegistrationQuestions(guard.supabase, data.event_id),
+  ]);
+  if (event.error) return { error: RECORD_MESSAGE_ERRORS.FAILED };
+  if (!event.data) return { error: REGISTRANT_MESSAGE_ERRORS.EVENT_NOT_FOUND };
+  if (questions.length === 0)
+    return { error: ANSWER_REQUEST_ERRORS.NO_QUESTIONS };
+  if (!(await getOrgEmailEnabled(guard.supabase))) {
+    return { error: RECORD_MESSAGE_ERRORS.EMAIL_OFF };
+  }
+
+  const written = await writeAnswerRequests(guard.supabase, data.event_id, [
+    {
+      registrationId,
+      name: (data.name ?? "").trim(),
+      email: toEmail,
+      personId: data.person_id,
+    },
+  ]);
+  if ("error" in written) return written;
+
+  const summary = await sendRegistrationAnswersRequests(
+    createSupabaseAdminClient(),
+    {
+      tenantId: event.data.tenant_id,
+      eventId: event.data.id,
+      eventName: event.data.name,
+      timeZone: event.data.timezone,
+      expiresAt: written.expiresAt,
+      batchId: crypto.randomUUID(),
+      subject: answersRequestSubject(event.data.name),
+      intro: defaultAnswersRequestIntro(event.data.name),
+      recipients: written.recipients,
+      sentBy: guard.user.id,
+      fallbackOrigin: await getRequestOrigin(),
+    },
+  );
+
+  if (summary.failed > 0) return { error: ANSWER_REQUEST_ERRORS.FAILED };
+  if (summary.sent === 0) {
+    return { error: await explainSkippedSend(guard.supabase) };
+  }
 
   revalidatePath(EVENTS_PATH);
   return { success: true };

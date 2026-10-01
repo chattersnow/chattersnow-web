@@ -223,6 +223,8 @@ const OWNED_TABLES = [
   // #1501. Both cascade (from the registration and the event), but the list
   // reads as the dependency order it documents.
   "event_registration_answers",
+  // #1502. Cascades from the registration too.
+  "event_registration_answer_requests",
   "event_registrations",
   "event_registration_questions",
   "inventory_items",

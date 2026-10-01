@@ -36,6 +36,14 @@ export const STAFF_MESSAGE_KIND = "staff_message";
  */
 export const EVENT_ANNOUNCEMENT_KIND = "event_announcement";
 
+/**
+ * A request for a registrant to complete an event's registration questions by
+ * emailed link (#1502). Absent from NOTIFICATION_KINDS for the reason the two
+ * above are: it is about something the person signed up for, not a
+ * subscription, so no preference suppresses it. The org-wide switch does.
+ */
+export const REGISTRATION_ANSWERS_REQUEST_KIND = "registration_answers_request";
+
 /** Matching the check constraints on `outbound_messages`. */
 export const MAX_MESSAGE_SUBJECT_LENGTH = 200;
 export const MAX_MESSAGE_BODY_LENGTH = 5000;
@@ -129,6 +137,9 @@ export function outboundMessageSenderLabel(
   if (kind === STAFF_MESSAGE_KIND) return `Sent by ${senderName}`;
   if (kind === EVENT_ANNOUNCEMENT_KIND) {
     return `Announcement, sent by ${senderName}`;
+  }
+  if (kind === REGISTRATION_ANSWERS_REQUEST_KIND) {
+    return `Request for answers, sent by ${senderName}`;
   }
   return `Receipt, resent by ${senderName}`;
 }

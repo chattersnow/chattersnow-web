@@ -2840,6 +2840,61 @@ export type Database = {
           },
         ];
       };
+      event_registration_answer_requests: {
+        Row: {
+          answered_at: string | null;
+          expires_at: string;
+          id: string;
+          registration_id: string;
+          requested_at: string;
+          requested_by: string | null;
+          tenant_id: string;
+          token_hash: string;
+        };
+        Insert: {
+          answered_at?: string | null;
+          expires_at: string;
+          id?: string;
+          registration_id: string;
+          requested_at?: string;
+          requested_by?: string | null;
+          tenant_id?: string;
+          token_hash: string;
+        };
+        Update: {
+          answered_at?: string | null;
+          expires_at?: string;
+          id?: string;
+          registration_id?: string;
+          requested_at?: string;
+          requested_by?: string | null;
+          tenant_id?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_registration_answer_requests_registration_fkey";
+            columns: ["tenant_id", "registration_id"];
+            isOneToOne: true;
+            referencedRelation: "event_registrations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_registration_answer_requests_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_registration_answer_requests_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_registration_answers: {
         Row: {
           answer_text: string;
@@ -10323,6 +10378,10 @@ export type Database = {
         Args: { p_program_id: string };
         Returns: Json;
       };
+      get_registration_answer_request: {
+        Args: { p_ip_address: unknown; p_token_hash: string };
+        Returns: Json;
+      };
       giveaway_ticket_totals: {
         Args: {
           p_donation_id?: string;
@@ -11397,6 +11456,13 @@ export type Database = {
           tenant_id: string;
         }[];
       };
+      request_registration_answers: {
+        Args: { p_event_id: string; p_requests: Json };
+        Returns: {
+          expires_at: string;
+          registration_id: string;
+        }[];
+      };
       request_tenant_slug: { Args: never; Returns: string };
       require_platform_operator: { Args: never; Returns: undefined };
       reserve_inventory_item_for_giveaway: {
@@ -11438,6 +11504,15 @@ export type Database = {
           p_tenant_id?: string;
         };
         Returns: string;
+      };
+      resolve_registration_answer_request: {
+        Args: { p_for_update: boolean; p_token_hash: string };
+        Returns: {
+          event_id: string;
+          registration_id: string;
+          request_id: string;
+          tenant_id: string;
+        }[];
       };
       resolve_tenant_id_from_host: {
         Args: { p_host: string };
@@ -11813,6 +11888,10 @@ export type Database = {
           p_note?: string;
           p_phone?: string;
         };
+        Returns: undefined;
+      };
+      submit_registration_answers_by_token: {
+        Args: { p_answers: Json; p_ip_address: unknown; p_token_hash: string };
         Returns: undefined;
       };
       submit_volunteer_application: {

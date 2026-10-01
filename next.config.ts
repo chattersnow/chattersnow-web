@@ -83,6 +83,21 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async headers() {
+    return [
+      // #1502. The answers page's URL carries a registrant's token, so nothing
+      // it loads or links to may learn the URL from a Referer, and no index
+      // may keep it. The page's metadata says both too; the headers are what
+      // a client that ignores the <meta> tags still obeys.
+      {
+        source: "/events/e/:id/answers",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // `/about/volunteer` stays permanent: /get-involved is not behind a

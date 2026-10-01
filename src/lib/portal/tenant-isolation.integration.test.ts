@@ -40,6 +40,7 @@ import {
   SEEDED_USER_IDS,
 } from "../../../test/seed-fixtures";
 import { TENANT_TABLES } from "../../../test/tenant-tables";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
 
 const service = serviceRoleClient();
 const run = crypto.randomUUID().slice(0, 8);
@@ -1622,6 +1623,60 @@ describe("the public surface follows the host", () => {
       "registration row",
     );
     expect(row.tenant_id).toBe(tenantB);
+  });
+
+  test("an answers link works only on its own tenant's site (#1502)", async () => {
+    const registration = await must(
+      service
+        .from("event_registrations")
+        .insert({
+          tenant_id: tenantB,
+          event_id: b.eventId,
+          name: "Link Holder",
+          email: uniqueEmail("b-answers-link"),
+        })
+        .select("id")
+        .single(),
+      "b answers-link registration",
+    );
+    // Written directly: the hash is all the public functions see, and staff in
+    // B minting it through request_registration_answers() is the ordinary path
+    // the answers suite already covers.
+    const tokenHash = mintConfirmationToken().hash;
+    await must(
+      service
+        .from("event_registration_answer_requests")
+        .insert({
+          tenant_id: tenantB,
+          registration_id: registration.id,
+          token_hash: tokenHash,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .select("id")
+        .single(),
+      "b answers-link request",
+    );
+    const args = { p_token_hash: tokenHash, p_ip_address: uniqueIp() };
+
+    const onA = anonClient({ host: A_HOST });
+    expect(
+      (await onA.rpc("get_registration_answer_request", args)).error?.message,
+    ).toBe("LINK_INVALID");
+    expect(
+      (
+        await onA.rpc("submit_registration_answers_by_token", {
+          ...args,
+          p_answers: {},
+        })
+      ).error?.message,
+    ).toBe("LINK_INVALID");
+
+    const onB = await anonClient({ host: B_HOST }).rpc(
+      "get_registration_answer_request",
+      { ...args, p_ip_address: uniqueIp() },
+    );
+    expect(onB.error).toBeNull();
+    expect((onB.data as { event_id: string }).event_id).toBe(b.eventId);
   });
 
   test("a first sign-in on a tenant's host joins nothing", async () => {
