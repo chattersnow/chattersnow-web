@@ -17,6 +17,10 @@ import {
   parseOptionCounts,
   REGISTRATION_OPTION_ERROR_MESSAGES,
 } from "@/lib/registration-options";
+import {
+  parseAnswersField,
+  REGISTRATION_ANSWER_ERROR_MESSAGES,
+} from "@/lib/registration-questions";
 import { parseAttendedBefore } from "@/lib/attended-before";
 import { parseRegistrationRiding } from "@/lib/rider-profile-form";
 import {
@@ -67,6 +71,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
   // #1407
   ...REGISTRATION_OPTION_ERROR_MESSAGES,
+  // #1501
+  ...REGISTRATION_ANSWER_ERROR_MESSAGES,
 };
 
 /**
@@ -108,6 +114,10 @@ export async function registerMyselfForEventAction(
   }
   const riding = parsedRiding.data;
 
+  // #1501, as on the anonymous path.
+  const answers = parseAnswersField(formData);
+  if ("error" in answers) return { error: answers.error, step: "event" };
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("register_myself_for_event", {
     p_event_id: eventId,
@@ -146,6 +156,8 @@ export async function registerMyselfForEventAction(
       minorContacts.emergency_contact_phone ?? undefined,
     // #1407, as on the anonymous path.
     p_option_counts: parseOptionCounts(formData) ?? undefined,
+    // #1501, as on the anonymous path.
+    p_answers: answers.answers ?? undefined,
     // #1417. The RPC ignores it on an event that is not 18+.
     p_adults_only_confirmed: parseAdultsOnlyConfirmed(formData),
     // #1415. `undefined` when the form did not ask, so nothing is written;

@@ -8,7 +8,15 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Ban, Check, Eye, RotateCcw, Snowflake, Undo2 } from "lucide-react";
+import {
+  Ban,
+  Check,
+  Download,
+  Eye,
+  RotateCcw,
+  Snowflake,
+  Undo2,
+} from "lucide-react";
 import {
   checkInRegistrantAction,
   restoreRegistrationAction,
@@ -38,9 +46,15 @@ import {
 } from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { formatOptionCounts } from "@/lib/registration-options";
+import {
+  answerRowsToAnswers,
+  missingRequiredQuestions,
+  sortAnswerRows,
+  type RegistrationQuestion,
+} from "@/lib/registration-questions";
 import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -98,6 +112,42 @@ function ridesSummary(registrant: EventRegistrant): string | null {
     : discipline;
 }
 
+/**
+ * Up to this many registration questions get a column each; past it they
+ * share one "Answers" column, since a column per question would push the
+ * table past any screen and the prompts are the tenant's own sentences.
+ */
+const QUESTION_COLUMN_LIMIT = 3;
+
+const NO_QUESTIONS: RegistrationQuestion[] = [];
+
+/** The stored answer to one current question, in words, or null. */
+function answerFor(
+  registrant: EventRegistrant,
+  questionId: string,
+): string | null {
+  return (
+    registrant.answers.find((row) => row.question_id === questionId)
+      ?.answer_text ?? null
+  );
+}
+
+/** Whether a registration has left a required question it was shown blank. */
+function isMissingRequired(
+  registrant: EventRegistrant,
+  questions: readonly RegistrationQuestion[],
+): boolean {
+  return (
+    missingRequiredQuestions(questions, answerRowsToAnswers(registrant.answers))
+      .length > 0
+  );
+}
+
+/** Where the answers export is served; see its route handler. */
+export function registrantAnswersCsvHref(eventId: string): string {
+  return `/portal/events/${encodeURIComponent(eventId)}/registrants/answers`;
+}
+
 function matchesQuery(registrant: EventRegistrant, needle: string): boolean {
   return [registrant.name, registrant.email, registrant.phone].some(
     (field) => field?.toLowerCase().includes(needle) ?? false,
@@ -145,6 +195,12 @@ export function RegistrantsTab({
   // #1407. Null for the events that ask no registration question, which
   // leaves the tab exactly as it was.
   const registrationOptions = data?.registrationOptions ?? null;
+  // #1501. Empty for the events that ask no questions, which likewise leaves
+  // the tab exactly as it was.
+  const registrationQuestions = data?.registrationQuestions ?? NO_QUESTIONS;
+  const asksRequired = registrationQuestions.some(
+    (question) => question.required,
+  );
   // #1408. The tenant's own list; `?? []` for an older payload, which leaves
   // "Other" as the one choice rather than a picker with nothing in it.
   const riderMountains = data?.riderMountains ?? [];
@@ -164,6 +220,7 @@ export function RegistrantsTab({
   );
   const [showCancelled, setShowCancelled] = useState(false);
   const [query, setQuery] = useState("");
+  const [missingOnly, setMissingOnly] = useState(false);
 
   // A notification can link straight at one registration (#742's shape). The
   // list arrives from a Server Action rather than the page's own render, so
@@ -249,11 +306,32 @@ export function RegistrantsTab({
   const showAttendedBefore = hasAnyAttendedBeforeAnswer(list);
   const selfReportedFirstTimers = countSelfReportedFirstTimers(list);
 
+  // #1501. Only offered where some question is required; a stale toggle on
+  // an event whose last required question was removed filters nothing.
+  const missingCount = useMemo(
+    () =>
+      asksRequired
+        ? list.filter((registrant) =>
+            isMissingRequired(registrant, registrationQuestions),
+          ).length
+        : 0,
+    [asksRequired, list, registrationQuestions],
+  );
+  const shownList = useMemo(
+    () =>
+      asksRequired && missingOnly
+        ? list.filter((registrant) =>
+            isMissingRequired(registrant, registrationQuestions),
+          )
+        : list,
+    [asksRequired, missingOnly, list, registrationQuestions],
+  );
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return list;
-    return list.filter((registrant) => matchesQuery(registrant, needle));
-  }, [list, query]);
+    if (!needle) return shownList;
+    return shownList.filter((registrant) => matchesQuery(registrant, needle));
+  }, [shownList, query]);
 
   const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
     () => [
@@ -360,6 +438,54 @@ export function RegistrantsTab({
             } satisfies PortalDataTableColumn<EventRegistrant>,
           ]
         : []),
+      // #1501. A column per question while there are few, one shared column
+      // past that; nothing at all for an event that asks none.
+      ...(registrationQuestions.length > QUESTION_COLUMN_LIMIT
+        ? [
+            {
+              key: "answers",
+              label: "Answers",
+              sortValue: (registrant: EventRegistrant) =>
+                registrant.answers.length > 0
+                  ? registrant.answers.length
+                  : null,
+              hideBelow: "md",
+              cellClassName:
+                "app-muted min-w-48 max-w-72 text-xs whitespace-normal",
+              render: (registrant: EventRegistrant) => {
+                const current = new Set(
+                  registrationQuestions.map((question) => question.id),
+                );
+                const rows = sortAnswerRows(
+                  registrant.answers.filter(
+                    (row) => row.question_id && current.has(row.question_id),
+                  ),
+                );
+                return rows.length > 0
+                  ? rows.map((row) => (
+                      <span key={row.question_id} className="block">
+                        {row.prompt_as_shown}: {row.answer_text}
+                      </span>
+                    ))
+                  : null;
+              },
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : registrationQuestions.map(
+            (question) =>
+              ({
+                key: `question-${question.id}`,
+                label: question.prompt,
+                sortValue: (registrant: EventRegistrant) =>
+                  answerFor(registrant, question.id),
+                hideBelow: "md",
+                headClassName: "min-w-32 max-w-48 whitespace-normal",
+                cellClassName:
+                  "app-muted min-w-32 max-w-56 text-xs whitespace-normal",
+                render: (registrant: EventRegistrant) =>
+                  answerFor(registrant, question.id),
+              }) satisfies PortalDataTableColumn<EventRegistrant>,
+          )),
       {
         key: "created_at",
         label: "Registered",
@@ -512,6 +638,7 @@ export function RegistrantsTab({
     ],
     [
       registrationOptions,
+      registrationQuestions,
       showAttendedBefore,
       showRides,
       mode,
@@ -597,8 +724,9 @@ export function RegistrantsTab({
   // `withoutSorting`.
   const previewColumns = useMemo(() => withoutSorting(columns), [columns]);
 
-  const capped = previewRows === null ? list : list.slice(0, previewRows);
-  const hasOverflow = previewRows !== null && list.length > previewRows;
+  const capped =
+    previewRows === null ? shownList : shownList.slice(0, previewRows);
+  const hasOverflow = previewRows !== null && shownList.length > previewRows;
   const previewIsWholeList = !hasOverflow;
 
   const summary =
@@ -636,6 +764,33 @@ export function RegistrantsTab({
   const detailTarget = list.find((registrant) => registrant.id === detailId);
   const batches = canManage ? announcementBatches(messages) : [];
 
+  // #1501. Behind `events: manage` here and, more to the point, in the route
+  // handler itself, since a link is only a link.
+  const downloadAction =
+    canManage && registrationQuestions.length > 0 ? (
+      // A styled anchor rather than <Button render={<a/>}>: it is a file
+      // download, and should be announced and behave as a link.
+      <a
+        href={registrantAnswersCsvHref(eventId)}
+        download
+        className={buttonVariants({ variant: "secondary" })}
+      >
+        <Download /> Download answers (CSV)
+      </a>
+    ) : null;
+
+  const missingFilter =
+    asksRequired && list.length > 0 ? (
+      <Button
+        type="button"
+        variant={missingOnly ? "default" : "secondary"}
+        aria-pressed={missingOnly}
+        onClick={() => setMissingOnly((on) => !on)}
+      >
+        Missing required answers ({missingCount})
+      </Button>
+    ) : null;
+
   const announceAction =
     canManage && messaging ? (
       <AnnounceToRegistrantsDialog
@@ -660,10 +815,14 @@ export function RegistrantsTab({
         </Alert>
       )}
 
-      {(summary || announceAction) && (
+      {(summary || announceAction || downloadAction || missingFilter) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {summary ? <p className="app-muted text-sm">{summary}</p> : <span />}
-          {announceAction}
+          <div className="flex flex-wrap gap-2">
+            {missingFilter}
+            {downloadAction}
+            {announceAction}
+          </div>
         </div>
       )}
 
@@ -696,16 +855,17 @@ export function RegistrantsTab({
             <ListPreviewSheet
               title="Registrants"
               description={summary}
-              triggerLabel={`View all ${list.length} registrants`}
+              triggerLabel={`View all ${shownList.length} registrants`}
               searchPlaceholder="Search name, email, or phone"
               searchLabel="Search registrants"
               query={query}
               onQueryChange={setQuery}
-              totalCount={list.length}
+              totalCount={shownList.length}
               filteredCount={filtered.length}
               actions={
                 <>
                   {headerActions}
+                  {downloadAction}
                   {announceAction}
                 </>
               }
@@ -785,8 +945,10 @@ export function RegistrantsTab({
           waiverInForce={waiverInForce}
           photoConsentInForce={photoConsentInForce}
           optionsPrompt={registrationOptions?.prompt ?? null}
+          registrationQuestions={registrationQuestions}
           onClosed={() => setDetailId(null)}
           onSent={refreshRegistrants}
+          onAnswersSaved={refreshRegistrants}
         />
       )}
 

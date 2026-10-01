@@ -140,6 +140,49 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     expect(text).not.toContain("Your choices");
   });
 
+  test("lists the registration answers in their own section, in order (#1501)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      answers: [
+        { prompt: "Getting there", answer: "Need a ride" },
+        { prompt: "Leaving from", answer: "Burlington <VT>" },
+        { prompt: "OK to share my contact details", answer: "Yes" },
+      ],
+    });
+    expect(text).toContain(
+      [
+        "Your answers:",
+        "  Getting there: Need a ride",
+        "  Leaving from: Burlington <VT>",
+        "  OK to share my contact details: Yes",
+      ].join("\n"),
+    );
+    // After the details, before the link to the event.
+    expect(text.indexOf("Party size")).toBeLessThan(
+      text.indexOf("Your answers:"),
+    );
+    expect(text.indexOf("Your answers:")).toBeLessThan(
+      text.indexOf("Event details:"),
+    );
+    expect(html).toContain("<strong>Your answers</strong>");
+    // The tenant's prompts and the registrant's own text are escaped.
+    expect(html).toContain("Burlington &lt;VT&gt;");
+    expect(html.indexOf("Getting there")).toBeLessThan(
+      html.indexOf("Leaving from"),
+    );
+  });
+
+  test("an event with no questions renders no answers section", () => {
+    for (const answers of [undefined, []]) {
+      const { text, html } = renderEventRegistrationConfirmationEmail({
+        ...base,
+        answers,
+      });
+      expect(text).not.toContain("Your answers");
+      expect(html).not.toContain("Your answers");
+    }
+  });
+
   test("greets someone who gave no name without a dangling space", () => {
     const { text } = renderEventRegistrationConfirmationEmail({
       ...base,

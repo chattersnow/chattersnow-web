@@ -29,7 +29,7 @@ export function attendedBeforeRows(value: string): RegistrationSummaryRow[] {
 
 /**
  * Party size, the under-18 answer and its contacts, the riding answers where
- * they were asked (#1415), options, and notes -- the order step 2 asks them in.
+ * they were asked (#1415), options, the event's questions (#1501), and notes -- the order step 2 asks them in.
  */
 export function eventSummaryRows({
   partySize,
@@ -39,6 +39,7 @@ export function eventSummaryRows({
   riding = [],
   registrationOptions,
   optionCounts,
+  answers = [],
   notes,
 }: {
   partySize: string;
@@ -49,6 +50,8 @@ export function eventSummaryRows({
   riding?: RegistrationSummaryRow[];
   registrationOptions: RegistrationOptionsQuestion | null;
   optionCounts: OptionCounts;
+  /** #1501. The answered questions, from `answerSummaryRows`. */
+  answers?: RegistrationSummaryRow[];
   notes: string;
 }): RegistrationSummaryRow[] {
   const rows: RegistrationSummaryRow[] = [
@@ -95,6 +98,8 @@ export function eventSummaryRows({
       });
     }
   }
+
+  rows.push(...answers);
 
   if (notes.trim()) rows.push({ label: "Notes", value: notes.trim() });
   return rows;

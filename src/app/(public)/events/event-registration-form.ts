@@ -11,6 +11,10 @@ import {
   parseOptionCounts,
   type OptionCounts,
 } from "@/lib/registration-options";
+import {
+  parseAnswersField,
+  type RegistrationAnswers,
+} from "@/lib/registration-questions";
 
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
@@ -68,6 +72,11 @@ export type EventRegistrationFormData = {
    */
   option_counts: OptionCounts | null;
   /**
+   * The answers to the event's registration questions (#1501), or null where
+   * the form showed none. Whether they are complete is the RPC's to say.
+   */
+  answers: RegistrationAnswers | null;
+  /**
    * The riding answers (#1415), or null where the form did not ask them.
    * Written to the person, not the registration.
    */
@@ -123,6 +132,9 @@ export function parseEventRegistrationForm(
   const riding = parseRegistrationRiding(formData);
   if ("error" in riding) return riding;
 
+  const answers = parseAnswersField(formData);
+  if ("error" in answers) return { ...answers, field: "answers" };
+
   return {
     data: {
       ...minors.data,
@@ -138,6 +150,7 @@ export function parseEventRegistrationForm(
       waiver_version,
       adults_only_confirmed: parseAdultsOnlyConfirmed(formData),
       option_counts: parseOptionCounts(formData),
+      answers: answers.answers,
       riding: riding.data,
     },
   };

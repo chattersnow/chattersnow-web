@@ -175,6 +175,16 @@ submitted and worded by the organization for that purpose:
   server from `src/lib/gear-as-is.ts`, never sent by the browser. Taken on the
   signed-in request path too, for the reason the waiver is: holding an account
   is not agreement to anything.
+- **Event registration questions of the consent kind** (#1501) — an unticked,
+  declinable box worded by the organization for one event, such as agreeing to
+  have a name and contact details passed to a partner arranging carpools.
+  Declining never refuses the registration; the box is never `required`. The
+  answer and the words shown are stored on `event_registration_answers`
+  (`answer_text`, `prompt_as_shown`). Where the question is marked
+  `shares_contact`, the portal's answers export includes a registrant's email
+  and phone only on rows where it was ticked — registering alone shares
+  nothing. The answers go with the name when the retention job anonymizes the
+  registration.
 
 The #599 photo-consent bullet stood in this list until #1376 removed it.
 Nothing is taken on that form any more, so it is no longer an exception of this

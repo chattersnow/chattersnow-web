@@ -17,6 +17,13 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import { REGISTRATION_QUESTION_ERROR_MESSAGES } from "@/lib/registration-questions";
+import {
+  parseRegistrationQuestionsField,
+  REGISTRATION_QUESTIONS_FIELD,
+  toEventRegistrationQuestion,
+  type EventRegistrationQuestion,
+} from "./registration-questions-draft";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CreateEventResult = { error: string } | { success: true };
@@ -254,6 +261,13 @@ export async function updateEventPlanningAction(
   if (registrationOptions && "error" in registrationOptions) {
     return registrationOptions;
   }
+  // #1501, the same way: sent only when the questions changed.
+  const registrationQuestions = parseRegistrationQuestionsField(
+    formData.get(REGISTRATION_QUESTIONS_FIELD),
+  );
+  if (registrationQuestions && "error" in registrationQuestions) {
+    return registrationQuestions;
+  }
   const {
     eventLeadId,
     capacity,
@@ -295,6 +309,20 @@ export async function updateEventPlanningAction(
         error:
           REGISTRATION_OPTIONS_SAVE_ERRORS[optionsError.message] ??
           "Planning details were saved, but the registration question was not. Please try again.",
+      };
+    }
+  }
+
+  if (registrationQuestions) {
+    const { error: questionsError } = await supabase.rpc(
+      "save_event_registration_questions",
+      { p_event_id: id, p_questions: registrationQuestions.data },
+    );
+    if (questionsError) {
+      return {
+        error:
+          REGISTRATION_QUESTION_ERROR_MESSAGES[questionsError.message] ??
+          "Planning details were saved, but the registration questions were not. Please try again.",
       };
     }
   }
@@ -458,6 +486,42 @@ export async function listEventOptionsAction(): Promise<
   }
 
   return { data: (data ?? []) as EventOption[] };
+}
+
+/**
+ * Another event's current questions (#1501), for the Planning tab's "Copy
+ * from another event". Archived ones stay behind: they are kept for the
+ * answers already given, not to be asked again. Gated at manage, since only
+ * the editor copies, although RLS would let a viewer read them.
+ */
+export async function listCopyableRegistrationQuestionsAction(
+  eventId: string,
+): Promise<{ data: EventRegistrationQuestion[] } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("event_registration_questions")
+    .select(
+      "id, kind, prompt, help, required, options, min_value, max_value, show_if, shares_contact",
+    )
+    .eq("event_id", eventId)
+    .is("archived_at", null)
+    .order("sort_order");
+
+  if (error) {
+    return {
+      error: "Could not load that event's questions. Please try again.",
+    };
+  }
+
+  return {
+    data: (data ?? []).flatMap((row) => {
+      const question = toEventRegistrationQuestion(row);
+      return question ? [question] : [];
+    }),
+  };
 }
 
 /**

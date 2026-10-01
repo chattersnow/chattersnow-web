@@ -21,6 +21,16 @@ import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
 import { waiverAcceptanceLabel } from "@/lib/photo-consent";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
+import { RegistrationQuestionsFields } from "@/components/registration-questions-fields";
+import {
+  answerSummaryRows,
+  answersError,
+  draftToAnswers,
+  emptyAnswerDraft,
+  setAnswersField,
+  type AnswerDraft,
+  type RegistrationQuestion,
+} from "@/lib/registration-questions";
 import {
   optionCountsError,
   setOptionCounts,
@@ -72,6 +82,7 @@ export function MyEventRegistrationForm({
   minorAccompaniment = [],
   photoConsent = [],
   registrationOptions = null,
+  registrationQuestions = [],
   riderProfile = null,
 }: {
   eventId: string;
@@ -123,6 +134,12 @@ export function MyEventRegistrationForm({
    */
   registrationOptions?: RegistrationOptionsQuestion | null;
   /**
+   * The event's registration questions (#1501), answered once for the whole
+   * registration. Empty for an event that asks none, which leaves this form
+   * exactly as it was.
+   */
+  registrationQuestions?: RegistrationQuestion[];
+  /**
    * The riding questions on step 2 (#1415), as on the anonymous form. Null on
    * a tenant without the rider_profile module.
    */
@@ -157,6 +174,12 @@ export function MyEventRegistrationForm({
   );
   // #1407, starting empty as on the anonymous form.
   const [optionCounts, setOptionCountsState] = useState<OptionCounts>({});
+  // #1501. Nothing chosen and every box unticked: a preselected answer is one
+  // the form gave on their behalf, and a pre-ticked consent is no consent.
+  const [answerDraft, setAnswerDraft] = useState<AnswerDraft>(() =>
+    emptyAnswerDraft(registrationQuestions),
+  );
+  const answers = draftToAnswers(registrationQuestions, answerDraft);
   // Unticked, always (#686).
   const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [error, setError] = useState<{
@@ -183,6 +206,12 @@ export function MyEventRegistrationForm({
       }
     }
 
+    const answerProblem = answersError(registrationQuestions, answers);
+    if (answerProblem) {
+      setError({ message: answerProblem.message, step: "event" });
+      return;
+    }
+
     const formData = new FormData();
     formData.set("partySize", partySize);
     if (adultsOnly && adultsOnlyConfirmed) {
@@ -190,6 +219,7 @@ export function MyEventRegistrationForm({
     }
     if (riderProfile) setRidingFields(formData, riding);
     if (registrationOptions) setOptionCounts(formData, optionCounts);
+    if (registrationQuestions.length > 0) setAnswersField(formData, answers);
     formData.set("notes", notes);
     formData.set("phone", phone);
     formData.set("pronouns", pronouns);
@@ -376,6 +406,13 @@ export function MyEventRegistrationForm({
               disabled={isPending}
             />
           )}
+          <RegistrationQuestionsFields
+            idPrefix="my-registration"
+            questions={registrationQuestions}
+            draft={answerDraft}
+            onChange={setAnswerDraft}
+            disabled={isPending}
+          />
 
           <Field>
             <FieldLabel htmlFor="my-registration-notes">
@@ -411,6 +448,7 @@ export function MyEventRegistrationForm({
           riding: riderProfile ? ridingSummaryRows(riding) : [],
           registrationOptions,
           optionCounts,
+          answers: answerSummaryRows(registrationQuestions, answers),
           notes,
         }),
       }}

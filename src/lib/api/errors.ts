@@ -236,6 +236,19 @@ const RPC_ERRORS: Record<
     message: "One of the chosen registration options is full.",
     field: "option_counts",
   },
+  // #1501
+  EVENT_ANSWERS_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This event requires answers to some of its registration_questions. GET /api/v1/t/{tenant}/events/{event} lists them; send answers.",
+    field: "answers",
+  },
+  EVENT_ANSWERS_INVALID: {
+    code: "invalid_request",
+    message:
+      "answers names a question this event does not have, or an answer that does not fit its question's kind, options or bounds.",
+    field: "answers",
+  },
   INVALID_RIDER_PROFILE: {
     code: "invalid_request",
     message: "The riding discipline and experience levels do not agree.",

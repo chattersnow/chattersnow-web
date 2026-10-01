@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as RegistrantsActions from "./registrants-actions";
 import * as PeopleActions from "../people/actions";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -17,6 +18,7 @@ const addRegistrantActionMock = mock<
     },
     partySize: number,
     optionCounts?: Record<string, number> | null,
+    answers?: Record<string, unknown> | null,
   ) => Promise<ActionResult>
 >(async () => ({ success: true }));
 
@@ -35,10 +37,16 @@ const listOptionsMock = mock<
   }>
 >(async () => ({ data: null }));
 
+// #1501. No questions by default; the case that is about them sets them.
+const listQuestionsMock = mock<() => Promise<{ data: RegistrationQuestion[] }>>(
+  async () => ({ data: [] }),
+);
+
 mock.module("./registrants-actions", () => ({
   ...RegistrantsActions,
   addRegistrantAction: addRegistrantActionMock,
   listEventRegistrationOptionsAction: listOptionsMock,
+  listEventRegistrationQuestionsAction: listQuestionsMock,
 }));
 
 const listPeopleActionMock = mock(async () => ({
@@ -63,6 +71,7 @@ describe("AddRegistrantDialog", () => {
   beforeEach(() => {
     addRegistrantActionMock.mockClear();
     listOptionsMock.mockImplementation(async () => ({ data: null }));
+    listQuestionsMock.mockImplementation(async () => ({ data: [] }));
   });
 
   test("records what the party needs when the event asks (#1407)", async () => {
@@ -94,6 +103,7 @@ describe("AddRegistrantDialog", () => {
       expect.objectContaining({ id: "person-1" }),
       1,
       { ticket: 1 },
+      null,
     );
   });
 
@@ -120,6 +130,7 @@ describe("AddRegistrantDialog", () => {
         phone: null,
       },
       1,
+      null,
       null,
     );
   });
@@ -150,5 +161,94 @@ describe("AddRegistrantDialog", () => {
       screen.getByText("Select or create a person to register."),
     ).toBeInTheDocument();
     expect(addRegistrantActionMock).not.toHaveBeenCalled();
+  });
+
+  test("records optional answers to the event's questions (#1501)", async () => {
+    listQuestionsMock.mockImplementation(async () => ({
+      data: [
+        {
+          id: "q-leaving",
+          kind: "short_text",
+          prompt: "Leaving from",
+          help: null,
+          // Shown, but not enforced for staff.
+          required: true,
+          options: [],
+          min_value: null,
+          max_value: null,
+          show_if: null,
+        },
+        {
+          id: "q-share",
+          kind: "consent",
+          prompt: "OK to share my contact details",
+          help: null,
+          required: false,
+          options: [],
+          min_value: null,
+          max_value: null,
+          show_if: null,
+        },
+      ],
+    }));
+    const user = userEvent.setup();
+    render(<AddRegistrantDialog eventId="event-1" />);
+
+    await user.click(screen.getByRole("button", { name: "+ Add registrant" }));
+    await user.type(
+      screen.getByPlaceholderText("Search by name or email..."),
+      "Sam",
+    );
+    await user.click(await screen.findByText("Sam Maybe"));
+    await user.type(await screen.findByLabelText("Leaving from"), "Stowe");
+
+    await user.click(screen.getByRole("button", { name: "Add registrant" }));
+
+    // An unticked consent box is still an answer once anything was answered.
+    expect(addRegistrantActionMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.objectContaining({ id: "person-1" }),
+      1,
+      null,
+      { "q-leaving": "Stowe", "q-share": false },
+    );
+  });
+
+  test("sends no answers when staff left the questions alone (#1501)", async () => {
+    listQuestionsMock.mockImplementation(async () => ({
+      data: [
+        {
+          id: "q-share",
+          kind: "consent",
+          prompt: "OK to share my contact details",
+          help: null,
+          required: false,
+          options: [],
+          min_value: null,
+          max_value: null,
+          show_if: null,
+        },
+      ],
+    }));
+    const user = userEvent.setup();
+    render(<AddRegistrantDialog eventId="event-1" />);
+
+    await user.click(screen.getByRole("button", { name: "+ Add registrant" }));
+    await user.type(
+      screen.getByPlaceholderText("Search by name or email..."),
+      "Sam",
+    );
+    await user.click(await screen.findByText("Sam Maybe"));
+    await screen.findByText("OK to share my contact details");
+
+    await user.click(screen.getByRole("button", { name: "Add registrant" }));
+
+    expect(addRegistrantActionMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.objectContaining({ id: "person-1" }),
+      1,
+      null,
+      null,
+    );
   });
 });
