@@ -242,11 +242,14 @@ export function RegistrationSteps({
           Edit
         </Button>
       </div>
-      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      {/* A question's prompt (#1501) is a sentence, not a word: on a phone the
+          label sits above its answer, and beside it the label column is
+          capped so a long prompt cannot squeeze the answer to a sliver. */}
+      <dl className="mt-2 grid grid-cols-1 gap-x-4 text-sm sm:grid-cols-[fit-content(14rem)_minmax(0,1fr)] sm:gap-y-1 [&>div:last-child>dd]:mb-0">
         {rows.map((row) => (
           <div key={row.label} className="contents">
-            <dt className="app-muted">{row.label}</dt>
-            <dd className="min-w-0 break-words whitespace-pre-line">
+            <dt className="app-muted min-w-0 break-words">{row.label}</dt>
+            <dd className="mb-2 min-w-0 break-words whitespace-pre-line sm:mb-0">
               {row.value}
             </dd>
           </div>
