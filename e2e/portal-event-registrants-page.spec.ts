@@ -29,6 +29,9 @@ async function seedFixture(admin: ReturnType<typeof createAdminClient>) {
       visibility: "private",
       capacity: 60,
       registration_enabled: true,
+      // Without a prompt the event asks no option question, and the
+      // portal shows no option totals at all.
+      registration_options_prompt: "Do you need a ticket or gear?",
       created_by: adminUserId,
     })
     .select("id, name")
