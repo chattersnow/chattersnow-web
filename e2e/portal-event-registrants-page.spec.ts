@@ -239,7 +239,11 @@ test.describe("event registrants page", () => {
     );
     await expect(modal(page)).toBeVisible();
     await page.keyboard.press("Escape");
-    // Rows 11-20 of 22: the second page at ten a page.
-    await expect(page.locator("tbody tr")).toHaveCount(10);
+    await expect(modal(page)).toBeHidden();
+    // Rows 11-20 of 22: the second page at ten a page. Scoped to the list,
+    // since the page holds other tables.
+    await expect(
+      page.getByRole("region", { name: "Registrants" }).locator("tbody tr"),
+    ).toHaveCount(10);
   });
 });
