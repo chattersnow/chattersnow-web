@@ -1,6 +1,6 @@
 # Portal navigation: where a new surface goes
 
-**Updated:** 2026-09-20
+**Updated:** 2026-10-04
 
 The rule for deciding how a portal surface exposes its parts — sidebar entry,
 tab, rail or card — and the boundary between Administration and a feature
@@ -151,6 +151,13 @@ Three surfaces, three answers, decided once so no call site re-opens them.
   (`src/components/portal/list-preview-sheet.tsx`) for the overflow half of a
   capped list. `PortalFormSurface`'s whole value is form wiring; nothing else
   gains from it.
+- **An overflow that has become the place work is done is a page, not a
+  sheet.** The test is whether the full list hosts jobs of its own, not how
+  long it is. Event registrants outgrew `ListPreviewSheet` once it held the
+  door's check-in loop, walk-ins, messaging and export, so the card keeps its
+  capped preview and "View all" links to `/portal/events/[eventId]/registrants`
+  (#1511), with a breadcrumb back to the event and its search, filters, sort,
+  page and open registration in the URL.
 
 The migration of the remaining dialogs onto the surface is tracked under #1115.
 A new portal form should be written on it rather than added to that backlog.

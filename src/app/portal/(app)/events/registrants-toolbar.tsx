@@ -6,10 +6,12 @@ import { CheckInWalkInDialog } from "./check-in-walkin-dialog";
 /**
  * The registrant create actions, as one unit.
  *
- * They render in two places now -- the card header and the "View all" sheet
- * header -- because the sheet hosts the check-in loop, and being unable to add
- * the walk-in standing in front of you without closing the list first is the
- * classic reason a modal copy of a table feels worse than the table.
+ * They render beside the list wherever the door works through it -- the card
+ * header and the Happening Now check-in sheet -- because being unable to add
+ * the walk-in standing in front of you without leaving the list first is the
+ * classic reason a copy of a table feels worse than the table. The
+ * registrants page (#1511) renders the two dialogs itself, with the walk-in as
+ * its primary action.
  */
 export function RegistrantsToolbar({
   eventId,

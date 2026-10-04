@@ -18,6 +18,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
+import {
   MAX_MESSAGE_BODY_LENGTH,
   MAX_MESSAGE_SUBJECT_LENGTH,
 } from "@/lib/outbound-messages";
@@ -57,7 +61,10 @@ export function AnnounceToRegistrantsDialog({
   replyTo,
   disabledReason,
   onSent,
-}: {
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger,
+}: ControlledOpenProps & {
   eventId: string;
   eventName: string;
   /** The tab's own list, so the count matches what is on screen. */
@@ -68,7 +75,7 @@ export function AnnounceToRegistrantsDialog({
   onSent?: () => void;
 }) {
   const fieldId = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   /**
@@ -153,6 +160,7 @@ export function AnnounceToRegistrantsDialog({
     <PortalFormSurface
       open={open}
       onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
       trigger={
         <Button type="button" variant="secondary" size="sm">
           Message registrants

@@ -1,0 +1,268 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { RotateCcw } from "lucide-react";
+import type {
+  EventRegistrant,
+  EventRegistrantsData,
+} from "./registrants-actions";
+import { RiderProfileDialog } from "./rider-profile-dialog";
+import { CancelRegistrationDialog } from "./cancel-registration-dialog";
+import { RegistrantDetailSheet } from "./registrant-detail-sheet";
+import { RegistrantAnnouncements } from "./registrant-announcements";
+import { cancellationReasonLabel } from "@/lib/registration-cancellation";
+import { announcementBatches } from "@/lib/event-announcements";
+import { NO_RECORD_MESSAGES } from "@/lib/outbound-messages";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
+import { Button } from "@/components/ui/button";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
+import { formatDateTime } from "@/lib/format";
+
+const NO_QUESTIONS: RegistrationQuestion[] = [];
+
+/**
+ * The pieces of the registrants list that read the same wherever the list is:
+ * the event's registrants card, the Happening Now check-in sheet and the
+ * registrants page (#1511). Each surface lays out its own table and toolbar;
+ * these are what it would otherwise copy.
+ */
+
+/**
+ * Cancelled registrations (#1418), apart from the list so one is never
+ * mistaken for somebody still coming. Hidden behind a toggle.
+ */
+export function CancelledRegistrations({
+  cancelled,
+  canRestore,
+  onRestore,
+  isRowPending,
+}: {
+  cancelled: readonly EventRegistrant[];
+  canRestore: boolean;
+  onRestore: (registrant: EventRegistrant) => void;
+  isRowPending: (registrant: EventRegistrant) => boolean;
+}) {
+  const [shown, setShown] = useState(false);
+
+  const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (registrant) => registrant.name,
+        cellClassName: "max-w-xs font-medium",
+        render: (registrant) => (
+          <span className="block truncate" title={registrant.name}>
+            {registrant.name}
+          </span>
+        ),
+      },
+      {
+        key: "party_size",
+        label: "Party size",
+        sortValue: (registrant) => registrant.party_size,
+        hideBelow: "sm",
+        render: (registrant) => registrant.party_size,
+      },
+      {
+        key: "reason",
+        label: "Reason",
+        sortValue: (registrant) => registrant.cancellation_reason,
+        cellClassName: "app-muted max-w-56 whitespace-normal",
+        render: (registrant) => (
+          <>
+            {cancellationReasonLabel(registrant.cancellation_reason) ?? "—"}
+            {registrant.cancellation_note && (
+              <span className="block text-xs">
+                {registrant.cancellation_note}
+              </span>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "cancelled_at",
+        label: "Cancelled",
+        sortValue: (registrant) => registrant.cancelled_at,
+        hideBelow: "md",
+        cellClassName: "app-muted whitespace-nowrap",
+        render: (registrant) => formatDateTime(registrant.cancelled_at),
+      },
+      ...(canRestore
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right whitespace-nowrap",
+              render: (registrant: EventRegistrant) => (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Restore registration for ${registrant.name}`}
+                  disabled={isRowPending(registrant)}
+                  onClick={() => onRestore(registrant)}
+                >
+                  <RotateCcw /> Restore
+                </Button>
+              ),
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+    ],
+    [canRestore, isRowPending, onRestore],
+  );
+
+  if (cancelled.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div>
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="px-0"
+          aria-expanded={shown}
+          onClick={() => setShown((open) => !open)}
+        >
+          {shown ? "Hide" : "Show"} cancelled ({cancelled.length})
+        </Button>
+      </div>
+      {shown && (
+        <PortalDataTable
+          columns={columns}
+          rows={cancelled}
+          getRowKey={(registrant) => registrant.id}
+          defaultSort={{ key: "cancelled_at", dir: "desc" }}
+          emptyMessage="No cancelled registrations."
+          shell="bare"
+        />
+      )}
+    </section>
+  );
+}
+
+/**
+ * Only once something has gone out. An empty card headed "Announcements" on
+ * every event would be a permanent reminder of a feature most events never
+ * need.
+ */
+export function RegistrantAnnouncementsSection({
+  data,
+}: {
+  data: EventRegistrantsData | undefined;
+}) {
+  const messages = data?.messages ?? NO_RECORD_MESSAGES;
+  const batches = data?.messaging ? announcementBatches(messages) : [];
+  if (batches.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="app-muted text-sm font-semibold">Announcements</h3>
+      <RegistrantAnnouncements batches={batches} actors={messages.actors} />
+    </section>
+  );
+}
+
+/**
+ * The detail sheet and the two row dialogs, mounted only for the registration
+ * they are about.
+ */
+export function RegistrantOverlays({
+  data,
+  eventName,
+  detailId,
+  onDetailClosed,
+  cancelTarget,
+  onCancelClosed,
+  riderTarget,
+  onRiderClosed,
+  onChanged,
+  onRegistrantsChanged,
+}: {
+  data: EventRegistrantsData | undefined;
+  eventName: string;
+  detailId: string | null;
+  onDetailClosed: () => void;
+  cancelTarget: EventRegistrant | null;
+  onCancelClosed: () => void;
+  riderTarget: EventRegistrant | null;
+  onRiderClosed: () => void;
+  /** After something that moves the counts: a cancellation, a rider save. */
+  onChanged: () => void;
+  /** After something only the list itself shows: a message, an answer. */
+  onRegistrantsChanged: () => void;
+}) {
+  const messages = data?.messages ?? NO_RECORD_MESSAGES;
+  const messaging = data?.messaging ?? null;
+  const detailTarget = data?.registrants.find(
+    (registrant) => registrant.id === detailId,
+  );
+
+  return (
+    <>
+      {/* Keyed by registrant, and mounted only for the one being read: the
+          sheet seeds its own open state, so switching rows has to remount it
+          rather than hand it a new registrant behind its back. */}
+      {detailTarget && (
+        <RegistrantDetailSheet
+          key={detailTarget.id}
+          registrant={detailTarget}
+          eventName={eventName}
+          // `messaging` is populated only for a caller holding
+          // `events: manage`, the gate the sheet's messaging half is behind.
+          canManage={messaging !== null}
+          messages={messages.byRecord[detailTarget.id] ?? []}
+          messageActors={messages.actors}
+          orgName={messaging?.orgName ?? ""}
+          replyTo={messaging?.replyTo ?? null}
+          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          // False while loading, which only suppresses a row (#686, #599).
+          waiverInForce={data?.waiverInForce ?? false}
+          photoConsentInForce={data?.photoConsentInForce ?? false}
+          optionsPrompt={data?.registrationOptions?.prompt ?? null}
+          registrationQuestions={data?.registrationQuestions ?? NO_QUESTIONS}
+          onClosed={onDetailClosed}
+          onSent={onRegistrantsChanged}
+          onAnswersSaved={onRegistrantsChanged}
+        />
+      )}
+
+      {/* Keyed so the form re-seeds from whichever registrant was opened.
+          Rendered as a sibling of the sheet, not inside it: the house pattern
+          for a second overlay. */}
+      {cancelTarget && (
+        <CancelRegistrationDialog
+          key={cancelTarget.id}
+          registrant={cancelTarget}
+          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) onCancelClosed();
+          }}
+          onCancelled={onChanged}
+        />
+      )}
+
+      {riderTarget && (
+        <RiderProfileDialog
+          key={riderTarget.id}
+          registrant={riderTarget}
+          // #1408. `?? []` for an older payload, which leaves "Other" as the
+          // one choice rather than a picker with nothing in it.
+          mountains={data?.riderMountains ?? []}
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) onRiderClosed();
+          }}
+          onSaved={onChanged}
+        />
+      )}
+    </>
+  );
+}

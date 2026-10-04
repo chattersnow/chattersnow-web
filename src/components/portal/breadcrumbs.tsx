@@ -12,7 +12,7 @@ import { useLexicon } from "@/components/lexicon-context";
 import { applyLexicon, type Lexicon } from "@/lib/lexicon";
 import { LinkPendingPulse } from "@/components/link-pending";
 
-type Crumb = { label: string; href?: string };
+export type Crumb = { label: string; href?: string };
 
 /**
  * The trail to the current record.
@@ -30,10 +30,11 @@ function trailFor(
   pathname: string,
   current: string,
   lexicon: Lexicon,
+  parents: readonly Crumb[] = [],
 ): Crumb[] {
   const sectionValue = activeSectionFor(pathname);
   const section = NAV_ITEMS.find((item) => item.value === sectionValue);
-  if (!section) return [{ label: current }];
+  if (!section) return [...parents, { label: current }];
 
   // The nav tree holds lexicon templates (#896), so every label out of it
   // is resolved against this tenant's words before it is compared or shown
@@ -50,6 +51,8 @@ function trailFor(
     crumbs.push({ label: named(sub.label), href: sub.href });
   }
 
+  crumbs.push(...parents);
+
   // Same rule at the leaf: on a list page the record label is the page's own
   // name, and "Finance > Donations > Donations" is noise.
   if (crumbs[crumbs.length - 1].label !== current) {
@@ -61,9 +64,16 @@ function trailFor(
 export function PortalBreadcrumbs({
   /** The record this page is about, as the page's own heading names it. */
   current,
+  parents,
   onNavigate,
 }: {
   current: string;
+  /**
+   * Records between the nav section and `current`, for a page that lives
+   * under another record -- Events > <event> > Registrants (#1511). The nav
+   * tree only knows sections, so the record in between has to be named here.
+   */
+  parents?: readonly Crumb[];
   /**
    * Called before a crumb navigates, with the href it is heading for. Call
    * `preventDefault()` on the event to stop it -- how the article editor
@@ -75,7 +85,7 @@ export function PortalBreadcrumbs({
   onNavigate?: (href: string, event: React.MouseEvent) => void;
 }) {
   const pathname = usePathname();
-  const crumbs = trailFor(pathname, current, useLexicon());
+  const crumbs = trailFor(pathname, current, useLexicon(), parents);
 
   return (
     <nav aria-label="Breadcrumb" className="mb-3">
