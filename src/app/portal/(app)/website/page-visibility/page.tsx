@@ -5,7 +5,9 @@ import {
   getTenantPageVisibility,
   moduleBlockedSlots,
   namedSlots,
+  slotsForTenant,
 } from "@/lib/page-visibility";
+import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { PageVisibilityPanel } from "../page-visibility-panel";
 
@@ -25,10 +27,11 @@ export const metadata: Metadata = {
  */
 export default async function WebsitePageVisibilityPage() {
   const supabase = await createSupabaseServerClient();
-  const [pageVisibility, tenantModules, lexicon] = await Promise.all([
+  const [pageVisibility, tenantModules, lexicon, tenants] = await Promise.all([
     getTenantPageVisibility(supabase),
     getTenantModules(supabase),
     getTenantLexicon(supabase),
+    getTenantContext(supabase),
   ]);
 
   // Sections this organization has not been sold (#902). The switches for them
@@ -54,7 +57,9 @@ export default async function WebsitePageVisibilityPage() {
           board has approved it. Every change here is recorded in the audit log.
         </p>
         <PageVisibilityPanel
-          slots={namedSlots(lexicon)}
+          // The platform's own marketing pages only for the platform tenant;
+          // anywhere else the gate keeps them dark whatever is stored.
+          slots={slotsForTenant(namedSlots(lexicon), currentTenant(tenants))}
           visibility={pageVisibility}
           blockedSlots={blockedSlots}
         />
