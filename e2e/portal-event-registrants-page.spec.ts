@@ -8,6 +8,7 @@
 import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
+import { modal } from "./helpers/dialog";
 import type { Page } from "@playwright/test";
 
 const REGISTRATIONS = 22;
@@ -160,7 +161,8 @@ test.describe("event registrants page", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("button", {
-        name: /Maximiliano Rodríguez-Castellanos 1$/,
+        name: "Maximiliano Rodríguez-Castellanos 1",
+        exact: true,
       }),
     ).toBeVisible();
 
@@ -181,7 +183,8 @@ test.describe("event registrants page", () => {
     await page.goto(`/portal/events/${fixture.eventId}/registrants`);
     await expect(
       page.getByRole("button", {
-        name: /Maximiliano Rodríguez-Castellanos 1$/,
+        name: "Maximiliano Rodríguez-Castellanos 1",
+        exact: true,
       }),
     ).toBeVisible();
     await expectNoSidewaysScroll(page);
@@ -231,7 +234,7 @@ test.describe("event registrants page", () => {
     await page.goto(
       `/portal/events/${fixture.eventId}/registrants?perPage=10&page=2&registrant=${fixture.firstRegistrationId}`,
     );
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(modal(page)).toBeVisible();
     await page.keyboard.press("Escape");
     // Rows 11-20 of 22: the second page at ten a page.
     await expect(page.locator("tbody tr")).toHaveCount(10);
