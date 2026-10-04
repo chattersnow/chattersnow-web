@@ -9,6 +9,8 @@ import {
   hiddenSlots,
   moduleBlockedSlots,
   pageVisibilitySettingKey,
+  platformOnlySlotKeys,
+  slotsForTenant,
 } from "./page-visibility";
 
 type Row = { slot: string; value: unknown };
@@ -24,15 +26,28 @@ type ModuleRow = { module_key: string; enabled: boolean };
 function clientReturning(
   data: Row[] | null,
   modules: ModuleRow[] = [],
+  plan: string | null = "white_label",
 ): SupabaseClient {
   return {
     from: (table: string) => ({
-      select: async () => ({
-        data: table === "public_tenant_modules" ? modules : data,
-        error: null,
-      }),
+      select: () =>
+        selected({
+          data: table === "public_tenant_modules" ? modules : data,
+          error: null,
+        }),
     }),
   } as unknown as SupabaseClient;
+
+  // The host's tenant, which `getPublicTenant` reads with `.maybeSingle()`.
+  // A white-label customer by default -- every tenant but the platform's own.
+  function selected(result: { data: unknown; error: unknown }) {
+    return Object.assign(Promise.resolve(result), {
+      maybeSingle: async () => ({
+        data: plan === null ? null : { id: "t", name: "T", slug: "t", plan },
+        error: null,
+      }),
+    });
+  }
 }
 
 /**
@@ -41,18 +56,22 @@ function clientReturning(
  * `public_page_visibility` had never been pushed.
  */
 function clientFailing(): SupabaseClient {
+  const failure = {
+    data: null,
+    error: {
+      code: "PGRST205",
+      message:
+        "Could not find the table 'public.public_page_visibility' in the schema cache",
+      details: null,
+      hint: "Perhaps you meant the table 'public.public_site_images'",
+    },
+  };
   return {
     from: () => ({
-      select: async () => ({
-        data: null,
-        error: {
-          code: "PGRST205",
-          message:
-            "Could not find the table 'public.public_page_visibility' in the schema cache",
-          details: null,
-          hint: "Perhaps you meant the table 'public.public_site_images'",
-        },
-      }),
+      select: () =>
+        Object.assign(Promise.resolve(failure), {
+          maybeSingle: async () => failure,
+        }),
     }),
   } as unknown as SupabaseClient;
 }
@@ -209,9 +228,10 @@ describe("getPageVisibility", () => {
     try {
       await getPageVisibility(clientFailing());
 
-      // Twice since #902: the visibility read and the module read are separate
-      // queries against the same broken client, and each has to say so.
-      expect(error).toHaveBeenCalledTimes(2);
+      // Three times: the visibility read, the module read (#902) and the
+      // host's tenant (the platform-only slots) are separate queries against
+      // the same broken client, and each has to say so.
+      expect(error).toHaveBeenCalledTimes(3);
       expect(error.mock.calls[0]?.[1]).toMatchObject({ code: "PGRST205" });
     } finally {
       error.mockRestore();
@@ -340,10 +360,15 @@ describe("module gating", () => {
     try {
       const visibility = await getPageVisibility({
         from: (table: string) => ({
-          select: async () =>
-            table === "public_tenant_modules"
-              ? { data: null, error: { code: "PGRST205", message: "gone" } }
-              : { data: [{ slot: "gears", value: true }], error: null },
+          select: () =>
+            Object.assign(
+              Promise.resolve(
+                table === "public_tenant_modules"
+                  ? { data: null, error: { code: "PGRST205", message: "gone" } }
+                  : { data: [{ slot: "gears", value: true }], error: null },
+              ),
+              { maybeSingle: async () => ({ data: null, error: null }) },
+            ),
         }),
       } as unknown as SupabaseClient);
 
@@ -366,6 +391,67 @@ describe("module gating", () => {
       expect(moduleBlockedSlots({ inventory: true })).toEqual({});
       expect(moduleBlockedSlots({})).toEqual({});
     });
+  });
+});
+
+// The product's own marketing pages belong to the platform tenant's site
+// alone. Anywhere else they stay dark whatever a stored row says, and the
+// administration panels do not offer them.
+describe("platform-only slots", () => {
+  const PLATFORM_ONLY = ["audiences", "modules", "pricing"];
+  const switchedOn = PLATFORM_ONLY.map((slot) => ({ slot, value: true }));
+
+  test("are exactly the audience paths, the module tour and the price list", () => {
+    expect(
+      PUBLIC_PAGE_SLOTS.filter((slot) => slot.platformOnly).map(
+        (slot) => slot.key,
+      ),
+    ).toEqual(PLATFORM_ONLY);
+  });
+
+  test("can be switched on for the platform tenant's host", async () => {
+    const visibility = await getPageVisibility(
+      clientReturning(switchedOn, [], "internal"),
+    );
+    for (const slot of PLATFORM_ONLY) expect(visibility[slot]).toBe(true);
+  });
+
+  test("stay hidden on any other tenant's host whatever is stored", async () => {
+    for (const plan of ["white_label", "demo", null]) {
+      const visibility = await getPageVisibility(
+        clientReturning(switchedOn, [], plan),
+      );
+      for (const slot of PLATFORM_ONLY) {
+        expect(visibility[slot], `${slot} on ${plan}`).toBe(false);
+      }
+    }
+  });
+
+  test("leave every other slot alone", async () => {
+    const platform = await getPageVisibility(
+      clientReturning([], [], "internal"),
+    );
+    const customer = await getPageVisibility(clientReturning([], []));
+    for (const slot of PUBLIC_PAGE_SLOTS) {
+      if (slot.platformOnly) continue;
+      expect(customer[slot.key]).toBe(platform[slot.key]);
+    }
+  });
+
+  test("are left out of the panels for every tenant but the platform's", () => {
+    const keys = (plan: string | null) =>
+      slotsForTenant(PUBLIC_PAGE_SLOTS, plan ? { plan } : null).map(
+        (slot) => slot.key,
+      );
+
+    expect(keys("internal")).toEqual(PUBLIC_PAGE_SLOTS.map((slot) => slot.key));
+    for (const plan of ["white_label", "demo", null]) {
+      for (const slot of PLATFORM_ONLY) expect(keys(plan)).not.toContain(slot);
+    }
+    expect([...platformOnlySlotKeys({ plan: "white_label" })]).toEqual(
+      PLATFORM_ONLY,
+    );
+    expect(platformOnlySlotKeys({ plan: "internal" }).size).toBe(0);
   });
 });
 

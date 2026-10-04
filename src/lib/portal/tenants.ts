@@ -40,6 +40,20 @@ export function isDemoTenant(tenant: Pick<Tenant, "plan"> | null): boolean {
   return tenant?.plan === "demo";
 }
 
+/**
+ * Whether this tenant is the platform's own -- the one on the `internal` plan,
+ * whose public site is the product's marketing site rather than an
+ * organization's.
+ *
+ * The same test `is_platform_operator()` makes in the database, and the reason
+ * a few public sections exist only here: the audience paths, the module tour
+ * and the price list describe the software, and no customer has a use for
+ * publishing their vendor's pitch under their own name.
+ */
+export function isPlatformTenant(tenant: Pick<Tenant, "plan"> | null): boolean {
+  return tenant?.plan === "internal";
+}
+
 export type TenantContext = {
   /** Every tenant the user holds a live membership in, name-sorted. */
   tenants: Tenant[];

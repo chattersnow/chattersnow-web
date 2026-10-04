@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { applyLexicon, type Lexicon } from "@/lib/lexicon";
+import { getPublicTenant } from "@/lib/branding";
+import { isPlatformTenant } from "@/lib/portal/tenants";
 
 export type PublicPageSlot = {
   /**
@@ -58,6 +60,17 @@ export type PublicPageSlot = {
    * the fundraising ask, so it goes with Finance.
    */
   module?: string;
+  /**
+   * A section that exists only on the platform tenant's own site -- the
+   * product's marketing pages (#1325). Every other tenant is forced hidden
+   * whatever is stored, and never sees the switch or the copy: these pages are
+   * about the software, and a customer has no use for a control whose only
+   * effect would be publishing their vendor's pitch under their brand.
+   *
+   * Unlike `module` this is not an entitlement anyone can be sold, so the panel
+   * leaves the row out rather than rendering it locked.
+   */
+  platformOnly?: true;
 };
 
 /**
@@ -202,9 +215,10 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   // visitors to their software vendor.
   {
     key: "audiences",
+    platformOnly: true,
     label: "Audience paths",
     description:
-      "The two pages at /nonprofits and /business, which describe what this platform does in each audience's own vocabulary. Most organizations leave these off: they are about the software, not about you.",
+      "The two pages at /nonprofits and /business, which describe what this platform does in each audience's own vocabulary.",
     defaultVisible: false,
     gate: ["(public)/nonprofits/layout.tsx", "(public)/business/layout.tsx"],
   },
@@ -220,9 +234,9 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
   // that description is true.
   {
     key: "modules",
+    platformOnly: true,
     label: "What it does",
-    description:
-      "The page at /modules, one section per part of the platform. Like the audience paths it is about the software rather than about you, so most organizations leave it off.",
+    description: "The page at /modules, one section per part of the platform.",
     defaultVisible: false,
   },
   {
@@ -232,6 +246,7 @@ export const PUBLIC_PAGE_SLOTS: PublicPageSlot[] = [
     // accident: it is quotable, it is screenshotted, and it is the one page a
     // reader will hold you to.
     key: "pricing",
+    platformOnly: true,
     label: "Pricing",
     description:
       "The plans and prices at /pricing. Turn it on once the numbers in Site Content are the ones you mean to charge -- until then the page is written but unreachable.",
@@ -286,6 +301,33 @@ export function namedSlots(lexicon: Lexicon): PublicPageSlot[] {
     label: applyLexicon(slot.label, lexicon),
     description: applyLexicon(slot.description, lexicon),
   }));
+}
+
+/**
+ * The slots a tenant's administration panels should offer at all: every slot
+ * for the platform tenant, and every slot but the platform's own marketing
+ * pages for anyone else.
+ */
+export function slotsForTenant<T extends Pick<PublicPageSlot, "platformOnly">>(
+  slots: readonly T[],
+  tenant: { plan: string } | null,
+): T[] {
+  return isPlatformTenant(tenant)
+    ? [...slots]
+    : slots.filter((slot) => !slot.platformOnly);
+}
+
+/** The keys of the slots `slotsForTenant` leaves out for this tenant. */
+export function platformOnlySlotKeys(
+  tenant: { plan: string } | null,
+): Set<string> {
+  return new Set(
+    isPlatformTenant(tenant)
+      ? []
+      : PUBLIC_PAGE_SLOTS.filter((slot) => slot.platformOnly).map(
+          (slot) => slot.key,
+        ),
+  );
 }
 
 export const PAGE_VISIBILITY_PREFIX = "page_visibility.";
@@ -361,17 +403,25 @@ function moduleBlocks(
  * layout (which gates the route) share a single query per render.
  *
  * Two reads since #902, issued together: what the board has published, and what
- * the platform has sold. A section needs both -- the entitlement is the
+ * the platform has sold -- three counting the host's tenant, which decides
+ * whether the platform-only slots can be on at all. A section needs both -- the entitlement is the
  * platform's and wins, so a slot whose module is off is hidden whatever the
  * board stored, and turning the module back on returns the section to whatever
  * the board had set rather than to a default.
  */
 export const getPageVisibility = cache(
   async (supabase: SupabaseClient): Promise<Record<string, boolean>> => {
-    const [{ data, error }, modules] = await Promise.all([
+    const [{ data, error }, modules, tenant] = await Promise.all([
       supabase.from("public_page_visibility").select("slot, value"),
       getPublicTenantModules(supabase),
+      getPublicTenant(supabase),
     ]);
+
+    // The platform's own marketing pages are dark on every other host. An
+    // unresolved or unreadable tenant counts as "not the platform": the price
+    // list is the last page to publish on a guess.
+    const platformHost =
+      tenant.status === "resolved" && isPlatformTenant(tenant.tenant);
 
     // A failed read and "nothing configured yet" both land on the registry
     // defaults below. Falling back is the right call -- an unreadable flag must
@@ -390,6 +440,7 @@ export const getPageVisibility = cache(
     for (const slot of PUBLIC_PAGE_SLOTS) {
       const row = data?.find((setting) => setting.slot === slot.key);
       visibility[slot.key] =
+        (platformHost || !slot.platformOnly) &&
         !moduleBlocks(slot, modules) &&
         resolveVisibility(row?.value, slot.defaultVisible);
     }
