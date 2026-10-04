@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CSSProperties,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,9 +15,11 @@ import {
   CheckIcon,
   FileIcon,
   Maximize2Icon,
+  CaptionsIcon,
   Share2Icon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   pageFromHash,
@@ -33,43 +36,65 @@ const PageLightbox = dynamic(() => import("./page-lightbox"), { ssr: false });
 type Layout = "single" | "spread";
 
 // ---------------------------------------------------------------------------
-// The single/spread choice, remembered per viewer. Storage can be missing or
-// refuse (private windows, blocked site data), so the choice also lives in
-// memory and the reader works the same without it.
+// The reader's choices (single/spread, transcripts on/off), remembered per
+// viewer. Storage can be missing or refuse (private windows, blocked site
+// data), so each choice also lives in memory and the reader works the same
+// without it.
 // ---------------------------------------------------------------------------
 
-const LAYOUT_STORAGE_KEY = "publication-reader-layout";
-const layoutListeners = new Set<() => void>();
-let layoutInMemory: Layout = "single";
+function storedChoice<T extends string>(
+  key: string,
+  allowed: readonly T[],
+  fallback: T,
+) {
+  const listeners = new Set<() => void>();
+  let inMemory = fallback;
 
-function readLayout(): Layout {
-  try {
-    const stored = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
-    if (stored === "single" || stored === "spread") return stored;
-  } catch {
-    // Fall back to this page load's choice.
+  function read(): T {
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (allowed.includes(stored as T)) return stored as T;
+    } catch {
+      // Fall back to this page load's choice.
+    }
+    return inMemory;
   }
-  return layoutInMemory;
-}
 
-function storeLayout(next: Layout) {
-  layoutInMemory = next;
-  try {
-    window.localStorage.setItem(LAYOUT_STORAGE_KEY, next);
-  } catch {
-    // Remembered for this page load only.
+  function store(next: T) {
+    inMemory = next;
+    try {
+      window.localStorage.setItem(key, next);
+    } catch {
+      // Remembered for this page load only.
+    }
+    listeners.forEach((listener) => listener());
   }
-  layoutListeners.forEach((listener) => listener());
+
+  function subscribe(onChange: () => void) {
+    listeners.add(onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      listeners.delete(onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }
+
+  return { read, store, subscribe, serverValue: () => fallback };
 }
 
-function subscribeLayout(onChange: () => void) {
-  layoutListeners.add(onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    layoutListeners.delete(onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
+const layoutChoice = storedChoice<Layout>(
+  "publication-reader-layout",
+  ["single", "spread"],
+  "single",
+);
+
+// Transcripts are off by default and on when asked for. Off only hides them
+// from the eye: they stay in the page for screen readers, who they are for.
+const transcriptChoice = storedChoice(
+  "publication-reader-transcripts",
+  ["on", "off"],
+  "off",
+);
 
 // Spreads are for wide screens (Tailwind's `lg`); a phone always gets single
 // pages, whatever was chosen on a laptop.
@@ -100,10 +125,16 @@ export function IssueReader({
 }) {
   const total = pages.length;
   const layout = useSyncExternalStore(
-    subscribeLayout,
-    readLayout,
-    () => "single" as const,
+    layoutChoice.subscribe,
+    layoutChoice.read,
+    layoutChoice.serverValue,
   );
+  const transcripts =
+    useSyncExternalStore(
+      transcriptChoice.subscribe,
+      transcriptChoice.read,
+      transcriptChoice.serverValue,
+    ) === "on";
   const wide = useSyncExternalStore(
     subscribeWide,
     () => window.matchMedia(WIDE_QUERY).matches,
@@ -198,7 +229,7 @@ export function IssueReader({
       : `Page ${inView[0]} of ${total}`;
 
   return (
-    <div className={cn("mx-auto mt-10 max-w-3xl", spread && "lg:max-w-6xl")}>
+    <div className="mx-auto mt-10 max-w-3xl lg:max-w-6xl">
       <div className="sticky top-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] bg-background/95 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <p className="text-sm font-medium tabular-nums">{counter}</p>
         <div className="flex items-center gap-2">
@@ -206,7 +237,7 @@ export function IssueReader({
             aria-label="Page layout"
             value={[layout]}
             onValueChange={(value) => {
-              if (value[0]) storeLayout(value[0] as Layout);
+              if (value[0]) layoutChoice.store(value[0] as Layout);
             }}
             variant="outline"
             spacing={0}
@@ -222,6 +253,17 @@ export function IssueReader({
               Spread
             </ToggleGroupItem>
           </ToggleGroup>
+          <Toggle
+            pressed={transcripts}
+            onPressedChange={(pressed) =>
+              transcriptChoice.store(pressed ? "on" : "off")
+            }
+            variant="outline"
+            size="sm"
+          >
+            <CaptionsIcon aria-hidden="true" />
+            Transcript
+          </Toggle>
           <ShareButton title={title} page={current} />
         </div>
       </div>
@@ -243,6 +285,7 @@ export function IssueReader({
             eager={index === 0}
             side={spread ? sides[index] : "alone"}
             spread={spread}
+            transcripts={transcripts}
             onOpen={openLightbox}
           />
         ))}
@@ -267,6 +310,7 @@ function IssuePage({
   eager,
   side,
   spread,
+  transcripts,
   onOpen,
 }: {
   page: PublicationPage;
@@ -274,21 +318,45 @@ function IssuePage({
   eager: boolean;
   side: SpreadSide;
   spread: boolean;
+  transcripts: boolean;
   onOpen: (position: number) => void;
 }) {
   const { image } = page;
+  // The width that gives the page the window's height, less the sticky
+  // toolbar and the caption, at the page's own aspect ratio.
+  const pageWidth = `calc((100dvh - 7rem) * ${image.width / image.height})`;
   return (
     <li
       id={`page-${page.position}`}
       data-page={page.position}
+      // With transcripts on, single view on a wide screen sets each one beside
+      // its page: the page keeps the width that fits it in the window, the
+      // transcript takes the rest of the row.
+      style={{ "--page-w": pageWidth } as CSSProperties}
       className={cn(
         "min-w-0 scroll-mt-16",
+        transcripts &&
+          !spread &&
+          "lg:grid lg:grid-cols-[minmax(0,var(--page-w))_minmax(18rem,1fr)] lg:items-start lg:gap-x-8",
         spread &&
           side === "alone" &&
           "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.25rem)]",
       )}
     >
-      <figure>
+      <figure
+        // Capped so a whole page fits the window under the sticky toolbar
+        // (its scroll-mt-16) and the caption. A spread's halves hug the
+        // gutter so they still read as one sheet.
+        style={{ maxWidth: pageWidth }}
+        className={cn(
+          side === "left"
+            ? "lg:ml-auto"
+            : side === "right"
+              ? "lg:mr-auto"
+              : "mx-auto",
+          spread && side !== "alone" && "max-lg:mx-auto",
+        )}
+      >
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element -- sized at upload (#1472), served straight from the bucket */}
           <img
@@ -328,14 +396,22 @@ function IssuePage({
         </figcaption>
       </figure>
       {page.transcript && (
-        <details className="group mt-3 rounded-lg border border-[var(--line)]">
-          <summary className="cursor-pointer rounded-lg px-4 py-3 text-sm font-medium hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <section
+          aria-label={`Transcript of page ${page.position}`}
+          className={cn(
+            transcripts
+              ? "mt-3 rounded-lg border border-[var(--line)] px-4 py-3"
+              : "sr-only",
+            transcripts && !spread && "lg:mt-0",
+          )}
+        >
+          <h2 className="text-sm font-medium">
             Transcript of page {page.position}
-          </summary>
-          <div className="px-4 pb-4 text-sm leading-relaxed break-words whitespace-pre-line">
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed break-words whitespace-pre-line">
             {page.transcript}
-          </div>
-        </details>
+          </p>
+        </section>
       )}
     </li>
   );
