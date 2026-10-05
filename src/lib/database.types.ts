@@ -2257,6 +2257,77 @@ export type Database = {
           },
         ];
       };
+      distribution_acknowledgements: {
+        Row: {
+          acknowledged_at: string | null;
+          as_is_text: string | null;
+          created_at: string;
+          id: string;
+          method: string | null;
+          present_staff: string | null;
+          recipient_person_id: string | null;
+          skipped_note: string | null;
+          skipped_reason: string | null;
+          tenant_id: string;
+          typed_name: string | null;
+        };
+        Insert: {
+          acknowledged_at?: string | null;
+          as_is_text?: string | null;
+          created_at?: string;
+          id?: string;
+          method?: string | null;
+          present_staff?: string | null;
+          recipient_person_id?: string | null;
+          skipped_note?: string | null;
+          skipped_reason?: string | null;
+          tenant_id?: string;
+          typed_name?: string | null;
+        };
+        Update: {
+          acknowledged_at?: string | null;
+          as_is_text?: string | null;
+          created_at?: string;
+          id?: string;
+          method?: string | null;
+          present_staff?: string | null;
+          recipient_person_id?: string | null;
+          skipped_note?: string | null;
+          skipped_reason?: string | null;
+          tenant_id?: string;
+          typed_name?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "distribution_acknowledgements_recipient_in_tenant";
+            columns: ["tenant_id", "recipient_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgements_recipient_in_tenant";
+            columns: ["tenant_id", "recipient_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgements_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgements_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       donations: {
         Row: {
           created_at: string;
@@ -3864,6 +3935,7 @@ export type Database = {
       gear_requests: {
         Row: {
           as_is_acknowledged_at: string | null;
+          as_is_method: string | null;
           as_is_text: string | null;
           cancelled_at: string | null;
           created_at: string;
@@ -3890,6 +3962,7 @@ export type Database = {
         };
         Insert: {
           as_is_acknowledged_at?: string | null;
+          as_is_method?: string | null;
           as_is_text?: string | null;
           cancelled_at?: string | null;
           created_at?: string;
@@ -3916,6 +3989,7 @@ export type Database = {
         };
         Update: {
           as_is_acknowledged_at?: string | null;
+          as_is_method?: string | null;
           as_is_text?: string | null;
           cancelled_at?: string | null;
           created_at?: string;
@@ -5455,6 +5529,12 @@ export type Database = {
       };
       inventory_distribution_drafts: {
         Row: {
+          ack_acknowledged_at: string | null;
+          ack_as_is_text: string | null;
+          ack_method: string | null;
+          ack_token_expires_at: string | null;
+          ack_token_hash: string | null;
+          ack_typed_name: string | null;
           created_at: string;
           event_id: string | null;
           id: string;
@@ -5465,6 +5545,12 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          ack_acknowledged_at?: string | null;
+          ack_as_is_text?: string | null;
+          ack_method?: string | null;
+          ack_token_expires_at?: string | null;
+          ack_token_hash?: string | null;
+          ack_typed_name?: string | null;
           created_at?: string;
           event_id?: string | null;
           id?: string;
@@ -5475,6 +5561,12 @@ export type Database = {
           user_id?: string;
         };
         Update: {
+          ack_acknowledged_at?: string | null;
+          ack_as_is_text?: string | null;
+          ack_method?: string | null;
+          ack_token_expires_at?: string | null;
+          ack_token_hash?: string | null;
+          ack_typed_name?: string | null;
           created_at?: string;
           event_id?: string | null;
           id?: string;
@@ -5768,6 +5860,7 @@ export type Database = {
         Row: {
           created_at: string;
           created_by: string | null;
+          distribution_acknowledgement_id: string | null;
           event_id: string | null;
           gear_request_id: string | null;
           id: string;
@@ -5783,6 +5876,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           created_by?: string | null;
+          distribution_acknowledgement_id?: string | null;
           event_id?: string | null;
           gear_request_id?: string | null;
           id?: string;
@@ -5798,6 +5892,7 @@ export type Database = {
         Update: {
           created_at?: string;
           created_by?: string | null;
+          distribution_acknowledgement_id?: string | null;
           event_id?: string | null;
           gear_request_id?: string | null;
           id?: string;
@@ -5811,6 +5906,13 @@ export type Database = {
           tenant_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "inventory_movements_distribution_acknowledgement_in_tenant";
+            columns: ["tenant_id", "distribution_acknowledgement_id"];
+            isOneToOne: false;
+            referencedRelation: "distribution_acknowledgements";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "inventory_movements_event_id_fkey";
             columns: ["tenant_id", "event_id"];
@@ -9974,6 +10076,25 @@ export type Database = {
           error: true;
         } & "the function public.account_email with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
+      acknowledge_distribution_by_token: {
+        Args: {
+          p_acknowledged: boolean;
+          p_as_is_text: string;
+          p_ip_address: unknown;
+          p_token_hash: string;
+          p_typed_name: string;
+        };
+        Returns: undefined;
+      };
+      acknowledge_distribution_on_staff_device: {
+        Args: {
+          p_acknowledged: boolean;
+          p_as_is_text: string;
+          p_event_id: string;
+          p_typed_name: string;
+        };
+        Returns: undefined;
+      };
       acknowledged_as_is: {
         Args: { p_acknowledged: boolean; p_text: string };
         Returns: string;
@@ -10273,6 +10394,28 @@ export type Database = {
         Args: { p_keys: string[] };
         Returns: number;
       };
+      distribution_acknowledgement_view: {
+        Args: { p_draft_id: string };
+        Returns: Json;
+      };
+      distribution_draft_checkout: {
+        Args: { p_event_id?: string };
+        Returns: {
+          needs_acknowledgement: boolean;
+        }[];
+      };
+      distribution_draft_holds: {
+        Args: { p_draft_id: string };
+        Returns: {
+          as_is_acknowledged_at: string;
+          gear_request_id: string;
+          item_id: string;
+        }[];
+      };
+      distribution_draft_needs_acknowledgement: {
+        Args: { p_draft_id: string };
+        Returns: boolean;
+      };
       email_is_this_tenants_to_invite: {
         Args: { p_email: string };
         Returns: boolean;
@@ -10361,6 +10504,14 @@ export type Database = {
           status: string;
           title: string;
         }[];
+      };
+      get_distribution_acknowledgement: {
+        Args: { p_ip_address: unknown; p_token_hash: string };
+        Returns: Json;
+      };
+      get_distribution_acknowledgement_on_staff_device: {
+        Args: { p_event_id?: string };
+        Returns: Json;
       };
       get_donation_import_mapping: { Args: never; Returns: Json };
       get_event_impact_derived_data: {
@@ -10454,6 +10605,11 @@ export type Database = {
       inventory_item_history: {
         Args: { p_item_id: string };
         Returns: {
+          as_is_acknowledged_at: string;
+          as_is_method: string;
+          as_is_skipped_note: string;
+          as_is_skipped_reason: string;
+          as_is_typed_name: string;
           donated_on: string;
           donation_id: string;
           donor_id: string;
@@ -10528,6 +10684,10 @@ export type Database = {
       };
       is_admin: { Args: never; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
+      issue_distribution_acknowledgement_token: {
+        Args: { p_event_id: string; p_token_hash: string };
+        Returns: string;
+      };
       link_person_to_auth_user: {
         Args: { p_person_id: string; p_user_id: string };
         Returns: undefined;
@@ -11152,6 +11312,9 @@ export type Database = {
           p_occurred_at?: string;
           p_reason?: string;
           p_recipient_person_id?: string;
+          p_removed_tags?: string[];
+          p_skipped_note?: string;
+          p_skipped_reason?: string;
         };
         Returns: {
           recorded: number;
@@ -11474,6 +11637,10 @@ export type Database = {
       };
       reset_my_welcome: { Args: never; Returns: undefined };
       resolve_current_person_id: { Args: never; Returns: string };
+      resolve_distribution_acknowledgement_token: {
+        Args: { p_for_update: boolean; p_token_hash: string };
+        Returns: string;
+      };
       resolve_inventory_category: {
         Args: { p_tenant_id?: string; p_text: string };
         Returns: string;
@@ -11846,6 +12013,16 @@ export type Database = {
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
       site_content_approver_count: { Args: never; Returns: number };
+      store_distribution_acknowledgement: {
+        Args: {
+          p_acknowledged: boolean;
+          p_as_is_text: string;
+          p_draft_id: string;
+          p_method: string;
+          p_typed_name: string;
+        };
+        Returns: undefined;
+      };
       submit_artwork: {
         Args: {
           p_code: string;

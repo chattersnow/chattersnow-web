@@ -29,6 +29,7 @@ const addToDistributionDraftActionMock = mock(
       recipient: storedDraft?.recipient ?? null,
       updatedAt: new Date().toISOString(),
       items: [{ ...ITEM, id: itemId }],
+      acknowledgement: null,
     };
     return { success: true as const };
   },
@@ -46,6 +47,10 @@ mock.module("../../../home/distribution-draft-actions", () => ({
   recordDistributionDraftAction: async () => ({ count: 1 }),
   removeFromDistributionDraftAction: async () => ({ success: true }),
   lookupScannedItemsAction: async () => ({ data: [] }),
+  getDistributionCheckoutAction: async () => ({ needsAcknowledgement: true }),
+  showAcknowledgementCodeAction: async () => ({ unavailable: true }),
+  getStaffDeviceAcknowledgementAction: async () => ({ error: "unused" }),
+  acknowledgeOnStaffDeviceAction: async () => ({ success: true }),
 }));
 
 mock.module("../../../home/distribution-actions", () => ({
@@ -119,7 +124,7 @@ describe("DistributeButton", () => {
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("Burton Custom (154)")).toBeTruthy();
     expect(
-      within(dialog).getByRole("button", { name: "Record 1 item" }),
+      within(dialog).getByRole("button", { name: "Check out 1 item" }),
     ).toBeTruthy();
     expect(within(dialog).getByLabelText("Event")).toBeTruthy();
     expect(within(dialog).getByText("Spring Swap")).toBeTruthy();
@@ -135,6 +140,7 @@ describe("DistributeButton", () => {
       recipient: RECIPIENT,
       updatedAt: new Date().toISOString(),
       items: [{ ...ITEM, id: "item-9", description: "Helmet", size: null }],
+      acknowledgement: null,
     };
     const user = userEvent.setup();
     render(

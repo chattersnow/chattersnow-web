@@ -32,6 +32,14 @@ export type DraftRecipient = {
   phone: string | null;
 };
 
+/** The recipient's acknowledgement, taken before the handout is recorded
+ *  (#1519). Voided by the database when the recipient changes. */
+export type DraftAcknowledgement = {
+  acknowledgedAt: string;
+  typedName: string;
+  method: "own_device" | "staff_device";
+};
+
 export type DistributionDraft = {
   eventId: string | null;
   eventName: string | null;
@@ -40,6 +48,7 @@ export type DistributionDraft = {
   recipient: DraftRecipient | null;
   updatedAt: string;
   items: DraftItem[];
+  acknowledgement: DraftAcknowledgement | null;
 };
 
 /** A draft untouched for longer than this is not offered by the resolver:
@@ -122,12 +131,16 @@ async function getNumberedCodes(
   return codes;
 }
 
+// Named columns, never `*`: the token hash is outside the select grant (#1519).
 const DRAFT_SELECT =
-  "event_id, updated_at, event:events!inventory_distribution_drafts_event_in_tenant(name), recipient:people!inventory_distribution_drafts_recipient_in_tenant(id, name, email, phone), items:inventory_distribution_draft_items(created_at, item:inventory_items!inventory_distribution_draft_items_item_in_tenant(id, description, size, status, intended_use))";
+  "event_id, updated_at, ack_acknowledged_at, ack_typed_name, ack_method, event:events!inventory_distribution_drafts_event_in_tenant(name), recipient:people!inventory_distribution_drafts_recipient_in_tenant(id, name, email, phone), items:inventory_distribution_draft_items(created_at, item:inventory_items!inventory_distribution_draft_items_item_in_tenant(id, description, size, status, intended_use))";
 
 type DraftRow = {
   event_id: string | null;
   updated_at: string;
+  ack_acknowledged_at: string | null;
+  ack_typed_name: string | null;
+  ack_method: DraftAcknowledgement["method"] | null;
   event: { name: string } | null;
   recipient: DraftRecipient | null;
   items: {
@@ -159,6 +172,14 @@ async function toDraft(
     eventName: row.event?.name ?? null,
     recipient: row.recipient,
     updatedAt: row.updated_at,
+    acknowledgement:
+      row.ack_acknowledged_at && row.ack_typed_name && row.ack_method
+        ? {
+            acknowledgedAt: row.ack_acknowledged_at,
+            typedName: row.ack_typed_name,
+            method: row.ack_method,
+          }
+        : null,
     items: [...row.items]
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .flatMap(({ item }) =>

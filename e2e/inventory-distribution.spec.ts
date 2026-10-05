@@ -72,15 +72,36 @@ test.describe("portal inventory distribution", () => {
     await expect(
       recordDialog.getByRole("heading", { name: "Record a distribution" }),
     ).toBeVisible();
-    await recordDialog.getByLabel("Inventory item").click();
+    // Picking adds to the handout's list (#1519).
+    await recordDialog.getByLabel("Add an item").click();
     await page
       .getByRole("listbox")
       .getByText(`${itemDescription} (Jacket)`, { exact: true })
       .click();
+    await expect(recordDialog.getByText(itemDescription)).toBeVisible();
     await recordDialog.getByLabel("Reason / notes").fill("E2E initial reason");
     await recordDialog
-      .getByRole("button", { name: "Record distribution" })
+      .getByRole("button", { name: "Check out 1 item" })
       .click();
+
+    // The recipient acknowledges on this device, handed to them (#1519);
+    // Record stays disabled until they have.
+    const record = recordDialog.getByRole("button", { name: "Record 1 item" });
+    await expect(record).toBeDisabled();
+    await recordDialog
+      .getByRole("button", { name: "Hand them this device" })
+      .click();
+    const handed = page.getByRole("dialog", { name: "Before you take these" });
+    await handed.getByLabel(exactLabel("Your name")).fill("E2E Recipient");
+    await handed.getByRole("checkbox").check();
+    await handed.getByRole("button", { name: "I understand" }).click();
+    await expect(handed).not.toBeVisible();
+    await expect(
+      recordDialog.getByText(
+        "Acknowledged by E2E Recipient on a staff device.",
+      ),
+    ).toBeVisible();
+    await record.click();
     await expect(recordDialog).not.toBeVisible();
 
     // Recording triggers a router.refresh() that re-renders the table; a
