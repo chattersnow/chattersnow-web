@@ -34,6 +34,7 @@ export const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
 export const SHORT_TEXT_MAX_LENGTH = 500;
 export const QUESTION_PROMPT_MAX_LENGTH = 300;
 export const QUESTION_HELP_MAX_LENGTH = 500;
+export const QUESTION_COLUMN_LABEL_MAX_LENGTH = 24;
 export const QUESTION_OPTION_LABEL_MAX_LENGTH = 120;
 export const MAX_QUESTIONS = 20;
 export const MAX_QUESTION_OPTIONS = 20;
@@ -48,6 +49,11 @@ export type RegistrationQuestion = {
   kind: QuestionKind;
   prompt: string;
   help: string | null;
+  /**
+   * The short name staff gave it for the registrants list (#1512). Staff-only:
+   * absent where the question was read from the public view.
+   */
+  column_label?: string | null;
   required: boolean;
   options: QuestionOption[];
   min_value: number | null;
@@ -121,6 +127,7 @@ export function toRegistrationQuestion(row: {
   kind: string | null;
   prompt: string | null;
   help?: string | null;
+  column_label?: string | null;
   required?: boolean | null;
   options?: unknown;
   min_value?: number | null;
@@ -134,6 +141,7 @@ export function toRegistrationQuestion(row: {
     kind: row.kind,
     prompt: row.prompt,
     help: row.help ?? null,
+    column_label: row.column_label ?? null,
     required: row.required === true,
     options: toOptions(row.options),
     min_value: row.min_value ?? null,
@@ -434,4 +442,5 @@ export const REGISTRATION_QUESTION_ERROR_MESSAGES: Record<string, string> = {
     "Choice questions need at least two options, each with a different label.",
   EVENT_QUESTIONS_CONDITION_INVALID:
     "A condition must name an earlier single-choice question that is always shown.",
+  EVENT_QUESTIONS_COLUMN_LABEL_TOO_LONG: `A column name can be at most ${QUESTION_COLUMN_LABEL_MAX_LENGTH} characters.`,
 };

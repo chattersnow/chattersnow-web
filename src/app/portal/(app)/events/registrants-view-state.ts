@@ -1,4 +1,5 @@
 import { PAGE_SIZE_OPTIONS, parsePage, parsePerPage } from "@/lib/pagination";
+import { matchesAnswerFilter } from "@/lib/registration-answer-columns";
 import {
   answerRowsToAnswers,
   missingRequiredQuestions,
@@ -26,6 +27,17 @@ export type RegistrantsView = {
   missing: boolean;
   /** Any of these, not all: a door shift asks "who needs a second look". */
   flags: RegistrantFlag[];
+  /**
+   * Question id -> answer (an option id, or `yes`/`no` for a consent box):
+   * only the parties that gave it (#1512). All of them, not any: each is a
+   * different question.
+   */
+  answers: Record<string, string>;
+  /**
+   * The answer columns picked in the Columns menu, by question id (#1512).
+   * Null when nobody has picked, which shows the first few.
+   */
+  columns: string[] | null;
   sort: { key: string; dir: "asc" | "desc" } | null;
   page: number;
   perPage: number;
@@ -39,12 +51,26 @@ export const REGISTRANTS_PER_PAGE: (typeof PAGE_SIZE_OPTIONS)[number] = 25;
 
 const FLAGS: readonly RegistrantFlag[] = ["minor", "no-photos"];
 
+/** `cols=none`: every answer column hidden, which an empty value cannot say. */
+const NO_COLUMNS = "none";
+
+function parseAnswers(raw: string | null): Record<string, string> {
+  const answers: Record<string, string> = {};
+  for (const pair of (raw ?? "").split(",")) {
+    const [questionId, value] = pair.split(":");
+    if (questionId && value) answers[questionId] = value;
+  }
+  return answers;
+}
+
 const KEYS = {
   q: "q",
   option: "option",
   checkedIn: "checkedIn",
   missing: "missing",
   flags: "flags",
+  answers: "ans",
+  columns: "cols",
   sort: "sort",
   dir: "dir",
   page: "page",
@@ -57,6 +83,7 @@ export function parseRegistrantsView(
   const checkedIn = params.get(KEYS.checkedIn);
   const sortKey = params.get(KEYS.sort);
   const perPage = params.get(KEYS.perPage);
+  const columns = params.get(KEYS.columns);
   return {
     q: params.get(KEYS.q) ?? "",
     option: params.get(KEYS.option) || null,
@@ -67,6 +94,13 @@ export function parseRegistrantsView(
       .filter((flag): flag is RegistrantFlag =>
         FLAGS.includes(flag as RegistrantFlag),
       ),
+    answers: parseAnswers(params.get(KEYS.answers)),
+    columns:
+      columns === null
+        ? null
+        : columns === NO_COLUMNS
+          ? []
+          : columns.split(",").filter(Boolean),
     sort: sortKey
       ? { key: sortKey, dir: params.get(KEYS.dir) === "desc" ? "desc" : "asc" }
       : null,
@@ -85,7 +119,13 @@ export function registrantsViewParams(
   patch: Partial<RegistrantsView>,
 ): URLSearchParams {
   const next = { ...parseRegistrantsView(base), ...patch };
-  if (!("page" in patch)) next.page = 1;
+  // Showing a column changes no rows, so it keeps the page.
+  if (
+    !("page" in patch) &&
+    !("columns" in patch && Object.keys(patch).length === 1)
+  ) {
+    next.page = 1;
+  }
 
   const params = new URLSearchParams(base);
   const put = (key: string, value: string | null) => {
@@ -97,6 +137,21 @@ export function registrantsViewParams(
   put(KEYS.checkedIn, next.checkedIn);
   put(KEYS.missing, next.missing ? "1" : null);
   put(KEYS.flags, next.flags.length > 0 ? next.flags.join(",") : null);
+  const answers = Object.entries(next.answers);
+  put(
+    KEYS.answers,
+    answers.length > 0
+      ? answers.map(([questionId, value]) => `${questionId}:${value}`).join(",")
+      : null,
+  );
+  put(
+    KEYS.columns,
+    next.columns === null
+      ? null
+      : next.columns.length > 0
+        ? next.columns.join(",")
+        : NO_COLUMNS,
+  );
   put(KEYS.sort, next.sort?.key ?? null);
   put(KEYS.dir, next.sort?.dir === "desc" ? "desc" : null);
   put(KEYS.page, next.page > 1 ? String(next.page) : null);
@@ -114,7 +169,8 @@ export function isFiltered(view: RegistrantsView): boolean {
     view.option !== null ||
     view.checkedIn !== null ||
     view.missing ||
-    view.flags.length > 0
+    view.flags.length > 0 ||
+    Object.keys(view.answers).length > 0
   );
 }
 
@@ -174,6 +230,14 @@ export function filterRegistrants(
         !asksRequired ||
         isMissingRequired(registrant, questions)) &&
       (view.flags.length === 0 ||
-        view.flags.some((flag) => hasFlag(registrant, flag))),
+        view.flags.some((flag) => hasFlag(registrant, flag))) &&
+      Object.entries(view.answers).every(([questionId, value]) => {
+        // A filter on a question since removed filters nothing, like a stale
+        // missing-answers toggle.
+        const question = questions.find((q) => q.id === questionId);
+        return (
+          !question || matchesAnswerFilter(question, registrant.answers, value)
+        );
+      }),
   );
 }

@@ -22,6 +22,7 @@ import {
   type AnswerDraft,
   type RegistrationQuestion,
 } from "@/lib/registration-questions";
+import { answerColumns } from "@/lib/registration-answer-columns";
 
 /**
  * A registration's answers to its event's registration questions (#1501), in
@@ -64,8 +65,19 @@ export function RegistrantAnswers({
   const archived = sortAnswerRows(
     answers.filter((row) => !row.question_id || !current.has(row.question_id)),
   );
-  const shown = questions.filter((question) =>
-    isQuestionVisible(question, stored),
+  // #1512. The same grouping as the list's columns: a follow-up reads
+  // indented under the answer it depends on.
+  const shown = answerColumns(questions).flatMap(({ question, followUps }) =>
+    isQuestionVisible(question, stored)
+      ? [
+          {
+            question,
+            followUps: followUps.filter((followUp) =>
+              isQuestionVisible(followUp, stored),
+            ),
+          },
+        ]
+      : [],
   );
 
   if (questions.length === 0 && archived.length === 0) return null;
@@ -149,14 +161,29 @@ export function RegistrantAnswers({
         </FieldGroup>
       ) : (
         <FieldGroup>
-          {shown.map((question) => (
-            <ReadOnlyField
-              key={question.id}
-              label={question.prompt}
-              htmlFor={`registrant-answer-${question.id}`}
-            >
-              {byQuestion.get(question.id)?.answer_text ?? "Not answered"}
-            </ReadOnlyField>
+          {shown.map(({ question, followUps }) => (
+            <div key={question.id} className="flex flex-col gap-3">
+              <ReadOnlyField
+                label={question.prompt}
+                htmlFor={`registrant-answer-${question.id}`}
+              >
+                {byQuestion.get(question.id)?.answer_text ?? "Not answered"}
+              </ReadOnlyField>
+              {followUps.length > 0 && (
+                <div className="ml-4 flex flex-col gap-3 border-l pl-3">
+                  {followUps.map((followUp) => (
+                    <ReadOnlyField
+                      key={followUp.id}
+                      label={followUp.prompt}
+                      htmlFor={`registrant-answer-${followUp.id}`}
+                    >
+                      {byQuestion.get(followUp.id)?.answer_text ??
+                        "Not answered"}
+                    </ReadOnlyField>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </FieldGroup>
       )}

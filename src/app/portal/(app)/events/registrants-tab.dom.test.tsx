@@ -704,8 +704,14 @@ describe("RegistrantsTab registration questions", () => {
     expect(screen.queryByRole("button", { name: /^Answers,/ })).toBeNull();
   });
 
-  test("past three questions they share one Answers column", async () => {
-    const many = [0, 1, 2, 3].map((index) => ({
+  test("past three questions the card shows the first three (#1512)", async () => {
+    // A tenant's long prompt with no short label: cut, never the header.
+    const long = {
+      ...leaving,
+      id: "q-long",
+      prompt: `${"Which neighbourhood or town ".repeat(4)}are you leaving from?`,
+    };
+    const many = [0, 1, 2].map((index) => ({
       ...leaving,
       id: `q-${index}`,
       prompt: `Question ${index}`,
@@ -714,16 +720,20 @@ describe("RegistrantsTab registration questions", () => {
       <RegistrantsTab
         capacity={null}
         mode="view"
-        {...questionSlices([getThere, ...many])}
+        {...questionSlices([getThere, long, ...many])}
       />,
     );
     await screen.findByText("Jamie Rivera");
 
-    expect(
-      screen.getByRole("button", { name: /^Answers,/ }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Question 0,/ })).toBeNull();
-    expect(screen.getByText("Getting there: Need a ride")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Answers,/ })).toBeNull();
+    const header = screen
+      .getByRole("button", { name: /^Which neighbourhood or…,/ })
+      .closest("th");
+    expect(header).toHaveAttribute("title", long.prompt);
+    expect(screen.getByRole("button", { name: /^Question 0,/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Question 1,/ })).toBeNull();
+    // The answer alone, not "prompt: answer".
+    expect(screen.getByText("Need a ride")).toBeInTheDocument();
   });
 
   test("filters to registrations missing a required answer", async () => {

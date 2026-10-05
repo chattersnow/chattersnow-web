@@ -1,6 +1,7 @@
 import type { Json } from "@/lib/database.types";
 import {
   MAX_QUESTIONS,
+  QUESTION_COLUMN_LABEL_MAX_LENGTH,
   MAX_QUESTION_OPTIONS,
   isChoiceKind,
   toRegistrationQuestion,
@@ -28,6 +29,8 @@ export type QuestionDraft = {
   kind: QuestionKind;
   prompt: string;
   help: string;
+  /** The short name in the registrants list (#1512); blank falls back to the prompt. */
+  columnLabel: string;
   required: boolean;
   /** Kept while the kind is not a choice, so switching back loses nothing. */
   options: QuestionOption[];
@@ -63,6 +66,7 @@ export function newQuestionDraft(): QuestionDraft {
     kind: "single_choice",
     prompt: "",
     help: "",
+    columnLabel: "",
     required: false,
     options: [newOption(), newOption()],
     min: "",
@@ -80,6 +84,7 @@ export function questionDrafts(
     kind: question.kind,
     prompt: question.prompt,
     help: question.help ?? "",
+    columnLabel: question.column_label ?? "",
     required: question.required,
     options: question.options.map((option) => ({ ...option })),
     min: question.min_value === null ? "" : String(question.min_value),
@@ -109,6 +114,7 @@ export function questionsPayload(drafts: readonly QuestionDraft[]) {
     kind: draft.kind,
     prompt: draft.prompt.trim(),
     help: draft.help.trim() || null,
+    column_label: draft.columnLabel.trim() || null,
     required: draft.kind !== "consent" && draft.required,
     options: isChoiceKind(draft.kind)
       ? draft.options.map((option) => ({
@@ -212,6 +218,9 @@ export function questionsDraftError(
     const name = label(draft, index);
     if (draft.prompt.trim() === "") {
       return `Question ${index + 1} needs a prompt.`;
+    }
+    if (draft.columnLabel.trim().length > QUESTION_COLUMN_LABEL_MAX_LENGTH) {
+      return `The column name of “${name}” can be at most ${QUESTION_COLUMN_LABEL_MAX_LENGTH} characters.`;
     }
     if (isChoiceKind(draft.kind)) {
       const labels = draft.options.map((option) =>

@@ -296,6 +296,36 @@ describe("save_event_registration_questions", () => {
     expect((await questionsOf(eventId))[0].shares_contact).toBe(false);
   });
 
+  test("keeps a short column label, trimmed, and refuses one over 24 characters (#1512)", async () => {
+    const eventId = await event();
+    const id = uuid();
+    const save = (column_label: unknown) =>
+      saveQuestions(eventId, [
+        { id, kind: "short_text", prompt: "Which borough?", column_label },
+      ]);
+    const labelOf = async () =>
+      (
+        await adminClient
+          .from("event_registration_questions")
+          .select("column_label")
+          .eq("id", id)
+          .single()
+      ).data?.column_label;
+
+    expect((await save("  Borough ")).error).toBeNull();
+    expect(await labelOf()).toBe("Borough");
+
+    const tooLong = await save("x".repeat(25));
+    expect(tooLong.error?.message).toBe(
+      "EVENT_QUESTIONS_COLUMN_LABEL_TOO_LONG",
+    );
+    expect(await labelOf()).toBe("Borough");
+
+    // Blank, or left out, clears it.
+    expect((await save("   ")).error).toBeNull();
+    expect(await labelOf()).toBeNull();
+  });
+
   test("refuses a malformed list, and a refusal saves nothing", async () => {
     const eventId = await event();
     const a = uuid();
