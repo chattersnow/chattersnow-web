@@ -52,6 +52,22 @@ describe("PortalBreadcrumbs", () => {
     expect(trail()).toBe("Finance › Donations");
   });
 
+  test("puts a parent record between the section and the page (#1511)", () => {
+    pathname = "/portal/events/abc-123/registrants";
+    render(
+      <PortalBreadcrumbs
+        current="Registrants"
+        parents={[
+          { label: "Winter Gear Swap", href: "/portal/events/abc-123" },
+        ]}
+      />,
+    );
+    expect(trail()).toBe("Events › Winter Gear Swap › Registrants");
+    expect(
+      screen.getByRole("link", { name: "Winter Gear Swap" }),
+    ).toHaveAttribute("href", "/portal/events/abc-123");
+  });
+
   test("every crumb but the last is a link", () => {
     pathname = "/portal/website/articles/abc-123";
     render(<PortalBreadcrumbs current="Getting started" />);
