@@ -10,13 +10,14 @@ import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { portalMain } from "./helpers/regions";
 import { exactLabel } from "./helpers/labels";
+import { createAdminClient } from "./helpers/admin-client";
+import { seedUserWithRole, type SeededUser } from "./helpers/rbac";
+
+const admin = createAdminClient();
 
 test.describe("portal inventory distribution", () => {
-  test.beforeEach(async ({ page }) => {
-    await signIn(page);
-  });
-
   test("loads the Distribution page", async ({ page }) => {
+    await signIn(page);
     await page.goto("/portal/inventory/distribution");
     await expect(
       page.getByRole("heading", {
@@ -25,6 +26,28 @@ test.describe("portal inventory distribution", () => {
         exact: true,
       }),
     ).toBeVisible();
+  });
+});
+
+// Picking an item adds it to the signed-in person's handout list on the
+// server (#1519), and a tag opened while that list is open offers it instead
+// of the item page. So this records as a throwaway account rather than the
+// seeded admin the parallel suite shares: its list would otherwise appear in
+// every other admin test's tag scan.
+test.describe("portal inventory distribution, recorded", () => {
+  let user: SeededUser;
+
+  test.beforeEach(async ({ page }) => {
+    user = await seedUserWithRole(admin, "admin");
+    await signIn(page, { email: user.email });
+  });
+
+  test.afterEach(async () => {
+    await admin
+      .from("inventory_distribution_drafts")
+      .delete()
+      .eq("user_id", user.userId);
+    await user.cleanup();
   });
 
   test("records a distribution, views its detail page, edits it, and deletes it", async ({
@@ -78,7 +101,10 @@ test.describe("portal inventory distribution", () => {
       .getByRole("listbox")
       .getByText(`${itemDescription} (Jacket)`, { exact: true })
       .click();
-    await expect(recordDialog.getByText(itemDescription)).toBeVisible();
+    // Exact: the "added" notice names the item too.
+    await expect(
+      recordDialog.getByText(itemDescription, { exact: true }),
+    ).toBeVisible();
     await recordDialog.getByLabel("Reason / notes").fill("E2E initial reason");
     await recordDialog
       .getByRole("button", { name: "Check out 1 item" })
