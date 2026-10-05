@@ -39,6 +39,7 @@ import {
 import {
   MAX_QUESTIONS,
   MAX_QUESTION_OPTIONS,
+  QUESTION_COLUMN_LABEL_MAX_LENGTH,
   QUESTION_HELP_MAX_LENGTH,
   QUESTION_KINDS,
   QUESTION_KIND_LABELS,
@@ -254,6 +255,28 @@ function QuestionCard({
           disabled={disabled}
           onChange={(event) => onUpdate({ prompt: event.target.value })}
         />
+      </Field>
+
+      {/* #1512. The prompt is a sentence; the registrants list needs a word
+          or two to head a column with. */}
+      <Field>
+        <FieldLabel htmlFor={`${id}-column-label`}>
+          Column name in the registrants list
+        </FieldLabel>
+        <Input
+          id={`${id}-column-label`}
+          value={question.columnLabel}
+          maxLength={QUESTION_COLUMN_LABEL_MAX_LENGTH}
+          placeholder="Optional"
+          disabled={disabled}
+          aria-describedby={`${id}-column-label-description`}
+          onChange={(event) => onUpdate({ columnLabel: event.target.value })}
+        />
+        <FieldDescription id={`${id}-column-label-description`}>
+          {question.showIf && question.kind !== "consent"
+            ? "A follow-up shows in the column of the question it depends on, after its answer. For a number, this is its unit, like “seats”."
+            : "A word or two, like “Carpool”. Left blank, the list shows the start of the prompt."}
+        </FieldDescription>
       </Field>
 
       <Field>

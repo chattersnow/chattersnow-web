@@ -89,6 +89,8 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
       checkedIn: null,
       missing: false,
       flags: [],
+      answers: {},
+      columns: null,
       sort: null,
       page: 1,
       perPage: REGISTRANTS_PER_PAGE,
@@ -103,6 +105,8 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
       checkedIn: "out",
       missing: true,
       flags: ["minor", "no-photos"],
+      answers: { q1: "drive", q2: "yes" },
+      columns: ["q1", "q3"],
       sort: { key: "name", dir: "desc" },
     });
     const paged = registrantsViewParams(params, { page: 2, perPage: 10 });
@@ -113,6 +117,8 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
       checkedIn: "out",
       missing: true,
       flags: ["minor", "no-photos"],
+      answers: { q1: "drive", q2: "yes" },
+      columns: ["q1", "q3"],
       sort: { key: "name", dir: "desc" },
       page: 2,
       perPage: 10,
@@ -131,6 +137,27 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
     const onPage3 = new URLSearchParams("page=3");
     expect(registrantsViewParams(onPage3, { q: "x" }).get("page")).toBeNull();
     expect(registrantsViewParams(onPage3, { page: 4 }).get("page")).toBe("4");
+  });
+
+  test("hiding every answer column is not the same as never picking", () => {
+    const none = registrantsViewParams(new URLSearchParams(), { columns: [] });
+    expect(none.get("cols")).toBe("none");
+    expect(parseRegistrantsView(none).columns).toEqual([]);
+    expect(
+      registrantsViewParams(none, { columns: null }).get("cols"),
+    ).toBeNull();
+  });
+
+  test("picking columns keeps the page, since it changes no rows", () => {
+    const onPage3 = new URLSearchParams("page=3");
+    expect(
+      registrantsViewParams(onPage3, { columns: ["q1"] }).get("page"),
+    ).toBe("3");
+  });
+
+  test("an answer filter counts as filtering", () => {
+    const view = parseRegistrantsView(new URLSearchParams("ans=q1:drive"));
+    expect(isFiltered(view)).toBe(true);
   });
 
   test("drops defaults and junk instead of writing them", () => {
@@ -203,5 +230,47 @@ describe("filterRegistrants", () => {
     expect(
       ids(filterRegistrants(list, { ...view, missing: true }, [])),
     ).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("filterRegistrants by answer (#1512)", () => {
+  const view = parseRegistrantsView(new URLSearchParams());
+  const carpool: RegistrationQuestion = {
+    ...required,
+    id: "carpool",
+    kind: "single_choice",
+    required: false,
+    options: [
+      { id: "need", label: "Needs ride" },
+      { id: "drive", label: "Can drive" },
+    ],
+  };
+  const answered = (id: string, value: string) =>
+    registrant({
+      id,
+      answers: [
+        {
+          question_id: "carpool",
+          prompt_as_shown: "Carpool?",
+          answer_text: value,
+          value,
+          sort_order: 0,
+        },
+      ],
+    });
+  const rows = [answered("a", "need"), answered("b", "drive"), registrant({})];
+
+  test("keeps only the parties that gave that answer", () => {
+    expect(
+      filterRegistrants(rows, { ...view, answers: { carpool: "drive" } }, [
+        carpool,
+      ]).map((row) => row.id),
+    ).toEqual(["b"]);
+  });
+
+  test("a filter on a removed question filters nothing", () => {
+    expect(
+      filterRegistrants(rows, { ...view, answers: { gone: "x" } }, [carpool]),
+    ).toHaveLength(3);
   });
 });

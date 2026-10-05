@@ -504,7 +504,7 @@ export async function listCopyableRegistrationQuestionsAction(
   const { data, error } = await supabase
     .from("event_registration_questions")
     .select(
-      "id, kind, prompt, help, required, options, min_value, max_value, show_if, shares_contact",
+      "id, kind, prompt, help, column_label, required, options, min_value, max_value, show_if, shares_contact",
     )
     .eq("event_id", eventId)
     .is("archived_at", null)

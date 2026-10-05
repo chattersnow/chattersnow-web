@@ -3077,6 +3077,7 @@ export type Database = {
       event_registration_questions: {
         Row: {
           archived_at: string | null;
+          column_label: string | null;
           created_at: string;
           event_id: string;
           help: string | null;
@@ -3095,6 +3096,7 @@ export type Database = {
         };
         Insert: {
           archived_at?: string | null;
+          column_label?: string | null;
           created_at?: string;
           event_id: string;
           help?: string | null;
@@ -3113,6 +3115,7 @@ export type Database = {
         };
         Update: {
           archived_at?: string | null;
+          column_label?: string | null;
           created_at?: string;
           event_id?: string;
           help?: string | null;

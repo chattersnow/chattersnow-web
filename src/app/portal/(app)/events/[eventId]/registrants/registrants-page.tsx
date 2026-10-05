@@ -47,6 +47,12 @@ import {
   hasAnyAttendedBeforeAnswer,
 } from "@/lib/attended-before";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
+import {
+  answerColumnLabel,
+  answerColumns,
+  answerFilterChoices,
+  shownAnswerColumns,
+} from "@/lib/registration-answer-columns";
 import { useTabData } from "@/hooks/use-tab-data";
 import { formatInstantDate } from "@/lib/format";
 import { ViewerTime } from "@/components/viewer-time";
@@ -270,6 +276,22 @@ export function RegistrantsPage({
   const activeOption = registrationOptions?.options.find(
     (option) => option.id === view.option,
   );
+  // #1512. Every column the Columns menu offers, and the ones it shows.
+  const allAnswerColumns = useMemo(() => answerColumns(questions), [questions]);
+  const shownColumnIds = new Set(
+    shownAnswerColumns(allAnswerColumns, view.columns).map(
+      (column) => column.question.id,
+    ),
+  );
+  // A chip per shown column with a short list of answers, plus any column
+  // still filtered after it was hidden, so a filter is never invisible.
+  const answerFilters = allAnswerColumns.flatMap(({ question }) => {
+    const choices = answerFilterChoices(question);
+    return choices &&
+      (shownColumnIds.has(question.id) || question.id in view.answers)
+      ? [{ question, choices }]
+      : [];
+  });
 
   const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
     () => [
@@ -359,7 +381,7 @@ export function RegistrantsPage({
             } satisfies PortalDataTableColumn<EventRegistrant>,
           ]
         : []),
-      ...registrationAnswerColumns(questions),
+      ...registrationAnswerColumns(questions, view.columns),
       {
         key: "created_at",
         label: "Registered",
@@ -421,6 +443,7 @@ export function RegistrantsPage({
     [
       registrationOptions,
       questions,
+      view.columns,
       canManage,
       isRowPending,
       toggleCheckIn,
@@ -746,6 +769,107 @@ export function RegistrantsPage({
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {answerFilters.map(({ question, choices }) => {
+                  const label = answerColumnLabel(question);
+                  const active = choices.find(
+                    (choice) => choice.value === view.answers[question.id],
+                  );
+                  return (
+                    <DropdownMenu key={question.id}>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant={active ? "secondary" : "outline"}
+                            size="sm"
+                            title={question.prompt}
+                            className="max-w-full"
+                          />
+                        }
+                      >
+                        <span className="truncate">
+                          {active ? `${label}: ${active.label}` : label}
+                        </span>
+                        <ChevronDown />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="max-w-80">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel>
+                            {question.prompt}
+                          </DropdownMenuLabel>
+                          <DropdownMenuRadioGroup
+                            value={active?.value ?? "any"}
+                            onValueChange={(value) => {
+                              const rest = Object.fromEntries(
+                                Object.entries(view.answers).filter(
+                                  ([id]) => id !== question.id,
+                                ),
+                              );
+                              setView({
+                                answers:
+                                  value === "any"
+                                    ? rest
+                                    : { ...rest, [question.id]: value },
+                              });
+                            }}
+                          >
+                            <DropdownMenuRadioItem value="any">
+                              Any
+                            </DropdownMenuRadioItem>
+                            {choices.map((choice) => (
+                              <DropdownMenuRadioItem
+                                key={choice.value}
+                                value={choice.value}
+                              >
+                                {choice.label}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })}
+                {allAnswerColumns.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button type="button" variant="ghost" size="sm" />
+                      }
+                    >
+                      Columns
+                      <ChevronDown />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="max-w-80">
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Answer columns</DropdownMenuLabel>
+                        {allAnswerColumns.map(({ question }) => (
+                          <DropdownMenuCheckboxItem
+                            key={question.id}
+                            checked={shownColumnIds.has(question.id)}
+                            onCheckedChange={(checked) =>
+                              setView({
+                                // In the event's order, whatever order they
+                                // were ticked in.
+                                columns: allAnswerColumns
+                                  .map((column) => column.question.id)
+                                  .filter((id) =>
+                                    id === question.id
+                                      ? checked
+                                      : shownColumnIds.has(id),
+                                  ),
+                              })
+                            }
+                          >
+                            <span className="truncate" title={question.prompt}>
+                              {answerColumnLabel(question)}
+                            </span>
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <p
                   role="status"
                   className="app-muted ml-auto text-xs whitespace-nowrap"

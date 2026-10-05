@@ -3,9 +3,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import * as EventsActions from "./actions";
-import type {
-  EventRegistrationQuestion,
-  QuestionDraft,
+import {
+  questionsDraftError,
+  questionsPayload,
+  type EventRegistrationQuestion,
+  type QuestionDraft,
 } from "./registration-questions-draft";
 
 const listEventOptionsMock = mock(async () => ({
@@ -33,6 +35,7 @@ function draft(overrides: Partial<QuestionDraft> & { id: string }) {
     kind: "short_text",
     prompt: "",
     help: "",
+    columnLabel: "",
     required: false,
     options: [],
     min: "",
@@ -280,5 +283,27 @@ describe("RegistrationQuestionsEditor", () => {
     expect(seats).toMatchObject({ min: "1", max: "8" });
     expect(mode.required).toBe(true);
     expect(consent.sharesContact).toBe(true);
+  });
+
+  test("names a question's column in the registrants list (#1512)", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness
+        initial={[draft({ id: "q-borough", prompt: "Which borough?" })]}
+      />,
+    );
+
+    await user.type(
+      screen.getByLabelText("Column name in the registrants list"),
+      "  Borough ",
+    );
+
+    expect(questionsPayload(latest)[0].column_label).toBe("Borough");
+    expect(questionsPayload([draft({ id: "q" })])[0].column_label).toBeNull();
+    expect(
+      questionsDraftError([
+        draft({ id: "q", prompt: "Long", columnLabel: "x".repeat(25) }),
+      ]),
+    ).toContain("at most 24 characters");
   });
 });

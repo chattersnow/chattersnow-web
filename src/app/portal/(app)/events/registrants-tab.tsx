@@ -30,10 +30,13 @@ import {
 } from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { formatOptionCounts } from "@/lib/registration-options";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 import {
-  sortAnswerRows,
-  type RegistrationQuestion,
-} from "@/lib/registration-questions";
+  answerCellText,
+  answerColumnLabel,
+  answerColumns,
+  shownAnswerColumns,
+} from "@/lib/registration-answer-columns";
 import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -89,25 +92,7 @@ function ridesSummary(registrant: EventRegistrant): string | null {
     : discipline;
 }
 
-/**
- * Up to this many registration questions get a column each; past it they
- * share one "Answers" column, since a column per question would push the
- * table past any screen and the prompts are the tenant's own sentences.
- */
-const QUESTION_COLUMN_LIMIT = 3;
-
 const NO_QUESTIONS: RegistrationQuestion[] = [];
-
-/** The stored answer to one current question, in words, or null. */
-function answerFor(
-  registrant: EventRegistrant,
-  questionId: string,
-): string | null {
-  return (
-    registrant.answers.find((row) => row.question_id === questionId)
-      ?.answer_text ?? null
-  );
-}
 
 /** Where the answers export is served; see its route handler. */
 export function registrantAnswersCsvHref(eventId: string): string {
@@ -120,57 +105,45 @@ export function registrantsPageHref(eventId: string): string {
 }
 
 /**
- * #1501. A column per question while there are few, one shared column past
- * that; nothing at all for an event that asks none. Shared with the
- * registrants page (#1511); how answers read is #1512's to change.
+ * #1512. One column per top-level question, headed by its short label, with
+ * conditional follow-ups folded into their parent's cell; nothing at all for
+ * an event that asks none. `picked` is the registrants page's Columns menu --
+ * null shows the first few, which is all the card's preview ever shows.
  */
 export function registrationAnswerColumns(
   registrationQuestions: readonly RegistrationQuestion[],
+  picked: readonly string[] | null = null,
 ): PortalDataTableColumn<EventRegistrant>[] {
-  return registrationQuestions.length > QUESTION_COLUMN_LIMIT
-    ? [
-        {
-          key: "answers",
-          label: "Answers",
-          sortValue: (registrant: EventRegistrant) =>
-            registrant.answers.length > 0 ? registrant.answers.length : null,
-          hideBelow: "md",
-          cellClassName:
-            "app-muted min-w-48 max-w-72 text-xs whitespace-normal",
-          render: (registrant: EventRegistrant) => {
-            const current = new Set(
-              registrationQuestions.map((question) => question.id),
-            );
-            const rows = sortAnswerRows(
-              registrant.answers.filter(
-                (row) => row.question_id && current.has(row.question_id),
-              ),
-            );
-            return rows.length > 0
-              ? rows.map((row) => (
-                  <span key={row.question_id} className="block">
-                    {row.prompt_as_shown}: {row.answer_text}
-                  </span>
-                ))
-              : null;
-          },
-        } satisfies PortalDataTableColumn<EventRegistrant>,
-      ]
-    : registrationQuestions.map(
-        (question) =>
-          ({
-            key: `question-${question.id}`,
-            label: question.prompt,
-            sortValue: (registrant: EventRegistrant) =>
-              answerFor(registrant, question.id),
-            hideBelow: "md",
-            headClassName: "min-w-32 max-w-48 whitespace-normal",
-            cellClassName:
-              "app-muted min-w-32 max-w-56 text-xs whitespace-normal",
-            render: (registrant: EventRegistrant) =>
-              answerFor(registrant, question.id),
-          }) satisfies PortalDataTableColumn<EventRegistrant>,
-      );
+  return shownAnswerColumns(answerColumns(registrationQuestions), picked).map(
+    (column) => {
+      const label = answerColumnLabel(column.question);
+      return {
+        key: `question-${column.question.id}`,
+        label,
+        headTitle:
+          label === column.question.prompt ? undefined : column.question.prompt,
+        sortValue: (registrant: EventRegistrant) =>
+          answerCellText(column, registrant.answers),
+        hideBelow: "md",
+        headClassName: "whitespace-nowrap",
+        // One line a row, whatever was typed: a long free-text answer is cut
+        // here and read in full in the detail sheet.
+        cellClassName: "app-muted text-xs whitespace-nowrap",
+        render: (registrant: EventRegistrant) => {
+          const text = answerCellText(column, registrant.answers);
+          return text === null ? (
+            "—"
+          ) : (
+            // The cap is on the span: a table cell's own max-width is not
+            // reliably honoured.
+            <span className="block max-w-48 truncate" title={text}>
+              {text}
+            </span>
+          );
+        },
+      } satisfies PortalDataTableColumn<EventRegistrant>;
+    },
+  );
 }
 
 export function RegistrantsTab({

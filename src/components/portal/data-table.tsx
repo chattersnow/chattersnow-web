@@ -50,6 +50,11 @@ export type PortalDataTableColumn<T, K extends string = string> = {
    */
   sortValue?: (row: T) => SortValue;
   headClassName?: string;
+  /**
+   * The header's tooltip, for a label shortened from something longer -- a
+   * tenant's question prompt cut to fit (#1512).
+   */
+  headTitle?: string;
   cellClassName?: string;
   /**
    * Dropping the column below a breakpoint. `Table` supports this on the
@@ -274,6 +279,7 @@ export function PortalDataTable<T, K extends string = string>({
                 key={column.key}
                 hideBelow={column.hideBelow}
                 className={column.headClassName}
+                title={column.headTitle}
                 // Undefined, not null, for a column that cannot be sorted:
                 // that is what keeps `aria-sort` off it entirely.
                 sortDirection={

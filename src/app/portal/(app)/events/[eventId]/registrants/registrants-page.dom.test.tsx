@@ -297,4 +297,108 @@ describe("RegistrantsPage", () => {
       screen.queryByRole("button", { name: /More actions for/ }),
     ).not.toBeInTheDocument();
   });
+
+  describe("registration questions (#1512)", () => {
+    const carpool = {
+      id: "carpool",
+      kind: "single_choice" as const,
+      prompt: "Do you want to carpool to this event?",
+      column_label: "Carpool",
+      help: null,
+      required: false,
+      options: [
+        { id: "need", label: "Needs ride" },
+        { id: "drive", label: "Can drive" },
+      ],
+      min_value: null,
+      max_value: null,
+      show_if: null,
+    };
+    const seats = {
+      ...carpool,
+      id: "seats",
+      kind: "number" as const,
+      prompt: "How many open seats do you have?",
+      column_label: "seats",
+      options: [],
+      show_if: { question_id: "carpool", option_ids: ["drive"] },
+    };
+    const extra = [1, 2, 3].map((index) => ({
+      ...carpool,
+      id: `q${index}`,
+      kind: "short_text" as const,
+      prompt: `Question ${index}`,
+      column_label: null,
+      options: [],
+    }));
+
+    beforeEach(() => {
+      data = payload({
+        registrationQuestions: [carpool, seats, ...extra],
+        registrants: [
+          registrant({
+            id: "reg-1",
+            name: "Christina Fasanello-Okonkwo",
+            answers: [
+              {
+                question_id: "carpool",
+                prompt_as_shown: carpool.prompt,
+                answer_text: "Can drive",
+                value: "drive",
+                sort_order: 0,
+              },
+              {
+                question_id: "seats",
+                prompt_as_shown: seats.prompt,
+                answer_text: "2",
+                value: 2,
+                sort_order: 1,
+              },
+            ],
+          }),
+          registrant({ id: "reg-2", name: "Jo Park" }),
+        ],
+      });
+    });
+
+    test("a follow-up folds into its parent's column", async () => {
+      renderPage();
+      await screen.findByText("Jo Park");
+
+      expect(screen.getByText("Can drive · 2 seats")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^seats,/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    test("the Columns menu shows a hidden column and writes the URL", async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByText("Jo Park");
+      expect(
+        screen.queryByRole("button", { name: /^Question 3,/ }),
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Columns" }));
+      await user.click(
+        await screen.findByRole("menuitemcheckbox", { name: "Question 3" }),
+      );
+
+      expect(currentUrl.searchParams.get("cols")).toBe("carpool,q1,q2,q3");
+      expect(
+        await screen.findByRole("button", { name: /^Question 3,/ }),
+      ).toBeInTheDocument();
+    });
+
+    test("an answer chip filters the rows", async () => {
+      visit("?ans=carpool:drive");
+      renderPage();
+      await screen.findByText("Christina Fasanello-Okonkwo");
+
+      expect(screen.queryByText("Jo Park")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Carpool: Can drive/ }),
+      ).toBeInTheDocument();
+    });
+  });
 });
