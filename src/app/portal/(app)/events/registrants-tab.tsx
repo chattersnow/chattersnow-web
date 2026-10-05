@@ -124,8 +124,14 @@ export function registrationAnswerColumns(
           label === column.question.prompt ? undefined : column.question.prompt,
         sortValue: (registrant: EventRegistrant) =>
           answerCellText(column, registrant.answers),
-        hideBelow: "md",
-        headClassName: "whitespace-nowrap",
+        // From 2xl only: three of these beside the rest of a registration
+        // need ~1260px, more than a 1280px desk has beside the sidebar, and
+        // the registrants page must not scroll sideways there (#1511). Below
+        // 2xl the row's disclosure and the detail sheet carry the answers.
+        hideBelow: "2xl",
+        // Wrapping, so a 24-character label is not what sets the width: the
+        // page's column is 1152px however wide the screen.
+        headClassName: "min-w-24 whitespace-normal",
         // One line a row, whatever was typed: a long free-text answer is cut
         // here and read in full in the detail sheet.
         cellClassName: "app-muted text-xs whitespace-nowrap",
@@ -136,7 +142,7 @@ export function registrationAnswerColumns(
           ) : (
             // The cap is on the span: a table cell's own max-width is not
             // reliably honoured.
-            <span className="block max-w-48 truncate" title={text}>
+            <span className="block max-w-36 truncate" title={text}>
               {text}
             </span>
           );

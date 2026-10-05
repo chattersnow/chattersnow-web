@@ -13,6 +13,8 @@ const HIDE_BELOW = {
   sm: "hidden sm:table-cell",
   md: "hidden md:table-cell",
   lg: "hidden lg:table-cell",
+  xl: "hidden xl:table-cell",
+  "2xl": "hidden 2xl:table-cell",
 } as const;
 
 export type HideBelow = keyof typeof HIDE_BELOW;
@@ -28,6 +30,8 @@ const SHOW_BELOW = {
   sm: "sm:hidden",
   md: "md:hidden",
   lg: "lg:hidden",
+  xl: "xl:hidden",
+  "2xl": "2xl:hidden",
 } as const;
 
 /** The class that shows an element only below `breakpoint`. */
@@ -39,7 +43,7 @@ export function showBelow(breakpoint: HideBelow) {
 export function widestBreakpoint(
   breakpoints: readonly (HideBelow | undefined)[],
 ): HideBelow | undefined {
-  const order: HideBelow[] = ["sm", "md", "lg"];
+  const order: HideBelow[] = ["sm", "md", "lg", "xl", "2xl"];
   return order.filter((size) => breakpoints.includes(size)).pop();
 }
 
