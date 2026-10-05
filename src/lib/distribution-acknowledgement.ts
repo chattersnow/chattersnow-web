@@ -96,10 +96,11 @@ export function acknowledgementPath(token: string): string {
   return `/acknowledge?${ACKNOWLEDGEMENT_TOKEN_FIELD}=${encodeURIComponent(token)}`;
 }
 
-/** Every dead code -- used, expired, superseded, another tenant's -- reads
- *  the same. */
+/** Every dead code or link -- used, expired, superseded, another tenant's --
+ *  reads the same, and the page cannot tell a handout's code from a
+ *  request's emailed link once it is dead (#1518). */
 export const ACKNOWLEDGEMENT_LINK_INVALID =
-  "This code no longer works. Ask the person handing you the items to show a new one.";
+  "This code or link no longer works. It may have been used already, expired, or been replaced by a newer one. Ask the person handing you the items to show a new code, or contact us if it came by email.";
 
 export const ACKNOWLEDGEMENT_ERROR_MESSAGES: Record<string, string> = {
   AS_IS_REQUIRED: "Tick the box to say you understand.",
@@ -109,9 +110,12 @@ export const ACKNOWLEDGEMENT_ERROR_MESSAGES: Record<string, string> = {
   DRAFT_EMPTY: "This handout is no longer open.",
 };
 
-/** What the acknowledgement page shows about the handout. No contact
- *  details: a photographed code gives away almost nothing. */
+/** What the acknowledgement page shows. No contact details: a photographed
+ *  code or a forwarded link gives away almost nothing. `gear_request` is a
+ *  request's emailed link (#1518), whose items may already have been posted;
+ *  `handout` is the one-time code at an in-person handout (#1519). */
 export type AcknowledgementView = {
+  kind: "handout" | "gear_request";
   firstName: string | null;
   eventName: string | null;
   items: { description: string; size: string | null }[];
@@ -119,11 +123,13 @@ export type AcknowledgementView = {
 
 export function toAcknowledgementView(raw: unknown): AcknowledgementView {
   const row = (raw ?? {}) as {
+    kind?: string | null;
     first_name?: string | null;
     event_name?: string | null;
     items?: { description: string; size: string | null }[] | null;
   };
   return {
+    kind: row.kind === "gear_request" ? "gear_request" : "handout",
     firstName: row.first_name ?? null,
     eventName: row.event_name ?? null,
     items: row.items ?? [],

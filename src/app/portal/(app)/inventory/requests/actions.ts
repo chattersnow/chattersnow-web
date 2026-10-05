@@ -1,6 +1,8 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
@@ -34,6 +36,21 @@ import {
   GEAR_REQUEST_RECORD_TYPE,
   resendDedupeSuffix,
 } from "@/lib/outbound-messages";
+import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import {
+  sendGearAsIsRequests,
+  type AsIsRequestRecipientWithToken,
+} from "@/lib/notifications/gear-as-is-request";
+import {
+  AS_IS_REQUEST_ERRORS,
+  needsAsIsAcknowledgement,
+  oneAsIsRequest,
+  resolveAsIsRequests,
+  type AsIsRequestCandidate,
+  type AsIsRequestRecipient,
+  type AsIsRequestStatus,
+} from "@/lib/gear-request-as-is-requests";
 
 export type GearRequestActionResult = { error: string } | { success: true };
 
@@ -399,4 +416,180 @@ export async function resendGearRequestConfirmationAction(
 
   revalidatePath(`${REQUESTS_PATH}/${requestId}`);
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Asking for the as-is acknowledgement by emailed link (#1518)
+// ---------------------------------------------------------------------------
+
+/** What both asks read about a request; `as_is_request` is its link, if any. */
+const AS_IS_CANDIDATE_SELECT =
+  "id, status, person_id, as_is_acknowledged_at, requester:people(name, preferred_name, email), as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at)";
+
+type AsIsCandidateRow = Omit<AsIsRequestCandidate, "as_is_request"> & {
+  tenant_id: string;
+  as_is_request: AsIsRequestStatus | AsIsRequestStatus[] | null;
+};
+
+function toAsIsCandidate(row: AsIsCandidateRow): AsIsRequestCandidate {
+  return { ...row, as_is_request: oneAsIsRequest(row.as_is_request) };
+}
+
+async function requireInventoryManage() {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase, MESSAGE_ERRORS.SIGNED_OUT);
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "inventory",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+  return { supabase, user: userResult.user };
+}
+
+/**
+ * Mints a token per recipient and stores only the hashes. Returns the
+ * recipients whose links were written, raw token beside each; a request the
+ * RPC skipped (cancelled or acknowledged since it was read) is dropped, so it
+ * is never mailed a link that does not work.
+ */
+async function writeAsIsRequests(
+  supabase: SupabaseClient,
+  recipients: readonly AsIsRequestRecipient[],
+): Promise<
+  { recipients: AsIsRequestRecipientWithToken[] } | { error: string }
+> {
+  const minted = recipients.map((recipient) => {
+    const { token, hash } = mintConfirmationToken();
+    return { ...recipient, token, tokenHash: hash };
+  });
+  const { data, error } = await supabase.rpc(
+    "request_gear_request_acknowledgements",
+    {
+      p_requests: minted.map((recipient) => ({
+        request_id: recipient.requestId,
+        token_hash: recipient.tokenHash,
+      })),
+    },
+  );
+  if (error) return { error: AS_IS_REQUEST_ERRORS.FAILED };
+  const written = new Set(
+    ((data ?? []) as { request_id: string }[]).map((row) => row.request_id),
+  );
+  const kept = minted.filter((recipient) => written.has(recipient.requestId));
+  if (kept.length === 0) return { error: AS_IS_REQUEST_ERRORS.NO_RECIPIENTS };
+  return { recipients: kept };
+}
+
+/**
+ * Ask this request's requester to acknowledge as-is (#1518), from the request
+ * detail. Sent while the staffer waits, so a failure is reported here.
+ */
+export async function askToAcknowledgeAsIsAction(
+  requestId: string,
+): Promise<GearRequestActionResult> {
+  const guard = await requireInventoryManage();
+  if ("error" in guard) return guard;
+
+  const { data, error } = await guard.supabase
+    .from("gear_requests")
+    .select(`tenant_id, ${AS_IS_CANDIDATE_SELECT}`)
+    .eq("id", requestId)
+    .maybeSingle<AsIsCandidateRow>();
+  if (error) return { error: AS_IS_REQUEST_ERRORS.FAILED };
+  if (!data) return { error: AS_IS_REQUEST_ERRORS.NOT_FOUND };
+  if (data.status === "cancelled") {
+    return { error: AS_IS_REQUEST_ERRORS.CANCELLED };
+  }
+  if (!needsAsIsAcknowledgement(data)) {
+    return { error: AS_IS_REQUEST_ERRORS.ALREADY_ACKNOWLEDGED };
+  }
+  const resolved = resolveAsIsRequests([toAsIsCandidate(data)], {
+    includeRecent: true,
+  });
+  if (resolved.recipients.length === 0) {
+    return { error: AS_IS_REQUEST_ERRORS.NO_EMAIL };
+  }
+  if (!(await getOrgEmailEnabled(guard.supabase))) {
+    return { error: RECORD_MESSAGE_ERRORS.EMAIL_OFF };
+  }
+
+  const written = await writeAsIsRequests(guard.supabase, resolved.recipients);
+  if ("error" in written) return written;
+
+  const summary = await sendGearAsIsRequests(createSupabaseAdminClient(), {
+    tenantId: data.tenant_id,
+    batchId: crypto.randomUUID(),
+    recipients: written.recipients,
+    sentBy: guard.user.id,
+    fallbackOrigin: await getRequestOrigin(),
+  });
+  if (summary.failed > 0) return { error: AS_IS_REQUEST_ERRORS.FAILED };
+  if (summary.sent === 0) {
+    return { error: await explainSkippedSend(guard.supabase) };
+  }
+
+  revalidatePath(REQUESTS_PATH);
+  revalidatePath(`${REQUESTS_PATH}/${requestId}`);
+  return { success: true };
+}
+
+export type AskAllToAcknowledgeAsIsResult =
+  { error: string } | { success: true; recipients: number };
+
+/**
+ * Ask every request still missing its acknowledgement (#1518), from the
+ * Requests list. The audience is resolved here under the caller's session
+ * from the same pure function the dialog counted with; only the sending is
+ * deferred, as #1502's bulk send is.
+ */
+export async function askAllToAcknowledgeAsIsAction(input: {
+  batchId: string;
+  includeRecent: boolean;
+}): Promise<AskAllToAcknowledgeAsIsResult> {
+  const guard = await requireInventoryManage();
+  if ("error" in guard) return guard;
+
+  const { data, error } = await guard.supabase
+    .from("gear_requests")
+    .select(`tenant_id, ${AS_IS_CANDIDATE_SELECT}`)
+    .is("as_is_acknowledged_at", null)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: true });
+  if (error) return { error: AS_IS_REQUEST_ERRORS.FAILED };
+
+  const rows = (data ?? []) as unknown as AsIsCandidateRow[];
+  const resolved = resolveAsIsRequests(rows.map(toAsIsCandidate), {
+    includeRecent: input.includeRecent,
+  });
+  if (resolved.recipients.length === 0) {
+    return { error: AS_IS_REQUEST_ERRORS.NO_RECIPIENTS };
+  }
+  if (!(await getOrgEmailEnabled(guard.supabase))) {
+    return { error: RECORD_MESSAGE_ERRORS.EMAIL_OFF };
+  }
+
+  const written = await writeAsIsRequests(guard.supabase, resolved.recipients);
+  if ("error" in written) return written;
+
+  const batch = {
+    tenantId: rows[0].tenant_id,
+    batchId: input.batchId,
+    recipients: written.recipients,
+    sentBy: guard.user.id,
+    // Read before after(): the request is gone by the time it runs.
+    fallbackOrigin: await getRequestOrigin(),
+  };
+  const admin = createSupabaseAdminClient();
+  after(async () => {
+    try {
+      await sendGearAsIsRequests(admin, batch);
+    } catch (error) {
+      console.error("[gear-as-is-request] the batch threw", error);
+    }
+  });
+
+  revalidatePath(REQUESTS_PATH);
+  return { success: true, recipients: written.recipients.length };
 }

@@ -964,6 +964,8 @@ afterAll(async () => {
     "retention_runs",
     "retention_policies",
     "contact_messages",
+    // Its as-is link (#1518) goes with it, on delete cascade.
+    "gear_requests",
     "event_registrations",
     "event_expenses",
     // The public-surface rows (#887): each references an event, a program, a
@@ -1677,6 +1679,54 @@ describe("the public surface follows the host", () => {
     );
     expect(onB.error).toBeNull();
     expect((onB.data as { event_id: string }).event_id).toBe(b.eventId);
+  });
+
+  test("an as-is link works only on its own tenant's site (#1518)", async () => {
+    const request = await must(
+      service
+        .from("gear_requests")
+        .insert({ tenant_id: tenantB, delivery_method: "meetup" })
+        .select("id")
+        .single(),
+      "b gear request",
+    );
+    const tokenHash = mintConfirmationToken().hash;
+    await must(
+      service
+        .from("gear_request_acknowledgement_requests")
+        .insert({
+          tenant_id: tenantB,
+          request_id: request.id,
+          token_hash: tokenHash,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .select("id")
+        .single(),
+      "b as-is link",
+    );
+    const args = { p_token_hash: tokenHash, p_ip_address: uniqueIp() };
+
+    const onA = anonClient({ host: A_HOST });
+    expect(
+      (await onA.rpc("get_as_is_acknowledgement", args)).error?.message,
+    ).toBe("LINK_INVALID");
+    expect(
+      (
+        await onA.rpc("acknowledge_as_is_by_token", {
+          ...args,
+          p_acknowledged: true,
+          p_typed_name: "Link Holder",
+          p_as_is_text: "As-is.",
+        })
+      ).error?.message,
+    ).toBe("LINK_INVALID");
+
+    const onB = await anonClient({ host: B_HOST }).rpc(
+      "get_as_is_acknowledgement",
+      { ...args, p_ip_address: uniqueIp() },
+    );
+    expect(onB.error).toBeNull();
+    expect((onB.data as { kind: string }).kind).toBe("gear_request");
   });
 
   test("a first sign-in on a tenant's host joins nothing", async () => {

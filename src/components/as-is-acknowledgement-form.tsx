@@ -15,6 +15,17 @@ import { applyLexicon, DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 
 export type AcknowledgeInput = { typedName: string; acknowledged: boolean };
 
+/** The sentence above the items: a handout is in front of them; a request's
+ *  items may already be on their way, or with them (#1518). */
+function acknowledgementIntro(view: AcknowledgementView): string {
+  if (view.kind === "gear_request") {
+    return "You asked for these before we started asking everyone to read this note, so please read it now.";
+  }
+  return view.eventName
+    ? `Before you take these from ${view.eventName}, please read this.`
+    : "Before you take these, please read this.";
+}
+
 /**
  * The recipient's as-is acknowledgement (#1519): the same summary and the same
  * required box as the public gear request (#1367), plus their name typed by
@@ -49,9 +60,7 @@ export function AsIsAcknowledgementFields({
       <div className="flex flex-col gap-2">
         <p>
           {view.firstName ? `Hi ${view.firstName}. ` : ""}
-          {view.eventName
-            ? `Before you take these from ${view.eventName}, please read this.`
-            : "Before you take these, please read this."}
+          {acknowledgementIntro(view)}
         </p>
         {view.items.length > 0 && (
           <ul className="list-disc pl-5 text-sm">
@@ -147,8 +156,9 @@ export function AsIsAcknowledgementForm({
       <Alert>
         <CircleCheck />
         <AlertDescription>
-          Thank you, {value.typedName.trim()}. You&apos;re all set — the person
-          handing you the items can see it now.
+          {view.kind === "gear_request"
+            ? `Thank you, ${value.typedName.trim()}. We've recorded it — there's nothing else you need to do.`
+            : `Thank you, ${value.typedName.trim()}. You're all set — the person handing you the items can see it now.`}
         </AlertDescription>
       </Alert>
     );

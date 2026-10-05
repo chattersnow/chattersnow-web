@@ -15,6 +15,10 @@ import {
   NO_RECORD_MESSAGES,
 } from "@/lib/outbound-messages";
 import { loadRecordMessages } from "@/lib/portal/record-messages";
+import {
+  oneAsIsRequest,
+  type AsIsRequestStatus,
+} from "@/lib/gear-request-as-is-requests";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -23,7 +27,7 @@ import {
 } from "./request-detail-view";
 
 const REQUEST_SELECT =
-  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, as_is_method, requester:people(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, inventory_item:inventory_items(id, description, size, status, category_label:inventory_categories(label)))";
+  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, as_is_method, as_is_typed_name, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, inventory_item:inventory_items(id, description, size, status, category_label:inventory_categories(label)))";
 
 function requestTitle(row: GearRequestDetailRow | null): string {
   return row
@@ -107,7 +111,13 @@ export default async function GearRequestDetailPage({
   }
   if (!request) notFound();
 
-  const row = request as unknown as GearRequestDetailRow;
+  const raw = request as unknown as GearRequestDetailRow & {
+    as_is_request: AsIsRequestStatus | AsIsRequestStatus[] | null;
+  };
+  const row: GearRequestDetailRow = {
+    ...raw,
+    as_is_request: oneAsIsRequest(raw.as_is_request),
+  };
   const settings = parseGearRequestSettings(settingsResult?.data);
   const messages = recordMessages.byRecord[requestId] ?? [];
 

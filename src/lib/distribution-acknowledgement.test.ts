@@ -73,9 +73,16 @@ describe("the rest", () => {
 
   test("the page view tolerates missing fields", () => {
     expect(toAcknowledgementView(null)).toEqual({
+      kind: "handout",
       firstName: null,
       eventName: null,
       items: [],
     });
+  });
+
+  test("a gear request's link reads as one", () => {
+    expect(toAcknowledgementView({ kind: "gear_request" }).kind).toBe(
+      "gear_request",
+    );
   });
 });

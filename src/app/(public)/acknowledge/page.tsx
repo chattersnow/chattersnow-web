@@ -15,10 +15,10 @@ import {
   ACKNOWLEDGEMENT_LINK_INVALID,
   toAcknowledgementView,
 } from "@/lib/distribution-acknowledgement";
-import { acknowledgeHandoutAction } from "./actions";
+import { acknowledgeAsIsAction } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Before you take these",
+  title: "Given as-is",
   // A URL carrying a token is kept out of an index and out of the Referer of
   // anything this page loads, as the answers link does (#1502).
   robots: { index: false, follow: false },
@@ -27,10 +27,12 @@ export const metadata: Metadata = {
 
 /**
  * Where a handout's one-time QR code lands (#1519), on the recipient's own
- * phone. Public by design -- the recipient has no account -- and the code is
- * the permission: to acknowledge this one open handout as-is, and nothing
- * else. The page shows a first name, the event and the pieces, and no contact
- * details.
+ * phone, and where a gear request's emailed link lands (#1518). Public by
+ * design -- the recipient has no account -- and the token is the permission:
+ * to acknowledge this one open handout, or this one request, as-is, and
+ * nothing else. The page shows a first name, the event and the pieces, and no
+ * contact details. One RPC pair answers for both kinds of token, so the page
+ * never has to be told which it holds.
  */
 export default async function AcknowledgeHandoutPage({
   searchParams,
@@ -43,7 +45,7 @@ export default async function AcknowledgeHandoutPage({
   const supabase = await createSupabaseServerClient();
   const [lookup, lexicon, publication] = await Promise.all([
     isConfirmationToken(token)
-      ? supabase.rpc("get_distribution_acknowledgement", {
+      ? supabase.rpc("get_as_is_acknowledgement", {
           p_token_hash: hashConfirmationToken(token),
           p_ip_address: await getClientIp(),
         })
@@ -55,7 +57,7 @@ export default async function AcknowledgeHandoutPage({
   if (lookup.error || !lookup.data) {
     return (
       <PageShell>
-        <Heading>This code no longer works</Heading>
+        <Heading>This no longer works</Heading>
         <div className="mt-6 max-w-xl">
           <Alert>
             <AlertDescription>
@@ -69,15 +71,20 @@ export default async function AcknowledgeHandoutPage({
     );
   }
 
+  const view = toAcknowledgementView(lookup.data);
   return (
     <PageShell>
-      <Heading>Before you take these</Heading>
+      <Heading>
+        {view.kind === "gear_request"
+          ? "About the items you asked for"
+          : "Before you take these"}
+      </Heading>
       <div className="mt-6 max-w-xl">
         <AsIsAcknowledgementForm
-          view={toAcknowledgementView(lookup.data)}
+          view={view}
           lexicon={lexicon}
           termsInForce={publication.terms}
-          onAcknowledge={acknowledgeHandoutAction.bind(null, token)}
+          onAcknowledge={acknowledgeAsIsAction.bind(null, token)}
         />
       </div>
     </PageShell>
