@@ -20,6 +20,12 @@ import {
 } from "@/lib/gear-requests";
 import type { Lexicon } from "@/lib/lexicon";
 import { GearRequestStatusBadge } from "../request-status-badge";
+import { GearRequestAsIsBadge } from "../as-is-badge";
+import { AskAsIsButton } from "./ask-as-is-button";
+import {
+  needsAsIsAcknowledgement,
+  type AsIsRequestStatus,
+} from "@/lib/gear-request-as-is-requests";
 import { GearRequestStatusActions } from "./request-status-actions";
 import {
   messagingDisabledReason,
@@ -52,6 +58,9 @@ export type GearRequestDetailRow = {
   as_is_acknowledged_at: string | null;
   as_is_text: string | null;
   as_is_method: string | null;
+  as_is_typed_name: string | null;
+  /** The emailed link asking for the acknowledgement (#1518), if sent. */
+  as_is_request: AsIsRequestStatus | null;
   requester: {
     id: string;
     name: string | null;
@@ -146,6 +155,7 @@ export function GearRequestDetailView({
         </div>
         <p className="app-muted mt-2 flex flex-wrap items-center gap-2 text-sm">
           <GearRequestStatusBadge status={request.status} />
+          <GearRequestAsIsBadge request={request} />
           <span>
             Requested <ViewerTime iso={request.created_at} fallbackZone="UTC" />
           </span>
@@ -237,17 +247,24 @@ export function GearRequestDetailView({
                   -- never staff on their behalf -- and a meetup request from
                   before #1367 picked up there is written back here with
                   method `in_person`. Null here is a request from before #1367
-                  not yet handed over. */}
+                  not yet handed over -- and staff can ask the requester to
+                  acknowledge it themselves by emailed link (#1518). */}
               <ReadOnlyField label="Given as-is" htmlFor="request-as-is">
                 {request.as_is_acknowledged_at ? (
                   <>
                     {"Acknowledged "}
                     {acknowledgementMethodPhrase(request.as_is_method) &&
                       `${acknowledgementMethodPhrase(request.as_is_method)} `}
+                    {"on "}
                     <ViewerTime
                       iso={request.as_is_acknowledged_at}
                       fallbackZone="UTC"
                     />
+                    {request.as_is_typed_name && (
+                      <span className="block">
+                        {`Name typed: ${request.as_is_typed_name}`}
+                      </span>
+                    )}
                     {request.as_is_text && (
                       // The wording as it stood that day, not as it reads now.
                       // It is the whole point of the snapshot, so it is shown
@@ -260,7 +277,30 @@ export function GearRequestDetailView({
                     )}
                   </>
                 ) : (
-                  "Not recorded — this request predates the acknowledgement"
+                  <>
+                    {request.as_is_request ? (
+                      <>
+                        {"Not recorded yet — asked by emailed link "}
+                        <ViewerTime
+                          iso={request.as_is_request.requested_at}
+                          fallbackZone="UTC"
+                        />
+                      </>
+                    ) : (
+                      "Not recorded — this request predates the acknowledgement"
+                    )}
+                    {canManage && needsAsIsAcknowledgement(request) && (
+                      <AskAsIsButton
+                        requestId={request.id}
+                        asked={Boolean(request.as_is_request)}
+                        disabledReason={messagingDisabledReason(
+                          orgEmailEnabled,
+                          request.requester?.email,
+                          "This request has no email address — the requester's record was cleared or never carried one.",
+                        )}
+                      />
+                    )}
+                  </>
                 )}
               </ReadOnlyField>
             </FieldGroup>

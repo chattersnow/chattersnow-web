@@ -14,13 +14,15 @@ import {
 } from "@/lib/distribution-acknowledgement";
 
 /**
- * The recipient acknowledging a handout as-is on their own phone (#1519).
+ * The recipient acknowledging as-is on their own device: a handout through
+ * its one-time code (#1519), or a gear request through its emailed link
+ * (#1518).
  *
- * No session: holding the one-time code is the permission, and it reaches
- * exactly one open handout. The words stored are this tenant's, resolved here
+ * No session: holding the token is the permission, and it reaches exactly one
+ * open handout or one request. The words stored are this tenant's, resolved here
  * from `src/lib/gear-as-is.ts` -- never sent by the browser.
  */
-export async function acknowledgeHandoutAction(
+export async function acknowledgeAsIsAction(
   token: string,
   input: { typedName: string; acknowledged: boolean },
 ): Promise<{ success: true } | { error: string }> {
@@ -30,7 +32,7 @@ export async function acknowledgeHandoutAction(
 
   const supabase = await createSupabaseServerClient();
   const lexicon = await getPublicLexicon(supabase);
-  const { error } = await supabase.rpc("acknowledge_distribution_by_token", {
+  const { error } = await supabase.rpc("acknowledge_as_is_by_token", {
     p_token_hash: hashConfirmationToken(token),
     p_acknowledged: input.acknowledged,
     p_typed_name: input.typedName,

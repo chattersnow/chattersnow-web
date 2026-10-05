@@ -14,6 +14,8 @@ import {
 } from "@/lib/format";
 import { deliveryMethodLabel } from "@/lib/gear-requests";
 import { GearRequestStatusBadge } from "./request-status-badge";
+import { GearRequestAsIsBadge } from "./as-is-badge";
+import type { AsIsRequestStatus } from "@/lib/gear-request-as-is-requests";
 
 export type GearRequestListRow = {
   id: string;
@@ -21,6 +23,10 @@ export type GearRequestListRow = {
   delivery_method: string;
   quoted_amount: number | string | null;
   created_at: string;
+  as_is_acknowledged_at: string | null;
+  as_is_method: string | null;
+  /** The emailed link asking for the acknowledgement (#1518), if sent. */
+  as_is_request: AsIsRequestStatus | null;
   requester: {
     id: string;
     name: string | null;
@@ -95,7 +101,12 @@ const COLUMNS: PortalDataTableColumn<GearRequestListRow>[] = [
     key: "status",
     label: "Status",
     sortValue: (row) => row.status,
-    render: (row) => <GearRequestStatusBadge status={row.status} />,
+    render: (row) => (
+      <span className="flex flex-col items-start gap-1">
+        <GearRequestStatusBadge status={row.status} />
+        <GearRequestAsIsBadge request={row} className="font-normal" />
+      </span>
+    ),
   },
   {
     key: "quote",
