@@ -165,6 +165,7 @@ describe("distribution drafts (integration)", () => {
 
     const { data, error } = await adminClient.rpc("record_distribution_draft", {
       p_reason: "draft integration test",
+      p_skipped_reason: "declined_to_wait",
     });
     expect(error).toBeNull();
     expect(data?.[0]?.recorded).toBe(2);
@@ -191,7 +192,9 @@ describe("distribution drafts (integration)", () => {
       p_item_id: itemIds[0],
     });
 
-    const { error } = await adminClient.rpc("record_distribution_draft", {});
+    const { error } = await adminClient.rpc("record_distribution_draft", {
+      p_skipped_reason: "declined_to_wait",
+    });
     expect(error?.message).toBe("ITEM_ALREADY_DISTRIBUTED");
     expect(error?.details).toBe(itemIds[0]);
     expect(await getInventoryItemStatus(itemIds[2])).toBe("available");

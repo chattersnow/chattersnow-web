@@ -150,6 +150,7 @@ describe("a distribution draft's recipient (integration)", () => {
     const reason = `recipient default ${crypto.randomUUID()}`;
     const { data, error } = await adminClient.rpc("record_distribution_draft", {
       p_reason: reason,
+      p_skipped_reason: "declined_to_wait",
     });
     expect(error).toBeNull();
     expect(data?.[0]?.recorded).toBe(2);

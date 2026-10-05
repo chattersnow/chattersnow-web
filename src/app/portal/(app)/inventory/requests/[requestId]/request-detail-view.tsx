@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { acknowledgementMethodPhrase } from "@/lib/distribution-acknowledgement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -50,6 +51,7 @@ export type GearRequestDetailRow = {
   created_at: string;
   as_is_acknowledged_at: string | null;
   as_is_text: string | null;
+  as_is_method: string | null;
   requester: {
     id: string;
     name: string | null;
@@ -227,20 +229,21 @@ export function GearRequestDetailView({
               )}
               {/* What the requester was told, and when they said they
                   understood it (#1367). Read-only and gating nothing: the
-                  request carries the record, so recording a distribution
-                  against it needs no second capture.
+                  request carries the record, so a handout against it skips
+                  the checkout's acknowledgement step (#1519).
 
-                  **Distribution outside a request is deliberately untouched.**
-                  `inventory_movements.gear_request_id` is nullable -- gear
-                  handed out at an event never passed through the public form
-                  -- and making that path capture something would mean a
-                  staffer attesting on a recipient's behalf, which is the shape
-                  this was built to avoid. Null here is a request from before
-                  this shipped, or gear that never came through the cart. */}
+                  Gear handed out in person outside a request is no longer
+                  untouched: the handout checkout asks the recipient themselves
+                  -- never staff on their behalf -- and a meetup request from
+                  before #1367 picked up there is written back here with
+                  method `in_person`. Null here is a request from before #1367
+                  not yet handed over. */}
               <ReadOnlyField label="Given as-is" htmlFor="request-as-is">
                 {request.as_is_acknowledged_at ? (
                   <>
                     {"Acknowledged "}
+                    {acknowledgementMethodPhrase(request.as_is_method) &&
+                      `${acknowledgementMethodPhrase(request.as_is_method)} `}
                     <ViewerTime
                       iso={request.as_is_acknowledged_at}
                       fallbackZone="UTC"

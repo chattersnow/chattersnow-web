@@ -1,6 +1,5 @@
 "use client";
 
-import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import {
   FormEvent,
   useCallback,
@@ -13,17 +12,23 @@ import { List, ScanLine } from "lucide-react";
 import type { DistributionDraft } from "@/lib/inventory-distribution-draft";
 import {
   listAvailableInventoryItemsAction,
-  recordEventDistributionAction,
   type AvailableInventoryItem,
 } from "./distribution-actions";
 import {
   discardDistributionDraftAction,
+  getDistributionCheckoutAction,
   getDistributionDraftAction,
   moveDistributionDraftAction,
   recordDistributionDraftAction,
   setDistributionDraftRecipientAction,
 } from "./distribution-draft-actions";
 import { ScannedDistributionList } from "./scanned-distribution-list";
+import {
+  checkoutReady,
+  DistributionCheckout,
+  EMPTY_CHECKOUT,
+  type CheckoutState,
+} from "./distribution-checkout";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -42,7 +47,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
-import { RequiredFieldsNote } from "@/components/required-fields-note";
 import {
   useControlledOpen,
   type ControlledOpenProps,
@@ -63,6 +67,13 @@ function removeTagsToast(tags: readonly ReleasedTag[] | undefined) {
 
 const NO_EVENT = "__none__";
 
+/**
+ * Records gear handed out in person, in two steps (#1519): build the handout
+ * -- by scanning tags or picking from a list, onto one server-side list
+ * (#1420) -- then check out: the numbered tags come off and the recipient
+ * acknowledges the gear as-is themselves. Both inputs feed the same list, so
+ * no handout reaches the database without the checkout.
+ */
 export function RecordDistributionModal({
   triggerLabel = "Record distribution",
   open: controlledOpen,
@@ -90,8 +101,6 @@ export function RecordDistributionModal({
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [recipient, setRecipient] = useState<PickedPerson | null>(null);
 
-  const [inventoryItemId, setInventoryItemId] = useState("");
-  const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
   // Opened from an event's Distributions card, gear was handed out at that
   // event, so the field opens on the event's start. Opened from Inventory or
@@ -103,10 +112,13 @@ export function RecordDistributionModal({
   const [markDistributed, setMarkDistributed] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  // Scan mode (#1420 part 3) builds a server-side list, one piece per scan,
-  // and records it in one submit. The list outlives the modal, so reopening it
-  // -- or adding from a tag opened in another tab -- picks up where it was.
+  // How pieces are added. Both build the same server-side list, which
+  // outlives the modal, so reopening it -- or adding from a tag opened in
+  // another tab -- picks up where it was.
   const [mode, setMode] = useState<"pick" | "scan">("pick");
+  const [step, setStep] = useState<"build" | "checkout">("build");
+  const [needsAcknowledgement, setNeedsAcknowledgement] = useState(true);
+  const [checkout, setCheckout] = useState<CheckoutState>(EMPTY_CHECKOUT);
   const [draft, setDraft] = useState<DistributionDraft | null>(null);
   const [conflictItemId, setConflictItemId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(
@@ -155,33 +167,31 @@ export function RecordDistributionModal({
   }, [open, mode, loadDraft]);
 
   function reset() {
-    setInventoryItemId("");
-    setQuantity("1");
     setReason("");
     setOccurredAt(defaultOccurredAt());
     setMarkDistributed(true);
     setRecipient(null);
     setError(null);
     setMode("pick");
+    setStep("build");
+    setCheckout(EMPTY_CHECKOUT);
     setConflictItemId(null);
     setSelectedEventId(eventId ?? null);
   }
 
-  // In scan mode the recipient belongs to the server-side list, so an iPhone
-  // tap that opens a new tab adds to the same person's handout.
-  function saveRecipientToDraft(person: PickedPerson | null) {
+  // The recipient belongs to the server-side list, so an iPhone tap that
+  // opens a new tab adds to the same person's handout. Changing it voids an
+  // acknowledgement already given (#1519), which the reload shows.
+  function selectRecipient(person: PickedPerson | null) {
+    setRecipient(person);
     startTransition(async () => {
       const result = await setDistributionDraftRecipientAction(
         draftEventId,
         person?.id ?? null,
       );
       if ("error" in result) setError(result.error);
+      await loadDraft();
     });
-  }
-
-  function selectRecipient(person: PickedPerson | null) {
-    setRecipient(person);
-    if (mode === "scan") saveRecipientToDraft(person);
   }
 
   function selectEvent(nextEventId: string | null) {
@@ -209,67 +219,58 @@ export function RecordDistributionModal({
     if (!nextOpen) reset();
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    if (mode === "scan") {
-      startTransition(async () => {
-        const result = await recordDistributionDraftAction({
-          eventId: draftEventId,
-          occurredAt: occurredAt
-            ? new Date(occurredAt).toISOString()
-            : undefined,
-          reason,
-          recipientPersonId: recipient?.id,
-          markDistributed,
-        });
-        if ("error" in result) {
-          setError(result.error);
-          setConflictItemId(result.itemId ?? null);
-          await loadDraft();
-          return;
-        }
-        setDraft(null);
-        handleOpenChange(false);
-        toast.success(
-          result.count === 1
-            ? "Distribution recorded."
-            : `${result.count} distributions recorded.`,
-          removeTagsToast(result.releasedTags),
-        );
-        router.refresh();
-        onSaved?.();
-      });
-      return;
-    }
-
-    const quantityNumber = Number(quantity);
-
+  function startCheckout() {
     startTransition(async () => {
-      const result = await recordEventDistributionAction({
-        inventoryItemId,
-        quantity: quantityNumber,
-        reason,
-        // Converted here, in the browser, so the recorded instant is fixed
-        // using the user's own timezone rather than the server's.
-        occurredAt: occurredAt ? new Date(occurredAt).toISOString() : undefined,
-        markDistributed,
-        eventId: selectedEventId ?? undefined,
-        recipientPersonId: recipient?.id,
-      });
+      const result = await getDistributionCheckoutAction(draftEventId);
       if ("error" in result) {
-        setError(result.error.message);
+        setError(result.error);
         return;
       }
+      setNeedsAcknowledgement(result.needsAcknowledgement);
+      await loadDraft();
+      setStep("checkout");
+    });
+  }
+
+  function record() {
+    startTransition(async () => {
+      const result = await recordDistributionDraftAction({
+        eventId: draftEventId,
+        occurredAt: occurredAt ? new Date(occurredAt).toISOString() : undefined,
+        reason,
+        recipientPersonId: recipient?.id,
+        markDistributed,
+        removedTags: checkout.removedTags,
+        skippedReason: draft?.acknowledgement
+          ? undefined
+          : (checkout.skippedReason ?? undefined),
+        skippedNote: checkout.skippedNote,
+      });
+      if ("error" in result) {
+        setError(result.error);
+        setConflictItemId(result.itemId ?? null);
+        await loadDraft();
+        if (result.itemId) setStep("build");
+        return;
+      }
+      setDraft(null);
       handleOpenChange(false);
       toast.success(
-        "Distribution recorded.",
+        result.count === 1
+          ? "Distribution recorded."
+          : `${result.count} distributions recorded.`,
         removeTagsToast(result.releasedTags),
       );
       router.refresh();
       onSaved?.();
     });
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    if (step === "build") startCheckout();
+    else record();
   }
 
   function clearList() {
@@ -284,7 +285,11 @@ export function RecordDistributionModal({
     });
   }
 
-  const scannedCount = draft?.items.length ?? 0;
+  const itemCount = draft?.items.length ?? 0;
+  const itemsLabel = itemCount === 1 ? "1 item" : `${itemCount} items`;
+  const ready =
+    step === "checkout" &&
+    checkoutReady(draft, markDistributed, needsAcknowledgement, checkout);
 
   return (
     <PortalFormSurface
@@ -300,12 +305,16 @@ export function RecordDistributionModal({
           {triggerLabel}
         </Button>
       }
-      title="Record a distribution"
-      description="Record gear being handed out from inventory."
+      title={step === "build" ? "Record a distribution" : "Check out"}
+      description={
+        step === "build"
+          ? "Record gear being handed out from inventory."
+          : `Handing out ${itemsLabel}${recipient?.name ? ` to ${recipient.name}` : ""}.`
+      }
       onSubmit={handleSubmit}
       footer={
         <>
-          {mode === "scan" && scannedCount > 0 && (
+          {step === "build" && itemCount > 0 && (
             <Button
               type="button"
               variant="ghost"
@@ -316,196 +325,164 @@ export function RecordDistributionModal({
               Clear list
             </Button>
           )}
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => handleOpenChange(false)}
-          >
-            {mode === "scan" && scannedCount > 0 ? "Close" : "Cancel"}
-          </Button>
+          {step === "checkout" ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isPending}
+              onClick={() => {
+                setError(null);
+                setStep("build");
+              }}
+            >
+              Back
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => handleOpenChange(false)}
+            >
+              {itemCount > 0 ? "Close" : "Cancel"}
+            </Button>
+          )}
           <Button
             type="submit"
-            disabled={isPending || (mode === "scan" && scannedCount === 0)}
+            disabled={
+              isPending || itemCount === 0 || (step === "checkout" && !ready)
+            }
           >
             {isPending ? (
               <>
                 <Spinner /> Saving...
               </>
-            ) : mode === "scan" ? (
-              scannedCount === 1 ? (
-                "Record 1 item"
-              ) : (
-                `Record ${scannedCount} items`
-              )
+            ) : step === "build" ? (
+              `Check out ${itemsLabel}`
             ) : (
-              "Record distribution"
+              `Record ${itemsLabel}`
             )}
           </Button>
         </>
       }
     >
       <FieldGroup>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <RequiredFieldsNote />
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              setError(null);
-              const nextMode = mode === "scan" ? "pick" : "scan";
-              setMode(nextMode);
-              if (nextMode === "scan" && recipient)
-                saveRecipientToDraft(recipient);
-            }}
-          >
-            {mode === "scan" ? <List /> : <ScanLine />}
-            {mode === "scan" ? "Pick from a list" : "Scan tags"}
-          </Button>
-        </div>
-        {mode === "scan" ? (
-          <ScannedDistributionList
+        {step === "checkout" ? (
+          <DistributionCheckout
             eventId={draftEventId}
             draft={draft}
-            recipientId={recipient?.id ?? null}
-            availableItems={availableItems}
-            conflictItemId={conflictItemId}
-            releasesCodes={markDistributed}
-            onChanged={async () => {
-              setConflictItemId(null);
-              await loadDraft();
-            }}
+            markDistributed={markDistributed}
+            needsAcknowledgement={needsAcknowledgement}
+            state={checkout}
+            onStateChange={setCheckout}
+            onDraftChanged={loadDraft}
           />
         ) : (
           <>
-            <Field>
-              <FieldLabel htmlFor="dist-item" required>
-                Inventory item
-              </FieldLabel>
-              <Select
-                value={inventoryItemId || null}
-                onValueChange={(value) => setInventoryItemId(value ?? "")}
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  setMode(mode === "scan" ? "pick" : "scan");
+                }}
               >
-                <SelectTrigger
-                  id="dist-item"
-                  aria-required="true"
-                  className="w-full"
+                {mode === "scan" ? <List /> : <ScanLine />}
+                {mode === "scan" ? "Pick from a list" : "Scan tags"}
+              </Button>
+            </div>
+            <ScannedDistributionList
+              inputMode={mode}
+              eventId={draftEventId}
+              draft={draft}
+              recipientId={recipient?.id ?? null}
+              availableItems={availableItems}
+              conflictItemId={conflictItemId}
+              releasesCodes={markDistributed}
+              onChanged={async () => {
+                setConflictItemId(null);
+                await loadDraft();
+              }}
+            />
+
+            <Field>
+              <FieldLabel htmlFor="dist-occurredAt">Date &amp; time</FieldLabel>
+              <Input
+                id="dist-occurredAt"
+                type="datetime-local"
+                value={occurredAt}
+                onChange={(event) => setOccurredAt(event.target.value)}
+              />
+            </Field>
+
+            {eventOptions && (
+              <Field>
+                <FieldLabel htmlFor="dist-event">Event</FieldLabel>
+                <Select
+                  value={selectedEventId ?? NO_EVENT}
+                  onValueChange={(value) =>
+                    selectEvent(value && value !== NO_EVENT ? value : null)
+                  }
                 >
-                  <SelectValue placeholder="Select an available item">
-                    {(value: string) => {
-                      const item = availableItems.find(
-                        (candidate) => candidate.id === value,
-                      );
-                      return item
-                        ? `${item.description} (${categoryLabelFor(flattenCategory(item))})`
-                        : "Select an available item";
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.description} (
-                      {categoryLabelFor(flattenCategory(item))})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger id="dist-event" className="w-full">
+                    <SelectValue>
+                      {(value: string) =>
+                        eventOptions.find((option) => option.id === value)
+                          ?.name ?? "No event"
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_EVENT}>No event</SelectItem>
+                    {eventOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+
+            {showRecipientField && (
+              <Field>
+                <FieldLabel>Recipient</FieldLabel>
+                <PersonPicker
+                  people={people}
+                  selected={recipient}
+                  onSelect={selectRecipient}
+                  onPersonCreated={(person) =>
+                    setPeople((prev) => [...prev, person])
+                  }
+                  placeholder="Search recipient by name or email..."
+                />
+              </Field>
+            )}
+
+            <Field>
+              <FieldLabel htmlFor="dist-reason">Reason / notes</FieldLabel>
+              <Textarea
+                id="dist-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </Field>
+
+            <Field orientation="horizontal">
+              <Checkbox
+                id="dist-markDistributed"
+                checked={markDistributed}
+                onCheckedChange={(checked) =>
+                  setMarkDistributed(Boolean(checked))
+                }
+              />
+              <FieldLabel htmlFor="dist-markDistributed">
+                Mark item as distributed
+              </FieldLabel>
             </Field>
           </>
         )}
-
-        <Field orientation="responsive">
-          {mode === "pick" && (
-            <Field>
-              <FieldLabel htmlFor="dist-quantity" required>
-                Quantity
-              </FieldLabel>
-              <Input
-                id="dist-quantity"
-                required
-                type="number"
-                min={1}
-                step={1}
-                value={quantity}
-                onChange={(event) => setQuantity(event.target.value)}
-              />
-            </Field>
-          )}
-          <Field>
-            <FieldLabel htmlFor="dist-occurredAt">Date &amp; time</FieldLabel>
-            <Input
-              id="dist-occurredAt"
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(event) => setOccurredAt(event.target.value)}
-            />
-          </Field>
-        </Field>
-
-        {eventOptions && (
-          <Field>
-            <FieldLabel htmlFor="dist-event">Event</FieldLabel>
-            <Select
-              value={selectedEventId ?? NO_EVENT}
-              onValueChange={(value) =>
-                selectEvent(value && value !== NO_EVENT ? value : null)
-              }
-            >
-              <SelectTrigger id="dist-event" className="w-full">
-                <SelectValue>
-                  {(value: string) =>
-                    eventOptions.find((option) => option.id === value)?.name ??
-                    "No event"
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_EVENT}>No event</SelectItem>
-                {eventOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        )}
-
-        {showRecipientField && (
-          <Field>
-            <FieldLabel>Recipient</FieldLabel>
-            <PersonPicker
-              people={people}
-              selected={recipient}
-              onSelect={selectRecipient}
-              onPersonCreated={(person) =>
-                setPeople((prev) => [...prev, person])
-              }
-              placeholder="Search recipient by name or email..."
-            />
-          </Field>
-        )}
-
-        <Field>
-          <FieldLabel htmlFor="dist-reason">Reason / notes</FieldLabel>
-          <Textarea
-            id="dist-reason"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
-        </Field>
-
-        <Field orientation="horizontal">
-          <Checkbox
-            id="dist-markDistributed"
-            checked={markDistributed}
-            onCheckedChange={(checked) => setMarkDistributed(Boolean(checked))}
-          />
-          <FieldLabel htmlFor="dist-markDistributed">
-            Mark item as distributed
-          </FieldLabel>
-        </Field>
 
         {error && (
           <Alert variant="destructive">
