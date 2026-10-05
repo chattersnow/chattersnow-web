@@ -362,7 +362,7 @@ describe("RegistrantsTab", () => {
       expect.anything(),
     );
   });
-  test("caps the card at previewRows and defers the rest to a sheet", async () => {
+  test("caps the card at previewRows and links to the registrants page", async () => {
     render(
       <RegistrantsTab
         capacity={null}
@@ -374,111 +374,39 @@ describe("RegistrantsTab", () => {
 
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.queryByText("Alex Chen")).toBeNull();
+    // #1511: a page with a URL, not a sheet.
     expect(
-      screen.getByRole("button", { name: "View all 2 registrants" }),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "View all 2 registrants" }),
+    ).toHaveAttribute("href", "/portal/events/event-1/registrants");
   });
 
-  test("no View all trigger when the list already fits", async () => {
+  test("no View all link when the list already fits", async () => {
     render(<RegistrantsTab capacity={null} mode="edit" {...slices()} />);
     await screen.findByText("Jamie Rivera");
 
-    expect(screen.queryByRole("button", { name: /View all/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /View all/ })).toBeNull();
   });
 
-  test("previewRows null renders the whole list with no trigger", async () => {
+  test("previewRows null renders the whole list with its create actions", async () => {
     // What the Happening Now check-in sheet passes: capping there would hide
-    // the rows it exists to work through, and the trigger would open a sheet
-    // on top of a sheet.
+    // the rows it exists to work through, and it has no header of its own
+    // to put the walk-in button in.
     render(
       <RegistrantsTab
         capacity={null}
         mode="edit"
         previewRows={null}
+        headerActions={<button type="button">+ Check in walk-in</button>}
         {...slices()}
       />,
     );
 
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.getByText("Alex Chen")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /View all/ })).toBeNull();
-  });
-
-  test("the sheet lists every registrant and carries the toolbar actions", async () => {
-    const user = userEvent.setup();
-    render(
-      <RegistrantsTab
-        capacity={null}
-        mode="edit"
-        previewRows={1}
-        headerActions={<button type="button">+ Add registrant</button>}
-        {...slices()}
-      />,
-    );
-    await screen.findByText("Jamie Rivera");
-
-    await user.click(
-      screen.getByRole("button", { name: "View all 2 registrants" }),
-    );
-
-    const sheet = within(await screen.findByRole("dialog"));
-    expect(sheet.getByText("Jamie Rivera")).toBeInTheDocument();
-    expect(sheet.getByText("Alex Chen")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /View all/ })).toBeNull();
     expect(
-      sheet.getByRole("button", { name: "+ Add registrant" }),
+      screen.getByRole("button", { name: "+ Check in walk-in" }),
     ).toBeInTheDocument();
-  });
-
-  test("searching inside the sheet narrows rows and announces the count", async () => {
-    const user = userEvent.setup();
-    render(
-      <RegistrantsTab
-        capacity={null}
-        mode="edit"
-        previewRows={1}
-        {...slices()}
-      />,
-    );
-    await screen.findByText("Jamie Rivera");
-    await user.click(
-      screen.getByRole("button", { name: "View all 2 registrants" }),
-    );
-
-    const dialog = await screen.findByRole("dialog");
-    await user.type(
-      within(dialog).getByRole("searchbox", { name: "Search registrants" }),
-      "alex@",
-    );
-
-    expect(within(dialog).getByText("Alex Chen")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Jamie Rivera")).toBeNull();
-    expect(within(dialog).getByRole("status")).toHaveTextContent(
-      "Showing 1 of 2",
-    );
-  });
-
-  test("checks in from inside the sheet without closing it", async () => {
-    const user = userEvent.setup();
-    render(
-      <RegistrantsTab
-        capacity={null}
-        mode="edit"
-        previewRows={1}
-        {...slices()}
-      />,
-    );
-    await screen.findByText("Jamie Rivera");
-    await user.click(
-      screen.getByRole("button", { name: "View all 2 registrants" }),
-    );
-
-    const dialog = await screen.findByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", { name: "Undo check-in" }),
-    );
-
-    expect(undoCheckInActionMock).toHaveBeenCalledWith("reg-2");
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   // #1259
@@ -776,8 +704,14 @@ describe("RegistrantsTab registration questions", () => {
     expect(screen.queryByRole("button", { name: /^Answers,/ })).toBeNull();
   });
 
-  test("past three questions they share one Answers column", async () => {
-    const many = [0, 1, 2, 3].map((index) => ({
+  test("past three questions the card shows the first three (#1512)", async () => {
+    // A tenant's long prompt with no short label: cut, never the header.
+    const long = {
+      ...leaving,
+      id: "q-long",
+      prompt: `${"Which neighbourhood or town ".repeat(4)}are you leaving from?`,
+    };
+    const many = [0, 1, 2].map((index) => ({
       ...leaving,
       id: `q-${index}`,
       prompt: `Question ${index}`,
@@ -786,16 +720,20 @@ describe("RegistrantsTab registration questions", () => {
       <RegistrantsTab
         capacity={null}
         mode="view"
-        {...questionSlices([getThere, ...many])}
+        {...questionSlices([getThere, long, ...many])}
       />,
     );
     await screen.findByText("Jamie Rivera");
 
-    expect(
-      screen.getByRole("button", { name: /^Answers,/ }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Question 0,/ })).toBeNull();
-    expect(screen.getByText("Getting there: Need a ride")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Answers,/ })).toBeNull();
+    const header = screen
+      .getByRole("button", { name: /^Which neighbourhood or…,/ })
+      .closest("th");
+    expect(header).toHaveAttribute("title", long.prompt);
+    expect(screen.getByRole("button", { name: /^Question 0,/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Question 1,/ })).toBeNull();
+    // The answer alone, not "prompt: answer".
+    expect(screen.getByText("Need a ride")).toBeInTheDocument();
   });
 
   test("filters to registrations missing a required answer", async () => {

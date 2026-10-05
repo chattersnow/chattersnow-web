@@ -134,9 +134,7 @@ export const SKIPPED_ROUTES = SKIP;
  * don't reach for it where a link exists. `expectHeading` is what keeps it
  * honest: following a link proves the record exists, a hard-coded id proves
  * nothing, so a `path` has to name the heading its record renders and the scan
- * checks for it before scanning. Nothing uses it at the moment -- /events/e/[id]
- * was the last orphan, and #847 gave the listing an anchor to follow -- but it
- * stays for the next route that ends up without one.
+ * checks for it before scanning.
  *
  * A pattern with no resolver is reported as skipped rather than silently
  * dropped.
@@ -170,6 +168,14 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
   "/portal/events/[eventId]": {
     listPath: "/portal/events",
     linkPattern: /^\/portal\/events\/[0-9a-f-]{36}$/,
+  },
+  // The page is linked from the event's registrants card, which renders its
+  // "View all" link client-side and only once the list overflows -- so there
+  // is no listing link to follow, and the seeded upcoming event's literal id
+  // is used instead. Its registrations make the page render the full table.
+  "/portal/events/[eventId]/registrants": {
+    path: "/portal/events/cccccccc-0000-4000-8000-000000000001/registrants",
+    expectHeading: "Registrants",
   },
   "/portal/people/[id]": {
     listPath: "/portal/people",

@@ -1,0 +1,1016 @@
+"use client";
+
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  ChevronDown,
+  MoreHorizontal,
+  Search,
+  Snowflake,
+  Ban,
+  Undo2,
+  X,
+} from "lucide-react";
+import {
+  listEventRegistrantsAction,
+  type EventRegistrant,
+} from "../../registrants-actions";
+import { getEventImpactDerivedAction } from "../../impact-derived-actions";
+import { REGISTRANT_PARAM } from "../../registrant-detail-sheet";
+import { AddRegistrantDialog } from "../../add-registrant-dialog";
+import { CheckInWalkInDialog } from "../../check-in-walkin-dialog";
+import { AnnounceToRegistrantsDialog } from "../../announce-to-registrants-dialog";
+import { AskForMissingAnswersDialog } from "../../ask-for-missing-answers-dialog";
+import { RegistrantBadges } from "../../registrant-badges";
+import {
+  CancelledRegistrations,
+  RegistrantAnnouncementsSection,
+  RegistrantOverlays,
+} from "../../registrants-shared";
+import {
+  registrantAnswersCsvHref,
+  registrationAnswerColumns,
+} from "../../registrants-tab";
+import { useRegistrantRowActions } from "../../use-registrant-row-actions";
+import {
+  filterRegistrants,
+  isFiltered,
+  isMissingRequired,
+  parseRegistrantsView,
+  registrantsViewParams,
+  type RegistrantFlag,
+  type RegistrantsView,
+} from "../../registrants-view-state";
+import {
+  countSelfReportedFirstTimers,
+  hasAnyAttendedBeforeAnswer,
+} from "@/lib/attended-before";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
+import {
+  answerColumnLabel,
+  answerColumns,
+  answerFilterChoices,
+  shownAnswerColumns,
+} from "@/lib/registration-answer-columns";
+import { useTabData } from "@/hooks/use-tab-data";
+import { formatInstantDate } from "@/lib/format";
+import { ViewerTime } from "@/components/viewer-time";
+import { StatusBadge } from "@/components/portal/status-badge";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
+import { EmptyState } from "@/components/portal/empty-state";
+import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+
+const NO_QUESTIONS: RegistrationQuestion[] = [];
+
+const FLAG_LABELS: Record<RegistrantFlag, string> = {
+  minor: "Includes a minor",
+  "no-photos": "No photos",
+};
+
+/** Where Registration settings live: the event's Planning section. */
+function registrationSettingsHref(eventId: string): string {
+  return `/portal/events/${encodeURIComponent(eventId)}?tab=planning`;
+}
+
+/** The options a registration took, one tag each. */
+function chosenOptions(registrant: EventRegistrant) {
+  return [...registrant.option_counts]
+    .filter((row) => row.quantity > 0)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+/**
+ * A count against what it is counted against, with a bar. The bar is
+ * decoration -- the numbers beside it say the same thing in words -- so it is
+ * hidden from assistive technology rather than given a second name.
+ */
+function Meter({ value, max }: { value: number; max: number }) {
+  const percent = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  return (
+    <div aria-hidden className="h-1.5 overflow-hidden rounded-full bg-muted">
+      <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  of,
+  hint,
+  meter,
+  className,
+}: {
+  label: string;
+  value: number;
+  of?: string;
+  hint?: string;
+  meter?: { value: number; max: number };
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-1 rounded-lg border px-3.5 py-3",
+        className,
+      )}
+    >
+      <dt className="app-muted text-xs">{label}</dt>
+      {/* The meter sits inside the value's own <dd>: a <dl> group may hold
+          only <dt> and <dd>. */}
+      <dd className="flex flex-col gap-1">
+        <span className="text-2xl font-semibold tabular-nums">
+          {value}
+          {of && (
+            <span className="app-muted ml-1 text-sm font-medium">{of}</span>
+          )}
+        </span>
+        {meter && <Meter value={meter.value} max={meter.max} />}
+      </dd>
+      {hint && <dd className="app-muted text-xs">{hint}</dd>}
+    </div>
+  );
+}
+
+export function RegistrantsPage({
+  eventId,
+  eventName,
+  startsAt,
+  timezone,
+  capacity,
+  registrationOpen,
+  canManage,
+}: {
+  eventId: string;
+  eventName: string;
+  startsAt: string;
+  /** Renders the date until the browser has said which zone it is in. */
+  timezone: string;
+  capacity: number | null;
+  registrationOpen: boolean;
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const view = useMemo(
+    () => parseRegistrantsView(searchParams),
+    [searchParams],
+  );
+  const detailId = searchParams.get(REGISTRANT_PARAM);
+
+  const registrantsData = useTabData(
+    () => listEventRegistrantsAction(eventId),
+    [eventId],
+  );
+  const derived = useTabData(
+    () => getEventImpactDerivedAction(eventId),
+    [eventId],
+  );
+  const { data, loadError } = registrantsData;
+  const messaging = data?.messaging ?? null;
+  const registrationOptions = data?.registrationOptions ?? null;
+  const questions = data?.registrationQuestions ?? NO_QUESTIONS;
+  const asksRequired = questions.some((question) => question.required);
+
+  const refreshRegistrants = registrantsData.refresh;
+  const refreshDerived = derived.refresh;
+  const refreshAll = useCallback(() => {
+    refreshRegistrants();
+    refreshDerived();
+    router.refresh();
+  }, [refreshRegistrants, refreshDerived, router]);
+  const { toggleCheckIn, restore, isRowPending } =
+    useRegistrantRowActions(refreshAll);
+
+  const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<EventRegistrant | null>(
+    null,
+  );
+  // The More menu's two composers, opened from a menu item rather than a
+  // button of their own, and mounted only while open so each opens fresh.
+  const [composer, setComposer] = useState<"announce" | "ask" | null>(null);
+
+  // The search box answers each keystroke from local state, and the URL
+  // follows; a URL change from elsewhere (Back, a link) re-seeds the box.
+  const [query, setQuery] = useState(view.q);
+  const [prevQ, setPrevQ] = useState(view.q);
+  if (view.q !== prevQ) {
+    setPrevQ(view.q);
+    setQuery(view.q);
+  }
+
+  /**
+   * Writes the view into the URL with `history.replaceState`: Next keeps
+   * `useSearchParams` in step with it, and the list is client state, so a
+   * server round trip per keystroke or filter would buy nothing. Replace, not
+   * push, so Back leaves the page rather than stepping through filters.
+   */
+  const writeParams = useCallback(
+    (params: URLSearchParams) => {
+      const search = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${pathname}${search ? `?${search}` : ""}`,
+      );
+    },
+    [pathname],
+  );
+  const setView = useCallback(
+    (patch: Partial<RegistrantsView>) =>
+      writeParams(
+        registrantsViewParams(new URLSearchParams(searchParams), patch),
+      ),
+    [writeParams, searchParams],
+  );
+  const openDetail = useCallback(
+    (registrant: EventRegistrant) => {
+      const params = new URLSearchParams(searchParams);
+      params.set(REGISTRANT_PARAM, registrant.id);
+      writeParams(params);
+    },
+    [writeParams, searchParams],
+  );
+
+  const list = useMemo(() => data?.registrants ?? [], [data]);
+  const cancelled = data?.cancelled ?? [];
+  const rows = useMemo(
+    () => filterRegistrants(list, view, questions),
+    [list, view, questions],
+  );
+
+  const totalAttending = list.reduce((sum, row) => sum + row.party_size, 0);
+  const checkedIn = list.filter((row) => row.checked_in_at !== null);
+  const checkedInPeople = checkedIn.reduce(
+    (sum, row) => sum + row.party_size,
+    0,
+  );
+  const showAttendedBefore = hasAnyAttendedBeforeAnswer(list);
+  const missingCount = asksRequired
+    ? list.filter((row) => isMissingRequired(row, questions)).length
+    : 0;
+  const choseAnyOption = list.filter(
+    (row) => chosenOptions(row).length > 0,
+  ).length;
+  const activeOption = registrationOptions?.options.find(
+    (option) => option.id === view.option,
+  );
+  // #1512. Every column the Columns menu offers, and the ones it shows.
+  const allAnswerColumns = useMemo(() => answerColumns(questions), [questions]);
+  const shownColumnIds = new Set(
+    shownAnswerColumns(allAnswerColumns, view.columns).map(
+      (column) => column.question.id,
+    ),
+  );
+  // A chip per shown column with a short list of answers, plus any column
+  // still filtered after it was hidden, so a filter is never invisible.
+  const answerFilters = allAnswerColumns.flatMap(({ question }) => {
+    const choices = answerFilterChoices(question);
+    return choices &&
+      (shownColumnIds.has(question.id) || question.id in view.answers)
+      ? [{ question, choices }]
+      : [];
+  });
+
+  const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
+    () => [
+      {
+        key: "name",
+        label: "Name",
+        sortValue: (registrant) => registrant.name,
+        // Wraps rather than truncating: a forty-character name is real
+        // (#1511's seed), and this column is the one a reader came for.
+        cellClassName: "min-w-36 max-w-56 whitespace-normal",
+        render: (registrant) => (
+          <>
+            <button
+              type="button"
+              className="text-left font-medium break-words hover:underline focus-visible:underline focus-visible:outline-none"
+              onClick={() => openDetail(registrant)}
+            >
+              {registrant.name}
+            </button>
+            {registrant.pronouns && (
+              <span className="app-muted block text-xs">
+                {registrant.pronouns}
+              </span>
+            )}
+            {/* The phone's card: what the columns dropped below md say,
+                in one line under the name. */}
+            <span className="app-muted block text-xs md:hidden">
+              Party of {registrant.party_size}
+              {chosenOptions(registrant).map((row) => ` · ${row.label}`)}
+            </span>
+            <span className="flex flex-wrap gap-1">
+              <RegistrantBadges registrant={registrant} />
+            </span>
+          </>
+        ),
+      },
+      {
+        key: "contact",
+        label: "Contact",
+        sortValue: (registrant) => registrant.email,
+        hideBelow: "md",
+        cellClassName: "app-muted max-w-56 text-xs whitespace-normal break-all",
+        render: (registrant) => (
+          <>
+            {registrant.email}
+            {registrant.phone && (
+              <span className="block">{registrant.phone}</span>
+            )}
+          </>
+        ),
+      },
+      {
+        key: "party_size",
+        label: "Party",
+        sortValue: (registrant) => registrant.party_size,
+        hideBelow: "md",
+        cellClassName: "tabular-nums",
+        render: (registrant) => registrant.party_size,
+      },
+      ...(registrationOptions
+        ? [
+            {
+              key: "options",
+              label: "Option",
+              sortValue: (registrant: EventRegistrant) =>
+                chosenOptions(registrant)[0]?.label ?? null,
+              hideBelow: "md",
+              cellClassName: "max-w-48 whitespace-normal",
+              render: (registrant: EventRegistrant) => {
+                const chosen = chosenOptions(registrant);
+                return chosen.length > 0 ? (
+                  <span className="flex flex-wrap gap-1">
+                    {chosen.map((row) => (
+                      <span
+                        key={row.label}
+                        className="rounded-md border px-1.5 py-0.5 text-xs"
+                      >
+                        {row.quantity > 1 ? `${row.quantity} × ` : ""}
+                        {row.label}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="app-muted">—</span>
+                );
+              },
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+      ...registrationAnswerColumns(questions, view.columns),
+      {
+        key: "created_at",
+        label: "Registered",
+        sortValue: (registrant) => registrant.created_at,
+        hideBelow: "lg",
+        cellClassName: "app-muted text-xs whitespace-nowrap",
+        render: (registrant) => formatInstantDate(registrant.created_at),
+      },
+      {
+        key: "checked_in_at",
+        label: "Check-in",
+        sortValue: (registrant) => registrant.checked_in_at,
+        cellClassName: "whitespace-nowrap",
+        render: (registrant) =>
+          registrant.checked_in_at ? (
+            <StatusBadge tone="success" className="font-normal">
+              ✓{" "}
+              {new Date(registrant.checked_in_at).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </StatusBadge>
+          ) : canManage ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={`Check in ${registrant.name}`}
+              disabled={isRowPending(registrant)}
+              onClick={() => toggleCheckIn(registrant)}
+            >
+              Check in
+            </Button>
+          ) : (
+            <span className="app-muted text-sm">Not yet</span>
+          ),
+      },
+      ...(canManage
+        ? [
+            {
+              key: "actions",
+              label: "Actions",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              cellClassName: "text-right",
+              render: (registrant: EventRegistrant) => (
+                <RowMenu
+                  registrant={registrant}
+                  pending={isRowPending(registrant)}
+                  onUndoCheckIn={() => toggleCheckIn(registrant)}
+                  onRider={() => setRiderTarget(registrant)}
+                  onCancel={() => setCancelTarget(registrant)}
+                />
+              ),
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
+    ],
+    [
+      registrationOptions,
+      questions,
+      view.columns,
+      canManage,
+      isRowPending,
+      toggleCheckIn,
+      openDetail,
+    ],
+  );
+
+  const orgEmailOff =
+    messaging && !messaging.orgEmailEnabled
+      ? "Outbound email is switched off for this organization."
+      : null;
+
+  let actions: ReactNode = null;
+  if (canManage) {
+    actions = (
+      <div className="flex flex-wrap items-center gap-2">
+        <CheckInWalkInDialog
+          eventId={eventId}
+          triggerVariant="default"
+          onSaved={refreshAll}
+        />
+        <AddRegistrantDialog eventId={eventId} onSaved={refreshAll} />
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button type="button" variant="secondary" />}
+          >
+            More <ChevronDown />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            {messaging && (
+              <DropdownMenuItem
+                disabled={Boolean(orgEmailOff)}
+                onClick={() => setComposer("announce")}
+              >
+                <span className="flex flex-col">
+                  Message registrants
+                  {orgEmailOff && (
+                    <span className="app-muted text-xs">{orgEmailOff}</span>
+                  )}
+                </span>
+              </DropdownMenuItem>
+            )}
+            {/* #1502. Only where there is something to ask. */}
+            {messaging && missingCount > 0 && (
+              <DropdownMenuItem
+                disabled={Boolean(orgEmailOff)}
+                onClick={() => setComposer("ask")}
+              >
+                Ask for missing answers ({missingCount})
+              </DropdownMenuItem>
+            )}
+            {messaging && <DropdownMenuSeparator />}
+            {/* A real link: it is a file download, and should behave as one.
+                Gated on `events: manage` in the route handler too. */}
+            {questions.length > 0 && (
+              <DropdownMenuItem
+                render={<a href={registrantAnswersCsvHref(eventId)} download />}
+              >
+                Download answers (CSV)
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              render={<Link href={registrationSettingsHref(eventId)} />}
+            >
+              Registration settings
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="w-fit">
+            <h1 className="brand-display text-3xl font-semibold tracking-brand sm:text-4xl">
+              Registrants
+            </h1>
+            <div className="rainbow-accent mt-3 w-full" />
+          </div>
+          <p className="app-muted mt-1 text-sm break-words">
+            {eventName} · <ViewerTime iso={startsAt} fallbackZone={timezone} />{" "}
+            · registration {registrationOpen ? "open" : "closed"}
+          </p>
+        </div>
+        {actions}
+      </div>
+
+      {loadError && (
+        <Alert variant="destructive">
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      )}
+
+      {data === undefined ? (
+        <TabLoadingSkeleton />
+      ) : (
+        <>
+          <section aria-labelledby="registrants-summary-heading">
+            <h2 id="registrants-summary-heading" className="sr-only">
+              Summary
+            </h2>
+            <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+              <StatTile
+                label="Registrations"
+                value={list.length}
+                hint={`${cancelled.length} cancelled`}
+                className="hidden sm:flex"
+              />
+              <StatTile
+                label="Attending"
+                value={totalAttending}
+                of={capacity !== null ? `of ${capacity}` : undefined}
+                meter={
+                  capacity !== null
+                    ? { value: totalAttending, max: capacity }
+                    : undefined
+                }
+              />
+              <StatTile
+                label="Checked in"
+                value={checkedInPeople}
+                of={`of ${totalAttending}`}
+                meter={{ value: checkedInPeople, max: totalAttending }}
+              />
+              {/* "Said" stays in the label (#1259): this is what people said
+                about themselves, never the check-in ledger's first-timer
+                figure, and only that one may reach an impact report. */}
+              {showAttendedBefore && (
+                <StatTile
+                  label="Said it's their first"
+                  value={countSelfReportedFirstTimers(list)}
+                  hint="Self-reported. Not the check-in count."
+                  className="hidden sm:flex"
+                />
+              )}
+              {derived.data && checkedIn.length > 0 && (
+                <StatTile
+                  label="First time, by check-in"
+                  value={derived.data.firstTimeParticipants}
+                  hint={`${derived.data.recurringParticipants} recurring`}
+                  className="hidden sm:flex"
+                />
+              )}
+            </dl>
+          </section>
+
+          {/* #1407. The figures tickets and gear are ordered from, and the
+              quickest way to the parties behind one. */}
+          {registrationOptions && registrationOptions.options.length > 0 && (
+            <section
+              aria-labelledby="registration-options-heading"
+              className="flex flex-col gap-2"
+            >
+              <div className="app-muted flex flex-wrap justify-between gap-2 text-xs">
+                <h2 id="registration-options-heading" className="font-normal">
+                  {registrationOptions.prompt} · select one to filter
+                </h2>
+                <span>
+                  {choseAnyOption} of {list.length} chose an option
+                </span>
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-2">
+                {registrationOptions.options.map((option) => {
+                  const pressed = view.option === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={pressed}
+                      onClick={() =>
+                        setView({ option: pressed ? null : option.id })
+                      }
+                      className={cn(
+                        "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                        pressed && "border-primary ring-1 ring-primary",
+                      )}
+                    >
+                      <span className="break-words">{option.label}</span>
+                      <span className="font-semibold tabular-nums">
+                        {option.taken}
+                        <span className="app-muted ml-1 text-xs font-medium">
+                          {option.cap === null ? "no cap" : `of ${option.cap}`}
+                        </span>
+                      </span>
+                      {option.cap !== null && (
+                        <span className="col-span-2">
+                          <Meter value={option.taken} max={option.cap} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {list.length === 0 ? (
+            <EmptyState
+              title="No one has registered yet"
+              description="Registrations arrive from the public event page. Walk-ins can be added with + Check in walk-in above."
+            />
+          ) : (
+            <section aria-label="Registrants" className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-0 flex-[1_1_16rem]">
+                  <Search className="app-muted pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+                  <Input
+                    type="search"
+                    aria-label="Search registrants"
+                    placeholder="Search name, email, or phone"
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setView({ q: event.target.value });
+                    }}
+                    className="pl-8"
+                  />
+                </div>
+                {activeOption && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    aria-label={`Clear option filter: ${activeOption.label}`}
+                    onClick={() => setView({ option: null })}
+                    className="max-w-full"
+                  >
+                    <span className="truncate">{activeOption.label}</span>
+                    <X />
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant={view.checkedIn ? "secondary" : "outline"}
+                        size="sm"
+                      />
+                    }
+                  >
+                    {view.checkedIn === "in"
+                      ? "Checked in"
+                      : view.checkedIn === "out"
+                        ? "Not checked in"
+                        : "Check-in: any"}
+                    <ChevronDown />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuRadioGroup
+                      value={view.checkedIn ?? "any"}
+                      onValueChange={(value) =>
+                        setView({
+                          checkedIn:
+                            value === "in" || value === "out" ? value : null,
+                        })
+                      }
+                    >
+                      <DropdownMenuRadioItem value="any">
+                        Any
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="in">
+                        Checked in
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="out">
+                        Not checked in
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* #1501/#1502. Only offered where some question is
+                    required. */}
+                {asksRequired && (
+                  <Button
+                    type="button"
+                    variant={view.missing ? "secondary" : "outline"}
+                    size="sm"
+                    aria-pressed={view.missing}
+                    onClick={() => setView({ missing: !view.missing })}
+                  >
+                    Missing required answers ({missingCount})
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant={
+                          view.flags.length > 0 ? "secondary" : "outline"
+                        }
+                        size="sm"
+                      />
+                    }
+                  >
+                    Flags
+                    {view.flags.length > 0 ? ` (${view.flags.length})` : ""}
+                    <ChevronDown />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Show parties that</DropdownMenuLabel>
+                      {(Object.keys(FLAG_LABELS) as RegistrantFlag[]).map(
+                        (flag) => (
+                          <DropdownMenuCheckboxItem
+                            key={flag}
+                            checked={view.flags.includes(flag)}
+                            onCheckedChange={(checked) =>
+                              setView({
+                                flags: checked
+                                  ? [...view.flags, flag]
+                                  : view.flags.filter((f) => f !== flag),
+                              })
+                            }
+                          >
+                            {FLAG_LABELS[flag]}
+                          </DropdownMenuCheckboxItem>
+                        ),
+                      )}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {answerFilters.map(({ question, choices }) => {
+                  const label = answerColumnLabel(question);
+                  const active = choices.find(
+                    (choice) => choice.value === view.answers[question.id],
+                  );
+                  return (
+                    <DropdownMenu key={question.id}>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant={active ? "secondary" : "outline"}
+                            size="sm"
+                            title={question.prompt}
+                            className="max-w-full"
+                          />
+                        }
+                      >
+                        <span className="truncate">
+                          {active ? `${label}: ${active.label}` : label}
+                        </span>
+                        <ChevronDown />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="max-w-80">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel>
+                            {question.prompt}
+                          </DropdownMenuLabel>
+                          <DropdownMenuRadioGroup
+                            value={active?.value ?? "any"}
+                            onValueChange={(value) => {
+                              const rest = Object.fromEntries(
+                                Object.entries(view.answers).filter(
+                                  ([id]) => id !== question.id,
+                                ),
+                              );
+                              setView({
+                                answers:
+                                  value === "any"
+                                    ? rest
+                                    : { ...rest, [question.id]: value },
+                              });
+                            }}
+                          >
+                            <DropdownMenuRadioItem value="any">
+                              Any
+                            </DropdownMenuRadioItem>
+                            {choices.map((choice) => (
+                              <DropdownMenuRadioItem
+                                key={choice.value}
+                                value={choice.value}
+                              >
+                                {choice.label}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })}
+                {allAnswerColumns.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button type="button" variant="ghost" size="sm" />
+                      }
+                    >
+                      Columns
+                      <ChevronDown />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="max-w-80">
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Answer columns</DropdownMenuLabel>
+                        {allAnswerColumns.map(({ question }) => (
+                          <DropdownMenuCheckboxItem
+                            key={question.id}
+                            checked={shownColumnIds.has(question.id)}
+                            onCheckedChange={(checked) =>
+                              setView({
+                                // In the event's order, whatever order they
+                                // were ticked in.
+                                columns: allAnswerColumns
+                                  .map((column) => column.question.id)
+                                  .filter((id) =>
+                                    id === question.id
+                                      ? checked
+                                      : shownColumnIds.has(id),
+                                  ),
+                              })
+                            }
+                          >
+                            <span className="truncate" title={question.prompt}>
+                              {answerColumnLabel(question)}
+                            </span>
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                <p
+                  role="status"
+                  className="app-muted ml-auto text-xs whitespace-nowrap"
+                >
+                  {isFiltered(view)
+                    ? `Showing ${rows.length} of ${list.length}`
+                    : `${list.length} registrations`}
+                </p>
+              </div>
+
+              <PortalDataTable
+                columns={columns}
+                rows={rows}
+                getRowKey={(registrant) => registrant.id}
+                emptyMessage="No registrants match. Clear or loosen the filters to see more."
+                sort={view.sort ?? { key: "created_at", dir: "asc" }}
+                onSortChange={(sort) => setView({ sort })}
+                page={view.page}
+                onPageChange={(page) => setView({ page })}
+                pageSize={view.perPage}
+                onPageSizeChange={(perPage) => setView({ perPage })}
+                onRowClick={openDetail}
+                // The row opens the whole registration, so the columns a
+                // phone drops are one tap away there.
+                rowDetail="none"
+              />
+            </section>
+          )}
+
+          <CancelledRegistrations
+            cancelled={cancelled}
+            canRestore={canManage}
+            onRestore={restore}
+            isRowPending={isRowPending}
+          />
+
+          <RegistrantAnnouncementsSection data={data} />
+        </>
+      )}
+
+      <RegistrantOverlays
+        data={data}
+        eventName={eventName}
+        detailId={detailId}
+        // The sheet takes its own parameter back out of the URL on close.
+        onDetailClosed={() => {}}
+        cancelTarget={cancelTarget}
+        onCancelClosed={() => setCancelTarget(null)}
+        riderTarget={riderTarget}
+        onRiderClosed={() => setRiderTarget(null)}
+        onChanged={refreshAll}
+        onRegistrantsChanged={refreshRegistrants}
+      />
+
+      {composer === "announce" && messaging && (
+        <AnnounceToRegistrantsDialog
+          eventId={eventId}
+          eventName={eventName}
+          registrations={list}
+          replyTo={messaging.replyTo}
+          onSent={refreshAll}
+          open
+          withTrigger={false}
+          onOpenChange={(open) => {
+            if (!open) setComposer(null);
+          }}
+        />
+      )}
+      {composer === "ask" && (
+        <AskForMissingAnswersDialog
+          eventId={eventId}
+          eventName={eventName}
+          registrations={list}
+          questions={questions}
+          onSent={refreshAll}
+          open
+          withTrigger={false}
+          onOpenChange={(open) => {
+            if (!open) setComposer(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The row's less frequent actions (#1511): undo a check-in, the rider
+ * profile, cancel. Check-in itself is the labelled button beside it.
+ */
+function RowMenu({
+  registrant,
+  pending,
+  onUndoCheckIn,
+  onRider,
+  onCancel,
+}: {
+  registrant: EventRegistrant;
+  pending: boolean;
+  onUndoCheckIn: () => void;
+  onRider: () => void;
+  onCancel: () => void;
+}) {
+  const checkedIn = registrant.checked_in_at !== null;
+  // The profile hangs off the person record, so a registration never linked
+  // to one has nowhere to put it.
+  const canRider = registrant.rider !== null && registrant.person_id !== null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`More actions for ${registrant.name}`}
+            disabled={pending}
+          />
+        }
+      >
+        <MoreHorizontal />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {checkedIn && (
+          <DropdownMenuItem onClick={onUndoCheckIn}>
+            <Undo2 /> Undo check-in
+          </DropdownMenuItem>
+        )}
+        {canRider && (
+          <DropdownMenuItem onClick={onRider}>
+            <Snowflake /> Rider profile
+          </DropdownMenuItem>
+        )}
+        {/* #1418. Not once they are through the door: undo the check-in
+            first, which the database insists on too. */}
+        {!checkedIn && (
+          <DropdownMenuItem variant="destructive" onClick={onCancel}>
+            <Ban /> Cancel registration
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

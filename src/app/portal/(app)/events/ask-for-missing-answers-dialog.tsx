@@ -17,6 +17,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import {
   ANSWER_REQUEST_ERRORS,
@@ -45,7 +49,10 @@ export function AskForMissingAnswersDialog({
   questions,
   disabledReason,
   onSent,
-}: {
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger,
+}: ControlledOpenProps & {
   eventId: string;
   eventName: string;
   /** The tab's own active list, so the count matches what is on screen. */
@@ -56,7 +63,7 @@ export function AskForMissingAnswersDialog({
   onSent?: () => void;
 }) {
   const fieldId = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Half of each recipient's dedupe key; see AnnounceToRegistrantsDialog.
@@ -148,6 +155,7 @@ export function AskForMissingAnswersDialog({
     <PortalFormSurface
       open={open}
       onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
       trigger={trigger}
       title="Ask for missing answers"
       description="Each registrant gets their own link to answer this event's questions — no account needed."

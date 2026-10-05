@@ -1,6 +1,12 @@
 "use client";
 
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useMemo,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { ChevronDown } from "lucide-react";
 import { SortHeaderButton } from "@/components/portal/sort-header-link";
 import { Button } from "@/components/ui/button";
@@ -44,6 +50,11 @@ export type PortalDataTableColumn<T, K extends string = string> = {
    */
   sortValue?: (row: T) => SortValue;
   headClassName?: string;
+  /**
+   * The header's tooltip, for a label shortened from something longer -- a
+   * tenant's question prompt cut to fit (#1512).
+   */
+  headTitle?: string;
   cellClassName?: string;
   /**
    * Dropping the column below a breakpoint. `Table` supports this on the
@@ -80,6 +91,13 @@ export function PortalDataTable<T, K extends string = string>({
   stickyFirstColumn,
   shell = "card",
   rowDetail = "auto",
+  sort: controlledSort,
+  onSortChange,
+  page: controlledPage,
+  onPageChange,
+  pageSize: controlledPageSize,
+  onPageSizeChange,
+  onRowClick,
 }: {
   columns: readonly PortalDataTableColumn<T, K>[];
   /** Already filtered. */
@@ -105,11 +123,40 @@ export function PortalDataTable<T, K extends string = string>({
    * that surface.
    */
   rowDetail?: "auto" | "none";
+  /**
+   * Sort, page and page size held by the caller rather than here -- for a
+   * page that keeps them in its URL (#1511). Each is controlled only when its
+   * `on...Change` is passed; the rest of the portal's tables leave them out
+   * and keep the internal state they always had. A controlled page is the
+   * caller's to reset when its filters move.
+   */
+  sort?: { key: K; dir: SortDirection } | null;
+  onSortChange?: (next: { key: K; dir: SortDirection }) => void;
+  page?: number;
+  onPageChange?: (next: number) => void;
+  pageSize?: number;
+  onPageSizeChange?: (next: number) => void;
+  /**
+   * Opens the record from anywhere on its row, for a mouse. Not a substitute
+   * for a real control: the row still needs a button or link of its own for
+   * the keyboard, and a click that lands on any interactive element inside
+   * the row is left to that element.
+   */
+  onRowClick?: (row: T) => void;
 }) {
-  const [sort, setSort] = useState<{ key: K; dir: SortDirection } | null>(
-    defaultSort ?? null,
+  const [internalSort, setInternalSort] = useState<{
+    key: K;
+    dir: SortDirection;
+  } | null>(defaultSort ?? null);
+  const sort = onSortChange ? (controlledSort ?? null) : internalSort;
+  const [internalPageSize, setInternalPageSize] = useState<number>(
+    PAGE_SIZE_OPTIONS[0],
   );
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const pageSize =
+    onPageSizeChange && controlledPageSize !== undefined
+      ? controlledPageSize
+      : internalPageSize;
+  const setPageSize = onPageSizeChange ?? setInternalPageSize;
 
   const sorted = useMemo(() => {
     const sortValue = columns.find(
@@ -149,7 +196,11 @@ export function PortalDataTable<T, K extends string = string>({
   const [pageState, setPageState] = useState({ page: 1, signature });
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const page = Math.min(
-    pageState.signature === signature ? pageState.page : 1,
+    onPageChange
+      ? Math.max(1, controlledPage ?? 1)
+      : pageState.signature === signature
+        ? pageState.page
+        : 1,
     totalPages,
   );
   const visible = sorted.slice((page - 1) * pageSize, page * pageSize);
@@ -192,11 +243,27 @@ export function PortalDataTable<T, K extends string = string>({
   }
 
   function handleSort(key: K) {
-    setSort((previous) =>
-      previous?.key === key
-        ? { key, dir: previous.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" },
-    );
+    const next: { key: K; dir: SortDirection } =
+      sort?.key === key
+        ? { key, dir: sort.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" };
+    if (onSortChange) onSortChange(next);
+    else setInternalSort(next);
+  }
+
+  function handleRowClick(row: T, event: MouseEvent<HTMLElement>) {
+    if (!onRowClick) return;
+    const target = event.target as HTMLElement;
+    // The row's own controls -- check-in, the row menu, a link -- do their
+    // own thing; only a click on the row's plain text opens the record.
+    if (
+      target.closest(
+        "button, a, input, select, textarea, label, [role='menuitem']",
+      )
+    ) {
+      return;
+    }
+    onRowClick(row);
   }
 
   const body = (
@@ -212,6 +279,7 @@ export function PortalDataTable<T, K extends string = string>({
                 key={column.key}
                 hideBelow={column.hideBelow}
                 className={column.headClassName}
+                title={column.headTitle}
                 // Undefined, not null, for a column that cannot be sorted:
                 // that is what keeps `aria-sort` off it entirely.
                 sortDirection={
@@ -261,7 +329,14 @@ export function PortalDataTable<T, K extends string = string>({
               const open = expandedRows.has(key);
               return (
                 <Fragment key={key}>
-                  <TableRow>
+                  <TableRow
+                    onClick={
+                      onRowClick
+                        ? (event) => handleRowClick(row, event)
+                        : undefined
+                    }
+                    className={onRowClick ? "cursor-pointer" : undefined}
+                  >
                     {columns.map((column) => (
                       <TableCell
                         key={column.key}
@@ -363,7 +438,11 @@ export function PortalDataTable<T, K extends string = string>({
             totalPages={totalPages}
             count={rows.length}
             pageSize={pageSize}
-            onPageChange={(next) => setPageState({ page: next, signature })}
+            onPageChange={(next) =>
+              onPageChange
+                ? onPageChange(next)
+                : setPageState({ page: next, signature })
+            }
           />
         </div>
       )}

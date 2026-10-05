@@ -97,7 +97,15 @@ export async function GET(
         // so a long cache costs nothing a reinstall does not fix -- and the
         // URL is per host, so one tenant's cached icon can never be served to
         // another.
-        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        //
+        // `s-maxage` alongside the browser's `max-age` because Vercel's CDN
+        // keys on that directive alone: a bare `max-age` is an instruction to
+        // the browser, so every cold tab paid for a Satori rasterize and two
+        // Supabase reads out of the free team's Active CPU. That was tolerable
+        // while only iOS asked for this route; #1398 points the favicon here
+        // too, which is every browser on every page.
+        "Cache-Control":
+          "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
       },
     },
   );

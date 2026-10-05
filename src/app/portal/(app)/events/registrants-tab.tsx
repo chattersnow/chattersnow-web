@@ -1,42 +1,24 @@
 "use client";
 
-import {
-  useCallback,
-  useMemo,
-  useState,
-  useTransition,
-  type ReactNode,
-} from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Ban,
-  Check,
-  Download,
-  Eye,
-  RotateCcw,
-  Snowflake,
-  Undo2,
-} from "lucide-react";
-import {
-  checkInRegistrantAction,
-  restoreRegistrationAction,
-  undoCheckInAction,
-  type EventRegistrant,
-  type EventRegistrantsData,
+import { Ban, Check, Download, Eye, Snowflake, Undo2 } from "lucide-react";
+import type {
+  EventRegistrant,
+  EventRegistrantsData,
 } from "./registrants-actions";
-import { RiderProfileDialog } from "./rider-profile-dialog";
-import { CancelRegistrationDialog } from "./cancel-registration-dialog";
-import { cancellationReasonLabel } from "@/lib/registration-cancellation";
-import {
-  REGISTRANT_PARAM,
-  RegistrantDetailSheet,
-} from "./registrant-detail-sheet";
-import { RegistrantAnnouncements } from "./registrant-announcements";
+import { REGISTRANT_PARAM } from "./registrant-detail-sheet";
 import { AnnounceToRegistrantsDialog } from "./announce-to-registrants-dialog";
 import { AskForMissingAnswersDialog } from "./ask-for-missing-answers-dialog";
-import { answerRequestState } from "@/lib/registration-answer-requests";
-import { announcementBatches } from "@/lib/event-announcements";
-import { NO_RECORD_MESSAGES } from "@/lib/outbound-messages";
+import { RegistrantBadges } from "./registrant-badges";
+import {
+  CancelledRegistrations,
+  RegistrantAnnouncementsSection,
+  RegistrantOverlays,
+} from "./registrants-shared";
+import { useRegistrantRowActions } from "./use-registrant-row-actions";
+import { isMissingRequired } from "./registrants-view-state";
 import {
   experienceLevelLabel,
   ridingDisciplineLabel,
@@ -48,12 +30,13 @@ import {
 } from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { formatOptionCounts } from "@/lib/registration-options";
+import type { RegistrationQuestion } from "@/lib/registration-questions";
 import {
-  answerRowsToAnswers,
-  missingRequiredQuestions,
-  sortAnswerRows,
-  type RegistrationQuestion,
-} from "@/lib/registration-questions";
+  answerCellText,
+  answerColumnLabel,
+  answerColumns,
+  shownAnswerColumns,
+} from "@/lib/registration-answer-columns";
 import type { TabData } from "@/hooks/use-tab-data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -67,15 +50,10 @@ import {
   withoutSorting,
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
-import { StatusBadge } from "@/components/portal/status-badge";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
-import {
-  LIST_PREVIEW_ROWS,
-  ListPreviewSheet,
-} from "@/components/portal/list-preview-sheet";
-import { formatDateTime, formatInstantDate } from "@/lib/format";
+import { LIST_PREVIEW_ROWS } from "@/components/portal/list-preview-sheet";
+import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
-import { runAction } from "@/components/portal/action-toast";
 
 /**
  * What the door sees in the Rides column.
@@ -114,64 +92,57 @@ function ridesSummary(registrant: EventRegistrant): string | null {
     : discipline;
 }
 
-/**
- * Up to this many registration questions get a column each; past it they
- * share one "Answers" column, since a column per question would push the
- * table past any screen and the prompts are the tenant's own sentences.
- */
-const QUESTION_COLUMN_LIMIT = 3;
-
 const NO_QUESTIONS: RegistrationQuestion[] = [];
-
-/** The stored answer to one current question, in words, or null. */
-function answerFor(
-  registrant: EventRegistrant,
-  questionId: string,
-): string | null {
-  return (
-    registrant.answers.find((row) => row.question_id === questionId)
-      ?.answer_text ?? null
-  );
-}
-
-/** Whether a registration has left a required question it was shown blank. */
-function isMissingRequired(
-  registrant: EventRegistrant,
-  questions: readonly RegistrationQuestion[],
-): boolean {
-  return (
-    missingRequiredQuestions(questions, answerRowsToAnswers(registrant.answers))
-      .length > 0
-  );
-}
-
-/**
- * "Asked {date}" or "Answered" under the name (#1502), for a registration that
- * has been sent a link. Under the name for the reason the other badges are:
- * the table is already wide, and a column would be the first thing dropped.
- */
-function AnswerRequestBadge({ registrant }: { registrant: EventRegistrant }) {
-  const state = answerRequestState(registrant.answer_request);
-  if (!state) return null;
-  return state.state === "answered" ? (
-    <StatusBadge tone="success" className="mt-1 font-normal">
-      Answered
-    </StatusBadge>
-  ) : (
-    <StatusBadge tone="info" className="mt-1 font-normal">
-      {`Asked ${formatInstantDate(state.at)}`}
-    </StatusBadge>
-  );
-}
 
 /** Where the answers export is served; see its route handler. */
 export function registrantAnswersCsvHref(eventId: string): string {
   return `/portal/events/${encodeURIComponent(eventId)}/registrants/answers`;
 }
 
-function matchesQuery(registrant: EventRegistrant, needle: string): boolean {
-  return [registrant.name, registrant.email, registrant.phone].some(
-    (field) => field?.toLowerCase().includes(needle) ?? false,
+/** The registrants page (#1511), which the card's "View all" opens. */
+export function registrantsPageHref(eventId: string): string {
+  return `/portal/events/${encodeURIComponent(eventId)}/registrants`;
+}
+
+/**
+ * #1512. One column per top-level question, headed by its short label, with
+ * conditional follow-ups folded into their parent's cell; nothing at all for
+ * an event that asks none. `picked` is the registrants page's Columns menu --
+ * null shows the first few, which is all the card's preview ever shows.
+ */
+export function registrationAnswerColumns(
+  registrationQuestions: readonly RegistrationQuestion[],
+  picked: readonly string[] | null = null,
+): PortalDataTableColumn<EventRegistrant>[] {
+  return shownAnswerColumns(answerColumns(registrationQuestions), picked).map(
+    (column) => {
+      const label = answerColumnLabel(column.question);
+      return {
+        key: `question-${column.question.id}`,
+        label,
+        headTitle:
+          label === column.question.prompt ? undefined : column.question.prompt,
+        sortValue: (registrant: EventRegistrant) =>
+          answerCellText(column, registrant.answers),
+        hideBelow: "md",
+        headClassName: "whitespace-nowrap",
+        // One line a row, whatever was typed: a long free-text answer is cut
+        // here and read in full in the detail sheet.
+        cellClassName: "app-muted text-xs whitespace-nowrap",
+        render: (registrant: EventRegistrant) => {
+          const text = answerCellText(column, registrant.answers);
+          return text === null ? (
+            "—"
+          ) : (
+            // The cap is on the span: a table cell's own max-width is not
+            // reliably honoured.
+            <span className="block max-w-48 truncate" title={text}>
+              {text}
+            </span>
+          );
+        },
+      } satisfies PortalDataTableColumn<EventRegistrant>;
+    },
   );
 }
 
@@ -193,26 +164,24 @@ export function RegistrantsTab({
   registrants: TabData<EventRegistrantsData>;
   derived: TabData<EventImpactDerived>;
   /**
-   * Rows shown before the rest move behind "View all". `null` renders the whole
-   * list with no trigger — which is what the Happening Now check-in sheet needs,
-   * since capping the list there would hide the very rows it exists to work
-   * through, and its trigger would open a sheet inside a sheet. Numeric
-   * overrides keep tests from having to build six registrants.
+   * Rows shown before "View all" links to the registrants page (#1511).
+   * `null` renders the whole list with no link — which is what the Happening
+   * Now check-in sheet needs, since capping the list there would hide the very
+   * rows it exists to work through. Numeric overrides keep tests from having
+   * to build six registrants.
    */
   previewRows?: number | null;
-  /** Create actions mirrored into the sheet header. */
+  /**
+   * Create actions, for a surface with no header of its own to put them in:
+   * the check-in sheet. Rendered only with `previewRows={null}`; the card has
+   * them in its own header already.
+   */
   headerActions?: ReactNode;
 }) {
   const router = useRouter();
   const { data, loadError } = registrantsData;
   const registrants = data?.registrants;
-  const messages = data?.messages ?? NO_RECORD_MESSAGES;
   const messaging = data?.messaging ?? null;
-  // False while the tab is still loading, which is the right default: it only
-  // suppresses a row, and the row reappears with the data behind it (#686).
-  const waiverInForce = data?.waiverInForce ?? false;
-  // Same default and same reasoning (#599).
-  const photoConsentInForce = data?.photoConsentInForce ?? false;
   // #1407. Null for the events that ask no registration question, which
   // leaves the tab exactly as it was.
   const registrationOptions = data?.registrationOptions ?? null;
@@ -222,9 +191,6 @@ export function RegistrantsTab({
   const asksRequired = registrationQuestions.some(
     (question) => question.required,
   );
-  // #1408. The tenant's own list; `?? []` for an older payload, which leaves
-  // "Other" as the one choice rather than a picker with nothing in it.
-  const riderMountains = data?.riderMountains ?? [];
   // `messaging` is populated only for a caller holding `events: manage`, which
   // is the same gate the sheet's messaging half and the announcement composer
   // are behind -- so one nullable read answers "may this person write to
@@ -232,15 +198,11 @@ export function RegistrantsTab({
   const canManage = messaging !== null;
   const refreshRegistrants = registrantsData.refresh;
   const refreshDerived = derived.refresh;
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [riderTarget, setRiderTarget] = useState<EventRegistrant | null>(null);
   // #1418
   const [cancelTarget, setCancelTarget] = useState<EventRegistrant | null>(
     null,
   );
-  const [showCancelled, setShowCancelled] = useState(false);
-  const [query, setQuery] = useState("");
   const [missingOnly, setMissingOnly] = useState(false);
 
   // A notification can link straight at one registration (#742's shape). The
@@ -267,49 +229,11 @@ export function RegistrantsTab({
     router.refresh();
   }, [refreshRegistrants, refreshDerived, router]);
 
-  const handleToggleCheckIn = useCallback(
-    (registrant: EventRegistrant) => {
-      setPendingId(registrant.id);
-      startTransition(async () => {
-        const undo = registrant.checked_in_at !== null;
-        await runAction(
-          () =>
-            undo
-              ? undoCheckInAction(registrant.id)
-              : checkInRegistrantAction(registrant.id),
-          {
-            success: undo
-              ? `Undid ${registrant.name}'s check-in.`
-              : `${registrant.name} checked in.`,
-            // Only a success refreshes. This is the door: an expired session or
-            // an account without `events: manage` both leave the row exactly as
-            // it was, and repainting it unchanged is what made a refusal look
-            // like a completed check-in (#1124).
-            onSuccess: refreshAll,
-          },
-        );
-        setPendingId(null);
-      });
-    },
-    [refreshAll],
-  );
-
-  const handleRestore = useCallback(
-    (registrant: EventRegistrant) => {
-      setPendingId(registrant.id);
-      startTransition(async () => {
-        await runAction(() => restoreRegistrationAction(registrant.id), {
-          success: `Restored ${registrant.name}'s registration.`,
-          onSuccess: refreshAll,
-        });
-        setPendingId(null);
-      });
-    },
-    [refreshAll],
-  );
+  const { toggleCheckIn, restore, isRowPending } =
+    useRegistrantRowActions(refreshAll);
 
   const list = useMemo(() => registrants ?? [], [registrants]);
-  const cancelledList = useMemo(() => data?.cancelled ?? [], [data]);
+  const cancelledList = data?.cancelled ?? [];
   const totalAttending = list.reduce(
     (sum, registrant) => sum + registrant.party_size,
     0,
@@ -348,12 +272,6 @@ export function RegistrantsTab({
     [asksRequired, missingOnly, list, registrationQuestions],
   );
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return shownList;
-    return shownList.filter((registrant) => matchesQuery(registrant, needle));
-  }, [shownList, query]);
-
   const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
     () => [
       {
@@ -375,41 +293,7 @@ export function RegistrantsTab({
                 {registrant.pronouns}
               </span>
             )}
-            {/* Beside the name, not in a column, and for the reason the
-                pronouns are here: this is read at the same moment as "who is
-                this", it is the one thing about a party that has to be known
-                before the day rather than at it, and a column would be the
-                first thing dropped on a phone. Only `true` renders anything --
-                null is "nobody was asked" and false is the ordinary case, and
-                neither is worth a badge (#685). */}
-            {registrant.party_includes_minor === true && (
-              <StatusBadge tone="info" className="mt-1 font-normal">
-                Includes a minor
-              </StatusBadge>
-            )}
-            {/* Same place, same argument, and the condition is inverted (#599).
-                For the minors flag the notable state is `true`; here it is
-                `false` -- somebody who has asked not to be photographed is the
-                one registrant a camera has to know about, and the ordinary
-                case would only add noise. Null renders nothing: it is the
-                resting state of every registration (#1376), and a badge on
-                every row is a badge nobody reads.
-
-                This is also the check-in surface: `check-in-modal.tsx` renders
-                this same table, so the badge is there without a second copy.
-
-                **The badge is the reason #1376 kept the column.** Dropping the
-                three columns and the machinery would have deleted this, and
-                "photos can be deleted" is a remedy after the fact rather than
-                a list the door shift checks before pointing a camera. Nothing
-                about this condition changed when the semantics flipped, and
-                nothing about it should. */}
-            {registrant.photo_consent === false && (
-              <StatusBadge tone="warning" className="mt-1 font-normal">
-                No photos
-              </StatusBadge>
-            )}
-            <AnswerRequestBadge registrant={registrant} />
+            <RegistrantBadges registrant={registrant} />
           </>
         ),
       },
@@ -460,54 +344,7 @@ export function RegistrantsTab({
             } satisfies PortalDataTableColumn<EventRegistrant>,
           ]
         : []),
-      // #1501. A column per question while there are few, one shared column
-      // past that; nothing at all for an event that asks none.
-      ...(registrationQuestions.length > QUESTION_COLUMN_LIMIT
-        ? [
-            {
-              key: "answers",
-              label: "Answers",
-              sortValue: (registrant: EventRegistrant) =>
-                registrant.answers.length > 0
-                  ? registrant.answers.length
-                  : null,
-              hideBelow: "md",
-              cellClassName:
-                "app-muted min-w-48 max-w-72 text-xs whitespace-normal",
-              render: (registrant: EventRegistrant) => {
-                const current = new Set(
-                  registrationQuestions.map((question) => question.id),
-                );
-                const rows = sortAnswerRows(
-                  registrant.answers.filter(
-                    (row) => row.question_id && current.has(row.question_id),
-                  ),
-                );
-                return rows.length > 0
-                  ? rows.map((row) => (
-                      <span key={row.question_id} className="block">
-                        {row.prompt_as_shown}: {row.answer_text}
-                      </span>
-                    ))
-                  : null;
-              },
-            } satisfies PortalDataTableColumn<EventRegistrant>,
-          ]
-        : registrationQuestions.map(
-            (question) =>
-              ({
-                key: `question-${question.id}`,
-                label: question.prompt,
-                sortValue: (registrant: EventRegistrant) =>
-                  answerFor(registrant, question.id),
-                hideBelow: "md",
-                headClassName: "min-w-32 max-w-48 whitespace-normal",
-                cellClassName:
-                  "app-muted min-w-32 max-w-56 text-xs whitespace-normal",
-                render: (registrant: EventRegistrant) =>
-                  answerFor(registrant, question.id),
-              }) satisfies PortalDataTableColumn<EventRegistrant>,
-          )),
+      ...registrationAnswerColumns(registrationQuestions),
       {
         key: "created_at",
         label: "Registered",
@@ -621,8 +458,8 @@ export function RegistrantsTab({
                             ? "Undo check-in"
                             : "Check in"
                         }
-                        disabled={isPending && pendingId === registrant.id}
-                        onClick={() => handleToggleCheckIn(registrant)}
+                        disabled={isRowPending(registrant)}
+                        onClick={() => toggleCheckIn(registrant)}
                       />
                     }
                   >
@@ -665,81 +502,9 @@ export function RegistrantsTab({
       showRides,
       mode,
       canManage,
-      isPending,
-      pendingId,
-      handleToggleCheckIn,
+      isRowPending,
+      toggleCheckIn,
     ],
-  );
-
-  const cancelledColumns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
-    () => [
-      {
-        key: "name",
-        label: "Name",
-        sortValue: (registrant) => registrant.name,
-        cellClassName: "max-w-xs font-medium",
-        render: (registrant) => (
-          <span className="block truncate" title={registrant.name}>
-            {registrant.name}
-          </span>
-        ),
-      },
-      {
-        key: "party_size",
-        label: "Party size",
-        sortValue: (registrant) => registrant.party_size,
-        hideBelow: "sm",
-        render: (registrant) => registrant.party_size,
-      },
-      {
-        key: "reason",
-        label: "Reason",
-        sortValue: (registrant) => registrant.cancellation_reason,
-        cellClassName: "app-muted max-w-56 whitespace-normal",
-        render: (registrant) => (
-          <>
-            {cancellationReasonLabel(registrant.cancellation_reason) ?? "—"}
-            {registrant.cancellation_note && (
-              <span className="block text-xs">
-                {registrant.cancellation_note}
-              </span>
-            )}
-          </>
-        ),
-      },
-      {
-        key: "cancelled_at",
-        label: "Cancelled",
-        sortValue: (registrant) => registrant.cancelled_at,
-        hideBelow: "md",
-        cellClassName: "app-muted whitespace-nowrap",
-        render: (registrant) => formatDateTime(registrant.cancelled_at),
-      },
-      ...(mode === "edit" && canManage
-        ? [
-            {
-              key: "actions",
-              label: "Actions",
-              srOnlyLabel: true,
-              headClassName: "w-0",
-              cellClassName: "text-right whitespace-nowrap",
-              render: (registrant: EventRegistrant) => (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Restore registration for ${registrant.name}`}
-                  disabled={isPending && pendingId === registrant.id}
-                  onClick={() => handleRestore(registrant)}
-                >
-                  <RotateCcw /> Restore
-                </Button>
-              ),
-            } satisfies PortalDataTableColumn<EventRegistrant>,
-          ]
-        : []),
-    ],
-    [mode, canManage, isPending, pendingId, handleRestore],
   );
 
   // Only the copy that holds every row may claim to order them; see
@@ -782,9 +547,6 @@ export function RegistrantsTab({
         )}
       </>
     );
-
-  const detailTarget = list.find((registrant) => registrant.id === detailId);
-  const batches = canManage ? announcementBatches(messages) : [];
 
   // #1501. Behind `events: manage` here and, more to the point, in the route
   // handler itself, since a link is only a link.
@@ -856,6 +618,7 @@ export function RegistrantsTab({
       )}
 
       {(summary ||
+        (previewRows === null && headerActions) ||
         announceAction ||
         askAction ||
         downloadAction ||
@@ -863,6 +626,7 @@ export function RegistrantsTab({
         <div className="flex flex-wrap items-start justify-between gap-2">
           {summary ? <p className="app-muted text-sm">{summary}</p> : <span />}
           <div className="flex flex-wrap gap-2">
+            {previewRows === null && headerActions}
             {missingFilter}
             {downloadAction}
             {askAction}
@@ -896,137 +660,45 @@ export function RegistrantsTab({
             stickyFirstColumn
           />
 
+          {/* A page, not a sheet (#1511): the full list hosts the door's
+              check-in loop, walk-ins, messaging and export, and a surface
+              doing that much is a destination with a URL of its own. The
+              missing-answers toggle carries over so the count matches. */}
           {hasOverflow && (
-            <ListPreviewSheet
-              title="Registrants"
-              description={summary}
-              triggerLabel={`View all ${shownList.length} registrants`}
-              searchPlaceholder="Search name, email, or phone"
-              searchLabel="Search registrants"
-              query={query}
-              onQueryChange={setQuery}
-              totalCount={shownList.length}
-              filteredCount={filtered.length}
-              actions={
-                <>
-                  {headerActions}
-                  {downloadAction}
-                  {askAction}
-                  {announceAction}
-                </>
-              }
+            <Link
+              href={`${registrantsPageHref(eventId)}${missingOnly ? "?missing=1" : ""}`}
+              className={buttonVariants({
+                variant: "ghost",
+                className: "w-full",
+              })}
             >
-              <PortalDataTable
-                columns={columns}
-                rows={filtered}
-                getRowKey={(registrant) => registrant.id}
-                defaultSort={{ key: "created_at", dir: "asc" }}
-                emptyMessage="No registrants match your search. Clear or loosen it to see more."
-                // The sheet body is the scroller here and brings its own
-                // surface, so the header pins to the top of that rather than
-                // to the portal's header.
-                shell="bare"
-                stickyHeader="container"
-                stickyFirstColumn
-              />
-            </ListPreviewSheet>
+              View all {shownList.length} registrants
+            </Link>
           )}
         </>
       )}
 
-      {/* #1418. Apart from the list, so a cancelled registration is never
-          mistaken for somebody still coming. */}
-      {cancelledList.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <div>
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              className="px-0"
-              aria-expanded={showCancelled}
-              onClick={() => setShowCancelled((shown) => !shown)}
-            >
-              {showCancelled ? "Hide" : "Show"} cancelled (
-              {cancelledList.length})
-            </Button>
-          </div>
-          {showCancelled && (
-            <PortalDataTable
-              columns={cancelledColumns}
-              rows={cancelledList}
-              getRowKey={(registrant) => registrant.id}
-              defaultSort={{ key: "cancelled_at", dir: "desc" }}
-              emptyMessage="No cancelled registrations."
-              shell="bare"
-            />
-          )}
-        </section>
-      )}
+      <CancelledRegistrations
+        cancelled={cancelledList}
+        canRestore={mode === "edit" && canManage}
+        onRestore={restore}
+        isRowPending={isRowPending}
+      />
 
-      {/* Only once something has gone out. An empty card headed
-          "Announcements" on every event would be a permanent reminder of a
-          feature most events never need. */}
-      {batches.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h3 className="app-muted text-sm font-semibold">Announcements</h3>
-          <RegistrantAnnouncements batches={batches} actors={messages.actors} />
-        </section>
-      )}
+      <RegistrantAnnouncementsSection data={data} />
 
-      {/* Keyed by registrant, and mounted only for the one being read: the
-          sheet seeds its own open state, so switching rows has to remount it
-          rather than hand it a new registrant behind its back. */}
-      {detailTarget && (
-        <RegistrantDetailSheet
-          key={detailTarget.id}
-          registrant={detailTarget}
-          eventName={eventName}
-          canManage={canManage}
-          messages={messages.byRecord[detailTarget.id] ?? []}
-          messageActors={messages.actors}
-          orgName={messaging?.orgName ?? ""}
-          replyTo={messaging?.replyTo ?? null}
-          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
-          waiverInForce={waiverInForce}
-          photoConsentInForce={photoConsentInForce}
-          optionsPrompt={registrationOptions?.prompt ?? null}
-          registrationQuestions={registrationQuestions}
-          onClosed={() => setDetailId(null)}
-          onSent={refreshRegistrants}
-          onAnswersSaved={refreshRegistrants}
-        />
-      )}
-
-      {/* Keyed so the form re-seeds from whichever registrant was opened.
-          Rendered as a sibling of the sheet, not inside it: the house pattern
-          for a second overlay, and it keeps the sheet standing behind the
-          dialog so closing the profile returns you to your place in the list. */}
-      {cancelTarget && (
-        <CancelRegistrationDialog
-          key={cancelTarget.id}
-          registrant={cancelTarget}
-          orgEmailEnabled={messaging?.orgEmailEnabled ?? false}
-          open
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) setCancelTarget(null);
-          }}
-          onCancelled={refreshAll}
-        />
-      )}
-
-      {riderTarget && (
-        <RiderProfileDialog
-          key={riderTarget.id}
-          registrant={riderTarget}
-          mountains={riderMountains}
-          open
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) setRiderTarget(null);
-          }}
-          onSaved={refreshAll}
-        />
-      )}
+      <RegistrantOverlays
+        data={data}
+        eventName={eventName}
+        detailId={detailId}
+        onDetailClosed={() => setDetailId(null)}
+        cancelTarget={cancelTarget}
+        onCancelClosed={() => setCancelTarget(null)}
+        riderTarget={riderTarget}
+        onRiderClosed={() => setRiderTarget(null)}
+        onChanged={refreshAll}
+        onRegistrantsChanged={refreshRegistrants}
+      />
     </div>
   );
 }

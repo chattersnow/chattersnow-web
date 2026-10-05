@@ -272,11 +272,6 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         mode={ctx.mode}
         registrants={ctx.shared.registrants}
         derived={ctx.shared.impactDerived}
-        headerActions={
-          ctx.mode === "edit" ? (
-            <RegistrantsToolbar eventId={ctx.event.id} onSaved={ctx.onSaved} />
-          ) : undefined
-        }
       />
     ),
     toolbarActions: (ctx) => (

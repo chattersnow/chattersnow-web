@@ -9,6 +9,7 @@ import {
   getPageVisibility,
   getTenantModules,
   getTenantPageVisibility,
+  platformOnlySlotKeys,
 } from "@/lib/page-visibility";
 import { collectionSurface } from "@/lib/legal-surface";
 import {
@@ -52,10 +53,6 @@ export default async function SiteContentPage({
 }) {
   const params = await searchParams;
   const requested = typeof params.page === "string" ? params.page : "";
-  const page =
-    CONTENT_PAGES.find((candidate) => candidate.key === requested) ??
-    CONTENT_PAGES[0];
-
   const supabase = await createSupabaseServerClient();
   // The section gate above became a union when #990 moved three settings
   // panels here, so it no longer proves `site_content:view` on its own. Say it
@@ -101,6 +98,17 @@ export default async function SiteContentPage({
     getTenantLexicon(supabase),
     supabase.auth.getUser(),
   ]);
+  // The platform's own marketing pages are written only on the platform
+  // tenant; nobody else can publish them, so their copy is left out entirely.
+  const platformOnly = platformOnlySlotKeys(currentTenant(tenants));
+  const pages = CONTENT_PAGES.filter(
+    (candidate) =>
+      !candidate.visibilityKey || !platformOnly.has(candidate.visibilityKey),
+  );
+  const pageKeys = new Set(pages.map((candidate) => candidate.key));
+  const page =
+    pages.find((candidate) => candidate.key === requested) ?? pages[0];
+
   const rows = (data ?? []) as SiteContentDraftRow[];
   const { published, draft } = resolveDraftAndPublished(rows);
   const rowsByKey = new Map(rows.map((row) => [row.key, row]));
@@ -174,10 +182,13 @@ export default async function SiteContentPage({
   // organization has not been sold is marked here the same way one the board
   // has switched off is. The difference -- that one of them is not theirs to
   // switch back on -- is explained where the switch is, in System Settings.
-  const hiddenPages = CONTENT_PAGES.filter(
-    (candidate) =>
-      candidate.visibilityKey && visibility[candidate.visibilityKey] === false,
-  ).map((candidate) => candidate.key);
+  const hiddenPages = pages
+    .filter(
+      (candidate) =>
+        candidate.visibilityKey &&
+        visibility[candidate.visibilityKey] === false,
+    )
+    .map((candidate) => candidate.key);
 
   return (
     <>
@@ -214,12 +225,14 @@ export default async function SiteContentPage({
           key={page.key}
           device={device}
           page={page}
-          pages={CONTENT_PAGES}
+          pages={pages}
           sections={sectionsForPage(page.key)}
           slots={slots}
           // Every page's copy, so the rail can answer "where does this
           // sentence live?" without thirteen round trips.
-          outline={buildOutline(draft, published, draftKeys)}
+          outline={buildOutline(draft, published, draftKeys).filter((entry) =>
+            pageKeys.has(entry.page),
+          )}
           hiddenPages={hiddenPages}
           programsFromModule={layoutValues[PROGRAMS_SOURCE_SLOT] === "module"}
           teamFromPeople={layoutValues[TEAM_SOURCE_SLOT] === "people"}

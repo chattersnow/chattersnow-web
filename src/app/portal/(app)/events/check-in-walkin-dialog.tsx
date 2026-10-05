@@ -29,10 +29,13 @@ import {
 export function CheckInWalkInDialog({
   eventId,
   triggerLabel = "+ Check in walk-in",
+  triggerVariant = "secondary",
   onSaved,
 }: {
   eventId: string;
   triggerLabel?: string;
+  /** `default` where this is the page's primary action: the registrants page. */
+  triggerVariant?: "default" | "secondary";
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -131,7 +134,7 @@ export function CheckInWalkInDialog({
       trigger={
         <Button
           type="button"
-          variant="secondary"
+          variant={triggerVariant}
           className="shrink-0 whitespace-nowrap"
         >
           {triggerLabel}
