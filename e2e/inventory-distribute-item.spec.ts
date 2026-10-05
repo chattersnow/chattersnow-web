@@ -2,6 +2,7 @@ import { test, expect } from "./helpers/test";
 import { signIn } from "./helpers/auth";
 import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
+import { exactLabel } from "./helpers/labels";
 import { pickPerson, seedPerson } from "./helpers/people";
 import { seedUserWithRole, type SeededUser } from "./helpers/rbac";
 
@@ -133,9 +134,22 @@ test.describe("distribute an item from its page", () => {
     });
     await expect(reopen).toBeVisible({ timeout: 15_000 });
     await reopen.click();
+
+    // Checkout (#1519): the tags here are random codes, so there is nothing to
+    // tick off, and the recipient acknowledges on this device before Record
+    // is enabled.
     await dialog
-      .getByRole("button", { name: "Record 3 items" })
+      .getByRole("button", { name: "Check out 3 items" })
       .click({ timeout: 15_000 });
+    const record = dialog.getByRole("button", { name: "Record 3 items" });
+    await expect(record).toBeDisabled();
+    await dialog.getByRole("button", { name: "Hand them this device" }).click();
+    const handed = page.getByRole("dialog", { name: "Before you take these" });
+    await handed.getByLabel(exactLabel("Your name")).fill("E2E Recipient");
+    await handed.getByRole("checkbox").check();
+    await handed.getByRole("button", { name: "I understand" }).click();
+    await expect(handed).not.toBeVisible();
+    await record.click();
     await expect(dialog).not.toBeVisible({ timeout: 15_000 });
 
     const { data: movements, error } = await admin

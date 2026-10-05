@@ -1,4 +1,5 @@
 import { labelFor } from "@/lib/inventory";
+import { describeAcknowledgement } from "@/lib/distribution-acknowledgement";
 import { SOURCE_TYPES } from "../../donations/donation-shared";
 
 /**
@@ -29,6 +30,12 @@ export type ItemHistoryRow = {
   recipient_name: string | null;
   gear_request_id: string | null;
   recorded_by: string | null;
+  /** A handout's as-is acknowledgement, or why there is none (#1519). */
+  as_is_acknowledged_at?: string | null;
+  as_is_typed_name?: string | null;
+  as_is_method?: string | null;
+  as_is_skipped_reason?: string | null;
+  as_is_skipped_note?: string | null;
   recorded_by_name: string | null;
 };
 
@@ -65,6 +72,8 @@ export type MovementEntry = {
   gearRequest: Link | null;
   reason: string | null;
   notes: string | null;
+  /** "Acknowledged as-is by Jane Doe on their own phone", or why not (#1519). */
+  acknowledgement: string | null;
   recordedBy: string | null;
 };
 
@@ -184,6 +193,13 @@ function toMovement(row: ItemHistoryRow): MovementEntry {
       : null,
     reason: row.reason?.trim() || null,
     notes: row.notes?.trim() || null,
+    acknowledgement: describeAcknowledgement({
+      acknowledgedAt: row.as_is_acknowledged_at ?? null,
+      typedName: row.as_is_typed_name?.trim() || null,
+      method: row.as_is_method ?? null,
+      skippedReason: row.as_is_skipped_reason ?? null,
+      skippedNote: row.as_is_skipped_note?.trim() || null,
+    }),
     recordedBy: row.recorded_by_name?.trim() || null,
   };
 }

@@ -17,6 +17,7 @@ const entries: HistoryEntry[] = [
     gearRequest: null,
     reason: null,
     notes: null,
+    acknowledgement: "Acknowledged as-is by Jamie Rivera on their own phone",
     recordedBy: "Sam Lee",
   },
   {
@@ -47,6 +48,12 @@ describe("ItemHistoryCard", () => {
     expect(
       within(items[0]).getByRole("link", { name: "Jamie Rivera" }),
     ).toHaveAttribute("href", "/portal/people/person-2");
+    // The handout's as-is acknowledgement (#1519).
+    expect(
+      within(items[0]).getByText(
+        "Acknowledged as-is by Jamie Rivera on their own phone",
+      ),
+    ).toBeInTheDocument();
     expect(within(items[1]).getByText("Donated")).toBeInTheDocument();
     expect(within(items[1]).getByText("Sep 18, 2026")).toBeInTheDocument();
     expect(

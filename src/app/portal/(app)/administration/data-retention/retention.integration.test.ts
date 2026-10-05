@@ -220,6 +220,8 @@ const OWNED_TABLES = [
   "pending_role_grants",
   "person_merges",
   "inventory_movements",
+  // #1519. Referenced by inventory_movements, so after it.
+  "distribution_acknowledgements",
   // #1501. Both cascade (from the registration and the event), but the list
   // reads as the dependency order it documents.
   "event_registration_answers",
@@ -1040,6 +1042,42 @@ describe("run_retention_purge", () => {
       expect(data!.as_is_text).toBe(
         "We give away items exactly as they reach us.",
       );
+    });
+
+    // #1519, rule E3. An in-person handout's acknowledgement keeps when, what
+    // was shown and how; the recipient link and the name they typed go on the
+    // same clock.
+    test("a handout acknowledgement loses the typed name and keeps the record", async () => {
+      const acknowledgedAt = new Date(Date.now() - 7 * DAY).toISOString();
+      const { data: inserted, error } = await serviceClient
+        .from("distribution_acknowledgements")
+        .insert({
+          tenant_id: await tenantId(),
+          recipient_person_id: requesterId,
+          acknowledged_at: acknowledgedAt,
+          as_is_text: "We give away items exactly as they reach us.",
+          typed_name: "Retention Requester",
+          method: "own_device",
+          created_at: acknowledgedAt,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      await setMode("gear_requests", "enforce");
+      await runPurge({ dryRun: false, asOf: clockAt(3 * YEAR + DAY) });
+
+      const { data } = await serviceClient
+        .from("distribution_acknowledgements")
+        .select("recipient_person_id, typed_name, method, as_is_text")
+        .eq("id", inserted.id)
+        .single();
+      expect(data).toEqual({
+        recipient_person_id: null,
+        typed_name: null,
+        method: "own_device",
+        as_is_text: "We give away items exactly as they reach us.",
+      });
     });
   });
 

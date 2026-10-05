@@ -185,7 +185,7 @@ export function SalesRegister({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="space-y-4">
         <Card>
           <CardHeader>
@@ -489,14 +489,19 @@ export function SalesRegister({
                 value={eventId}
                 onValueChange={(value) => setEventId(value ?? NO_EVENT)}
               >
-                <SelectTrigger id="register-event">
-                  <SelectValue placeholder="Event">
-                    {(value: string) =>
-                      value === NO_EVENT
-                        ? "No event"
-                        : (events.find((event) => event.id === value)?.name ??
-                          "Event")
-                    }
+                {/* Full width and truncated: an event's name is the
+                    organizer's, and a long one used to widen the whole
+                    register past a phone's screen. */}
+                <SelectTrigger id="register-event" className="w-full min-w-0">
+                  <SelectValue placeholder="Event" className="min-w-0">
+                    {(value: string) => (
+                      <span className="min-w-0 truncate">
+                        {value === NO_EVENT
+                          ? "No event"
+                          : (events.find((event) => event.id === value)?.name ??
+                            "Event")}
+                      </span>
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

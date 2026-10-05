@@ -44,6 +44,13 @@ export const EVENT_ANNOUNCEMENT_KIND = "event_announcement";
  */
 export const REGISTRATION_ANSWERS_REQUEST_KIND = "registration_answers_request";
 
+/**
+ * A request for a gear requester to acknowledge the as-is terms by emailed
+ * link (#1518). Not a notification kind, for #1502's reason: it is about
+ * something they asked for. The org-wide switch governs it.
+ */
+export const GEAR_AS_IS_REQUEST_KIND = "gear_as_is_request";
+
 /** Matching the check constraints on `outbound_messages`. */
 export const MAX_MESSAGE_SUBJECT_LENGTH = 200;
 export const MAX_MESSAGE_BODY_LENGTH = 5000;
@@ -140,6 +147,9 @@ export function outboundMessageSenderLabel(
   }
   if (kind === REGISTRATION_ANSWERS_REQUEST_KIND) {
     return `Request for answers, sent by ${senderName}`;
+  }
+  if (kind === GEAR_AS_IS_REQUEST_KIND) {
+    return `Request to acknowledge as-is, sent by ${senderName}`;
   }
   return `Receipt, resent by ${senderName}`;
 }

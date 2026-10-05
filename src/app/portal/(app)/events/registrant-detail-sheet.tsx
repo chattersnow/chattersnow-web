@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantMessageActions } from "./registrant-message-actions";
@@ -126,6 +127,10 @@ export function RegistrantDetailSheet({
   // `?registrant=` back out of the URL once the sheet has been dismissed, so a
   // refresh does not re-open it.
   const { open, onOpenChange } = useDeepLinkedSheet(REGISTRANT_PARAM, true);
+  // Opening focuses the sheet itself, not its first tabbable element: that is
+  // the tooltip-wrapped Close, whose tooltip would open on focus and swallow
+  // the first Escape, leaving the sheet up.
+  const popupRef = useRef<HTMLDivElement>(null);
 
   const rider = registrant.rider;
   const disciplineLabel = ridingDisciplineLabel(
@@ -156,7 +161,12 @@ export function RegistrantDetailSheet({
         if (!next) onClosed();
       }}
     >
-      <SheetContent side="right" showCloseButton={false}>
+      <SheetContent
+        ref={popupRef}
+        side="right"
+        showCloseButton={false}
+        initialFocus={popupRef}
+      >
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <Tooltip>
             <SheetClose

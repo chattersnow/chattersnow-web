@@ -275,10 +275,17 @@ describe("numbered codes (integration)", () => {
     );
     expect(addError).toBeNull();
 
-    const { data, error } = await adminClient.rpc(
-      "record_distribution_draft",
-      {},
-    );
+    // Recording refuses until the tag is ticked off as removed (#1519).
+    const refused = await adminClient.rpc("record_distribution_draft", {
+      p_skipped_reason: "declined_to_wait",
+    });
+    expect(refused.error?.message).toBe("TAGS_NOT_REMOVED");
+    expect(refused.error?.details).toBe(code.value);
+
+    const { data, error } = await adminClient.rpc("record_distribution_draft", {
+      p_removed_tags: [code.value],
+      p_skipped_reason: "declined_to_wait",
+    });
     expect(error).toBeNull();
     expect(data?.[0]).toMatchObject({
       recorded: 1,

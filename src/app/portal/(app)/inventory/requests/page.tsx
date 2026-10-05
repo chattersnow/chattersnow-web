@@ -15,6 +15,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { GearRequestsTable, type GearRequestListRow } from "./requests-table";
 import { GearRequestSettingsPanel } from "./request-settings-panel";
+import { AskAllAsIsDialog } from "./ask-all-as-is-dialog";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import {
+  oneAsIsRequest,
+  type AsIsRequestCandidate,
+  type AsIsRequestStatus,
+} from "@/lib/gear-request-as-is-requests";
 
 type RequestsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -31,6 +38,11 @@ const STATUS_FILTERS = [
 ] as const;
 
 const OPEN_STATUSES = ["new", "quoted", "paid"];
+
+type RawAsIsRequest = AsIsRequestStatus | AsIsRequestStatus[] | null;
+type RawListRow = Omit<GearRequestListRow, "as_is_request"> & {
+  as_is_request: RawAsIsRequest;
+};
 
 // The section is named in the tenant's own words (#896), so the page is too.
 export async function generateMetadata(): Promise<Metadata> {
@@ -60,20 +72,48 @@ export default async function GearRequestsPage({
   let query = supabase
     .from("gear_requests")
     .select(
-      "id, status, delivery_method, quoted_amount, created_at, requester:people(id, name, preferred_name, email), items:inventory_movements(inventory_item:inventory_items(description))",
+      "id, status, delivery_method, quoted_amount, created_at, as_is_acknowledged_at, as_is_method, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people(id, name, preferred_name, email), items:inventory_movements(inventory_item:inventory_items(description))",
     )
     .order("created_at", { ascending: false });
   if (statusFilter === "open") query = query.in("status", OPEN_STATUSES);
   else if (statusFilter !== "all") query = query.eq("status", statusFilter);
 
-  const [{ data: rows, error }, settingsResult] = await Promise.all([
-    query,
-    canManage
-      ? supabase.rpc("get_gear_request_settings")
-      : Promise.resolve(null),
-  ]);
+  const [{ data: rows, error }, settingsResult, asIsCandidates, orgEmail] =
+    await Promise.all([
+      query,
+      canManage
+        ? supabase.rpc("get_gear_request_settings")
+        : Promise.resolve(null),
+      // Every request still missing its as-is acknowledgement, whatever the
+      // filter shows, for the bulk ask (#1518).
+      canManage
+        ? supabase
+            .from("gear_requests")
+            .select(
+              "id, status, person_id, as_is_acknowledged_at, requester:people(name, preferred_name, email), as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at)",
+            )
+            .is("as_is_acknowledged_at", null)
+            .neq("status", "cancelled")
+            .order("created_at", { ascending: true })
+        : Promise.resolve(null),
+      canManage ? getOrgEmailEnabled(supabase) : false,
+    ]);
 
-  const requests = (rows ?? []) as unknown as GearRequestListRow[];
+  const requests = ((rows ?? []) as unknown as RawListRow[]).map(
+    (row): GearRequestListRow => ({
+      ...row,
+      as_is_request: oneAsIsRequest(row.as_is_request),
+    }),
+  );
+  const candidates = (
+    (asIsCandidates?.data ?? []) as unknown as (Omit<
+      AsIsRequestCandidate,
+      "as_is_request"
+    > & { as_is_request: RawAsIsRequest })[]
+  ).map((row): AsIsRequestCandidate => ({
+    ...row,
+    as_is_request: oneAsIsRequest(row.as_is_request),
+  }));
   const filterLabel =
     STATUS_FILTERS.find((option) => option.value === statusFilter)?.label ??
     statusFilter;
@@ -117,6 +157,24 @@ export default async function GearRequestsPage({
           Apply
         </Button>
       </form>
+
+      {canManage && candidates.length > 0 ? (
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="app-muted text-sm">
+            {candidates.length === 1
+              ? "1 request has no as-is acknowledgement on record."
+              : `${candidates.length} requests have no as-is acknowledgement on record.`}
+          </p>
+          <AskAllAsIsDialog
+            candidates={candidates}
+            disabledReason={
+              orgEmail
+                ? undefined
+                : "Outbound email is switched off for this organization."
+            }
+          />
+        </div>
+      ) : null}
 
       <div className="mt-6">
         {error ? (

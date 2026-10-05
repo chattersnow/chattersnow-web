@@ -10,13 +10,14 @@ import { reloadStayingSignedIn, signIn } from "./helpers/auth";
 import { modal } from "./helpers/dialog";
 import { portalMain } from "./helpers/regions";
 import { exactLabel } from "./helpers/labels";
+import { createAdminClient } from "./helpers/admin-client";
+import { seedUserWithRole, type SeededUser } from "./helpers/rbac";
+
+const admin = createAdminClient();
 
 test.describe("portal inventory distribution", () => {
-  test.beforeEach(async ({ page }) => {
-    await signIn(page);
-  });
-
   test("loads the Distribution page", async ({ page }) => {
+    await signIn(page);
     await page.goto("/portal/inventory/distribution");
     await expect(
       page.getByRole("heading", {
@@ -25,6 +26,28 @@ test.describe("portal inventory distribution", () => {
         exact: true,
       }),
     ).toBeVisible();
+  });
+});
+
+// Picking an item adds it to the signed-in person's handout list on the
+// server (#1519), and a tag opened while that list is open offers it instead
+// of the item page. So this records as a throwaway account rather than the
+// seeded admin the parallel suite shares: its list would otherwise appear in
+// every other admin test's tag scan.
+test.describe("portal inventory distribution, recorded", () => {
+  let user: SeededUser;
+
+  test.beforeEach(async ({ page }) => {
+    user = await seedUserWithRole(admin, "admin");
+    await signIn(page, { email: user.email });
+  });
+
+  test.afterEach(async () => {
+    await admin
+      .from("inventory_distribution_drafts")
+      .delete()
+      .eq("user_id", user.userId);
+    await user.cleanup();
   });
 
   test("records a distribution, views its detail page, edits it, and deletes it", async ({
@@ -72,15 +95,39 @@ test.describe("portal inventory distribution", () => {
     await expect(
       recordDialog.getByRole("heading", { name: "Record a distribution" }),
     ).toBeVisible();
-    await recordDialog.getByLabel("Inventory item").click();
+    // Picking adds to the handout's list (#1519).
+    await recordDialog.getByLabel("Add an item").click();
     await page
       .getByRole("listbox")
       .getByText(`${itemDescription} (Jacket)`, { exact: true })
       .click();
+    // Exact: the "added" notice names the item too.
+    await expect(
+      recordDialog.getByText(itemDescription, { exact: true }),
+    ).toBeVisible();
     await recordDialog.getByLabel("Reason / notes").fill("E2E initial reason");
     await recordDialog
-      .getByRole("button", { name: "Record distribution" })
+      .getByRole("button", { name: "Check out 1 item" })
       .click();
+
+    // The recipient acknowledges on this device, handed to them (#1519);
+    // Record stays disabled until they have.
+    const record = recordDialog.getByRole("button", { name: "Record 1 item" });
+    await expect(record).toBeDisabled();
+    await recordDialog
+      .getByRole("button", { name: "Hand them this device" })
+      .click();
+    const handed = page.getByRole("dialog", { name: "Before you take these" });
+    await handed.getByLabel(exactLabel("Your name")).fill("E2E Recipient");
+    await handed.getByRole("checkbox").check();
+    await handed.getByRole("button", { name: "I understand" }).click();
+    await expect(handed).not.toBeVisible();
+    await expect(
+      recordDialog.getByText(
+        "Acknowledged by E2E Recipient on a staff device.",
+      ),
+    ).toBeVisible();
+    await record.click();
     await expect(recordDialog).not.toBeVisible();
 
     // Recording triggers a router.refresh() that re-renders the table; a

@@ -136,6 +136,7 @@ function MovementItem({ entry }: { entry: MovementEntry }) {
             <span className="whitespace-pre-line">{entry.notes}</span>
           )}
         </Detail>
+        <Detail label="As-is">{entry.acknowledgement}</Detail>
         <Detail label="Recorded by">{entry.recordedBy}</Detail>
       </dl>
     </>

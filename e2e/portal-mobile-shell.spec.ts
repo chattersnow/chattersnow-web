@@ -279,8 +279,6 @@ test.describe("portal tables on a phone", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/portal/inventory/distribution");
 
-    // Only one button carries this name until the surface opens; the submit
-    // button inside it shares the label, so every assertion below is scoped.
     await page.getByRole("button", { name: "Record distribution" }).click();
     const surface = modal(page);
     await expect(surface).toBeVisible();
@@ -310,7 +308,7 @@ test.describe("portal tables on a phone", () => {
     // The submit button is on screen without scrolling the form, which is what
     // the pinned footer is for.
     await expect(
-      surface.getByRole("button", { name: "Record distribution" }),
+      surface.getByRole("button", { name: /^Check out/ }),
     ).toBeInViewport();
   });
 });
