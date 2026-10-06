@@ -127,6 +127,109 @@ export async function setGearRequestStatusAction(
   return { success: true };
 }
 
+const EDIT_ERROR_MESSAGES: Record<string, string> = {
+  PERMISSION_DENIED: "You don't have permission to update requests.",
+  REQUEST_NOT_FOUND: "This request could not be found.",
+  REQUEST_CLOSED: "This request is already fulfilled or cancelled.",
+  ITEM_NOT_FOUND: "That item could not be found in the gear library.",
+  ITEM_NOT_AVAILABLE: "That item is no longer available.",
+  ITEM_NOT_HELD: "This request is not holding that item.",
+  LAST_ITEM:
+    "This is the last item on the request. Cancel the request instead.",
+};
+
+/** Signed in and holding inventory:manage, or the sentence saying why not. */
+async function checkCanEditRequest(
+  supabase: SupabaseClient,
+): Promise<{ error: string } | null> {
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update requests.",
+  );
+  if ("error" in userResult) return userResult;
+  return checkPermission(supabase, "inventory", "manage");
+}
+
+/**
+ * The three staff edits to an open request (#1527). Each RPC re-checks
+ * inventory:manage and refuses a closed request; the checks here only turn
+ * a refusal into a sentence.
+ */
+async function editGearRequest(
+  requestId: string,
+  rpc: (supabase: SupabaseClient) => PromiseLike<{
+    error: { message: string } | null;
+  }>,
+  itemsMoved: boolean,
+): Promise<GearRequestActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const denied = await checkCanEditRequest(supabase);
+  if (denied) return denied;
+
+  const { error } = await rpc(supabase);
+  if (error) {
+    return {
+      error:
+        EDIT_ERROR_MESSAGES[error.message] ??
+        "Could not update this request. Please try again.",
+    };
+  }
+
+  revalidatePath(REQUESTS_PATH);
+  revalidatePath(`${REQUESTS_PATH}/${requestId}`);
+  // An item taken off or put on a request leaves or joins the catalogue.
+  if (itemsMoved) {
+    revalidatePath("/portal/inventory/items");
+    revalidatePath("/inventory/library");
+  }
+  return { success: true };
+}
+
+export async function addGearRequestItemAction(
+  requestId: string,
+  itemId: string,
+): Promise<GearRequestActionResult> {
+  return editGearRequest(
+    requestId,
+    (supabase) =>
+      supabase.rpc("add_gear_request_item", {
+        p_request_id: requestId,
+        p_inventory_item_id: itemId,
+      }),
+    true,
+  );
+}
+
+export async function removeGearRequestItemAction(
+  requestId: string,
+  itemId: string,
+): Promise<GearRequestActionResult> {
+  return editGearRequest(
+    requestId,
+    (supabase) =>
+      supabase.rpc("remove_gear_request_item", {
+        p_request_id: requestId,
+        p_inventory_item_id: itemId,
+      }),
+    true,
+  );
+}
+
+export async function setGearRequestNotesAction(
+  requestId: string,
+  notes: string,
+): Promise<GearRequestActionResult> {
+  return editGearRequest(
+    requestId,
+    (supabase) =>
+      supabase.rpc("set_gear_request_notes", {
+        p_request_id: requestId,
+        p_notes: notes,
+      }),
+    false,
+  );
+}
+
 export type GearRequestSettingsInput = {
   shippingEnabled: boolean;
   paymentMethods: PaymentMethod[];

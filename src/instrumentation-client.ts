@@ -55,11 +55,6 @@ Sentry.init({
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV,
   release: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA,
 
-  // Turns on the Logs product. Nothing is sent until something calls
-  // `Sentry.logger.*` -- console output is not forwarded unless
-  // `consoleLoggingIntegration` is added -- so this costs no quota today.
-  enableLogs: true,
-
   // Session Replay is intentionally not enabled: the free Developer plan
   // includes 50 replays a month, which one afternoon of real traffic would
   // exhaust. Add `Sentry.replayIntegration()` plus `replaysOnErrorSampleRate`

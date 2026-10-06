@@ -96,7 +96,16 @@ export type EventPlanningFormData = {
    */
   adultsOnly: boolean | null;
   budgetAmount: number | null;
+  /**
+   * A paragraph added to this event's registration confirmation email. Same
+   * null-when-absent rule as `adultsOnly`; sent blank, it clears the note
+   * (stored as null).
+   */
+  confirmationNote: string | null | undefined;
 };
+
+/** AUTO_REPLY_PARAGRAPH_MAX_LENGTH, the paragraphs either side of it. */
+export const CONFIRMATION_NOTE_MAX_LENGTH = 1000;
 
 export function parseEventPlanningForm(
   formData: FormData,
@@ -119,6 +128,19 @@ export function parseEventPlanningForm(
       ? null
       : adultsOnlyRaw === "on" || adultsOnlyRaw === "true";
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
+  const confirmationNoteRaw = formData.get("confirmationNote");
+  const confirmationNote =
+    confirmationNoteRaw === null
+      ? undefined
+      : String(confirmationNoteRaw).trim() || null;
+  if (
+    confirmationNote &&
+    confirmationNote.length > CONFIRMATION_NOTE_MAX_LENGTH
+  ) {
+    return {
+      error: `Confirmation email note must be ${CONFIRMATION_NOTE_MAX_LENGTH} characters or fewer.`,
+    };
+  }
 
   let capacity: number | null = null;
   if (capacityRaw) {
@@ -172,6 +194,7 @@ export function parseEventPlanningForm(
       autoAssignDiscountCodes,
       adultsOnly,
       budgetAmount,
+      confirmationNote,
     },
   };
 }

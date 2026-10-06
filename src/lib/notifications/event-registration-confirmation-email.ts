@@ -83,6 +83,13 @@ export type EventRegistrationConfirmation = {
    * asks none, which renders no section.
    */
   answers?: { prompt: string; answer: string }[];
+  /**
+   * events.confirmation_note: the organizer's paragraph for everyone who
+   * registers for this one event -- a shared discount code, what to bring.
+   * Blank or omitted renders nothing. Unlike the slots it has no tokens and
+   * no platform default; it is the event's, not the tenant's.
+   */
+  note?: string | null;
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -113,6 +120,7 @@ export function renderEventRegistrationConfirmationEmail(
   const url = `${normalizeOrigin(confirmation.siteUrl)}${publicEventPath(confirmation.eventId)}`;
   const rows = detailRows(confirmation);
   const answers = confirmation.answers ?? [];
+  const note = confirmation.note?.trim() ?? "";
   const calendarNote =
     "A calendar file is attached, so you can add it to your own calendar.";
 
@@ -139,6 +147,7 @@ export function renderEventRegistrationConfirmationEmail(
     words.greeting,
     details,
     answersText,
+    note,
     `Event details: ${url}`,
     calendarNote,
     words.closing,
@@ -170,6 +179,7 @@ export function renderEventRegistrationConfirmationEmail(
     copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
     `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${rowsHtml}\n  </ul>`,
     answersHtml,
+    copyParagraphHtml(note, "margin: 0 0 20px;"),
     `  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">See the event page</a></p>`,
     `  <p style="margin: 0 0 12px;">${escapeHtml(calendarNote)}</p>`,
     copyParagraphHtml(words.closing, "margin: 0 0 12px;"),

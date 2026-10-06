@@ -276,6 +276,7 @@ export async function updateEventPlanningAction(
     autoAssignDiscountCodes,
     adultsOnly,
     budgetAmount,
+    confirmationNote,
   } = parsed.data;
 
   const { error } = await supabase
@@ -288,6 +289,9 @@ export async function updateEventPlanningAction(
       auto_assign_discount_codes: autoAssignDiscountCodes,
       ...(adultsOnly === null ? {} : { adults_only: adultsOnly }),
       budget_amount: budgetAmount,
+      ...(confirmationNote === undefined
+        ? {}
+        : { confirmation_note: confirmationNote }),
     })
     .eq("id", id);
 
