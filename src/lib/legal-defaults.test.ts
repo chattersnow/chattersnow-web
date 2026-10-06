@@ -278,7 +278,7 @@ describe("the collection surface", () => {
     const text = readable("legal.privacy", withSurfaces(NOTHING));
     expect(text).toContain("Portal accounts");
     expect(text).toContain("IP address");
-    expect(text).toContain("encrypted backups");
+    expect(text).toContain("kept for 7 days");
     expect(text).toContain("Supabase");
   });
 

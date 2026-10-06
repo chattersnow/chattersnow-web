@@ -5,8 +5,8 @@
  *
  * Contact details are the point of care here. Registering never implies
  * sharing (#1318, docs/legal-basis.md): an event's consent question marked
- * `shares_contact` is the only thing that puts a registrant's email and phone
- * into this file, and only on the rows that ticked it. An event with no such
+ * `shares_contact` is the only thing that puts a registrant's email, phone and
+ * Instagram handle into this file, and only on the rows that ticked it. An event with no such
  * question has no contact columns at all, so a file made for a partner cannot
  * carry them by accident.
  */
@@ -22,6 +22,7 @@ export type AnswersCsvRegistration = {
   party_size: number;
   email: string | null;
   phone: string | null;
+  instagram_handle: string | null;
   answers: {
     question_id: string | null;
     answer_text: string;
@@ -69,8 +70,8 @@ export function csvField(value: string | number | null): string {
 
 /**
  * Name, party size, one column per current question in the event's order
- * (each its answer in words, blank where unanswered), then Email and Phone
- * only where the event has a `shares_contact` question -- filled only on the
+ * (each its answer in words, blank where unanswered), then Email, Phone and
+ * Instagram only where the event has a `shares_contact` question -- filled only on the
  * rows that agreed. CRLF line endings, as RFC 4180 and Excel expect.
  */
 export function registrantAnswersCsv(
@@ -82,7 +83,7 @@ export function registrantAnswersCsv(
     "Name",
     "Party size",
     ...questions.map((question) => question.prompt),
-    ...(withContact ? ["Email", "Phone"] : []),
+    ...(withContact ? ["Email", "Phone", "Instagram"] : []),
   ];
 
   const rows = registrations.map((registration) => {
@@ -101,6 +102,9 @@ export function registrantAnswersCsv(
         ? [
             shares ? registration.email || null : null,
             shares ? registration.phone || null : null,
+            // Bare, as stored: an `@` prefix would come out as `'@` from
+            // csvField's formula guard.
+            shares ? registration.instagram_handle || null : null,
           ]
         : []),
     ];

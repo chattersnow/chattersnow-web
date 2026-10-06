@@ -42,7 +42,7 @@ export async function GET(
     supabase
       .from("event_registrations")
       .select(
-        "name, email, phone, party_size, answers:event_registration_answers(question_id, answer_text, value)",
+        "name, email, phone, instagram_handle, party_size, answers:event_registration_answers(question_id, answer_text, value)",
       )
       .eq("event_id", eventId)
       .is("cancelled_at", null)
