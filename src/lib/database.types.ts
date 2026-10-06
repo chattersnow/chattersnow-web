@@ -10167,6 +10167,10 @@ export type Database = {
         Args: { p_acknowledged: boolean; p_text: string };
         Returns: string;
       };
+      add_gear_request_item: {
+        Args: { p_inventory_item_id: string; p_request_id: string };
+        Returns: undefined;
+      };
       add_to_distribution_draft: {
         Args: { p_event_id?: string; p_item_id: string };
         Returns: string;
@@ -11594,6 +11598,10 @@ export type Database = {
           item_id: string;
         }[];
       };
+      remove_gear_request_item: {
+        Args: { p_inventory_item_id: string; p_request_id: string };
+        Returns: undefined;
+      };
       remove_tenant_member: { Args: { p_user_id: string }; Returns: undefined };
       reopen_event_report: {
         Args: { p_id: string; p_reason: string };
@@ -11951,6 +11959,10 @@ export type Database = {
       };
       set_donation_import_mapping: {
         Args: { p_mapping: Json };
+        Returns: undefined;
+      };
+      set_gear_request_notes: {
+        Args: { p_notes: string; p_request_id: string };
         Returns: undefined;
       };
       set_gear_request_settings: {

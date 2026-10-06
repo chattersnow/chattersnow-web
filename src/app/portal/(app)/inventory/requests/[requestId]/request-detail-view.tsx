@@ -35,6 +35,13 @@ import {
 import { RequestMessagesCard } from "./request-messages-card";
 import { ViewerTime } from "@/components/viewer-time";
 import { instagramUrl } from "@/components/instagram-link";
+import { RequestItemThumb } from "./request-item-thumb";
+import { RemoveRequestItemButton } from "./remove-request-item-button";
+import {
+  AddRequestItemDialog,
+  type AddableItem,
+} from "./add-request-item-dialog";
+import { EditRequestNotesDialog } from "./edit-request-notes-dialog";
 
 export type GearRequestDetailRow = {
   id: string;
@@ -77,6 +84,7 @@ export type GearRequestDetailRow = {
       description: string;
       size: string | null;
       status: string;
+      photo_url: string | null;
       category_label: { label: string } | null;
     } | null;
   }[];
@@ -110,6 +118,7 @@ export function GearRequestDetailView({
   orgName,
   replyTo,
   orgEmailEnabled,
+  addableItems,
 }: {
   request: GearRequestDetailRow;
   paymentMethods: PaymentMethod[];
@@ -120,6 +129,8 @@ export function GearRequestDetailView({
   orgName: string;
   replyTo: string | null;
   orgEmailEnabled: boolean;
+  /** On the shelf and addable; only read when the request can be edited. */
+  addableItems: AddableItem[];
 }) {
   const requesterName = personDisplayName(
     request.requester,
@@ -143,6 +154,9 @@ export function GearRequestDetailView({
     .map((movement) => movement.inventory_item)
     .filter((item): item is NonNullable<typeof item> => item !== null);
   const heldCount = items.filter((item) => item.status === "reserved").length;
+  // Staff edits (#1527) are for an open request only, like the status moves.
+  const canEdit = canManage && isOpenGearRequest(request.status);
+  const columnCount = canEdit ? 5 : 4;
 
   return (
     <>
@@ -360,6 +374,14 @@ export function GearRequestDetailView({
                 ) : (
                   "—"
                 )}
+                {canEdit && (
+                  <div className="mt-2">
+                    <EditRequestNotesDialog
+                      requestId={request.id}
+                      notes={request.notes}
+                    />
+                  </div>
+                )}
               </ReadOnlyField>
             </FieldGroup>
           </CardContent>
@@ -367,10 +389,17 @@ export function GearRequestDetailView({
       </div>
 
       <Card className="mt-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle className="app-muted text-sm font-semibold">
             {lexicon.item_plural} requested
           </CardTitle>
+          {canEdit && (
+            <AddRequestItemDialog
+              requestId={request.id}
+              items={addableItems}
+              lexicon={lexicon}
+            />
+          )}
         </CardHeader>
         <CardContent className="px-0">
           <Table>
@@ -380,12 +409,20 @@ export function GearRequestDetailView({
                 <TableHead hideBelow="sm">Category</TableHead>
                 <TableHead hideBelow="sm">Size</TableHead>
                 <TableHead>Progress</TableHead>
+                {canEdit && (
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="app-muted text-sm">
+                  <TableCell
+                    colSpan={columnCount}
+                    className="app-muted text-sm"
+                  >
                     No items are linked to this request.
                   </TableCell>
                 </TableRow>
@@ -393,7 +430,15 @@ export function GearRequestDetailView({
                 items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
-                      {item.description}
+                      <Link
+                        href={`/portal/inventory/items/${item.id}`}
+                        className="flex items-center gap-3 underline-offset-2 hover:underline"
+                      >
+                        <RequestItemThumb photoUrl={item.photo_url} />
+                        <span className="min-w-0 break-words">
+                          {item.description}
+                        </span>
+                      </Link>
                     </TableCell>
                     <TableCell hideBelow="sm" className="app-muted">
                       {item.category_label?.label ?? "—"}
@@ -402,6 +447,18 @@ export function GearRequestDetailView({
                       {item.size ?? "—"}
                     </TableCell>
                     <TableCell>{itemProgress(item.status)}</TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right">
+                        {item.status === "reserved" && (
+                          <RemoveRequestItemButton
+                            requestId={request.id}
+                            itemId={item.id}
+                            itemLabel={item.description}
+                            isLast={items.length === 1}
+                          />
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
