@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPermission } from "@/lib/auth/permissions";
+import {
+  checkPermission,
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import {
   registrantAnswersCsv,
   registrantAnswersCsvFilename,
@@ -19,7 +23,48 @@ import {
  * `events: view` under RLS, and the file is for whoever arranges things with a
  * partner, not for the door. Cancelled registrations are left out, as the tab
  * keeps them out of its list.
+ *
+ * Rides, Ski level and Snowboard level are added for a reader who also holds
+ * `rider_profiles: view`, the same gate the registrants list puts on its
+ * Rides column -- and, through it, the rider_profile module.
  */
+const REGISTRATION_COLUMNS =
+  "name, email, phone, instagram_handle, party_size, answers:event_registration_answers(question_id, answer_text, value)";
+const RIDER_COLUMNS =
+  "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level)";
+
+type RegistrationRow = Omit<AnswersCsvRegistration, "rider"> & {
+  riding_discipline_at_event?: string | null;
+  ski_experience_level_at_event?: string | null;
+  snowboard_experience_level_at_event?: string | null;
+  person?: {
+    riding_discipline: string | null;
+    ski_experience_level: string | null;
+    snowboard_experience_level: string | null;
+  } | null;
+};
+
+function toCsvRow({
+  riding_discipline_at_event,
+  ski_experience_level_at_event,
+  snowboard_experience_level_at_event,
+  person,
+  ...registration
+}: RegistrationRow): AnswersCsvRegistration {
+  return {
+    ...registration,
+    rider: {
+      riding_discipline_at_event: riding_discipline_at_event ?? null,
+      ski_experience_level_at_event: ski_experience_level_at_event ?? null,
+      snowboard_experience_level_at_event:
+        snowboard_experience_level_at_event ?? null,
+      riding_discipline: person?.riding_discipline ?? null,
+      ski_experience_level: person?.ski_experience_level ?? null,
+      snowboard_experience_level: person?.snowboard_experience_level ?? null,
+    },
+  };
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ eventId: string }> },
@@ -30,6 +75,12 @@ export async function GET(
   if (denied) {
     return NextResponse.json({ error: denied.error }, { status: 403 });
   }
+
+  const riders = hasPermission(
+    await getCurrentUserPermissions(supabase),
+    "rider_profiles",
+    "view",
+  );
 
   const [event, questions, registrations] = await Promise.all([
     supabase.from("events").select("name").eq("id", eventId).maybeSingle(),
@@ -42,7 +93,9 @@ export async function GET(
     supabase
       .from("event_registrations")
       .select(
-        "name, email, phone, instagram_handle, party_size, answers:event_registration_answers(question_id, answer_text, value)",
+        riders
+          ? `${REGISTRATION_COLUMNS}, ${RIDER_COLUMNS}`
+          : REGISTRATION_COLUMNS,
       )
       .eq("event_id", eventId)
       .is("cancelled_at", null)
@@ -61,7 +114,8 @@ export async function GET(
 
   const csv = registrantAnswersCsv(
     questions.data ?? [],
-    (registrations.data ?? []) as AnswersCsvRegistration[],
+    ((registrations.data ?? []) as unknown as RegistrationRow[]).map(toCsvRow),
+    { riders },
   );
   const filename = registrantAnswersCsvFilename(
     event.data.name,

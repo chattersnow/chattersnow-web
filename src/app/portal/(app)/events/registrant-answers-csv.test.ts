@@ -68,7 +68,7 @@ describe("csvField", () => {
 });
 
 describe("registrantAnswersCsv", () => {
-  test("a column per question, blank where unanswered, no contact columns without a sharing question", () => {
+  test("a column per question, blank where unanswered, no email or phone without a sharing question", () => {
     const csv = registrantAnswersCsv(
       [GETTING_THERE, LEAVING_FROM],
       [
@@ -91,15 +91,15 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,Leaving from",
-      'Jamie Rivera,2,Need a ride,"Burlington, VT"',
-      "Sam Lee,1,,",
+      "Name,Party size,Getting there,Leaving from,Instagram",
+      'Jamie Rivera,2,Need a ride,"Burlington, VT",jamie.rides',
+      "Sam Lee,1,,,jamie.rides",
     ]);
     expect(csv).not.toContain("jamie@example.test");
-    expect(csv).not.toContain("jamie.rides");
+    expect(csv).not.toContain("555-0100");
   });
 
-  test("contact details only on rows that ticked the sharing question", () => {
+  test("email and phone only on rows that ticked the sharing question; Instagram on every row", () => {
     const csv = registrantAnswersCsv(
       [GETTING_THERE, SHARE],
       [
@@ -122,10 +122,10 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,OK to share my contact details with our partner,Email,Phone,Instagram",
-      "Jamie Rivera,2,,Yes,jamie@example.test,555-0100,jamie.rides",
-      "Declined,2,,No,,,",
-      "Never asked,2,,,,,",
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Instagram,Email,Phone",
+      "Jamie Rivera,2,,Yes,jamie.rides,jamie@example.test,555-0100",
+      "Declined,2,,No,declined.ig,,",
+      "Never asked,2,,,jamie.rides,,",
     ]);
   });
 
@@ -183,6 +183,46 @@ describe("sharesContact", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("registrantAnswersCsv rider columns", () => {
+  const RIDER = {
+    riding_discipline_at_event: null,
+    ski_experience_level_at_event: null,
+    snowboard_experience_level_at_event: null,
+    riding_discipline: "both",
+    ski_experience_level: "advanced",
+    snowboard_experience_level: "beginner",
+  };
+
+  test("Rides, Ski level and Snowboard level, after the questions and before contact", () => {
+    const csv = registrantAnswersCsv(
+      [GETTING_THERE, SHARE],
+      [
+        registration({
+          rider: RIDER,
+          answers: [{ question_id: SHARE.id, answer_text: "Yes", value: true }],
+        }),
+        registration({ name: "Sam Lee", party_size: 1, rider: null }),
+      ],
+      { riders: true },
+    );
+
+    expect(lines(csv)).toEqual([
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Rides,Ski level,Snowboard level,Instagram,Email,Phone",
+      "Jamie Rivera,2,,Yes,Both,Advanced,Beginner,jamie.rides,jamie@example.test,555-0100",
+      "Sam Lee,1,,,,,,jamie.rides,,",
+    ]);
+  });
+
+  test("left out without the flag, whatever the rows carry", () => {
+    const csv = registrantAnswersCsv(
+      [GETTING_THERE],
+      [registration({ rider: RIDER })],
+    );
+    expect(lines(csv)[0]).toBe("Name,Party size,Getting there,Instagram");
+    expect(csv).not.toContain("Advanced");
   });
 });
 
