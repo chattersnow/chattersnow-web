@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   parseEventAttendanceForm,
   parseEventForm,
+  CONFIRMATION_NOTE_MAX_LENGTH,
   parseEventPlanningForm,
   parseEventRegistrationOptionsField,
   parseEventReportForm,
@@ -185,6 +186,8 @@ describe("parseEventPlanningForm", () => {
         // Not sent, so left as it was (#1417).
         adultsOnly: null,
         budgetAmount: null,
+        // Not sent either, so left as it was.
+        confirmationNote: undefined,
       },
     });
   });
@@ -194,6 +197,25 @@ describe("parseEventPlanningForm", () => {
       parseEventPlanningForm(formData({ adultsOnly: value }), eventDates);
     expect(parse("on")).toMatchObject({ data: { adultsOnly: true } });
     expect(parse("off")).toMatchObject({ data: { adultsOnly: false } });
+  });
+
+  test("reads the confirmation email note", () => {
+    const parse = (fields: Record<string, string>) =>
+      parseEventPlanningForm(formData(fields), eventDates);
+    expect(parse({})).toMatchObject({ data: { confirmationNote: undefined } });
+    expect(
+      parse({ confirmationNote: "  Use code SNOW10 at checkout.  " }),
+    ).toMatchObject({
+      data: { confirmationNote: "Use code SNOW10 at checkout." },
+    });
+    expect(parse({ confirmationNote: "   " })).toMatchObject({
+      data: { confirmationNote: null },
+    });
+    expect(
+      parse({ confirmationNote: "x".repeat(CONFIRMATION_NOTE_MAX_LENGTH + 1) }),
+    ).toEqual({
+      error: `Confirmation email note must be ${CONFIRMATION_NOTE_MAX_LENGTH} characters or fewer.`,
+    });
   });
 
   test("rejects a negative capacity", () => {

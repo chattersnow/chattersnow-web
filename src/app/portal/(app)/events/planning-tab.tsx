@@ -25,12 +25,14 @@ import {
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   datetimeLocalToUtcIsoInBrowser,
   utcIsoToDatetimeLocalInBrowser,
 } from "@/lib/time";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { runAction } from "@/components/portal/action-toast";
+import { CONFIRMATION_NOTE_MAX_LENGTH } from "./event-form";
 import {
   RegistrationOptionsEditor,
   registrationOptionsDraft,
@@ -60,6 +62,7 @@ function formStateFor(event: EventRow) {
     registrationDeadline: toDatetimeLocalValue(event.registration_deadline),
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
     adultsOnly: event.adults_only ?? false,
+    confirmationNote: event.confirmation_note ?? "",
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
     registrationOptions: registrationOptionsDraft(
@@ -172,6 +175,7 @@ export function PlanningTab({
     );
     formData.set("adultsOnly", form.adultsOnly ? "on" : "off");
     formData.set("budgetAmount", form.budgetAmount);
+    formData.set("confirmationNote", form.confirmationNote);
     // Only when changed, so saving a budget does not rewrite every option
     // (and the audit log with it).
     const baselineOptions = formStateFor(event).registrationOptions;
@@ -268,6 +272,16 @@ export function PlanningTab({
         </ReadOnlyField>
         <ReadOnlyField label="Adults only (18+)" htmlFor="planning-adultsOnly">
           {form.adultsOnly ? "On" : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Confirmation email note"
+          htmlFor="planning-confirmationNote"
+        >
+          {form.confirmationNote ? (
+            <span className="whitespace-pre-line">{form.confirmationNote}</span>
+          ) : (
+            "—"
+          )}
         </ReadOnlyField>
         <ReadOnlyField
           label="Registration question"
@@ -394,6 +408,27 @@ export function PlanningTab({
             checked={form.adultsOnly}
             onCheckedChange={(checked) => update("adultsOnly", checked)}
           />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="planning-confirmationNote">
+            Confirmation email note
+          </FieldLabel>
+          <Textarea
+            id="planning-confirmationNote"
+            rows={3}
+            maxLength={CONFIRMATION_NOTE_MAX_LENGTH}
+            value={form.confirmationNote}
+            onChange={(changeEvent) =>
+              update("confirmationNote", changeEvent.target.value)
+            }
+          />
+          <FieldDescription>
+            Added to the confirmation email everyone who registers for this
+            event receives, under the event details. Use it for anything
+            everyone needs, like a shared discount code or what to bring. Not
+            shown on the public event page.
+          </FieldDescription>
         </Field>
 
         <RegistrationOptionsEditor

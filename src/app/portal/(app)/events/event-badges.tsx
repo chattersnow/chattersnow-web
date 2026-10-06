@@ -52,6 +52,11 @@ export type EventRow = {
    * Planning tab edits it; absent elsewhere.
    */
   adults_only?: boolean;
+  /**
+   * The paragraph added to this event's registration confirmation email.
+   * Loaded by the event detail page, where the Planning tab edits it.
+   */
+  confirmation_note?: string | null;
   registration_options?: {
     id: string;
     label: string;

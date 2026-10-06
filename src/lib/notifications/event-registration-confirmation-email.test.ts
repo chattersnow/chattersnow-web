@@ -183,6 +183,35 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     }
   });
 
+  test("adds the event's note under the details, escaped, in both parts", () => {
+    const note = "Use code SNOW&10 at checkout.\nBring <gloves>.";
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      note,
+    });
+    expect(text).toContain(`${note}\n\nEvent details:`);
+    expect(text.indexOf("Party size")).toBeLessThan(text.indexOf(note));
+    expect(html).toContain(
+      "Use code SNOW&amp;10 at checkout.\nBring &lt;gloves&gt;.",
+    );
+    expect(html).toContain("white-space: pre-line;");
+    expect(html.indexOf("SNOW&amp;10")).toBeLessThan(
+      html.indexOf("See the event page"),
+    );
+  });
+
+  test("an event with no note renders nothing in its place", () => {
+    const plain = renderEventRegistrationConfirmationEmail(base);
+    for (const note of [undefined, null, "", "   "]) {
+      const { text, html } = renderEventRegistrationConfirmationEmail({
+        ...base,
+        note,
+      });
+      expect(text).toBe(plain.text);
+      expect(html).toBe(plain.html);
+    }
+  });
+
   test("greets someone who gave no name without a dangling space", () => {
     const { text } = renderEventRegistrationConfirmationEmail({
       ...base,
