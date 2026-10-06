@@ -14,7 +14,9 @@ import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 
 /**
  * A gear requester's own link to acknowledge the as-is terms (#1518), sent by
- * staff for a request made before the public form asked (#1367).
+ * staff for a request made before the public form asked (#1367) -- or a
+ * recipient's, after an in-person handout recorded without it (#1519), when
+ * `handout` is set.
  *
  * The terms themselves are not in the email: the page shows the current
  * wording in the organization's own words, and the acknowledgement records
@@ -36,6 +38,9 @@ export type GearAsIsRequest = {
   siteUrl: string;
   branding?: EmailBranding;
   subject: string;
+  /** Set for a handout recorded without the acknowledgement (#1519): they
+   *  have the items already, and did not ask for them through a request. */
+  handout?: { eventName: string | null };
 };
 
 export function renderGearAsIsRequestEmail(
@@ -46,8 +51,13 @@ export function renderGearAsIsRequestEmail(
   const firstName = request.firstName.trim();
   const greeting = firstName ? `Hi ${firstName},` : "Hi,";
   const items = request.itemPlural.trim() || "items";
-  const intro = `You asked us for ${items} before we started asking everyone to read a short note about how we give things away: exactly as they reach us, with nothing inspected, serviced or certified. Could you take a minute to read it and confirm you understand?`;
-  const note = `This link is just for you: it opens your request without signing in, so please don't forward it. It works for ${request.linkDays} days.`;
+  const howWeGive =
+    "a short note about how we give things away: exactly as they reach us, with nothing inspected, serviced or certified. Could you take a minute to read it and confirm you understand?";
+  const eventName = request.handout?.eventName?.trim();
+  const intro = request.handout
+    ? `Thanks for picking up ${items} from us${eventName ? ` at ${eventName}` : ""}. We didn't get the chance to show you ${howWeGive}`
+    : `You asked us for ${items} before we started asking everyone to read ${howWeGive}`;
+  const note = `This link is just for you: it opens ${request.handout ? "the note" : "your request"} without signing in, so please don't forward it. It works for ${request.linkDays} days.`;
   const signoff = `— ${request.orgName}`;
 
   const text = joinTextBlocks([

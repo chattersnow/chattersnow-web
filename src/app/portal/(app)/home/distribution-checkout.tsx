@@ -37,9 +37,11 @@ import type { DistributionDraft } from "@/lib/inventory-distribution-draft";
 import type { Lexicon } from "@/lib/lexicon";
 import {
   acknowledgementMethodPhrase,
+  emailLinkUnavailableReason,
   SKIPPED_REASON_LABELS,
   SKIPPED_REASONS,
   type AcknowledgementView,
+  type EmailLinkAvailability,
   type SkippedReason,
 } from "@/lib/distribution-acknowledgement";
 import {
@@ -59,13 +61,31 @@ export type CheckoutState = {
   removedTags: string[];
   skippedReason: SkippedReason | null;
   skippedNote: string;
+  /** With a reason, email the recipient a link to acknowledge afterwards. */
+  emailLink: boolean;
 };
 
 export const EMPTY_CHECKOUT: CheckoutState = {
   removedTags: [],
   skippedReason: null,
   skippedNote: "",
+  emailLink: true,
 };
+
+/** Whether recording will email the recipient a link: a reason was given,
+ *  the box is ticked, and a link can be sent at all. */
+export function willEmailLink(
+  draft: DistributionDraft | null,
+  availability: EmailLinkAvailability,
+  state: CheckoutState,
+): boolean {
+  return (
+    state.skippedReason !== null &&
+    state.emailLink &&
+    !draft?.acknowledgement &&
+    emailLinkUnavailableReason(availability, draft?.recipient ?? null) === null
+  );
+}
 
 /** The numbered codes that have to come off before the handout is recorded. */
 export function tagsToRemove(
@@ -116,6 +136,7 @@ export function DistributionCheckout({
   draft,
   markDistributed,
   needsAcknowledgement,
+  emailLink,
   state,
   onStateChange,
   onDraftChanged,
@@ -124,6 +145,8 @@ export function DistributionCheckout({
   draft: DistributionDraft | null;
   markDistributed: boolean;
   needsAcknowledgement: boolean;
+  /** Whether a link to acknowledge afterwards can be emailed (#1519). */
+  emailLink: EmailLinkAvailability;
   state: CheckoutState;
   onStateChange: (next: CheckoutState) => void;
   /** Re-read the draft, which carries the acknowledgement. */
@@ -132,6 +155,10 @@ export function DistributionCheckout({
   const id = useId();
   const tags = tagsToRemove(draft, markDistributed);
   const acknowledgement = draft?.acknowledgement ?? null;
+  const linkUnavailable = emailLinkUnavailableReason(
+    emailLink,
+    draft?.recipient ?? null,
+  );
   const [code, setCode] = useState<{ url: string; qrDataUri: string } | null>(
     null,
   );
@@ -366,6 +393,30 @@ export function DistributionCheckout({
                 />
               </Field>
             )}
+            {state.skippedReason &&
+              (linkUnavailable ? (
+                <FieldDescription>{linkUnavailable}</FieldDescription>
+              ) : (
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id={`${id}-email-link`}
+                    checked={state.emailLink}
+                    onCheckedChange={(checked) =>
+                      onStateChange({ ...state, emailLink: checked === true })
+                    }
+                  />
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor={`${id}-email-link`}>
+                      Email {draft?.recipient?.name ?? "them"} a link to
+                      acknowledge it afterwards
+                    </FieldLabel>
+                    <FieldDescription>
+                      Sent to {draft?.recipient?.email} when you record. The
+                      link works for 30 days.
+                    </FieldDescription>
+                  </div>
+                </Field>
+              ))}
           </>
         )}
       </FieldSet>

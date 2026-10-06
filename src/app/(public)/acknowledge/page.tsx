@@ -77,7 +77,9 @@ export default async function AcknowledgeHandoutPage({
       <Heading>
         {view.kind === "gear_request"
           ? "About the items you asked for"
-          : "Before you take these"}
+          : view.kind === "handout_link"
+            ? "About the items you took"
+            : "Before you take these"}
       </Heading>
       <div className="mt-6 max-w-xl">
         <AsIsAcknowledgementForm

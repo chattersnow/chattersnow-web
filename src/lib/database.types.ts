@@ -2257,6 +2257,64 @@ export type Database = {
           },
         ];
       };
+      distribution_acknowledgement_requests: {
+        Row: {
+          acknowledged_at: string | null;
+          acknowledgement_id: string;
+          expires_at: string;
+          gear_request_ids: string[];
+          id: string;
+          requested_at: string;
+          requested_by: string | null;
+          tenant_id: string;
+          token_hash: string;
+        };
+        Insert: {
+          acknowledged_at?: string | null;
+          acknowledgement_id: string;
+          expires_at: string;
+          gear_request_ids?: string[];
+          id?: string;
+          requested_at?: string;
+          requested_by?: string | null;
+          tenant_id?: string;
+          token_hash: string;
+        };
+        Update: {
+          acknowledged_at?: string | null;
+          acknowledgement_id?: string;
+          expires_at?: string;
+          gear_request_ids?: string[];
+          id?: string;
+          requested_at?: string;
+          requested_by?: string | null;
+          tenant_id?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "distribution_acknowledgement_requests_acknowledgement_fkey";
+            columns: ["tenant_id", "acknowledgement_id"];
+            isOneToOne: true;
+            referencedRelation: "distribution_acknowledgements";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgement_requests_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgement_requests_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       distribution_acknowledgements: {
         Row: {
           acknowledged_at: string | null;
@@ -10469,6 +10527,10 @@ export type Database = {
         Args: { p_keys: string[] };
         Returns: number;
       };
+      distribution_acknowledgement_link_view: {
+        Args: { p_acknowledgement_id: string };
+        Returns: Json;
+      };
       distribution_acknowledgement_view: {
         Args: { p_draft_id: string };
         Returns: Json;
@@ -11391,6 +11453,7 @@ export type Database = {
       record_distribution_draft: {
         Args: {
           p_event_id?: string;
+          p_link_token_hash?: string;
           p_mark_item_distributed?: boolean;
           p_occurred_at?: string;
           p_reason?: string;
@@ -11400,6 +11463,7 @@ export type Database = {
           p_skipped_reason?: string;
         };
         Returns: {
+          link_expires_at: string;
           recorded: number;
           released_tags: Json;
         }[];
@@ -11732,6 +11796,10 @@ export type Database = {
       };
       reset_my_welcome: { Args: never; Returns: undefined };
       resolve_current_person_id: { Args: never; Returns: string };
+      resolve_distribution_acknowledgement_link: {
+        Args: { p_for_update: boolean; p_token_hash: string };
+        Returns: string;
+      };
       resolve_distribution_acknowledgement_token: {
         Args: { p_for_update: boolean; p_token_hash: string };
         Returns: string;

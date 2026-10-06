@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { List, ScanLine } from "lucide-react";
 import type { DistributionDraft } from "@/lib/inventory-distribution-draft";
+import type { EmailLinkAvailability } from "@/lib/distribution-acknowledgement";
 import {
   listAvailableInventoryItemsAction,
   type AvailableInventoryItem,
@@ -26,6 +27,7 @@ import { ScannedDistributionList } from "./scanned-distribution-list";
 import {
   checkoutReady,
   DistributionCheckout,
+  willEmailLink,
   EMPTY_CHECKOUT,
   type CheckoutState,
 } from "./distribution-checkout";
@@ -118,6 +120,8 @@ export function RecordDistributionModal({
   const [mode, setMode] = useState<"pick" | "scan">("pick");
   const [step, setStep] = useState<"build" | "checkout">("build");
   const [needsAcknowledgement, setNeedsAcknowledgement] = useState(true);
+  const [emailLink, setEmailLink] =
+    useState<EmailLinkAvailability>("available");
   const [checkout, setCheckout] = useState<CheckoutState>(EMPTY_CHECKOUT);
   const [draft, setDraft] = useState<DistributionDraft | null>(null);
   const [conflictItemId, setConflictItemId] = useState<string | null>(null);
@@ -227,6 +231,7 @@ export function RecordDistributionModal({
         return;
       }
       setNeedsAcknowledgement(result.needsAcknowledgement);
+      setEmailLink(result.emailLink);
       await loadDraft();
       setStep("checkout");
     });
@@ -245,6 +250,7 @@ export function RecordDistributionModal({
           ? undefined
           : (checkout.skippedReason ?? undefined),
         skippedNote: checkout.skippedNote,
+        emailLink: willEmailLink(draft, emailLink, checkout),
       });
       if ("error" in result) {
         setError(result.error);
@@ -261,6 +267,13 @@ export function RecordDistributionModal({
           : `${result.count} distributions recorded.`,
         removeTagsToast(result.releasedTags),
       );
+      if (result.emailLink === "sent") {
+        toast.success("Emailed them a link to acknowledge it.");
+      } else if (result.emailLink === "not_sent") {
+        toast.error(
+          "The handout is recorded, but the link to acknowledge it could not be emailed.",
+        );
+      }
       router.refresh();
       onSaved?.();
     });
@@ -372,6 +385,7 @@ export function RecordDistributionModal({
             draft={draft}
             markDistributed={markDistributed}
             needsAcknowledgement={needsAcknowledgement}
+            emailLink={emailLink}
             state={checkout}
             onStateChange={setCheckout}
             onDraftChanged={loadDraft}
