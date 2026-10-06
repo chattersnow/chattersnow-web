@@ -5,11 +5,26 @@
  *
  * Contact details are the point of care here. Registering never implies
  * sharing (#1318, docs/legal-basis.md): an event's consent question marked
- * `shares_contact` is the only thing that puts a registrant's email, phone and
- * Instagram handle into this file, and only on the rows that ticked it. An event with no such
- * question has no contact columns at all, so a file made for a partner cannot
- * carry them by accident.
+ * `shares_contact` is the only thing that puts a registrant's email and phone
+ * into this file, and only on the rows that ticked it. An event with no such
+ * question has no Email or Phone columns at all, so a file made for a partner
+ * cannot carry them by accident.
+ *
+ * The Instagram handle is the exception, by the organization's choice: it is a
+ * public handle the registrant gave so the organization can tag and find them,
+ * and the export carries it on every row that has one, consent or not.
+ *
+ * Rider answers -- how a registrant rides and at what level -- are not
+ * contact details, so they are not under that consent. They appear for a
+ * reader cleared for them (`rider_profiles`, which carries the rider_profile
+ * module, #1408) and are read the way the Rides column reads them.
  */
+
+import {
+  experienceLevelLabel,
+  ridingDisciplineLabel,
+} from "@/lib/rider-profile";
+import { effectiveRider, type RiderAnswers } from "./rider-stats";
 
 export type AnswersCsvQuestion = {
   id: string;
@@ -23,6 +38,8 @@ export type AnswersCsvRegistration = {
   email: string | null;
   phone: string | null;
   instagram_handle: string | null;
+  /** Only read when the file is built with `riders`. */
+  rider?: RiderAnswers | null;
   answers: {
     question_id: string | null;
     answer_text: string;
@@ -70,20 +87,25 @@ export function csvField(value: string | number | null): string {
 
 /**
  * Name, party size, one column per current question in the event's order
- * (each its answer in words, blank where unanswered), then Email, Phone and
- * Instagram only where the event has a `shares_contact` question -- filled only on the
- * rows that agreed. CRLF line endings, as RFC 4180 and Excel expect.
+ * (each its answer in words, blank where unanswered), then Rides, Ski level
+ * and Snowboard level with `riders`, then Instagram on every row, then Email
+ * and Phone only where the event has a `shares_contact` question -- filled
+ * only on the rows that agreed. CRLF line endings, as RFC 4180 and Excel
+ * expect.
  */
 export function registrantAnswersCsv(
   questions: readonly AnswersCsvQuestion[],
   registrations: readonly AnswersCsvRegistration[],
+  { riders = false }: { riders?: boolean } = {},
 ): string {
   const withContact = questions.some((question) => question.shares_contact);
   const header = [
     "Name",
     "Party size",
     ...questions.map((question) => question.prompt),
-    ...(withContact ? ["Email", "Phone", "Instagram"] : []),
+    ...(riders ? ["Rides", "Ski level", "Snowboard level"] : []),
+    "Instagram",
+    ...(withContact ? ["Email", "Phone"] : []),
   ];
 
   const rows = registrations.map((registration) => {
@@ -94,17 +116,26 @@ export function registrantAnswersCsv(
       ]),
     );
     const shares = withContact && sharesContact(questions, registration);
+    const rider =
+      riders && registration.rider ? effectiveRider(registration.rider) : null;
     return [
       registration.name,
       registration.party_size,
       ...questions.map((question) => byQuestion.get(question.id) ?? null),
+      ...(riders
+        ? [
+            ridingDisciplineLabel(rider?.discipline ?? null),
+            experienceLevelLabel(rider?.ski ?? null),
+            experienceLevelLabel(rider?.snowboard ?? null),
+          ]
+        : []),
+      // Bare, as stored: an `@` prefix would come out as `'@` from
+      // csvField's formula guard.
+      registration.instagram_handle || null,
       ...(withContact
         ? [
             shares ? registration.email || null : null,
             shares ? registration.phone || null : null,
-            // Bare, as stored: an `@` prefix would come out as `'@` from
-            // csvField's formula guard.
-            shares ? registration.instagram_handle || null : null,
           ]
         : []),
     ];
