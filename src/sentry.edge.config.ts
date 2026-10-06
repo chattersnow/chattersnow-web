@@ -16,6 +16,4 @@ Sentry.init({
 
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   release: process.env.VERCEL_GIT_COMMIT_SHA,
-
-  enableLogs: true,
 });

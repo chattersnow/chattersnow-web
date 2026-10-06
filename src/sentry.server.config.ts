@@ -25,6 +25,4 @@ Sentry.init({
   // usually the difference between "a query returned null" and knowing which
   // id was passed. Node only, and it does not apply to the edge runtime.
   includeLocalVariables: true,
-
-  enableLogs: true,
 });
