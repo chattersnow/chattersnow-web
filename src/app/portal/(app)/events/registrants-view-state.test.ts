@@ -16,6 +16,7 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     name: "Somebody",
     email: "somebody@example.test",
     phone: null,
+    instagram_handle: null,
     pronouns: null,
     party_size: 1,
     notes: null,

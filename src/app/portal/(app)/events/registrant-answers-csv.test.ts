@@ -32,6 +32,7 @@ function registration(
     party_size: 2,
     email: "jamie@example.test",
     phone: "555-0100",
+    instagram_handle: "jamie.rides",
     answers: [],
     ...overrides,
   };
@@ -95,6 +96,7 @@ describe("registrantAnswersCsv", () => {
       "Sam Lee,1,,",
     ]);
     expect(csv).not.toContain("jamie@example.test");
+    expect(csv).not.toContain("jamie.rides");
   });
 
   test("contact details only on rows that ticked the sharing question", () => {
@@ -108,6 +110,7 @@ describe("registrantAnswersCsv", () => {
           name: "Declined",
           email: "declined@example.test",
           phone: "555-0199",
+          instagram_handle: "declined.ig",
           answers: [{ question_id: SHARE.id, answer_text: "No", value: false }],
         }),
         registration({
@@ -119,10 +122,10 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,OK to share my contact details with our partner,Email,Phone",
-      "Jamie Rivera,2,,Yes,jamie@example.test,555-0100",
-      "Declined,2,,No,,",
-      "Never asked,2,,,,",
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Email,Phone,Instagram",
+      "Jamie Rivera,2,,Yes,jamie@example.test,555-0100,jamie.rides",
+      "Declined,2,,No,,,",
+      "Never asked,2,,,,,",
     ]);
   });
 

@@ -33,6 +33,7 @@ function registrant(
     name: "Jamie Rivera",
     email: "jamie@example.test",
     phone: null,
+    instagram_handle: null,
     pronouns: null,
     party_size: 1,
     notes: null,

@@ -150,6 +150,11 @@ export type EventRegistrant = {
   name: string;
   email: string;
   phone: string | null;
+  /**
+   * The Instagram handle typed on the registration, bare: the column's check
+   * refuses an `@` or a URL. It lives on the registration, not on `people`.
+   */
+  instagram_handle: string | null;
   pronouns: string | null;
   party_size: number;
   notes: string | null;
@@ -560,7 +565,7 @@ export async function listEventRegistrantsAction(
 // `option_counts` and `answers` are embeds, not columns of this table (#1407,
 // #1501).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at)";
+  "id, event_id, name, email, phone, instagram_handle, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
