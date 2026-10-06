@@ -961,6 +961,7 @@ type ConfirmationEventRow = {
   ends_at: string | null;
   location: string | null;
   timezone: string;
+  confirmation_note: string | null;
 };
 
 const EVENT_REGISTRATION_SELECT =
@@ -1062,7 +1063,7 @@ export async function sendEventRegistrationConfirmation(
   const [event, mail, reply, optionCounts, answerRows] = await Promise.all([
     admin
       .from("events")
-      .select("name, starts_at, ends_at, location, timezone")
+      .select("name, starts_at, ends_at, location, timezone, confirmation_note")
       .eq("id", data.event_id)
       .eq("tenant_id", data.tenant_id)
       .maybeSingle<ConfirmationEventRow>(),
@@ -1139,6 +1140,7 @@ export async function sendEventRegistrationConfirmation(
               answer: answer_text,
             }),
           ),
+          note: registered.confirmation_note,
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,

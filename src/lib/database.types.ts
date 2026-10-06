@@ -3797,6 +3797,7 @@ export type Database = {
           auto_assign_discount_codes: boolean;
           budget_amount: number | null;
           capacity: number | null;
+          confirmation_note: string | null;
           content_notes: string | null;
           created_at: string;
           created_by: string;
@@ -3834,6 +3835,7 @@ export type Database = {
           auto_assign_discount_codes?: boolean;
           budget_amount?: number | null;
           capacity?: number | null;
+          confirmation_note?: string | null;
           content_notes?: string | null;
           created_at?: string;
           created_by?: string;
@@ -3871,6 +3873,7 @@ export type Database = {
           auto_assign_discount_codes?: boolean;
           budget_amount?: number | null;
           capacity?: number | null;
+          confirmation_note?: string | null;
           content_notes?: string | null;
           created_at?: string;
           created_by?: string;
@@ -11612,6 +11615,7 @@ export type Database = {
           auto_assign_discount_codes: boolean;
           budget_amount: number | null;
           capacity: number | null;
+          confirmation_note: string | null;
           content_notes: string | null;
           created_at: string;
           created_by: string;
