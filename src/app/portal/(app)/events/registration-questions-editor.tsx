@@ -399,9 +399,9 @@ function QuestionCard({
               Share contact details in the answers export
             </FieldLabel>
             <FieldDescription>
-              The answers export includes a registrant&apos;s email and phone
-              only when they ticked this box. A consent box is never required:
-              leaving it unticked is the answer no.
+              The answers export includes a registrant&apos;s email, phone and
+              Instagram only when they ticked this box. A consent box is never
+              required: leaving it unticked is the answer no.
             </FieldDescription>
           </FieldContent>
           <Switch

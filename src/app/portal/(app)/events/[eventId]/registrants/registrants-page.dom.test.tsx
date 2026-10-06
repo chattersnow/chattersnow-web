@@ -62,6 +62,7 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     name: "Somebody",
     email: "somebody@example.test",
     phone: null,
+    instagram_handle: null,
     pronouns: null,
     party_size: 1,
     notes: null,
@@ -93,6 +94,7 @@ const registrants = [
     id: "reg-1",
     name: "Christina Fasanello-Okonkwo",
     email: "christina.fasanello.okonkwo@gmail.com",
+    instagram_handle: null,
     pronouns: "they/she",
     party_size: 2,
     option_counts: [

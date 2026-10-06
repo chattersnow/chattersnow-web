@@ -14,6 +14,7 @@ const REGISTRANT: EventRegistrant = {
   name: "Jamie Rivera",
   email: "jamie@example.test",
   phone: "555-0100",
+  instagram_handle: "jamie.rides",
   pronouns: "they/them",
   party_size: 3,
   notes: "Bringing a friend who skis.",
@@ -74,6 +75,10 @@ describe("RegistrantDetailSheet", () => {
     expect(screen.getByText("they/them")).toBeInTheDocument();
     expect(screen.getByText("jamie@example.test")).toBeInTheDocument();
     expect(screen.getByText("555-0100")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "@jamie.rides" })).toHaveAttribute(
+      "href",
+      "https://www.instagram.com/jamie.rides",
+    );
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("Bringing a friend who skis.")).toBeInTheDocument();
     expect(screen.getByText("Not yet")).toBeInTheDocument();

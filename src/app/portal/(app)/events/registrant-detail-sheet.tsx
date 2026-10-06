@@ -37,6 +37,7 @@ import {
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
 import { formatDateTime } from "@/lib/format";
+import { instagramUrl } from "@/components/instagram-link";
 
 /**
  * What a deep link names, so a future notification can open the portal at one
@@ -205,6 +206,20 @@ export function RegistrantDetailSheet({
             </ReadOnlyField>
             <ReadOnlyField label="Phone" htmlFor="registrant-phone">
               {registrant.phone || "—"}
+            </ReadOnlyField>
+            <ReadOnlyField label="Instagram" htmlFor="registrant-instagram">
+              {registrant.instagram_handle ? (
+                <a
+                  href={instagramUrl(registrant.instagram_handle)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-4"
+                >
+                  @{registrant.instagram_handle}
+                </a>
+              ) : (
+                "—"
+              )}
             </ReadOnlyField>
             <ReadOnlyField label="Party size" htmlFor="registrant-party-size">
               {registrant.party_size}
