@@ -19,6 +19,7 @@ import {
 } from "./registrants-shared";
 import { useRegistrantRowActions } from "./use-registrant-row-actions";
 import { isMissingRequired } from "./registrants-view-state";
+import { effectiveRider, riderStats, ridersLine } from "./rider-stats";
 import {
   experienceLevelLabel,
   ridingDisciplineLabel,
@@ -56,34 +57,19 @@ import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 
 /**
- * What the door sees in the Rides column.
- *
- * Reads the level snapshotted at check-in, falling back to the person's current
- * profile only when there is no snapshot at all — the same all-or-nothing rule
- * the impact RPCs apply, so the column and the Impact card's beginner figure can
- * never disagree.
+ * What the door sees in the Rides column, read the way `effectiveRider` reads
+ * it: the check-in snapshot first, the person's current profile only when
+ * there is none.
  */
 function ridesSummary(registrant: EventRegistrant): string | null {
-  const rider = registrant.rider;
-  if (!rider) return null;
-
-  const snapshot = rider.riding_discipline_at_event !== null;
-  const discipline = ridingDisciplineLabel(
-    snapshot ? rider.riding_discipline_at_event : rider.riding_discipline,
-  );
+  if (!registrant.rider) return null;
+  const rider = effectiveRider(registrant.rider);
+  const discipline = ridingDisciplineLabel(rider.discipline);
   if (!discipline) return null;
 
   const levels = [
-    experienceLevelLabel(
-      snapshot
-        ? rider.ski_experience_level_at_event
-        : rider.ski_experience_level,
-    ),
-    experienceLevelLabel(
-      snapshot
-        ? rider.snowboard_experience_level_at_event
-        : rider.snowboard_experience_level,
-    ),
+    experienceLevelLabel(rider.ski),
+    experienceLevelLabel(rider.snowboard),
   ].filter((level): level is string => level !== null);
 
   const distinct = [...new Set(levels)];
@@ -249,6 +235,12 @@ export function RegistrantsTab({
   // Derived from the whole list, not the preview slice, so the column doesn't
   // appear and disappear between the card and the sheet.
   const showRides = list.some((registrant) => registrant.rider !== null);
+  const riderBreakdown = useMemo(() => {
+    const riders = list.flatMap((registrant) =>
+      registrant.rider ? [registrant.rider] : [],
+    );
+    return riders.length > 0 ? riderStats(riders) : null;
+  }, [list]);
   // #1259. The column and the count appear only once somebody has answered:
   // before this shipped every row is null, and a column of dashes is a column
   // that costs width and says nothing. Derived from the whole list for the
@@ -539,6 +531,9 @@ export function RegistrantsTab({
             the difference -- "said" is doing the work. */}
         {showAttendedBefore &&
           ` · ${selfReportedFirstTimers} said it would be their first`}
+        {riderBreakdown && riderBreakdown.answered > 0 && (
+          <span className="block">{ridersLine(riderBreakdown)}</span>
+        )}
         {/* #1407. Per option, against its cap where it has one: the number
             an organizer orders tickets or gear from. */}
         {registrationOptions && (
@@ -557,7 +552,7 @@ export function RegistrantsTab({
   // #1501. Behind `events: manage` here and, more to the point, in the route
   // handler itself, since a link is only a link.
   const downloadAction =
-    canManage && registrationQuestions.length > 0 ? (
+    canManage && (registrationQuestions.length > 0 || showRides) ? (
       // A styled anchor rather than <Button render={<a/>}>: it is a file
       // download, and should be announced and behave as a link.
       <a
