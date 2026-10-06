@@ -7,7 +7,10 @@ import {
 } from "@/lib/auth/permissions";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { personDisplayName } from "@/lib/format";
-import { parseGearRequestSettings } from "@/lib/gear-requests";
+import {
+  isOpenGearRequest,
+  parseGearRequestSettings,
+} from "@/lib/gear-requests";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import { getTenantContext } from "@/lib/portal/tenants";
 import {
@@ -25,9 +28,16 @@ import {
   GearRequestDetailView,
   type GearRequestDetailRow,
 } from "./request-detail-view";
+import type { AddableItem } from "./add-request-item-dialog";
+
+/**
+ * What staff can put on an open request (#1527): the same pool the public
+ * cart draws from. Capped well above any real shelf; the dialog filters it.
+ */
+const ADDABLE_LIMIT = 500;
 
 const REQUEST_SELECT =
-  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, as_is_method, as_is_typed_name, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, inventory_item:inventory_items(id, description, size, status, category_label:inventory_categories(label)))";
+  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, as_is_method, as_is_typed_name, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, inventory_item:inventory_items(id, description, size, status, photo_url, category_label:inventory_categories(label)))";
 
 function requestTitle(row: GearRequestDetailRow | null): string {
   return row
@@ -119,6 +129,18 @@ export default async function GearRequestDetailPage({
     as_is_request: oneAsIsRequest(raw.as_is_request),
   };
   const settings = parseGearRequestSettings(settingsResult?.data);
+  const canEdit = canManage && isOpenGearRequest(row.status);
+  const { data: addable } = canEdit
+    ? await supabase
+        .from("inventory_items")
+        .select(
+          "id, description, size, photo_url, category_label:inventory_categories(label)",
+        )
+        .eq("intended_use", "gear_library")
+        .eq("status", "available")
+        .order("description")
+        .limit(ADDABLE_LIMIT)
+    : { data: null };
   const messages = recordMessages.byRecord[requestId] ?? [];
 
   return (
@@ -134,6 +156,7 @@ export default async function GearRequestDetailPage({
         orgName={orgName}
         replyTo={orgMail.data?.reply_to ?? null}
         orgEmailEnabled={orgEmailEnabled}
+        addableItems={(addable ?? []) as unknown as AddableItem[]}
       />
     </>
   );
