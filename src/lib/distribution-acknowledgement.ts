@@ -63,7 +63,9 @@ export function acknowledgementMethodPhrase(
     : "";
 }
 
-/** One line for an acknowledgement or the reason there is none. */
+/** One line for an acknowledgement or the reason there is none -- or both,
+ *  when a handout recorded with a reason was acknowledged afterwards by
+ *  emailed link (#1519). */
 export function describeAcknowledgement(entry: {
   acknowledgedAt: string | null;
   typedName: string | null;
@@ -71,20 +73,49 @@ export function describeAcknowledgement(entry: {
   skippedReason: string | null;
   skippedNote: string | null;
 }): string | null {
+  const reason = entry.skippedReason
+    ? `${(isSkippedReason(entry.skippedReason)
+        ? SKIPPED_REASON_LABELS[entry.skippedReason]
+        : entry.skippedReason
+      ).toLowerCase()}${entry.skippedNote ? ` — ${entry.skippedNote}` : ""}`
+    : null;
   if (entry.acknowledgedAt) {
     const by = entry.typedName ? ` by ${entry.typedName}` : "";
     const how = acknowledgementMethodPhrase(entry.method);
-    return `Acknowledged as-is${by}${how ? ` ${how}` : ""}`;
+    const line = `Acknowledged as-is${by}${how ? ` ${how}` : ""}`;
+    return reason ? `${line} afterwards (at the handout: ${reason})` : line;
   }
-  if (entry.skippedReason) {
-    const reason = isSkippedReason(entry.skippedReason)
-      ? SKIPPED_REASON_LABELS[entry.skippedReason]
-      : entry.skippedReason;
-    return `Not acknowledged: ${reason.toLowerCase()}${
-      entry.skippedNote ? ` — ${entry.skippedNote}` : ""
-    }`;
-  }
+  if (reason) return `Not acknowledged: ${reason}`;
   return null;
+}
+
+/**
+ * Whether the checkout can offer to email the recipient a link to acknowledge
+ * afterwards (#1519), when staff record the handout with a reason. The
+ * recipient's own address is checked on the client, from the draft;
+ * `available` covers the rest.
+ */
+export type EmailLinkAvailability =
+  "available" | "email_off" | "no_public_site";
+
+/** Why the checkbox is not offered, or null when it is. */
+export function emailLinkUnavailableReason(
+  availability: EmailLinkAvailability,
+  recipient: { email: string | null } | null,
+): string | null {
+  if (!recipient) return "Pick the recipient to offer them an emailed link.";
+  if (!recipient.email?.trim())
+    return "The recipient has no email address, so no link can be sent.";
+  if (availability === "email_off")
+    return "Organization email is off, so no link can be sent.";
+  if (availability === "no_public_site")
+    return "This organization has no public site for the link to open.";
+  return null;
+}
+
+export function handoutAsIsRequestSubject(itemPlural: string): string {
+  const items = itemPlural.trim().toLowerCase() || "items";
+  return `About the ${items} you picked up: one thing to confirm`;
 }
 
 /** The query parameter the token rides in, and the form field it is posted
@@ -113,9 +144,11 @@ export const ACKNOWLEDGEMENT_ERROR_MESSAGES: Record<string, string> = {
 /** What the acknowledgement page shows. No contact details: a photographed
  *  code or a forwarded link gives away almost nothing. `gear_request` is a
  *  request's emailed link (#1518), whose items may already have been posted;
- *  `handout` is the one-time code at an in-person handout (#1519). */
+ *  `handout` is the one-time code at an in-person handout (#1519);
+ *  `handout_link` is the link emailed after a handout recorded without it
+ *  (#1519), whose items they already have. */
 export type AcknowledgementView = {
-  kind: "handout" | "gear_request";
+  kind: "handout" | "gear_request" | "handout_link";
   firstName: string | null;
   eventName: string | null;
   items: { description: string; size: string | null }[];
@@ -129,7 +162,10 @@ export function toAcknowledgementView(raw: unknown): AcknowledgementView {
     items?: { description: string; size: string | null }[] | null;
   };
   return {
-    kind: row.kind === "gear_request" ? "gear_request" : "handout",
+    kind:
+      row.kind === "gear_request" || row.kind === "handout_link"
+        ? row.kind
+        : "handout",
     firstName: row.first_name ?? null,
     eventName: row.event_name ?? null,
     items: row.items ?? [],

@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkAnyPermission } from "@/lib/auth/permissions";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { sendHandoutAsIsRequest } from "@/lib/notifications/handout-as-is-request";
 import { getRequestHost, getRequestOrigin } from "@/lib/request-origin";
 import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
 import { qrCodeDataUri } from "@/lib/inventory-label-codes";
@@ -17,6 +20,7 @@ import {
   isSkippedReason,
   toAcknowledgementView,
   type AcknowledgementView,
+  type EmailLinkAvailability,
   type SkippedReason,
 } from "@/lib/distribution-acknowledgement";
 import {
@@ -224,11 +228,15 @@ export async function discardDistributionDraftAction(
 /**
  * What the checkout has to ask for (#1519): whether the recipient still has to
  * acknowledge the handout as-is. Not when every piece is held for them under a
- * gear request that already carries the acknowledgement.
+ * gear request that already carries the acknowledgement. And whether, if they
+ * cannot acknowledge now, they can be emailed a link to do it afterwards.
  */
 export async function getDistributionCheckoutAction(
   eventId: string | null,
-): Promise<{ needsAcknowledgement: boolean } | { error: string }> {
+): Promise<
+  | { needsAcknowledgement: boolean; emailLink: EmailLinkAvailability }
+  | { error: string }
+> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkAnyPermission(supabase, [
     ...RECORD_ACCESS,
@@ -241,7 +249,18 @@ export async function getDistributionCheckoutAction(
   if (error)
     return { error: "Could not start the checkout. Please try again." };
   const row = Array.isArray(data) ? data[0] : data;
-  return { needsAcknowledgement: row?.needs_acknowledgement !== false };
+  return {
+    needsAcknowledgement: row?.needs_acknowledgement !== false,
+    emailLink: await emailLinkAvailability(supabase),
+  };
+}
+
+async function emailLinkAvailability(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<EmailLinkAvailability> {
+  if (!(await publicSiteOrigin(supabase))) return "no_public_site";
+  if (!(await getOrgEmailEnabled(supabase))) return "email_off";
+  return "available";
 }
 
 /**
@@ -371,7 +390,12 @@ export type RecordDraftInput = {
   /** Why the recipient did not acknowledge, when they did not. */
   skippedReason?: SkippedReason;
   skippedNote?: string;
+  /** With a reason: email the recipient a link to acknowledge afterwards. */
+  emailLink?: boolean;
 };
+
+/** What became of the emailed link, when one was asked for. */
+export type EmailLinkOutcome = "sent" | "not_sent";
 
 /**
  * Records every scanned piece as its own distribution, in one transaction
@@ -382,7 +406,11 @@ export type RecordDraftInput = {
 export async function recordDistributionDraftAction(
   input: RecordDraftInput,
 ): Promise<
-  | { count: number; releasedTags: ReleasedTag[] }
+  | {
+      count: number;
+      releasedTags: ReleasedTag[];
+      emailLink: EmailLinkOutcome | null;
+    }
   | { error: string; itemId?: string }
 > {
   const supabase = await createSupabaseServerClient();
@@ -390,6 +418,12 @@ export async function recordDistributionDraftAction(
     ...RECORD_ACCESS,
   ]);
   if (permissionError) return permissionError;
+
+  // The link is minted before the record so the database can write it in the
+  // same transaction; the raw token stays here and goes only into the email.
+  const wantsLink =
+    Boolean(input.emailLink) && isSkippedReason(input.skippedReason);
+  const link = wantsLink ? mintConfirmationToken() : null;
 
   const { data, error } = await supabase.rpc("record_distribution_draft", {
     ...(input.eventId ? { p_event_id: input.eventId } : {}),
@@ -408,6 +442,7 @@ export async function recordDistributionDraftAction(
     ...(input.skippedNote?.trim()
       ? { p_skipped_note: input.skippedNote.trim() }
       : {}),
+    ...(link ? { p_link_token_hash: link.hash } : {}),
   });
 
   if (error) {
@@ -450,5 +485,76 @@ export async function recordDistributionDraftAction(
   return {
     count: row?.recorded ?? 0,
     releasedTags: toReleasedTags(row?.released_tags),
+    emailLink: link
+      ? row?.link_expires_at
+        ? await emailHandoutLink(supabase, link)
+        : "not_sent"
+      : null,
   };
+}
+
+/**
+ * Mails the link record_distribution_draft() just wrote (#1519). The handout
+ * is recorded either way; a send that does not go out withdraws the link, and
+ * the caller only says so.
+ */
+async function emailHandoutLink(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  link: { token: string; hash: string },
+): Promise<EmailLinkOutcome> {
+  const admin = createSupabaseAdminClient();
+  const withdraw = () =>
+    admin
+      .from("distribution_acknowledgement_requests")
+      .delete()
+      .eq("token_hash", link.hash);
+
+  const { data: request } = await admin
+    .from("distribution_acknowledgement_requests")
+    .select("tenant_id, acknowledgement_id")
+    .eq("token_hash", link.hash)
+    .maybeSingle();
+  const [{ data: acknowledgement }, { data: movement }, { data: auth }] =
+    await Promise.all([
+      admin
+        .from("distribution_acknowledgements")
+        .select(
+          "recipient:people!distribution_acknowledgements_recipient_in_tenant(id, name, preferred_name, email)",
+        )
+        .eq("id", request?.acknowledgement_id ?? "")
+        .maybeSingle(),
+      admin
+        .from("inventory_movements")
+        .select("event:events(name)")
+        .eq(
+          "distribution_acknowledgement_id",
+          request?.acknowledgement_id ?? "",
+        )
+        .not("event_id", "is", null)
+        .limit(1)
+        .maybeSingle(),
+      supabase.auth.getUser(),
+    ]);
+  const recipient = acknowledgement?.recipient;
+  const email = recipient?.email?.trim();
+  if (!request || !recipient || !email || !auth.user) {
+    await withdraw();
+    return "not_sent";
+  }
+
+  const outcome = await sendHandoutAsIsRequest(admin, {
+    tenantId: request.tenant_id,
+    acknowledgementId: request.acknowledgement_id,
+    recipient: {
+      personId: recipient.id,
+      name: (recipient.preferred_name?.trim() || recipient.name || "").trim(),
+      email,
+    },
+    eventName: movement?.event?.name ?? null,
+    token: link.token,
+    tokenHash: link.hash,
+    sentBy: auth.user.id,
+    fallbackOrigin: await getRequestOrigin(),
+  });
+  return outcome === "sent" ? "sent" : "not_sent";
 }

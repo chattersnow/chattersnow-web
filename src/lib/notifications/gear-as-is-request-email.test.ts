@@ -32,4 +32,26 @@ describe("renderGearAsIsRequestEmail", () => {
     const email = renderGearAsIsRequestEmail({ ...REQUEST, firstName: " " });
     expect(email.text).toContain("Hi,");
   });
+
+  test("a handout's link thanks them for what they took", () => {
+    const email = renderGearAsIsRequestEmail({
+      ...REQUEST,
+      handout: { eventName: "Spring Swap" },
+    });
+    expect(email.text).toContain(
+      "Thanks for picking up gear from us at Spring Swap.",
+    );
+    expect(email.text).toContain("it opens the note without signing in");
+    expect(email.text).not.toContain("You asked us for");
+  });
+
+  test("a handout outside an event names none", () => {
+    const email = renderGearAsIsRequestEmail({
+      ...REQUEST,
+      handout: { eventName: null },
+    });
+    expect(email.text).toContain(
+      "Thanks for picking up gear from us. We didn't",
+    );
+  });
 });

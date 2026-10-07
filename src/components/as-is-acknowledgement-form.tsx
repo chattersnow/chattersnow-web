@@ -21,6 +21,11 @@ function acknowledgementIntro(view: AcknowledgementView): string {
   if (view.kind === "gear_request") {
     return "You asked for these before we started asking everyone to read this note, so please read it now.";
   }
+  if (view.kind === "handout_link") {
+    return view.eventName
+      ? `You took these from ${view.eventName} before reading this note, so please read it now.`
+      : "You took these before reading this note, so please read it now.";
+  }
   return view.eventName
     ? `Before you take these from ${view.eventName}, please read this.`
     : "Before you take these, please read this.";
@@ -156,7 +161,7 @@ export function AsIsAcknowledgementForm({
       <Alert>
         <CircleCheck />
         <AlertDescription>
-          {view.kind === "gear_request"
+          {view.kind !== "handout"
             ? `Thank you, ${value.typedName.trim()}. We've recorded it — there's nothing else you need to do.`
             : `Thank you, ${value.typedName.trim()}. You're all set — the person handing you the items can see it now.`}
         </AlertDescription>
