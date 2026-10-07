@@ -43,6 +43,7 @@ export function GearCartSheet({
   accountOffer = null,
   lexicon,
   termsInForce = false,
+  onPassphraseRejected,
 }: {
   items: GearItem[];
   open: boolean;
@@ -61,6 +62,8 @@ export function GearCartSheet({
   lexicon: Lexicon;
   /** Whether this tenant serves `/terms` (#859), for the as-is notice (#1367). */
   termsInForce?: boolean;
+  /** A submit refused for the passphrase (#1536): the catalog asks again. */
+  onPassphraseRejected?: (message: string) => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -166,6 +169,7 @@ export function GearCartSheet({
                   prefill={prefill}
                   lexicon={lexicon}
                   termsInForce={termsInForce}
+                  onPassphraseRejected={onPassphraseRejected}
                 />
               </div>
             </>

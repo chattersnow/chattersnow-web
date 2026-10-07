@@ -43,6 +43,8 @@ const route = publicWrite(
         p_payment_method: body.payment_method ?? null,
         p_as_is_acknowledged: body.as_is_acknowledged,
         p_as_is_text: gearAsIsText(lexicon),
+        // #1536: checked in create_gear_request() against the tenant's own.
+        p_passphrase: body.passphrase ?? null,
         p_ip_address: clientIp,
       }),
     );

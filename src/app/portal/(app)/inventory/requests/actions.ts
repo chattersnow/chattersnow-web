@@ -8,6 +8,8 @@ import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import {
   MAX_DELIVERY_INSTRUCTIONS_LENGTH,
+  MAX_PASSPHRASE_HELP_TEXT_LENGTH,
+  MAX_PASSPHRASE_LENGTH,
   MAX_PAYMENT_METHODS,
   MAX_PAYMENT_METHOD_HANDLE_LENGTH,
   MAX_PAYMENT_METHOD_INSTRUCTIONS_LENGTH,
@@ -329,6 +331,71 @@ export async function updateGearRequestSettingsAction(
 
   revalidatePath(REQUESTS_PATH);
   // The public form reads two of these through public_gear_request_settings.
+  revalidatePath("/inventory/library");
+  return { success: true };
+}
+
+export type GearRequestPassphraseInput = {
+  passphraseRequired: boolean;
+  passphrase: string;
+  passphraseHelpText: string;
+};
+
+const PASSPHRASE_ERROR_MESSAGES: Record<string, string> = {
+  PERMISSION_DENIED: SETTINGS_ERROR_MESSAGES.PERMISSION_DENIED,
+  PASSPHRASE_MISSING: "Enter a passphrase before turning this on.",
+  PASSPHRASE_TOO_LONG: `The passphrase must be ${MAX_PASSPHRASE_LENGTH} characters or fewer.`,
+  PASSPHRASE_HELP_TOO_LONG: `The help text must be ${MAX_PASSPHRASE_HELP_TEXT_LENGTH} characters or fewer.`,
+};
+
+/**
+ * The public cart's passphrase (#1536), written through
+ * set_gear_request_passphrase() on the same inventory:manage gate. Its own
+ * write, so saving the delivery settings can never clear it.
+ */
+export async function updateGearRequestPassphraseAction(
+  input: GearRequestPassphraseInput,
+): Promise<GearRequestActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to change these settings.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "inventory",
+    "manage",
+  );
+  if (permissionError) return permissionError;
+
+  const passphrase = input.passphrase.trim();
+  const helpText = input.passphraseHelpText.trim();
+  if (input.passphraseRequired && !passphrase) {
+    return { error: PASSPHRASE_ERROR_MESSAGES.PASSPHRASE_MISSING };
+  }
+  if (passphrase.length > MAX_PASSPHRASE_LENGTH) {
+    return { error: PASSPHRASE_ERROR_MESSAGES.PASSPHRASE_TOO_LONG };
+  }
+  if (helpText.length > MAX_PASSPHRASE_HELP_TEXT_LENGTH) {
+    return { error: PASSPHRASE_ERROR_MESSAGES.PASSPHRASE_HELP_TOO_LONG };
+  }
+
+  const { error } = await supabase.rpc("set_gear_request_passphrase", {
+    p_required: input.passphraseRequired,
+    p_passphrase: passphrase,
+    p_help_text: helpText,
+  });
+
+  if (error) {
+    return {
+      error:
+        PASSPHRASE_ERROR_MESSAGES[error.message] ??
+        "Could not save the passphrase. Please try again.",
+    };
+  }
+
+  revalidatePath(REQUESTS_PATH);
   revalidatePath("/inventory/library");
   return { success: true };
 }

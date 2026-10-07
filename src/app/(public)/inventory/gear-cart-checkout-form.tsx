@@ -3,6 +3,7 @@
 import { FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { requestGearItemsAction } from "./gear-cart-request-actions";
+import { storedGearPassphrase } from "@/lib/gear-passphrase";
 import {
   EMPTY_SHIPPING_FIELDS,
   GearDeliveryFields,
@@ -35,6 +36,7 @@ export function GearCartCheckoutForm({
   prefill = EMPTY_CONTACT_PREFILL,
   lexicon = DEFAULT_LEXICON,
   termsInForce = false,
+  onPassphraseRejected,
 }: {
   itemIds: string[];
   options: PublicGearRequestOptions;
@@ -58,6 +60,11 @@ export function GearCartCheckoutForm({
    * that document is served, and the summary itself is unconditional.
    */
   termsInForce?: boolean;
+  /**
+   * Called when the database refused the passphrase this browser holds
+   * (#1536) -- the tenant changed it -- so the catalog can ask again.
+   */
+  onPassphraseRejected?: (message: string) => void;
 }) {
   const [name, setName] = useState(prefill.name);
   const [email, setEmail] = useState(prefill.email);
@@ -101,6 +108,12 @@ export function GearCartCheckoutForm({
     formData.set("notes", notes);
     formData.set("as_is_acknowledged", String(asIsAcknowledged));
     formData.set("delivery_method", deliveryMethod);
+    // What this browser verified (#1536). Resent, never trusted: the
+    // database compares it with the tenant's current passphrase.
+    const passphrase = options.passphraseRequired
+      ? storedGearPassphrase()
+      : null;
+    if (passphrase) formData.set("passphrase", passphrase);
     if (deliveryMethod === "shipping") {
       formData.set("ship_name", shipping.name);
       formData.set("ship_line1", shipping.line1);
@@ -116,6 +129,7 @@ export function GearCartCheckoutForm({
       const result = await requestGearItemsAction(itemIds, formData);
       if ("error" in result) {
         setError(result.error);
+        if (result.passphraseRequired) onPassphraseRejected?.(result.error);
         return;
       }
       onSuccess(deliveryMethod, result.requestId);

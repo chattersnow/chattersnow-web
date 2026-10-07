@@ -268,6 +268,16 @@ const RPC_ERRORS: Record<
       "The requester must be shown, and acknowledge, that these items are given as-is.",
     field: "as_is_acknowledged",
   },
+  // #1536. The organization asks for a shared passphrase before a request,
+  // and none was sent or it did not match -- including one that was right
+  // before the organization changed it. The passphrase itself is never
+  // published: the requester gets it from the organization.
+  PASSPHRASE_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This organization requires its passphrase on every request. GET /api/v1/t/{tenant}/gear-request-settings reports whether one is required and how to get it; send passphrase.",
+    field: "passphrase",
+  },
 
   // #1366, and the one waiver code that is not the caller's fault: this tenant
   // has an agreement in force with no published version to show. Nothing the

@@ -57,6 +57,8 @@ export type GearRequestFormData = GearRequestDeliveryData & {
 
 const NO_OPTIONS: PublicGearRequestOptions = {
   shippingEnabled: false,
+  passphraseRequired: false,
+  passphraseHelpText: "",
   paymentMethods: [],
 };
 

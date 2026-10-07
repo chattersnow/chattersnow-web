@@ -12,6 +12,10 @@ import {
   sendGearRequestConfirmation,
 } from "@/lib/notifications/submission-notifications";
 import { gearAsIsText } from "@/lib/gear-as-is";
+import {
+  GEAR_PASSPHRASE_EXPIRED,
+  GEAR_PASSPHRASE_WRONG,
+} from "@/lib/gear-passphrase";
 import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
 import { getPublicLexicon } from "@/lib/lexicon";
 import type { PublicGearRequestOptions } from "@/lib/gear-requests";
@@ -22,7 +26,9 @@ import {
 } from "./gear-request-form";
 
 export type RequestGearItemsResult =
-  | { error: string }
+  // `passphraseRequired` tells the cart to forget the passphrase it holds and
+  // ask again (#1536): the tenant changed it since this browser unlocked.
+  | { error: string; passphraseRequired?: true }
   // The id comes back so the receipt can offer to keep the request (#1359).
   // For a filled honeypot it is the throwaway uuid the RPC mints with no row
   // behind it, and that is fine: everything the offer leads to is silent, so
@@ -36,6 +42,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
   NAME_REQUIRED: "Name is required.",
   NO_RECORD: "We could not find your record. Please sign in again.",
+  PASSPHRASE_REQUIRED: GEAR_PASSPHRASE_EXPIRED,
   AS_IS_REQUIRED:
     "Please tick the box to confirm you understand these items are given as-is.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
@@ -128,14 +135,28 @@ export async function requestGearItemsAction(
   return { success: true, requestId };
 }
 
-type Submitted = { error: string } | { requestId: string };
+type Submitted =
+  { error: string; passphraseRequired?: true } | { requestId: string };
 
 function rpcFailed(message: string): Submitted {
   return {
     error:
       ERROR_MESSAGES[message] ??
       "Could not submit your request. Please try again.",
+    ...(message === "PASSPHRASE_REQUIRED"
+      ? { passphraseRequired: true as const }
+      : {}),
   };
+}
+
+/**
+ * The passphrase the cart resends with a request (#1536): what this browser
+ * verified and holds in session storage. Never trusted -- the RPCs compare it
+ * against the tenant's current one -- so a missing field is simply null.
+ */
+function passphraseFrom(formData: FormData): string | null {
+  const value = formData.get("passphrase");
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 /** The visitor's path: the person is matched or minted from the typed email. */
@@ -164,6 +185,7 @@ async function submitAnonymously(
     p_payment_method: parsed.data.paymentMethod,
     p_as_is_acknowledged: parsed.data.asIsAcknowledged,
     p_as_is_text: asIsText,
+    p_passphrase: passphraseFrom(formData),
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
@@ -201,7 +223,38 @@ async function submitAsMe(
     p_payment_method: parsed.data.paymentMethod,
     p_as_is_acknowledged: parsed.data.asIsAcknowledged,
     p_as_is_text: asIsText,
+    // No bypass for an account (#1536): staff skip it through the portal.
+    p_passphrase: passphraseFrom(formData),
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
+}
+
+export type CheckGearPassphraseResult = { success: true } | { error: string };
+
+/**
+ * The passphrase dialog's check (#1536). Rate-limited per address in the
+ * database, because a shared word has little entropy. A yes unlocks only the
+ * UX: every submit resends the word and is checked again.
+ */
+export async function checkGearPassphraseAction(
+  passphrase: string,
+): Promise<CheckGearPassphraseResult> {
+  if (!passphrase.trim()) return { error: GEAR_PASSPHRASE_WRONG };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("check_gear_request_passphrase", {
+    p_passphrase: passphrase,
+    p_ip_address: await getClientIp(),
+  });
+
+  if (error) {
+    return {
+      error:
+        error.message === "RATE_LIMITED"
+          ? ERROR_MESSAGES.RATE_LIMITED
+          : "Could not check the passphrase. Please try again.",
+    };
+  }
+  return data === true ? { success: true } : { error: GEAR_PASSPHRASE_WRONG };
 }

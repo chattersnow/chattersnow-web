@@ -10385,6 +10385,10 @@ export type Database = {
         Args: { p_registration_id: string };
         Returns: undefined;
       };
+      check_gear_request_passphrase: {
+        Args: { p_ip_address?: unknown; p_passphrase: string };
+        Returns: boolean;
+      };
       check_rate_limit: {
         Args: {
           p_ip_address: unknown;
@@ -10483,6 +10487,7 @@ export type Database = {
           p_delivery_method?: string;
           p_inventory_item_ids: string[];
           p_notes?: string;
+          p_passphrase?: string;
           p_payment_method?: string;
           p_person_id: string;
           p_shipping?: Json;
@@ -10603,6 +10608,10 @@ export type Database = {
       gear_request_acknowledgement_view: {
         Args: { p_request_id: string };
         Returns: Json;
+      };
+      gear_request_passphrase_ok: {
+        Args: { p_passphrase: string; p_tenant_id: string };
+        Returns: boolean;
       };
       generate_artwork_submission_code: {
         Args: { p_tenant_id?: string };
@@ -11743,6 +11752,7 @@ export type Database = {
           p_ip_address?: unknown;
           p_name: string;
           p_notes?: string;
+          p_passphrase?: string;
           p_payment_method?: string;
           p_phone: string;
           p_shipping?: Json;
@@ -11757,6 +11767,7 @@ export type Database = {
           p_inventory_item_ids: string[];
           p_ip_address?: unknown;
           p_notes?: string;
+          p_passphrase?: string;
           p_payment_method?: string;
           p_shipping?: Json;
         };
@@ -12035,6 +12046,14 @@ export type Database = {
       };
       set_gear_request_notes: {
         Args: { p_notes: string; p_request_id: string };
+        Returns: undefined;
+      };
+      set_gear_request_passphrase: {
+        Args: {
+          p_help_text: string;
+          p_passphrase: string;
+          p_required: boolean;
+        };
         Returns: undefined;
       };
       set_gear_request_settings: {

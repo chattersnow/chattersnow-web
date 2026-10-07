@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getSiteImageUrls } from "@/lib/site-images";
 import { GearCatalog, type GearItem } from "../gear-catalog";
 import { GEAR_ITEM_PARAM } from "../gear-item-path";
+import type { GearPassphraseContact } from "../gear-passphrase-dialog";
 import { resolveImageUrl } from "@/lib/inventory";
 
 import { getPublicSite, publicTitle } from "@/lib/public-site";
@@ -63,7 +64,7 @@ export default async function GearLibraryPage() {
   const [
     { data: items },
     siteImages,
-    { content, lexicon },
+    { content, lexicon, name },
     sizingVisible,
     requestOptions,
     viewer,
@@ -96,6 +97,20 @@ export default async function GearLibraryPage() {
     // and it is `cache()`d.
     getLegalPublication(supabase),
   ]);
+
+  // Where the passphrase dialog sends somebody without it (#1536): the
+  // contact page where this tenant serves one, its public address otherwise.
+  const contactEmail = requestOptions.passphraseRequired
+    ? content.text("org.email_general").trim()
+    : "";
+  const passphraseContact: GearPassphraseContact =
+    !requestOptions.passphraseRequired
+      ? null
+      : (await isPageVisible("contact"))
+        ? { kind: "page", href: "/contact" }
+        : contactEmail
+          ? { kind: "email", address: contactEmail }
+          : null;
 
   // What to offer once a request is saved (#1359). Read after the viewer
   // because it depends on it, and it costs no query of its own: the module map
@@ -134,6 +149,8 @@ export default async function GearLibraryPage() {
           accountOffer={accountOffer}
           lexicon={lexicon}
           termsInForce={publication.terms}
+          organizationName={name}
+          passphraseContact={passphraseContact}
         />
       </div>
     </div>

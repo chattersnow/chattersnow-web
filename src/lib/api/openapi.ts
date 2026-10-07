@@ -130,7 +130,7 @@ const ENDPOINTS: Endpoint[] = [
     method: "get",
     operationId: "getGearRequestSettings",
     summary:
-      "What a gear request may ask for: shipping, and how to pay postage",
+      "What a gear request may ask for: shipping, how to pay postage, and whether a passphrase is required",
     response: gearRequestSettingsResponse,
     status: 200,
   },

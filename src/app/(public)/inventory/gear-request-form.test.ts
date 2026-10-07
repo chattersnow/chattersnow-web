@@ -125,6 +125,8 @@ describe("parseGearRequestForm", () => {
   // include it is a stale tab.
   const shippingOffered = {
     shippingEnabled: true,
+    passphraseRequired: false,
+    passphraseHelpText: "",
     paymentMethods: [
       { key: "zelle", label: "Zelle" },
       { key: "venmo", label: "Venmo" },
@@ -149,6 +151,8 @@ describe("parseGearRequestForm", () => {
     expect(
       parseGearRequestForm(formData(shippingFields), {
         shippingEnabled: true,
+        passphraseRequired: false,
+        passphraseHelpText: "",
         paymentMethods: [],
       }),
     ).toEqual({
@@ -256,6 +260,8 @@ describe("the as-is acknowledgement", () => {
     expect(
       parseGearRequestForm(fd, {
         shippingEnabled: true,
+        passphraseRequired: false,
+        passphraseHelpText: "",
         paymentMethods: [{ key: "venmo", label: "Venmo" }],
       }),
     ).toEqual({ error: AS_IS_ERROR });
@@ -282,6 +288,8 @@ describe("parseGearRequestDelivery", () => {
   test("still holds the shipping rules the whole form does", () => {
     const options = {
       shippingEnabled: true,
+      passphraseRequired: false,
+      passphraseHelpText: "",
       paymentMethods: [{ key: "venmo", label: "Venmo" }],
     };
 
