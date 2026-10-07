@@ -19,6 +19,11 @@ export const MEETUP_INSTRUCTIONS_SETTING_KEY =
   "gear_requests.meetup_instructions";
 export const SHIPPING_INSTRUCTIONS_SETTING_KEY =
   "gear_requests.shipping_instructions";
+export const PASSPHRASE_REQUIRED_SETTING_KEY =
+  "gear_requests.passphrase_required";
+export const PASSPHRASE_SETTING_KEY = "gear_requests.passphrase";
+export const PASSPHRASE_HELP_TEXT_SETTING_KEY =
+  "gear_requests.passphrase_help_text";
 
 export type DeliveryMethod = "meetup" | "shipping";
 
@@ -101,6 +106,18 @@ export type GearRequestSettings = {
   paymentMethods: PaymentMethod[];
   meetupInstructions: string;
   shippingInstructions: string;
+  /**
+   * Whether a visitor must enter the tenant's passphrase before adding to the
+   * cart (#1536). Off for every tenant until one turns it on.
+   */
+  passphraseRequired: boolean;
+  /**
+   * A shared gate code staff give out, not a credential: stored readable so
+   * they can read it back. Empty unless the reader holds inventory:manage.
+   */
+  passphrase: string;
+  /** The tenant's own words on how to get the passphrase, shown in the dialog. */
+  passphraseHelpText: string;
 };
 
 export const DEFAULT_GEAR_REQUEST_SETTINGS: GearRequestSettings = {
@@ -108,6 +125,9 @@ export const DEFAULT_GEAR_REQUEST_SETTINGS: GearRequestSettings = {
   paymentMethods: [],
   meetupInstructions: "",
   shippingInstructions: "",
+  passphraseRequired: false,
+  passphrase: "",
+  passphraseHelpText: "",
 };
 
 export const MAX_PAYMENT_METHODS = 6;
@@ -115,6 +135,9 @@ export const MAX_PAYMENT_METHOD_LABEL_LENGTH = 60;
 export const MAX_PAYMENT_METHOD_HANDLE_LENGTH = 120;
 export const MAX_PAYMENT_METHOD_INSTRUCTIONS_LENGTH = 1000;
 export const MAX_DELIVERY_INSTRUCTIONS_LENGTH = 2000;
+/** The limits set_gear_request_passphrase() enforces (#1536). */
+export const MAX_PASSPHRASE_LENGTH = 100;
+export const MAX_PASSPHRASE_HELP_TEXT_LENGTH = 500;
 
 /** The same rule set_gear_request_settings() enforces on a method's key. */
 export const PAYMENT_METHOD_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{0,49}$/;
@@ -169,17 +192,28 @@ export function parseGearRequestSettings(value: unknown): GearRequestSettings {
     paymentMethods: parsePaymentMethods(record.payment_methods),
     meetupInstructions: asString(record.meetup_instructions),
     shippingInstructions: asString(record.shipping_instructions),
+    passphraseRequired: record.passphrase_required === true,
+    passphrase: asString(record.passphrase),
+    passphraseHelpText: asString(record.passphrase_help_text),
   };
 }
 
+/**
+ * What the public cart is told. Whether a passphrase is asked for and how to
+ * get one -- never the passphrase itself, which the view does not select.
+ */
 export type PublicGearRequestOptions = {
   shippingEnabled: boolean;
   paymentMethods: PaymentMethodOption[];
+  passphraseRequired: boolean;
+  passphraseHelpText: string;
 };
 
 export const DEFAULT_PUBLIC_GEAR_REQUEST_OPTIONS: PublicGearRequestOptions = {
   shippingEnabled: false,
   paymentMethods: [],
+  passphraseRequired: false,
+  passphraseHelpText: "",
 };
 
 /**
@@ -194,7 +228,7 @@ export function shippingOffered(options: PublicGearRequestOptions): boolean {
   return options.shippingEnabled && options.paymentMethods.length > 0;
 }
 
-/** The `public_gear_request_settings` view's two rows, resolved. */
+/** The `public_gear_request_settings` view's rows, resolved. */
 export function resolvePublicGearRequestOptions(
   rows: readonly { slot: string; value: unknown }[],
 ): PublicGearRequestOptions {
@@ -204,6 +238,8 @@ export function resolvePublicGearRequestOptions(
     paymentMethods: parsePaymentMethods(bySlot.get("payment_methods")).map(
       ({ key, label }) => ({ key, label }),
     ),
+    passphraseRequired: bySlot.get("passphrase_required") === true,
+    passphraseHelpText: asString(bySlot.get("passphrase_help_text")).trim(),
   };
 }
 

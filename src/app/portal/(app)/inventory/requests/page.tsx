@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { GearRequestsTable, type GearRequestListRow } from "./requests-table";
 import { GearRequestSettingsPanel } from "./request-settings-panel";
+import { GearRequestPassphrasePanel } from "./request-passphrase-panel";
 import { AskAllAsIsDialog } from "./ask-all-as-is-dialog";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -206,10 +207,13 @@ export default async function GearRequestsPage({
       </div>
 
       {canManage && settingsResult && !settingsResult.error ? (
-        <div className="mt-8">
+        <div className="mt-8 flex flex-col gap-6">
           <GearRequestSettingsPanel
             settings={parseGearRequestSettings(settingsResult.data)}
             collectionLabel={lexicon.collection}
+          />
+          <GearRequestPassphrasePanel
+            settings={parseGearRequestSettings(settingsResult.data)}
           />
         </div>
       ) : null}

@@ -27,9 +27,12 @@ import {
   withModule,
 } from "../../../../test/integration-setup";
 import {
+  PASSPHRASE_REQUIRED_SETTING_KEY,
+  PASSPHRASE_SETTING_KEY,
   PAYMENT_METHODS_SETTING_KEY,
   SHIPPING_ENABLED_SETTING_KEY,
 } from "@/lib/gear-requests";
+import { GEAR_PASSPHRASE_EXPIRED } from "@/lib/gear-passphrase";
 import { gearAsIsText } from "@/lib/gear-as-is";
 import { DEFAULT_LEXICON } from "@/lib/lexicon";
 
@@ -65,7 +68,51 @@ mock.module("next/server", () => ({
   },
 }));
 
-const { requestGearItemsAction } = await import("./gear-cart-request-actions");
+// The browser's passphrase cookie (#1536). There is no request scope here for
+// next/headers to read, so the jar is this one variable: what the check action
+// set, or what a test says this browser already holds.
+let passphraseCookie: string | null = null;
+mock.module("@/lib/gear-passphrase-cookie", () => ({
+  readGearPassphraseCookie: async () => passphraseCookie,
+  setGearPassphraseCookie: async (passphrase: string) => {
+    passphraseCookie = passphrase;
+  },
+  clearGearPassphraseCookie: async () => {
+    passphraseCookie = null;
+  },
+}));
+
+const { requestGearItemsAction, checkGearPassphraseAction } =
+  await import("./gear-cart-request-actions");
+
+/**
+ * Turns the seeded tenant's passphrase gate on (#1536), returning what turns
+ * it off again. Written with the service role, as the portal's
+ * set_gear_request_passphrase() would leave it.
+ */
+async function requirePassphrase(passphrase: string) {
+  const service = serviceRoleClient();
+  const tenantId = await seededTenantId();
+  const { error } = await service.from("app_settings").upsert(
+    [
+      {
+        tenant_id: tenantId,
+        key: PASSPHRASE_REQUIRED_SETTING_KEY,
+        value: true,
+      },
+      { tenant_id: tenantId, key: PASSPHRASE_SETTING_KEY, value: passphrase },
+    ],
+    { onConflict: "tenant_id,key" },
+  );
+  if (error) throw error;
+  return async () => {
+    await service
+      .from("app_settings")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("key", [PASSPHRASE_REQUIRED_SETTING_KEY, PASSPHRASE_SETTING_KEY]);
+  };
+}
 
 // The as-is box is ticked unless a case says otherwise (#1367), so every test
 // below still exercises the rule it was written for rather than the gate.
@@ -891,6 +938,34 @@ describe("requesting gear as yourself (integration)", () => {
     expect(await getInventoryItemStatus(item)).toBe("available");
   });
 
+  // #1536: an account is not a bypass. Staff who need to skip the passphrase
+  // use the portal checkout.
+  test("asks a signed-in requester for the passphrase too", async () => {
+    currentIp = uniqueIp();
+    const { client } = await linkedConstituent("Sky Marsh");
+    currentClient = client;
+    const [item] = await gearItems(1);
+    const restore = await requirePassphrase("Bluebird");
+    try {
+      const refused = await requestGearItemsAction([item], formData({}));
+      expect(refused).toEqual({
+        error: GEAR_PASSPHRASE_EXPIRED,
+        passphraseRequired: true,
+      });
+      expect(await getInventoryItemStatus(item)).toBe("available");
+
+      passphraseCookie = "BLUEBIRD";
+      const accepted = await requestGearItemsAction([item], formData({}));
+      expect(accepted).toEqual({
+        success: true,
+        requestId: expect.any(String),
+      });
+    } finally {
+      passphraseCookie = null;
+      await restore();
+    }
+  });
+
   test("is not granted to anon at all", async () => {
     const [item] = await gearItems(1);
 
@@ -901,5 +976,157 @@ describe("requesting gear as yourself (integration)", () => {
 
     expect(error).not.toBeNull();
     expect(await getInventoryItemStatus(item)).toBe("available");
+  });
+});
+
+// #1536. Off for every tenant unless it turns it on; on, every path through
+// the cart answers to it in the database, and the dialog's check is only the
+// visitor finding out sooner.
+describe("the tenant's passphrase (integration)", () => {
+  let restore: (() => Promise<void>) | null = null;
+  afterEach(async () => {
+    await restore?.();
+    restore = null;
+    passphraseCookie = null;
+  });
+
+  test("changes nothing while it is off", async () => {
+    currentIp = uniqueIp();
+    const [item] = await gearItems(1);
+    expect(await checkGearPassphraseAction("anything")).toEqual({
+      success: true,
+    });
+    const result = await requestGearItemsAction(
+      [item],
+      formData({ name: "Jamie Rivera", email: uniqueEmail("pass-off") }),
+    );
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
+  });
+
+  test("refuses a visitor without it, before matching or minting a person", async () => {
+    currentIp = uniqueIp();
+    restore = await requirePassphrase("Bluebird");
+    const [item] = await gearItems(1);
+    const email = uniqueEmail("pass-missing");
+
+    for (const cookie of [null, "Redbird"]) {
+      passphraseCookie = cookie;
+      const result = await requestGearItemsAction(
+        [item],
+        formData({ name: "Jamie Rivera", email }),
+      );
+      expect(result).toEqual({
+        error: GEAR_PASSPHRASE_EXPIRED,
+        passphraseRequired: true,
+      });
+    }
+
+    expect(await getInventoryItemStatus(item)).toBe("available");
+    const { count } = await serviceRoleClient()
+      .from("people")
+      .select("id", { count: "exact", head: true })
+      .eq("email", email);
+    expect(count).toBe(0);
+  });
+
+  test("accepts it trimmed and in any case", async () => {
+    currentIp = uniqueIp();
+    restore = await requirePassphrase("Blue Bird");
+    const [item] = await gearItems(1);
+
+    expect(await checkGearPassphraseAction("  blue BIRD ")).toEqual({
+      success: true,
+    });
+    // Kept trimmed, in an httpOnly cookie, for the submit to read.
+    expect(passphraseCookie).toBe("blue BIRD");
+    const result = await requestGearItemsAction(
+      [item],
+      formData({ name: "Jamie Rivera", email: uniqueEmail("pass-ok") }),
+    );
+    expect(result).toEqual({ success: true, requestId: expect.any(String) });
+  });
+
+  test("a rotated passphrase fails the next submit from an unlocked browser", async () => {
+    currentIp = uniqueIp();
+    restore = await requirePassphrase("Bluebird");
+    expect(await checkGearPassphraseAction("Bluebird")).toEqual({
+      success: true,
+    });
+
+    await restore();
+    restore = await requirePassphrase("Snowbird");
+    const [item] = await gearItems(1);
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({ name: "Jamie Rivera", email: uniqueEmail("pass-rotated") }),
+    );
+    expect(result).toEqual({
+      error: GEAR_PASSPHRASE_EXPIRED,
+      passphraseRequired: true,
+    });
+    // The stale word is dropped, so the page renders this browser locked.
+    expect(passphraseCookie).toBeNull();
+  });
+
+  test("ignores a passphrase sent in the form instead of the cookie", async () => {
+    currentIp = uniqueIp();
+    restore = await requirePassphrase("Bluebird");
+    const [item] = await gearItems(1);
+
+    const result = await requestGearItemsAction(
+      [item],
+      formData({
+        name: "Jamie Rivera",
+        email: uniqueEmail("pass-form"),
+        passphrase: "Bluebird",
+      }),
+    );
+    expect(result).toEqual({
+      error: GEAR_PASSPHRASE_EXPIRED,
+      passphraseRequired: true,
+    });
+  });
+
+  test("the dialog's check says no to a wrong guess, and rate-limits guessing", async () => {
+    currentIp = uniqueIp();
+    restore = await requirePassphrase("Bluebird");
+
+    expect(await checkGearPassphraseAction("Redbird")).toEqual({
+      error: expect.stringContaining("doesn't match"),
+    });
+    expect(passphraseCookie).toBeNull();
+    for (let i = 0; i < 9; i++) await checkGearPassphraseAction("Redbird");
+    expect(await checkGearPassphraseAction("Bluebird")).toEqual({
+      error: expect.stringContaining("Too many attempts"),
+    });
+  });
+
+  test("the RPC refuses a direct anon call without it", async () => {
+    restore = await requirePassphrase("Bluebird");
+    const [item] = await gearItems(1);
+
+    const { error } = await anonClient().rpc("request_gear_items", {
+      p_inventory_item_ids: [item],
+      p_name: "Jamie Rivera",
+      p_email: uniqueEmail("pass-direct"),
+      p_phone: null,
+      p_ip_address: uniqueIp(),
+      p_as_is_acknowledged: true,
+      p_as_is_text: gearAsIsText(DEFAULT_LEXICON),
+    });
+    expect(error?.message).toBe("PASSPHRASE_REQUIRED");
+    expect(await getInventoryItemStatus(item)).toBe("available");
+  });
+
+  test("anon learns that a passphrase is required, never what it is", async () => {
+    restore = await requirePassphrase("Bluebird");
+
+    const { data, error } = await anonClient()
+      .from("public_gear_request_settings")
+      .select("slot, value");
+    expect(error).toBeNull();
+    expect(data).toContainEqual({ slot: "passphrase_required", value: true });
+    expect(JSON.stringify(data)).not.toContain("Bluebird");
   });
 });

@@ -21,6 +21,10 @@ import { GearDetailSheet } from "./gear-detail-sheet";
 import { GEAR_ITEM_PARAM } from "./gear-item-path";
 import { GearCartTray } from "./gear-cart-tray";
 import { GearCartSheet } from "./gear-cart-sheet";
+import {
+  GearPassphraseDialog,
+  type GearPassphraseContact,
+} from "./gear-passphrase-dialog";
 import type {
   DeliveryMethod,
   PublicGearRequestOptions,
@@ -63,6 +67,9 @@ export function GearCatalog({
   accountOffer = null,
   lexicon = DEFAULT_LEXICON,
   termsInForce = false,
+  organizationName = null,
+  passphraseContact = null,
+  passphraseUnlocked = false,
 }: {
   items: GearItem[];
   placeholderUrl: string | null;
@@ -90,6 +97,15 @@ export function GearCatalog({
    * checkout form (#1367). It links the document only where one is served.
    */
   termsInForce?: boolean;
+  /** Named in the passphrase dialog (#1536). */
+  organizationName?: string | null;
+  /** Where the passphrase dialog sends somebody without it (#1536). */
+  passphraseContact?: GearPassphraseContact;
+  /**
+   * Whether this browser already holds a verified passphrase (#1536), read on
+   * the server from its httpOnly cookie. Only whether, never the word.
+   */
+  passphraseUnlocked?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -158,7 +174,24 @@ export function GearCatalog({
     openCart();
   };
 
+  // The tenant's passphrase gate (#1536). The item somebody tried to add waits
+  // here while the dialog asks, and lands in the cart once it is answered.
+  const [passphraseOpen, setPassphraseOpen] = useState(false);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
+  const [passphraseNotice, setPassphraseNotice] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(passphraseUnlocked);
+
   const toggleCartItem = (itemId: string) => {
+    if (
+      requestOptions.passphraseRequired &&
+      !cartIds.has(itemId) &&
+      !unlocked
+    ) {
+      setPendingItemId(itemId);
+      setPassphraseNotice(null);
+      setPassphraseOpen(true);
+      return;
+    }
     setCartIds((current) => {
       const next = new Set(current);
       if (next.has(itemId)) {
@@ -168,6 +201,26 @@ export function GearCatalog({
       }
       return next;
     });
+  };
+
+  const handlePassphraseUnlocked = () => {
+    setUnlocked(true);
+    setPassphraseOpen(false);
+    setPassphraseNotice(null);
+    if (pendingItemId) {
+      const itemId = pendingItemId;
+      setCartIds((current) => new Set(current).add(itemId));
+      setPendingItemId(null);
+    }
+  };
+
+  // A submit the database refused because the passphrase changed since this
+  // browser unlocked: the action dropped its cookie, so ask again, over the cart.
+  const handlePassphraseRejected = (message: string) => {
+    setUnlocked(false);
+    setPendingItemId(null);
+    setPassphraseNotice(message);
+    setPassphraseOpen(true);
   };
 
   const cartItems = items.filter((item) => cartIds.has(item.id));
@@ -469,7 +522,24 @@ export function GearCatalog({
         accountOffer={accountOffer}
         lexicon={lexicon}
         termsInForce={termsInForce}
+        onPassphraseRejected={handlePassphraseRejected}
       />
+
+      {requestOptions.passphraseRequired ? (
+        <GearPassphraseDialog
+          open={passphraseOpen}
+          onOpenChange={(open) => {
+            setPassphraseOpen(open);
+            if (!open) setPendingItemId(null);
+          }}
+          onUnlocked={handlePassphraseUnlocked}
+          organizationName={organizationName}
+          lexicon={lexicon}
+          helpText={requestOptions.passphraseHelpText}
+          contact={passphraseContact}
+          notice={passphraseNotice}
+        />
+      ) : null}
     </div>
   );
 }

@@ -23,6 +23,10 @@ import {
 } from "../../../../test/integration-setup";
 import { SEEDED_USER_IDS } from "../../../../test/seed-fixtures";
 import { SITE_CONTENT_SLOTS } from "@/lib/site-content";
+import {
+  PASSPHRASE_REQUIRED_SETTING_KEY,
+  PASSPHRASE_SETTING_KEY,
+} from "@/lib/gear-requests";
 
 // Every module in `@/lib/api` imports "server-only", which throws outside
 // Next's bundler. Same treatment the notification suite gives it: neutralise
@@ -582,6 +586,94 @@ describe("writes", () => {
     expect(Object.keys(body.error.fields ?? {})).toContain(
       "as_is_acknowledged",
     );
+  });
+
+  // #1536. The third caller of request_gear_items(), wired up with the other
+  // two: a consumer learns that a passphrase is required from the settings
+  // read, never what it is, and a request without it is refused by the RPC.
+  test("a gear request answers to the organization's passphrase", async () => {
+    await must(
+      service.from("app_settings").upsert(
+        [
+          {
+            tenant_id: tenantId,
+            key: PASSPHRASE_REQUIRED_SETTING_KEY,
+            value: true,
+          },
+          {
+            tenant_id: tenantId,
+            key: PASSPHRASE_SETTING_KEY,
+            value: "Bluebird",
+          },
+        ],
+        { onConflict: "tenant_id,key" },
+      ),
+      "passphrase settings",
+    );
+    try {
+      const [{ donation_id }] = await must(
+        service
+          .from("inventory_items")
+          .select("donation_id")
+          .eq("id", gearItemId),
+        "donation",
+      );
+      const [{ id: itemId }] = await must(
+        service
+          .from("inventory_items")
+          .insert({
+            tenant_id: tenantId,
+            donation_id,
+            description: `Public API Gated Ski ${run}`,
+            condition: "good",
+            status: "available",
+            intended_use: "gear_library",
+            created_by: AUTHOR,
+          })
+          .select("id"),
+        "gated item",
+      );
+
+      const settings = await getGearSettings(
+        apiRequest(`/api/v1/t/${SLUG}/gear-request-settings`),
+        tenantParams(),
+      );
+      const settingsText = await settings.text();
+      expect(JSON.parse(settingsText).settings.passphrase_required).toBe(true);
+      expect(settingsText).not.toContain("Bluebird");
+
+      const request = (passphrase?: string) =>
+        postGearRequest(
+          apiRequest(`/api/v1/t/${SLUG}/gear-requests`, {
+            method: "POST",
+            body: JSON.stringify({
+              item_ids: [itemId],
+              name: "API Requester",
+              email: uniqueEmail("api-gear-passphrase"),
+              as_is_acknowledged: true,
+              ...(passphrase === undefined ? {} : { passphrase }),
+            }),
+          }),
+          tenantParams(),
+        );
+
+      for (const attempt of [undefined, "wrong"]) {
+        const refused = await request(attempt);
+        expect(refused.status).toBe(422);
+        const body = await refused.json();
+        expect(body.error.code).toBe("invalid_request");
+        expect(Object.keys(body.error.fields ?? {})).toContain("passphrase");
+      }
+
+      // Trimmed and case-insensitive: it is read out over the phone.
+      expect((await request("  bluebird ")).status).toBe(201);
+    } finally {
+      await service
+        .from("app_settings")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .in("key", [PASSPHRASE_REQUIRED_SETTING_KEY, PASSPHRASE_SETTING_KEY]);
+    }
   });
 
   test("a registration for another tenant's event is a 404", async () => {

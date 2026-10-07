@@ -73,6 +73,9 @@ describe("parseGearRequestSettings", () => {
         payment_methods: [{ key: "zelle", label: "Zelle" }],
         meetup_instructions: "Saturdays at the trailhead.",
         shipping_instructions: "Allow a week.",
+        passphrase_required: true,
+        passphrase: "Bluebird",
+        passphrase_help_text: "Ask your caseworker.",
       }),
     ).toEqual({
       shippingEnabled: true,
@@ -81,6 +84,9 @@ describe("parseGearRequestSettings", () => {
       ],
       meetupInstructions: "Saturdays at the trailhead.",
       shippingInstructions: "Allow a week.",
+      passphraseRequired: true,
+      passphrase: "Bluebird",
+      passphraseHelpText: "Ask your caseworker.",
     });
   });
 
@@ -90,6 +96,9 @@ describe("parseGearRequestSettings", () => {
       paymentMethods: [],
       meetupInstructions: "",
       shippingInstructions: "",
+      passphraseRequired: false,
+      passphrase: "",
+      passphraseHelpText: "",
     };
     expect(parseGearRequestSettings(null)).toEqual(defaults);
     expect(
@@ -97,6 +106,8 @@ describe("parseGearRequestSettings", () => {
         shipping_enabled: "yes",
         payment_methods: "zelle",
         meetup_instructions: 3,
+        passphrase_required: "true",
+        passphrase: 42,
       }),
     ).toEqual(defaults);
   });
@@ -113,17 +124,23 @@ describe("resolvePublicGearRequestOptions", () => {
             { key: "zelle", label: "Zelle", handle: "should not survive" },
           ],
         },
+        { slot: "passphrase_required", value: true },
+        { slot: "passphrase_help_text", value: "  Ask your caseworker. " },
       ]),
     ).toEqual({
       shippingEnabled: true,
       paymentMethods: [{ key: "zelle", label: "Zelle" }],
+      passphraseRequired: true,
+      passphraseHelpText: "Ask your caseworker.",
     });
   });
 
-  test("offers meetup only when the view answers nothing", () => {
+  test("offers meetup only, and no passphrase gate, when the view answers nothing", () => {
     expect(resolvePublicGearRequestOptions([])).toEqual({
       shippingEnabled: false,
       paymentMethods: [],
+      passphraseRequired: false,
+      passphraseHelpText: "",
     });
   });
 });

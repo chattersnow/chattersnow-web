@@ -283,7 +283,12 @@ export const gearResponse = z
   .meta({ id: "GearResponse" });
 
 export const gearRequestSettingsResponse = z
-  .object({ settings: z.record(z.string(), json) })
+  .object({
+    settings: z.record(z.string(), json).meta({
+      description:
+        "Keyed by slot: `shipping_enabled` (boolean), `payment_methods` (array of `{key, label}`), `passphrase_required` (boolean) and `passphrase_help_text` (string, the organization's own words on how to get the passphrase). The passphrase itself is never included.",
+    }),
+  })
   .meta({ id: "GearRequestSettingsResponse" });
 
 export const volunteerRolesResponse = z

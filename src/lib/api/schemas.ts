@@ -255,6 +255,12 @@ export const gearRequestSchema = z
       description:
         "Confirms the person asking was shown, and understood, that these items are given as-is — not inspected, tested, serviced or certified. Must be `true`; there is no way to request without it. Show them the wording first: it is the `items-we-give-away` section of this organization's terms of use.",
     }),
+    // #1536. Optional because most organizations ask for none; required in
+    // effect where `/gear-request-settings` says `passphrase_required`.
+    passphrase: optionalText(100).meta({
+      description:
+        "The organization's shared passphrase, where `/gear-request-settings` reports `passphrase_required: true`. Compared trimmed and case-insensitively. A missing or wrong one is refused with `passphrase` as the field. The organization gives it out; it is never published here.",
+    }),
   })
   .meta({ id: "GearRequest" });
 
