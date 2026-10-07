@@ -25,10 +25,6 @@ import {
   GearPassphraseDialog,
   type GearPassphraseContact,
 } from "./gear-passphrase-dialog";
-import {
-  forgetGearPassphrase,
-  storedGearPassphrase,
-} from "@/lib/gear-passphrase";
 import type {
   DeliveryMethod,
   PublicGearRequestOptions,
@@ -73,6 +69,7 @@ export function GearCatalog({
   termsInForce = false,
   organizationName = null,
   passphraseContact = null,
+  passphraseUnlocked = false,
 }: {
   items: GearItem[];
   placeholderUrl: string | null;
@@ -104,6 +101,11 @@ export function GearCatalog({
   organizationName?: string | null;
   /** Where the passphrase dialog sends somebody without it (#1536). */
   passphraseContact?: GearPassphraseContact;
+  /**
+   * Whether this browser already holds a verified passphrase (#1536), read on
+   * the server from its httpOnly cookie. Only whether, never the word.
+   */
+  passphraseUnlocked?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -177,12 +179,13 @@ export function GearCatalog({
   const [passphraseOpen, setPassphraseOpen] = useState(false);
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [passphraseNotice, setPassphraseNotice] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(passphraseUnlocked);
 
   const toggleCartItem = (itemId: string) => {
     if (
       requestOptions.passphraseRequired &&
       !cartIds.has(itemId) &&
-      !storedGearPassphrase()
+      !unlocked
     ) {
       setPendingItemId(itemId);
       setPassphraseNotice(null);
@@ -201,6 +204,7 @@ export function GearCatalog({
   };
 
   const handlePassphraseUnlocked = () => {
+    setUnlocked(true);
     setPassphraseOpen(false);
     setPassphraseNotice(null);
     if (pendingItemId) {
@@ -211,9 +215,9 @@ export function GearCatalog({
   };
 
   // A submit the database refused because the passphrase changed since this
-  // browser unlocked: forget it and ask again, over the cart.
+  // browser unlocked: the action dropped its cookie, so ask again, over the cart.
   const handlePassphraseRejected = (message: string) => {
-    forgetGearPassphrase();
+    setUnlocked(false);
     setPendingItemId(null);
     setPassphraseNotice(message);
     setPassphraseOpen(true);

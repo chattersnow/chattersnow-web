@@ -68,6 +68,20 @@ mock.module("next/server", () => ({
   },
 }));
 
+// The browser's passphrase cookie (#1536). There is no request scope here for
+// next/headers to read, so the jar is this one variable: what the check action
+// set, or what a test says this browser already holds.
+let passphraseCookie: string | null = null;
+mock.module("@/lib/gear-passphrase-cookie", () => ({
+  readGearPassphraseCookie: async () => passphraseCookie,
+  setGearPassphraseCookie: async (passphrase: string) => {
+    passphraseCookie = passphrase;
+  },
+  clearGearPassphraseCookie: async () => {
+    passphraseCookie = null;
+  },
+}));
+
 const { requestGearItemsAction, checkGearPassphraseAction } =
   await import("./gear-cart-request-actions");
 
@@ -940,15 +954,14 @@ describe("requesting gear as yourself (integration)", () => {
       });
       expect(await getInventoryItemStatus(item)).toBe("available");
 
-      const accepted = await requestGearItemsAction(
-        [item],
-        formData({ passphrase: "BLUEBIRD" }),
-      );
+      passphraseCookie = "BLUEBIRD";
+      const accepted = await requestGearItemsAction([item], formData({}));
       expect(accepted).toEqual({
         success: true,
         requestId: expect.any(String),
       });
     } finally {
+      passphraseCookie = null;
       await restore();
     }
   });
@@ -974,6 +987,7 @@ describe("the tenant's passphrase (integration)", () => {
   afterEach(async () => {
     await restore?.();
     restore = null;
+    passphraseCookie = null;
   });
 
   test("changes nothing while it is off", async () => {
@@ -995,14 +1009,11 @@ describe("the tenant's passphrase (integration)", () => {
     const [item] = await gearItems(1);
     const email = uniqueEmail("pass-missing");
 
-    for (const passphrase of [undefined, "Redbird"]) {
+    for (const cookie of [null, "Redbird"]) {
+      passphraseCookie = cookie;
       const result = await requestGearItemsAction(
         [item],
-        formData({
-          name: "Jamie Rivera",
-          email,
-          ...(passphrase ? { passphrase } : {}),
-        }),
+        formData({ name: "Jamie Rivera", email }),
       );
       expect(result).toEqual({
         error: GEAR_PASSPHRASE_EXPIRED,
@@ -1026,13 +1037,11 @@ describe("the tenant's passphrase (integration)", () => {
     expect(await checkGearPassphraseAction("  blue BIRD ")).toEqual({
       success: true,
     });
+    // Kept trimmed, in an httpOnly cookie, for the submit to read.
+    expect(passphraseCookie).toBe("blue BIRD");
     const result = await requestGearItemsAction(
       [item],
-      formData({
-        name: "Jamie Rivera",
-        email: uniqueEmail("pass-ok"),
-        passphrase: "  blue BIRD ",
-      }),
+      formData({ name: "Jamie Rivera", email: uniqueEmail("pass-ok") }),
     );
     expect(result).toEqual({ success: true, requestId: expect.any(String) });
   });
@@ -1050,9 +1059,26 @@ describe("the tenant's passphrase (integration)", () => {
 
     const result = await requestGearItemsAction(
       [item],
+      formData({ name: "Jamie Rivera", email: uniqueEmail("pass-rotated") }),
+    );
+    expect(result).toEqual({
+      error: GEAR_PASSPHRASE_EXPIRED,
+      passphraseRequired: true,
+    });
+    // The stale word is dropped, so the page renders this browser locked.
+    expect(passphraseCookie).toBeNull();
+  });
+
+  test("ignores a passphrase sent in the form instead of the cookie", async () => {
+    currentIp = uniqueIp();
+    restore = await requirePassphrase("Bluebird");
+    const [item] = await gearItems(1);
+
+    const result = await requestGearItemsAction(
+      [item],
       formData({
         name: "Jamie Rivera",
-        email: uniqueEmail("pass-rotated"),
+        email: uniqueEmail("pass-form"),
         passphrase: "Bluebird",
       }),
     );
@@ -1069,6 +1095,7 @@ describe("the tenant's passphrase (integration)", () => {
     expect(await checkGearPassphraseAction("Redbird")).toEqual({
       error: expect.stringContaining("doesn't match"),
     });
+    expect(passphraseCookie).toBeNull();
     for (let i = 0; i < 9; i++) await checkGearPassphraseAction("Redbird");
     expect(await checkGearPassphraseAction("Bluebird")).toEqual({
       error: expect.stringContaining("Too many attempts"),

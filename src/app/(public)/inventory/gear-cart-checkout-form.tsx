@@ -3,7 +3,6 @@
 import { FormEvent, useState, useTransition } from "react";
 import Link from "next/link";
 import { requestGearItemsAction } from "./gear-cart-request-actions";
-import { storedGearPassphrase } from "@/lib/gear-passphrase";
 import {
   EMPTY_SHIPPING_FIELDS,
   GearDeliveryFields,
@@ -108,12 +107,6 @@ export function GearCartCheckoutForm({
     formData.set("notes", notes);
     formData.set("as_is_acknowledged", String(asIsAcknowledged));
     formData.set("delivery_method", deliveryMethod);
-    // What this browser verified (#1536). Resent, never trusted: the
-    // database compares it with the tenant's current passphrase.
-    const passphrase = options.passphraseRequired
-      ? storedGearPassphrase()
-      : null;
-    if (passphrase) formData.set("passphrase", passphrase);
     if (deliveryMethod === "shipping") {
       formData.set("ship_name", shipping.name);
       formData.set("ship_line1", shipping.line1);

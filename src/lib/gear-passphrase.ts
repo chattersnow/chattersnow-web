@@ -8,11 +8,9 @@ import { applyLexicon, type Lexicon } from "@/lib/lexicon";
  * rotated passphrase should read as "enter it again", not as a new failure.
  *
  * Zero runtime imports beyond the lexicon, which is itself client-safe: the
- * dialog and the checkout form are client components.
+ * dialog is a client component. The verified word itself is kept server-side,
+ * in gear-passphrase-cookie.ts.
  */
-
-/** Session storage key for the passphrase this browser verified. */
-export const GEAR_PASSPHRASE_STORAGE_KEY = "gear-passphrase";
 
 export const GEAR_PASSPHRASE_TITLE = "Enter the passphrase";
 
@@ -38,32 +36,3 @@ export const GEAR_PASSPHRASE_WRONG =
 /** What a submit refused with PASSPHRASE_REQUIRED says, before the dialog reopens. */
 export const GEAR_PASSPHRASE_EXPIRED =
   "Enter the passphrase to send your request. It may have changed since you last entered it.";
-
-/**
- * The passphrase this browser verified (#1536), for the rest of the session.
- * Storage can be unavailable (private windows, blocked site data); the gate
- * then simply asks again, which is the safe direction.
- */
-export function storedGearPassphrase(): string | null {
-  try {
-    return window.sessionStorage.getItem(GEAR_PASSPHRASE_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function storeGearPassphrase(passphrase: string | null) {
-  try {
-    if (passphrase === null) {
-      window.sessionStorage.removeItem(GEAR_PASSPHRASE_STORAGE_KEY);
-    } else {
-      window.sessionStorage.setItem(GEAR_PASSPHRASE_STORAGE_KEY, passphrase);
-    }
-  } catch {
-    // See storedGearPassphrase().
-  }
-}
-
-export function forgetGearPassphrase() {
-  storeGearPassphrase(null);
-}

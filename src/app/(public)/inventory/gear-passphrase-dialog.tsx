@@ -25,7 +25,6 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   GEAR_PASSPHRASE_TITLE,
   gearPassphraseIntro,
-  storeGearPassphrase,
 } from "@/lib/gear-passphrase";
 import type { Lexicon } from "@/lib/lexicon";
 
@@ -87,7 +86,6 @@ export function GearPassphraseDialog({
         setError(result.error);
         return;
       }
-      storeGearPassphrase(entered.trim());
       setPassphrase("");
       onUnlocked();
     });

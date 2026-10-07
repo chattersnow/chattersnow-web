@@ -2,11 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DEFAULT_LEXICON } from "@/lib/lexicon";
-import {
-  GEAR_PASSPHRASE_WRONG,
-  forgetGearPassphrase,
-  storedGearPassphrase,
-} from "@/lib/gear-passphrase";
+import { GEAR_PASSPHRASE_WRONG } from "@/lib/gear-passphrase";
 
 // See gear-cart-checkout-form.dom.test.tsx: the guard is neutralised so the
 // action module can load for the mock below to replace.
@@ -49,7 +45,6 @@ function renderDialog(
 describe("GearPassphraseDialog (#1536)", () => {
   beforeEach(() => {
     checkGearPassphraseActionMock.mockClear();
-    forgetGearPassphrase();
   });
 
   test("names the organization and points at how to get the passphrase", () => {
@@ -85,10 +80,11 @@ describe("GearPassphraseDialog (#1536)", () => {
 
     expect(await screen.findByText(GEAR_PASSPHRASE_WRONG)).toBeTruthy();
     expect(onUnlocked).not.toHaveBeenCalled();
-    expect(storedGearPassphrase()).toBeNull();
   });
 
-  test("the right one unlocks the cart for the session", async () => {
+  // Keeping the word is the action's job, in an httpOnly cookie: nothing
+  // here may hold it where page scripts can read it.
+  test("the right one unlocks the cart, keeping nothing in the page", async () => {
     const { onUnlocked } = renderDialog();
     await userEvent.type(screen.getByLabelText(/Passphrase/), " BlueBird ");
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
@@ -96,6 +92,7 @@ describe("GearPassphraseDialog (#1536)", () => {
     expect(checkGearPassphraseActionMock).toHaveBeenCalledWith(" BlueBird ");
     await screen.findByRole("dialog");
     expect(onUnlocked).toHaveBeenCalledTimes(1);
-    expect(storedGearPassphrase()).toBe("BlueBird");
+    expect(window.sessionStorage.length).toBe(0);
+    expect(window.localStorage.length).toBe(0);
   });
 });

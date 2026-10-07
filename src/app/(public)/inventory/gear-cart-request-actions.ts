@@ -16,6 +16,11 @@ import {
   GEAR_PASSPHRASE_EXPIRED,
   GEAR_PASSPHRASE_WRONG,
 } from "@/lib/gear-passphrase";
+import {
+  clearGearPassphraseCookie,
+  readGearPassphraseCookie,
+  setGearPassphraseCookie,
+} from "@/lib/gear-passphrase-cookie";
 import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
 import { getPublicLexicon } from "@/lib/lexicon";
 import type { PublicGearRequestOptions } from "@/lib/gear-requests";
@@ -26,8 +31,8 @@ import {
 } from "./gear-request-form";
 
 export type RequestGearItemsResult =
-  // `passphraseRequired` tells the cart to forget the passphrase it holds and
-  // ask again (#1536): the tenant changed it since this browser unlocked.
+  // `passphraseRequired` tells the cart to ask again (#1536): the tenant
+  // changed the passphrase since this browser unlocked, or it never did.
   | { error: string; passphraseRequired?: true }
   // The id comes back so the receipt can offer to keep the request (#1359).
   // For a filled honeypot it is the throwaway uuid the RPC mints with no row
@@ -79,6 +84,9 @@ export async function requestGearItemsAction(
   ]);
   const ipAddress = await getClientIp();
   const asIsText = gearAsIsText(lexicon);
+  // Never from the form (#1536): the word lives in the httpOnly cookie the
+  // check set, and the database compares it with the current one.
+  const passphrase = await readGearPassphraseCookie();
 
   // Which person the request lands on is decided here, from the session, and
   // never from anything the browser sent (#1359). A reader with an approved
@@ -96,6 +104,7 @@ export async function requestGearItemsAction(
           options,
           ipAddress,
           asIsText,
+          passphrase,
         )
       : await submitAnonymously(
           supabase,
@@ -104,9 +113,14 @@ export async function requestGearItemsAction(
           options,
           ipAddress,
           asIsText,
+          passphrase,
         );
 
-  if ("error" in submitted) return submitted;
+  if ("error" in submitted) {
+    // A stale word is dropped, so the page renders this browser locked again.
+    if (submitted.passphraseRequired) await clearGearPassphraseCookie();
+    return submitted;
+  }
   const { requestId } = submitted;
 
   revalidatePath("/inventory/library");
@@ -149,16 +163,6 @@ function rpcFailed(message: string): Submitted {
   };
 }
 
-/**
- * The passphrase the cart resends with a request (#1536): what this browser
- * verified and holds in session storage. Never trusted -- the RPCs compare it
- * against the tenant's current one -- so a missing field is simply null.
- */
-function passphraseFrom(formData: FormData): string | null {
-  const value = formData.get("passphrase");
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
 /** The visitor's path: the person is matched or minted from the typed email. */
 async function submitAnonymously(
   supabase: SupabaseClient,
@@ -167,6 +171,7 @@ async function submitAnonymously(
   options: PublicGearRequestOptions,
   ipAddress: string | null,
   asIsText: string,
+  passphrase: string | null,
 ): Promise<Submitted> {
   const parsed = parseGearRequestForm(formData, options);
   if ("error" in parsed) return parsed;
@@ -185,7 +190,7 @@ async function submitAnonymously(
     p_payment_method: parsed.data.paymentMethod,
     p_as_is_acknowledged: parsed.data.asIsAcknowledged,
     p_as_is_text: asIsText,
-    p_passphrase: passphraseFrom(formData),
+    p_passphrase: passphrase,
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
@@ -210,6 +215,7 @@ async function submitAsMe(
   options: PublicGearRequestOptions,
   ipAddress: string | null,
   asIsText: string,
+  passphrase: string | null,
 ): Promise<Submitted> {
   const parsed = parseGearRequestDelivery(formData, options);
   if ("error" in parsed) return parsed;
@@ -224,7 +230,7 @@ async function submitAsMe(
     p_as_is_acknowledged: parsed.data.asIsAcknowledged,
     p_as_is_text: asIsText,
     // No bypass for an account (#1536): staff skip it through the portal.
-    p_passphrase: passphraseFrom(formData),
+    p_passphrase: passphrase,
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
@@ -234,8 +240,9 @@ export type CheckGearPassphraseResult = { success: true } | { error: string };
 
 /**
  * The passphrase dialog's check (#1536). Rate-limited per address in the
- * database, because a shared word has little entropy. A yes unlocks only the
- * UX: every submit resends the word and is checked again.
+ * database, because a shared word has little entropy. A yes keeps the word in
+ * an httpOnly cookie for the browser session; every submit sends it on and the
+ * database checks it again.
  */
 export async function checkGearPassphraseAction(
   passphrase: string,
@@ -256,5 +263,7 @@ export async function checkGearPassphraseAction(
           : "Could not check the passphrase. Please try again.",
     };
   }
-  return data === true ? { success: true } : { error: GEAR_PASSPHRASE_WRONG };
+  if (data !== true) return { error: GEAR_PASSPHRASE_WRONG };
+  await setGearPassphraseCookie(passphrase.trim());
+  return { success: true };
 }
