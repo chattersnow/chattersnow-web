@@ -18,13 +18,21 @@ const requestGearItemsActionMock = mock<
   ) => Promise<{ success: true; requestId: string }>
 >(async () => ({ success: true, requestId: REQUEST_ID }));
 
+// Both exports, because a module mock is process-wide: the passphrase
+// dialog's test (#1536) imports the other one from this same module.
 mock.module("./gear-cart-request-actions", () => ({
   requestGearItemsAction: requestGearItemsActionMock,
+  checkGearPassphraseAction: async () => ({ success: true }),
 }));
 
 const { GearCartCheckoutForm } = await import("./gear-cart-checkout-form");
 
-const OPTIONS = { shippingEnabled: false, paymentMethods: [] };
+const OPTIONS = {
+  shippingEnabled: false,
+  paymentMethods: [],
+  passphraseRequired: false,
+  passphraseHelpText: "",
+};
 
 /** The box every request has to carry since #1367. */
 const AS_IS = /I understand the items are given as-is/;

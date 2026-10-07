@@ -2257,6 +2257,64 @@ export type Database = {
           },
         ];
       };
+      distribution_acknowledgement_requests: {
+        Row: {
+          acknowledged_at: string | null;
+          acknowledgement_id: string;
+          expires_at: string;
+          gear_request_ids: string[];
+          id: string;
+          requested_at: string;
+          requested_by: string | null;
+          tenant_id: string;
+          token_hash: string;
+        };
+        Insert: {
+          acknowledged_at?: string | null;
+          acknowledgement_id: string;
+          expires_at: string;
+          gear_request_ids?: string[];
+          id?: string;
+          requested_at?: string;
+          requested_by?: string | null;
+          tenant_id?: string;
+          token_hash: string;
+        };
+        Update: {
+          acknowledged_at?: string | null;
+          acknowledgement_id?: string;
+          expires_at?: string;
+          gear_request_ids?: string[];
+          id?: string;
+          requested_at?: string;
+          requested_by?: string | null;
+          tenant_id?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "distribution_acknowledgement_requests_acknowledgement_fkey";
+            columns: ["tenant_id", "acknowledgement_id"];
+            isOneToOne: true;
+            referencedRelation: "distribution_acknowledgements";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgement_requests_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "distribution_acknowledgement_requests_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       distribution_acknowledgements: {
         Row: {
           acknowledged_at: string | null;
@@ -10327,6 +10385,10 @@ export type Database = {
         Args: { p_registration_id: string };
         Returns: undefined;
       };
+      check_gear_request_passphrase: {
+        Args: { p_ip_address?: unknown; p_passphrase: string };
+        Returns: boolean;
+      };
       check_rate_limit: {
         Args: {
           p_ip_address: unknown;
@@ -10425,6 +10487,7 @@ export type Database = {
           p_delivery_method?: string;
           p_inventory_item_ids: string[];
           p_notes?: string;
+          p_passphrase?: string;
           p_payment_method?: string;
           p_person_id: string;
           p_shipping?: Json;
@@ -10468,6 +10531,10 @@ export type Database = {
       discard_site_content_drafts: {
         Args: { p_keys: string[] };
         Returns: number;
+      };
+      distribution_acknowledgement_link_view: {
+        Args: { p_acknowledgement_id: string };
+        Returns: Json;
       };
       distribution_acknowledgement_view: {
         Args: { p_draft_id: string };
@@ -10541,6 +10608,10 @@ export type Database = {
       gear_request_acknowledgement_view: {
         Args: { p_request_id: string };
         Returns: Json;
+      };
+      gear_request_passphrase_ok: {
+        Args: { p_passphrase: string; p_tenant_id: string };
+        Returns: boolean;
       };
       generate_artwork_submission_code: {
         Args: { p_tenant_id?: string };
@@ -11391,6 +11462,7 @@ export type Database = {
       record_distribution_draft: {
         Args: {
           p_event_id?: string;
+          p_link_token_hash?: string;
           p_mark_item_distributed?: boolean;
           p_occurred_at?: string;
           p_reason?: string;
@@ -11400,6 +11472,7 @@ export type Database = {
           p_skipped_reason?: string;
         };
         Returns: {
+          link_expires_at: string;
           recorded: number;
           released_tags: Json;
         }[];
@@ -11679,6 +11752,7 @@ export type Database = {
           p_ip_address?: unknown;
           p_name: string;
           p_notes?: string;
+          p_passphrase?: string;
           p_payment_method?: string;
           p_phone: string;
           p_shipping?: Json;
@@ -11693,6 +11767,7 @@ export type Database = {
           p_inventory_item_ids: string[];
           p_ip_address?: unknown;
           p_notes?: string;
+          p_passphrase?: string;
           p_payment_method?: string;
           p_shipping?: Json;
         };
@@ -11732,6 +11807,10 @@ export type Database = {
       };
       reset_my_welcome: { Args: never; Returns: undefined };
       resolve_current_person_id: { Args: never; Returns: string };
+      resolve_distribution_acknowledgement_link: {
+        Args: { p_for_update: boolean; p_token_hash: string };
+        Returns: string;
+      };
       resolve_distribution_acknowledgement_token: {
         Args: { p_for_update: boolean; p_token_hash: string };
         Returns: string;
@@ -11967,6 +12046,14 @@ export type Database = {
       };
       set_gear_request_notes: {
         Args: { p_notes: string; p_request_id: string };
+        Returns: undefined;
+      };
+      set_gear_request_passphrase: {
+        Args: {
+          p_help_text: string;
+          p_passphrase: string;
+          p_required: boolean;
+        };
         Returns: undefined;
       };
       set_gear_request_settings: {

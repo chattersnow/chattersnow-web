@@ -3,6 +3,8 @@ import {
   acknowledgementMethodPhrase,
   acknowledgementPath,
   describeAcknowledgement,
+  emailLinkUnavailableReason,
+  handoutAsIsRequestSubject,
   isSkippedReason,
   toAcknowledgementView,
 } from "./distribution-acknowledgement";
@@ -25,6 +27,20 @@ describe("describeAcknowledgement", () => {
         method: "own_device",
       }),
     ).toBe("Acknowledged as-is by Robin Example on their own phone");
+  });
+
+  test("an emailed link after a reason keeps the reason", () => {
+    expect(
+      describeAcknowledgement({
+        ...NONE,
+        acknowledgedAt: "2026-10-06T12:00:00Z",
+        typedName: "Robin Example",
+        method: "emailed_link",
+        skippedReason: "left_before_acknowledging",
+      }),
+    ).toBe(
+      "Acknowledged as-is by Robin Example by emailed link afterwards (at the handout: left before acknowledging)",
+    );
   });
 
   test("survives a name cleared by retention", () => {
@@ -83,6 +99,40 @@ describe("the rest", () => {
   test("a gear request's link reads as one", () => {
     expect(toAcknowledgementView({ kind: "gear_request" }).kind).toBe(
       "gear_request",
+    );
+  });
+});
+
+describe("the emailed link (#1519)", () => {
+  test("a handout link's view keeps its kind", () => {
+    expect(toAcknowledgementView({ kind: "handout_link" }).kind).toBe(
+      "handout_link",
+    );
+    expect(toAcknowledgementView({ kind: "anything" }).kind).toBe("handout");
+  });
+
+  test("says why no link can be offered", () => {
+    expect(emailLinkUnavailableReason("available", null)).toContain("Pick");
+    expect(emailLinkUnavailableReason("available", { email: " " })).toContain(
+      "no email address",
+    );
+    expect(
+      emailLinkUnavailableReason("email_off", { email: "r@example.com" }),
+    ).toContain("email is off");
+    expect(
+      emailLinkUnavailableReason("no_public_site", { email: "r@example.com" }),
+    ).toContain("no public site");
+    expect(
+      emailLinkUnavailableReason("available", { email: "r@example.com" }),
+    ).toBeNull();
+  });
+
+  test("the subject names what they picked up", () => {
+    expect(handoutAsIsRequestSubject("Gear")).toBe(
+      "About the gear you picked up: one thing to confirm",
+    );
+    expect(handoutAsIsRequestSubject(" ")).toBe(
+      "About the items you picked up: one thing to confirm",
     );
   });
 });

@@ -12,6 +12,15 @@ import {
   sendGearRequestConfirmation,
 } from "@/lib/notifications/submission-notifications";
 import { gearAsIsText } from "@/lib/gear-as-is";
+import {
+  GEAR_PASSPHRASE_EXPIRED,
+  GEAR_PASSPHRASE_WRONG,
+} from "@/lib/gear-passphrase";
+import {
+  clearGearPassphraseCookie,
+  readGearPassphraseCookie,
+  setGearPassphraseCookie,
+} from "@/lib/gear-passphrase-cookie";
 import { getPublicGearRequestOptions } from "@/lib/gear-request-options";
 import { getPublicLexicon } from "@/lib/lexicon";
 import type { PublicGearRequestOptions } from "@/lib/gear-requests";
@@ -22,7 +31,9 @@ import {
 } from "./gear-request-form";
 
 export type RequestGearItemsResult =
-  | { error: string }
+  // `passphraseRequired` tells the cart to ask again (#1536): the tenant
+  // changed the passphrase since this browser unlocked, or it never did.
+  | { error: string; passphraseRequired?: true }
   // The id comes back so the receipt can offer to keep the request (#1359).
   // For a filled honeypot it is the throwaway uuid the RPC mints with no row
   // behind it, and that is fine: everything the offer leads to is silent, so
@@ -36,6 +47,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     "Sorry, one of the items in your cart was just requested by someone else. Remove it and try again.",
   NAME_REQUIRED: "Name is required.",
   NO_RECORD: "We could not find your record. Please sign in again.",
+  PASSPHRASE_REQUIRED: GEAR_PASSPHRASE_EXPIRED,
   AS_IS_REQUIRED:
     "Please tick the box to confirm you understand these items are given as-is.",
   RATE_LIMITED: "Too many attempts — please try again in a few minutes.",
@@ -72,6 +84,9 @@ export async function requestGearItemsAction(
   ]);
   const ipAddress = await getClientIp();
   const asIsText = gearAsIsText(lexicon);
+  // Never from the form (#1536): the word lives in the httpOnly cookie the
+  // check set, and the database compares it with the current one.
+  const passphrase = await readGearPassphraseCookie();
 
   // Which person the request lands on is decided here, from the session, and
   // never from anything the browser sent (#1359). A reader with an approved
@@ -89,6 +104,7 @@ export async function requestGearItemsAction(
           options,
           ipAddress,
           asIsText,
+          passphrase,
         )
       : await submitAnonymously(
           supabase,
@@ -97,9 +113,14 @@ export async function requestGearItemsAction(
           options,
           ipAddress,
           asIsText,
+          passphrase,
         );
 
-  if ("error" in submitted) return submitted;
+  if ("error" in submitted) {
+    // A stale word is dropped, so the page renders this browser locked again.
+    if (submitted.passphraseRequired) await clearGearPassphraseCookie();
+    return submitted;
+  }
   const { requestId } = submitted;
 
   revalidatePath("/inventory/library");
@@ -128,13 +149,17 @@ export async function requestGearItemsAction(
   return { success: true, requestId };
 }
 
-type Submitted = { error: string } | { requestId: string };
+type Submitted =
+  { error: string; passphraseRequired?: true } | { requestId: string };
 
 function rpcFailed(message: string): Submitted {
   return {
     error:
       ERROR_MESSAGES[message] ??
       "Could not submit your request. Please try again.",
+    ...(message === "PASSPHRASE_REQUIRED"
+      ? { passphraseRequired: true as const }
+      : {}),
   };
 }
 
@@ -146,6 +171,7 @@ async function submitAnonymously(
   options: PublicGearRequestOptions,
   ipAddress: string | null,
   asIsText: string,
+  passphrase: string | null,
 ): Promise<Submitted> {
   const parsed = parseGearRequestForm(formData, options);
   if ("error" in parsed) return parsed;
@@ -164,6 +190,7 @@ async function submitAnonymously(
     p_payment_method: parsed.data.paymentMethod,
     p_as_is_acknowledged: parsed.data.asIsAcknowledged,
     p_as_is_text: asIsText,
+    p_passphrase: passphrase,
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
@@ -188,6 +215,7 @@ async function submitAsMe(
   options: PublicGearRequestOptions,
   ipAddress: string | null,
   asIsText: string,
+  passphrase: string | null,
 ): Promise<Submitted> {
   const parsed = parseGearRequestDelivery(formData, options);
   if ("error" in parsed) return parsed;
@@ -201,7 +229,41 @@ async function submitAsMe(
     p_payment_method: parsed.data.paymentMethod,
     p_as_is_acknowledged: parsed.data.asIsAcknowledged,
     p_as_is_text: asIsText,
+    // No bypass for an account (#1536): staff skip it through the portal.
+    p_passphrase: passphrase,
   });
 
   return error ? rpcFailed(error.message) : { requestId: data as string };
+}
+
+export type CheckGearPassphraseResult = { success: true } | { error: string };
+
+/**
+ * The passphrase dialog's check (#1536). Rate-limited per address in the
+ * database, because a shared word has little entropy. A yes keeps the word in
+ * an httpOnly cookie for the browser session; every submit sends it on and the
+ * database checks it again.
+ */
+export async function checkGearPassphraseAction(
+  passphrase: string,
+): Promise<CheckGearPassphraseResult> {
+  if (!passphrase.trim()) return { error: GEAR_PASSPHRASE_WRONG };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("check_gear_request_passphrase", {
+    p_passphrase: passphrase,
+    p_ip_address: await getClientIp(),
+  });
+
+  if (error) {
+    return {
+      error:
+        error.message === "RATE_LIMITED"
+          ? ERROR_MESSAGES.RATE_LIMITED
+          : "Could not check the passphrase. Please try again.",
+    };
+  }
+  if (data !== true) return { error: GEAR_PASSPHRASE_WRONG };
+  await setGearPassphraseCookie(passphrase.trim());
+  return { success: true };
 }

@@ -67,6 +67,9 @@ export const VOLUNTEER_APPLICATION_RECORD_TYPE = "volunteer_application";
 export const CONTACT_MESSAGE_RECORD_TYPE = "contact_message";
 export const ARTWORK_SUBMISSION_RECORD_TYPE = "artwork_submission";
 export const EVENT_REGISTRATION_RECORD_TYPE = "event_registration";
+/** A handout's acknowledgement, asked for by emailed link (#1519). */
+export const DISTRIBUTION_ACKNOWLEDGEMENT_RECORD_TYPE =
+  "distribution_acknowledgement";
 
 /**
  * One row of a record's message history, and the names behind `sent_by`.

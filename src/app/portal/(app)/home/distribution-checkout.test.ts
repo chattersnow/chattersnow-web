@@ -4,6 +4,7 @@ import {
   checkoutReady,
   EMPTY_CHECKOUT,
   tagsToRemove,
+  willEmailLink,
 } from "./distribution-checkout";
 
 function draft(
@@ -92,5 +93,48 @@ describe("checkoutReady", () => {
     expect(checkoutReady(draft([null]), true, false, EMPTY_CHECKOUT)).toBe(
       true,
     );
+  });
+});
+
+describe("willEmailLink", () => {
+  const withRecipient = (email: string | null, acknowledged = false) => ({
+    ...draft([null], acknowledged),
+    recipient: { id: "p1", name: "Robin Example", email, phone: null },
+  });
+  const skipped = { ...EMPTY_CHECKOUT, skippedReason: "no_phone" as const };
+
+  test("only with a reason, the box ticked, and an address to write to", () => {
+    expect(
+      willEmailLink(withRecipient("r@example.com"), "available", skipped),
+    ).toBe(true);
+    expect(
+      willEmailLink(
+        withRecipient("r@example.com"),
+        "available",
+        EMPTY_CHECKOUT,
+      ),
+    ).toBe(false);
+    expect(
+      willEmailLink(withRecipient("r@example.com"), "available", {
+        ...skipped,
+        emailLink: false,
+      }),
+    ).toBe(false);
+    expect(willEmailLink(withRecipient(null), "available", skipped)).toBe(
+      false,
+    );
+    expect(willEmailLink(draft([null]), "available", skipped)).toBe(false);
+  });
+
+  test("not when email is off, there is no public site, or they acknowledged", () => {
+    expect(
+      willEmailLink(withRecipient("r@example.com"), "email_off", skipped),
+    ).toBe(false);
+    expect(
+      willEmailLink(withRecipient("r@example.com"), "no_public_site", skipped),
+    ).toBe(false);
+    expect(
+      willEmailLink(withRecipient("r@example.com", true), "available", skipped),
+    ).toBe(false);
   });
 });

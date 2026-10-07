@@ -35,6 +35,7 @@ export function GearCartCheckoutForm({
   prefill = EMPTY_CONTACT_PREFILL,
   lexicon = DEFAULT_LEXICON,
   termsInForce = false,
+  onPassphraseRejected,
 }: {
   itemIds: string[];
   options: PublicGearRequestOptions;
@@ -58,6 +59,11 @@ export function GearCartCheckoutForm({
    * that document is served, and the summary itself is unconditional.
    */
   termsInForce?: boolean;
+  /**
+   * Called when the database refused the passphrase this browser holds
+   * (#1536) -- the tenant changed it -- so the catalog can ask again.
+   */
+  onPassphraseRejected?: (message: string) => void;
 }) {
   const [name, setName] = useState(prefill.name);
   const [email, setEmail] = useState(prefill.email);
@@ -116,6 +122,7 @@ export function GearCartCheckoutForm({
       const result = await requestGearItemsAction(itemIds, formData);
       if ("error" in result) {
         setError(result.error);
+        if (result.passphraseRequired) onPassphraseRejected?.(result.error);
         return;
       }
       onSuccess(deliveryMethod, result.requestId);
