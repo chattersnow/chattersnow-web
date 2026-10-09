@@ -9467,7 +9467,7 @@ export type Database = {
           type: string | null;
           updated_at: string | null;
           updated_by: string | null;
-          has_tag: boolean | null;
+          tag_kinds: string[] | null;
         };
         Relationships: [];
       };
@@ -10736,14 +10736,6 @@ export type Database = {
         } & "the function public.has_portal_access with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
       has_role: { Args: { p_role: string }; Returns: boolean };
-      has_tag: {
-        Args: {
-          "": Database["public"]["Views"]["inventory_items_with_category"]["Row"];
-        };
-        Returns: {
-          error: true;
-        } & "the function public.has_tag with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
-      };
       has_tenant_membership: { Args: never; Returns: boolean };
       inventory_actor_name: { Args: { p_user_id: string }; Returns: string };
       inventory_intake_labels: {
@@ -12293,6 +12285,14 @@ export type Database = {
       sync_event_sponsor_donations: {
         Args: { p_items: Json; p_sponsor_id: string };
         Returns: undefined;
+      };
+      tag_kinds: {
+        Args: {
+          "": Database["public"]["Views"]["inventory_items_with_category"]["Row"];
+        };
+        Returns: {
+          error: true;
+        } & "the function public.tag_kinds with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
       tenant_asks_about_minors: {
         Args: { p_tenant_id: string };
