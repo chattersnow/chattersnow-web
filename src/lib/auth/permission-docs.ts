@@ -355,7 +355,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   people: {
     view: "Open the People directory and its segments, and search people from the command palette.",
     manage:
-      "Create, edit, merge and delete people, work the duplicate queue, and manage a person's organization memberships.",
+      "Create, edit, merge and delete people, work the duplicate queue, manage a person's organization memberships, and list them on the public team page with a photo uploaded to the site's photos.",
     excludes: [
       {
         key: "people_intake",

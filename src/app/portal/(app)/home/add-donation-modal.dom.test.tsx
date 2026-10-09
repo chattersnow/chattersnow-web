@@ -39,9 +39,15 @@ const listEventGiveawayTiersActionMock = mock<
   (eventId: string) => Promise<{ data: HomeActions.GiveawayTierOption[] }>
 >(async () => ({ data: [] }));
 
+// Random codes at intake unless a case says otherwise (#1541).
+const getIntakeNumberedOnlyActionMock = mock<() => Promise<{ data: boolean }>>(
+  async () => ({ data: false }),
+);
+
 mock.module("./actions", () => ({
   ...HomeActions,
   createDonationAction: createDonationActionMock,
+  getIntakeNumberedOnlyAction: getIntakeNumberedOnlyActionMock,
   listEventGiveawayTiersAction: listEventGiveawayTiersActionMock,
 }));
 
@@ -139,6 +145,9 @@ describe("AddDonationModal", () => {
     listEventGiveawayTiersActionMock.mockClear();
     listEventGiveawayTiersActionMock.mockImplementation(async () => ({
       data: [],
+    }));
+    getIntakeNumberedOnlyActionMock.mockImplementation(async () => ({
+      data: false,
     }));
   });
 
@@ -432,5 +441,33 @@ describe("AddDonationModal", () => {
     expect(createDonationActionMock.mock.calls[0][0].items[0].assetTag).toBe(
       "B7K2QX",
     );
+  });
+
+  test("on numbered codes only, an item with nothing scanned is saved without a code (#1541)", async () => {
+    getIntakeNumberedOnlyActionMock.mockImplementation(async () => ({
+      data: true,
+    }));
+    createDonationActionMock.mockImplementation(async () => ({
+      ...SAVED,
+      codes: [],
+      labelsHref: null,
+    }));
+    const user = userEvent.setup();
+    await openModal(user);
+    await fillDonorAndContinue(user, "Jane Donor");
+
+    expect(await screen.findByText(/save it without one/)).toBeInTheDocument();
+    expect(screen.queryByText(/A new code is created/)).not.toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
+    await selectItemCategory(user, "Jacket");
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+
+    await screen.findByText("Donation recorded");
+    expect(screen.getByText("The donation is saved.")).toBeInTheDocument();
+    expect(screen.queryByText(/Print label/)).not.toBeInTheDocument();
   });
 });

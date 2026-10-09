@@ -8889,6 +8889,7 @@ export type Database = {
           created_by: string | null;
           custom_domain: string | null;
           id: string;
+          inventory_numbered_codes_only: boolean;
           inventory_tag_prefix: string | null;
           name: string;
           plan: string;
@@ -8903,6 +8904,7 @@ export type Database = {
           created_by?: string | null;
           custom_domain?: string | null;
           id?: string;
+          inventory_numbered_codes_only?: boolean;
           inventory_tag_prefix?: string | null;
           name: string;
           plan?: string;
@@ -8917,6 +8919,7 @@ export type Database = {
           created_by?: string | null;
           custom_domain?: string | null;
           id?: string;
+          inventory_numbered_codes_only?: boolean;
           inventory_tag_prefix?: string | null;
           name?: string;
           plan?: string;
@@ -12085,6 +12088,10 @@ export type Database = {
           p_url: string;
         };
         Returns: undefined;
+      };
+      set_inventory_numbered_codes_only: {
+        Args: { p_on: boolean };
+        Returns: boolean;
       };
       set_inventory_tag_prefix: { Args: { p_prefix: string }; Returns: string };
       set_inventory_tags_nfc_written: {

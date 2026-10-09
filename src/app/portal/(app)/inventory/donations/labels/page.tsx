@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantBranding } from "@/lib/tenant-branding";
 import { getRequestOrigin } from "@/lib/request-origin";
-import { tagUrl } from "@/lib/inventory-tags";
+import { getInventoryTagSettings, tagUrl } from "@/lib/inventory-tags";
 import { parseLabelCodes, parseLabelOptions } from "@/lib/inventory-labels";
 import { code128DataUri, qrCodeDataUri } from "@/lib/inventory-label-codes";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
@@ -61,9 +61,10 @@ export default async function IntakeLabelsPage({
   const title = donationId ? "Print labels" : "Blank labels";
 
   const supabase = await createSupabaseServerClient();
-  const [origin, branding, rowsResult] = await Promise.all([
+  const [origin, branding, { numberedOnly }, rowsResult] = await Promise.all([
     getRequestOrigin(),
     getTenantBranding(supabase),
+    getInventoryTagSettings(supabase),
     hasSource
       ? supabase.rpc("inventory_intake_labels", {
           p_donation_id: donationId as string,
@@ -95,7 +96,21 @@ export default async function IntakeLabelsPage({
         </div>
       </div>
 
-      {!hasSource ? (
+      {!hasSource && numberedOnly ? (
+        // Blank labels are random codes (#1543). Numbered codes are printed
+        // from the Codes page, which the intake volunteer may not open, so
+        // this says where without linking there.
+        <Card className="mt-6 max-w-xl">
+          <CardHeader>
+            <CardTitle>Numbered codes only</CardTitle>
+            <CardDescription>
+              Your organization labels items with numbered codes, printed from
+              Inventory &rarr; Items &rarr; Codes. Scan one for each item as it
+              is received.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : !hasSource ? (
         <Card className="mt-6 max-w-xl">
           <CardHeader>
             <CardTitle>Blank labels for intake</CardTitle>

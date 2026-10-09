@@ -1,7 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type SitePhotoPathResult = { error: string } | { path: string };
@@ -32,10 +32,14 @@ export async function createSitePhotoPathAction(): Promise<SitePhotoPathResult> 
   );
   if ("error" in userResult) return userResult;
 
-  const permissionError = await checkPermission(
+  // People managers too, for the photo on a person's public team card
+  // (#1486); the insert policy in 20261009180000 matches this pair.
+  const permissionError = await checkAnyPermission(
     supabase,
-    "site_content",
-    "manage",
+    [
+      { resource: "site_content", level: "manage" },
+      { resource: "people", level: "manage" },
+    ],
     "You don't have permission to change the site's photos.",
   );
   if (permissionError) return permissionError;

@@ -59,6 +59,12 @@ export async function classifyIntakeScanAction(
         error: `Label ${tagCode} is already on another item.`,
       };
     }
+    // A random code, on a tenant that labels with numbered codes only (#1541).
+    if (row.asset_tag_status === "not_numbered") {
+      return {
+        error: `Label ${tagCode} is not a numbered code. Scan a numbered code, or leave this item without one.`,
+      };
+    }
     // Its tag was reported damaged or lost (#1450): the label in hand is a
     // copy nobody should be using.
     if (row.asset_tag_status === "retired") {

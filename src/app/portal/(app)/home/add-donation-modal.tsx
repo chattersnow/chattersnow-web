@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Printer, ScanLine } from "lucide-react";
 import {
   createDonationAction,
+  getIntakeNumberedOnlyAction,
   listEventGiveawayTiersAction,
   type CreateDonationInput,
   type DonationGiveawayGrant,
@@ -178,6 +179,7 @@ export function AddDonationModal({
   const [giveawayTiers, setGiveawayTiers] = useState<GiveawayTierOption[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [grant, setGrant] = useState<DonationGiveawayGrant | null>(null);
+  const [numberedOnly, setNumberedOnly] = useState(false);
   // Callers on a page that already queried events pass them in; the sidebar
   // quick action has none, so load them on open instead of silently dropping
   // the event picker.
@@ -203,6 +205,15 @@ export function AddDonationModal({
     if (!open) return;
     listInventoryCategoriesAction().then((result) => {
       if (!("error" in result)) setCategories(result.data);
+    });
+  }, [open]);
+
+  // On numbered codes only (#1541) an item with nothing scanned is saved
+  // without a code, and the sheet says so instead of promising one.
+  useEffect(() => {
+    if (!open) return;
+    getIntakeNumberedOnlyAction().then((result) => {
+      if (!("error" in result)) setNumberedOnly(result.data);
     });
   }, [open]);
 
@@ -410,9 +421,13 @@ export function AddDonationModal({
               ? "Capture who the donation is from."
               : step === "items"
                 ? "Add each item being added to inventory."
-                : grant
-                  ? "The donation is saved. Label each item and hand over the tickets below."
-                  : "The donation is saved. Label each item with its code."}
+                : numberedOnly
+                  ? grant
+                    ? "The donation is saved. Hand over the tickets below."
+                    : "The donation is saved."
+                  : grant
+                    ? "The donation is saved. Label each item and hand over the tickets below."
+                    : "The donation is saved. Label each item with its code."}
           </SheetDescription>
         </SheetHeader>
 
@@ -657,7 +672,9 @@ export function AddDonationModal({
                       <FieldDescription>
                         {item.assetTag
                           ? `Pre-printed label ${item.assetTag}.`
-                          : "A new code is created when you save."}
+                          : numberedOnly
+                            ? "Scan its numbered code, or save it without one."
+                            : "A new code is created when you save."}
                         {item.barcode ? ` Barcode ${item.barcode}.` : ""}
                       </FieldDescription>
                       <div className="flex flex-wrap gap-2">

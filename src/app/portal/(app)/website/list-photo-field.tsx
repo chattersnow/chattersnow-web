@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +26,7 @@ import {
   OpenPictureLink,
   useImagePreview,
 } from "./image-preview";
+import { SitePhotoFileInput, useSitePhotoUpload } from "./site-photo-upload";
 
 /** The option values the select carries. A slot's own name is namespaced. */
 const SHARED = "shared";
@@ -71,7 +73,7 @@ function sourceLine(
     : "";
   switch (from) {
     case "url":
-      return "Showing the link below.";
+      return "Showing their own photo.";
     case "slot":
       return `Showing “${name}”.${borrowedCrop}`;
     case "fallback":
@@ -96,6 +98,10 @@ function sourceLine(
  * only one of them is ever *in effect*: choosing a slot clears the link, and
  * choosing a link clears the slot, so the preview and the sentence under it
  * are the whole truth about what the page will render.
+ *
+ * A photo of their own can be uploaded as well as linked (#1486). An upload
+ * goes to `site-photos` the way an image slot's does and is stored as the
+ * row's link, so the page reads it exactly as it reads any other URL.
  */
 export function ListPhotoField({
   id,
@@ -121,6 +127,11 @@ export function ListPhotoField({
   const preview = useImagePreview(photo.url);
   const urlText = text(item, field.key);
   const slotText = text(item, field.slotField);
+  const upload = useSitePhotoUpload({
+    value: urlText,
+    onChange: (next) =>
+      onChange({ ...item, [field.key]: next, [field.slotField]: "" }),
+  });
   // A name the registry no longer has -- a typo from the old free-text box, or
   // a slot since removed. Offered as an option so it is visible and can be
   // corrected, rather than silently reading as the shared placeholder.
@@ -189,7 +200,7 @@ export function ListPhotoField({
           <SelectItem value={SHARED}>
             {imageSlotLabel(field.fallbackSlot) ?? "Shared photo"} (shared)
           </SelectItem>
-          <SelectItem value={LINK}>A link of their own</SelectItem>
+          <SelectItem value={LINK}>A photo of their own</SelectItem>
         </SelectContent>
       </Select>
       <FieldDescription
@@ -205,26 +216,41 @@ export function ListPhotoField({
 
       {source === LINK && (
         <>
+          <FieldLabel htmlFor={`${id}-file`} className="font-normal">
+            Upload a photo
+          </FieldLabel>
+          <SitePhotoFileInput
+            id={`${id}-file`}
+            uploading={upload.uploading}
+            onChange={upload.handleFile}
+          />
           <FieldLabel htmlFor={`${id}-url`} className="font-normal">
-            Photo link
+            Or paste a link
           </FieldLabel>
           <Input
             id={`${id}-url`}
             type="url"
             placeholder="https://drive.google.com/file/d/..."
+            disabled={upload.uploading}
             value={parseImageCrop(urlText).src ?? ""}
-            onChange={(event) =>
+            onChange={(event) => {
+              upload.setError(null);
               onChange({
                 ...item,
                 [field.key]: withTypedSrc(urlText, event.target.value.trim()),
-              })
-            }
+              });
+            }}
           />
           {urlText !== "" && !isRenderableImageSrc(urlText) && (
             <FieldDescription className="text-destructive">
               Use a Google Drive share link, a full https:// address, or a path
               on this site starting with /.
             </FieldDescription>
+          )}
+          {upload.error && (
+            <Alert variant="destructive">
+              <AlertDescription>{upload.error}</AlertDescription>
+            </Alert>
           )}
         </>
       )}
