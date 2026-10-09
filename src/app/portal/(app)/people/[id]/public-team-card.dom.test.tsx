@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithToaster } from "../../../../../../test/toast-testing";
 import type { PublicTeamActionResult } from "../actions";
@@ -22,7 +22,39 @@ mock.module("next/navigation", () => ({
   useRouter: () => ({ refresh: () => {} }),
 }));
 
+const UPLOADED =
+  "http://127.0.0.1:54321/storage/v1/object/public/site-photos/tenant-1/photo-1.jpg";
+
+const uploadSitePhotoMock = mock<
+  (
+    file: File,
+    path: string,
+  ) => Promise<{ url: string; path: string } | { error: string }>
+>(async (_file, path) => ({ url: UPLOADED, path }));
+
+mock.module("@/lib/storage/site-photos", () => ({
+  SITE_PHOTOS_BUCKET: "site-photos",
+  SITE_PHOTO_MAX_EDGE: 2400,
+  sitePhotoPathFromUrl: () => null,
+  uploadSitePhoto: uploadSitePhotoMock,
+  deleteSitePhoto: async () => {},
+}));
+
+const createSitePhotoPathActionMock = mock<
+  () => Promise<{ path: string } | { error: string }>
+>(async () => ({ path: "tenant-1/photo-1.jpg" }));
+
+mock.module("@/app/portal/(app)/website/site-photo-actions", () => ({
+  createSitePhotoPathAction: createSitePhotoPathActionMock,
+}));
+
 const { PublicTeamCard } = await import("./public-team-card");
+
+function pngFile() {
+  return new File([new Uint8Array([137, 80, 78, 71])], "rowan.png", {
+    type: "image/png",
+  });
+}
 
 const listed = {
   id: "m1",
@@ -39,6 +71,12 @@ describe("PublicTeamCard", () => {
     saveMock.mockClear();
     saveMock.mockImplementation(async () => ({ success: true }));
     removeMock.mockClear();
+    uploadSitePhotoMock.mockClear();
+    uploadSitePhotoMock.mockImplementation(async (_file, path) => ({
+      url: UPLOADED,
+      path,
+    }));
+    createSitePhotoPathActionMock.mockClear();
   });
 
   // The crop rides on the photo's URL as a `#crop=` fragment (#1250). This
@@ -67,9 +105,9 @@ describe("PublicTeamCard", () => {
       screen.getByRole("button", { name: "Edit team page listing" }),
     );
 
-    expect(screen.getByRole("textbox", { name: "Photo URL" })).toHaveValue(
-      "https://example.test/rowan.jpg",
-    );
+    expect(
+      screen.getByRole("textbox", { name: "Or paste a link" }),
+    ).toHaveValue("https://example.test/rowan.jpg");
     expect(
       screen.getByRole("group", { name: "Crop of their photo" }),
     ).toBeInTheDocument();
@@ -163,6 +201,68 @@ describe("PublicTeamCard", () => {
     expect(
       await screen.findByText("Not on the public Meet the Team page."),
     ).toBeInTheDocument();
+  });
+
+  // An upload is stored as the photo's link, so it previews, crops and saves
+  // exactly as a pasted one does (#1486).
+  test("an uploaded photo previews with its crop and is saved as the link", async () => {
+    const user = userEvent.setup();
+    renderWithToaster(
+      <PublicTeamCard
+        personId="p1"
+        personName="Rowan"
+        membership={listed}
+        canManage={true}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit team page listing" }),
+    );
+    await user.upload(screen.getByLabelText("Photo"), pngFile());
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Or paste a link" }),
+      ).toHaveValue(UPLOADED),
+    );
+    expect(
+      screen.getByRole("group", { name: "Crop of their photo" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(saveMock.mock.calls[0][1].get("photoUrl")).toBe(UPLOADED);
+  });
+
+  test("a refused upload says why and keeps the photo as it was", async () => {
+    createSitePhotoPathActionMock.mockImplementationOnce(async () => ({
+      error: "You don't have permission to change the site's photos.",
+    }));
+    const user = userEvent.setup();
+    render(
+      <PublicTeamCard
+        personId="p1"
+        personName="Rowan"
+        membership={listed}
+        canManage={true}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit team page listing" }),
+    );
+    await user.upload(screen.getByLabelText("Photo"), pngFile());
+
+    expect(
+      await screen.findByText(
+        "You don't have permission to change the site's photos.",
+      ),
+    ).toBeInTheDocument();
+    expect(uploadSitePhotoMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("textbox", { name: "Or paste a link" }),
+    ).toHaveValue("");
   });
 
   test("editing pre-fills the form from the listing", async () => {
