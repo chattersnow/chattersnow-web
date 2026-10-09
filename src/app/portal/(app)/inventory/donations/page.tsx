@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { Tags } from "lucide-react";
 import { INTAKE_LABELS_PATH } from "@/lib/inventory-labels";
+import { getInventoryTagSettings } from "@/lib/inventory-tags";
 import { DonationsTable } from "./donations-table";
 import {
   SOURCE_TYPES,
@@ -63,11 +64,14 @@ export default async function InventoryDonationsPage({
     ? raw("receive")!.toUpperCase()
     : undefined;
 
-  const { data: events } = await supabase
-    .from("events")
-    .select("id, name")
-    .order("starts_at", { ascending: false })
-    .limit(200);
+  const [{ data: events }, { numberedOnly }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, name")
+      .order("starts_at", { ascending: false })
+      .limit(200),
+    getInventoryTagSettings(supabase),
+  ]);
   const eventOptions = events ?? [];
 
   let query = supabase
@@ -228,13 +232,17 @@ export default async function InventoryDonationsPage({
           </form>
         </FiltersSheet>
 
-        <Button
-          variant="secondary"
-          nativeButton={false}
-          render={<Link href={INTAKE_LABELS_PATH} />}
-        >
-          <Tags /> Blank labels
-        </Button>
+        {/* Blank labels are random codes, which a tenant on numbered codes
+            only doesn't make (#1543). */}
+        {!numberedOnly && (
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href={INTAKE_LABELS_PATH} />}
+          >
+            <Tags /> Blank labels
+          </Button>
+        )}
         <AddDonationModal
           triggerLabel="Add donation"
           events={eventOptions}

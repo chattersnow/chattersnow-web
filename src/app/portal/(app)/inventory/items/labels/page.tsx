@@ -7,7 +7,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { getRequestOrigin } from "@/lib/request-origin";
-import { tagUrl } from "@/lib/inventory-tags";
+import { getInventoryTagSettings, tagUrl } from "@/lib/inventory-tags";
 import { parseLabelOptions } from "@/lib/inventory-labels";
 import { code128DataUri, qrCodeDataUri } from "@/lib/inventory-label-codes";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
@@ -54,38 +54,45 @@ export default async function InventoryLabelsPage({
   });
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, origin, branding, itemsResult, tagsResult] =
-    await Promise.all([
-      getCurrentUserPermissions(supabase),
-      getRequestOrigin(),
-      getTenantBranding(supabase),
-      options.itemIds.length > 0
-        ? supabase
-            .from("inventory_items")
-            .select("id, description, size")
-            .in("id", options.itemIds)
-        : Promise.resolve({
-            data: [] as {
-              id: string;
-              description: string;
-              size: string | null;
-            }[],
-          }),
-      options.itemIds.length > 0
-        ? supabase
-            .from("inventory_item_tags")
-            .select("id, item_id, kind, value")
-            .in("kind", ["asset_tag", "numbered"])
-            .in("item_id", options.itemIds)
-        : Promise.resolve({
-            data: [] as {
-              id: string;
-              item_id: string | null;
-              kind: string;
-              value: string;
-            }[],
-          }),
-    ]);
+  const [
+    permissions,
+    origin,
+    branding,
+    { numberedOnly },
+    itemsResult,
+    tagsResult,
+  ] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getRequestOrigin(),
+    getTenantBranding(supabase),
+    getInventoryTagSettings(supabase),
+    options.itemIds.length > 0
+      ? supabase
+          .from("inventory_items")
+          .select("id, description, size")
+          .in("id", options.itemIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            description: string;
+            size: string | null;
+          }[],
+        }),
+    options.itemIds.length > 0
+      ? supabase
+          .from("inventory_item_tags")
+          .select("id, item_id, kind, value")
+          .in("kind", ["asset_tag", "numbered"])
+          .in("item_id", options.itemIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            item_id: string | null;
+            kind: string;
+            value: string;
+          }[],
+        }),
+  ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
   // In the order they were chosen, which is the order they were on screen.
@@ -101,8 +108,12 @@ export default async function InventoryLabelsPage({
   }
   // Either code opens the item (#1444). A numbered code is what most items
   // are labelled with, so it is the default wherever one is on the items.
+  // On numbered codes only (#1543) that is the only kind printed here, and
+  // there is no switching to random codes.
   const hasNumbered = items.some((item) => numberedCodes.has(item.id));
-  const codeKind = options.codeKind ?? (hasNumbered ? "numbered" : "tag");
+  const codeKind = numberedOnly
+    ? "numbered"
+    : (options.codeKind ?? (hasNumbered ? "numbered" : "tag"));
   const tagByItemId = codeKind === "numbered" ? numberedCodes : tagCodes;
 
   const labels: PrintableLabel[] = [];
@@ -164,7 +175,11 @@ export default async function InventoryLabelsPage({
             layout={options.layout.key}
             skip={options.skip}
             barcode={options.barcode}
-            codeKind={hasNumbered || codeKind === "numbered" ? codeKind : null}
+            codeKind={
+              !numberedOnly && (hasNumbered || codeKind === "numbered")
+                ? codeKind
+                : null
+            }
             printable={labels.length > 0}
             tagIds={labels.map((label) => label.tagId)}
           />
@@ -177,8 +192,9 @@ export default async function InventoryLabelsPage({
                   : `${uncoded.length} items have no numbered code`}
               </AlertTitle>
               <AlertDescription>
-                Assign one from the item&rsquo;s page, or print their tag codes
-                instead.
+                {numberedOnly
+                  ? "Assign one from the item’s page."
+                  : "Assign one from the item’s page, or print their tag codes instead."}
               </AlertDescription>
             </Alert>
           )}

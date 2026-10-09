@@ -84,6 +84,12 @@ export async function createDonation(
   if (error) {
     // A scanned label that is not (or is no longer) an unused one: somebody
     // else bound it a moment ago, or it was mistyped. Nothing was saved.
+    if (error.hint === "asset_tag_not_numbered") {
+      return actionError(
+        "invalid_input",
+        `${error.message}. Scan a numbered code, or clear it to save the item without one.`,
+      );
+    }
     if (error.hint === "asset_tag_unavailable") {
       return actionError(
         "invalid_input",

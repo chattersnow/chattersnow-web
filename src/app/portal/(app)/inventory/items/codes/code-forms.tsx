@@ -13,13 +13,18 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import {
   MAX_LABEL_ITEMS,
   numberedCodesHref,
   parseNumberRange,
 } from "@/lib/inventory-labels";
-import { generateNumberedCodesAction, setTagPrefixAction } from "./actions";
+import {
+  generateNumberedCodesAction,
+  setNumberedCodesOnlyAction,
+  setTagPrefixAction,
+} from "./actions";
 
 /**
  * The tenant's three-letter prefix, set once before the first code. Editable
@@ -198,5 +203,71 @@ export function PrintRangeForm({ last }: { last: number }) {
         )}
       </FieldGroup>
     </form>
+  );
+}
+
+/**
+ * Numbered codes only (#1541), saved as soon as it is switched. On, intake
+ * leaves an item with nothing scanned untagged, and the portal stops offering
+ * random codes; the ones that exist keep working.
+ */
+export function NumberedOnlyForm({ current }: { current: boolean }) {
+  const router = useRouter();
+  const [on, setOn] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleChange(next: boolean) {
+    setError(null);
+    setOn(next);
+    startTransition(async () => {
+      const result = await setNumberedCodesOnlyAction(next);
+      if ("error" in result) {
+        setOn(!next);
+        setError(result.error);
+        return;
+      }
+      toast.success(
+        result.numberedOnly
+          ? "Items are labelled with numbered codes only."
+          : "Intake gives an item a code when nothing is scanned.",
+      );
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p id="numbered-only-label" className="text-sm font-medium">
+            Numbered codes only
+          </p>
+          <p
+            id="numbered-only-description"
+            className="app-muted mt-1 text-sm leading-relaxed"
+          >
+            On, an item received with no code scanned is saved without one, and
+            is listed under No numbered code until it gets one. Off, it is given
+            a new code of its own to print.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          {isPending && <Spinner />}
+          <Switch
+            checked={on}
+            onCheckedChange={handleChange}
+            disabled={isPending}
+            aria-labelledby="numbered-only-label"
+            aria-describedby="numbered-only-description"
+          />
+        </div>
+      </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 }

@@ -94,6 +94,7 @@ export function CodesTable({
   filterQuery,
   filtered,
   canManage,
+  numberedOnly = false,
 }: {
   rows: CodeRow[];
   total: number;
@@ -101,6 +102,8 @@ export function CodesTable({
   filterQuery: string;
   filtered: boolean;
   canManage: boolean;
+  /** Numbered codes only (#1543): no blank labels to point at. */
+  numberedOnly?: boolean;
 }) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -161,7 +164,11 @@ export function CodesTable({
           ) : (
             <EmptyState
               title="No codes yet"
-              description="Create numbered codes above, give items their codes from the items list, or print blank labels from Donations."
+              description={
+                numberedOnly
+                  ? "Create numbered codes above, then assign them to items from each item's page."
+                  : "Create numbered codes above, give items their codes from the items list, or print blank labels from Donations."
+              }
             />
           )}
         </CardContent>

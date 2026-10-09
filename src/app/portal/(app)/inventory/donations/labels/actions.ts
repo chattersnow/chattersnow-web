@@ -28,6 +28,12 @@ export async function createBlankLabelsAction(
   const { data, error } = await supabase.rpc("create_blank_asset_tags", {
     p_count: count,
   });
+  if (error?.message === "INVENTORY_RANDOM_CODES_OFF") {
+    return {
+      error:
+        "Your organization labels items with numbered codes only. Print them from the Codes page.",
+    };
+  }
   if (error || !data) {
     return { error: "Could not create the labels. Please try again." };
   }
