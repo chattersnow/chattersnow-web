@@ -1683,30 +1683,31 @@ export const helpContent: Record<string, HelpEntry> = {
       </>
     ),
   },
+  // One entry for all five tabs: help is keyed by route, not by `?tab=`
+  // (#1491). Sections follow the tab order, each heading naming its tab.
   "/portal/administration/organization-settings": {
-    title: "How these settings are used",
+    title: "How organization settings are used",
     description:
-      "Where the fiscal year, time zone, vocabulary, approval thresholds, sales tax rate and email settings take effect.",
+      "What each tab controls, and why some changes follow a Board decision.",
     body: (
       <>
-        <HowToSection heading="The fiscal year">
+        <HowToSection heading="General: the fiscal year">
           <p>
             The fiscal year decides what &ldquo;this year&rdquo; means
             everywhere else in the portal: the dashboard&apos;s financial
             figures, the default range on Financial Reports, the annual planning
             review, and the year a conflict-of-interest disclosure covers. A
-            July 1 – June 30 year, for instance, keeps a winter season inside
-            one year rather than splitting it at New Year, and a fiscal year is
-            named for the calendar year it ends in — FY2027 is July 2026 through
-            June 2027.
+            July 1 – June 30 year keeps a winter season inside one year rather
+            than splitting it at New Year, and a fiscal year is named for the
+            calendar year it ends in, so FY2027 is July 2026 through June 2027.
           </p>
           <p>
             Under the bylaws the fiscal year is set by Board resolution, so
             changing the month here should follow that resolution rather than
-            lead it. The change is written to the audit log either way.
+            lead it: every annual figure moves with it.
           </p>
         </HowToSection>
-        <HowToSection heading="The time zone">
+        <HowToSection heading="General: the time zone">
           <p>
             The time zone says where this organization&apos;s days begin and
             end, so reports count a day the way the staff would. A sale rung or
@@ -1721,7 +1722,7 @@ export const helpContent: Record<string, HelpEntry> = {
             event in the zone the event is held in.
           </p>
         </HowToSection>
-        <HowToSection heading="Vocabulary">
+        <HowToSection heading="General: vocabulary">
           <p>
             The platform says &ldquo;inventory&rdquo; and &ldquo;items&rdquo;;
             yours may be a gear library, a tool library or a pantry. Those words
@@ -1736,51 +1737,72 @@ export const helpContent: Record<string, HelpEntry> = {
             role is still set by the donation, registration or shift behind it,
             whatever you call the person who did it.
           </p>
-          <p>
-            A blank field keeps the platform&apos;s word, and every change is
-            written to the audit log.
-          </p>
         </HowToSection>
-        <HowToSection heading="Approval thresholds">
+        <HowToSection heading="Workflow settings: approval thresholds">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Below the threshold</strong> —
-              finance can approve their own expense or reimbursement submission
-              on the{" "}
+              someone with <em>Self-approve own expenses</em> (or{" "}
+              <em>own reimbursements</em>) can approve their own submission on
+              the{" "}
               <Link
                 href="/portal/finance/expenses"
                 className="underline hover:text-foreground"
               >
                 Expenses
               </Link>{" "}
-              and{" "}
+              or{" "}
               <Link
                 href="/portal/finance/reimbursements"
                 className="underline hover:text-foreground"
               >
                 Reimbursements
               </Link>{" "}
-              pages.
+              page, so routine spending doesn&apos;t wait on a second person.
             </li>
             <li>
               <strong className="text-foreground">
                 At or above the threshold
               </strong>{" "}
-              — an admin or board member, other than whoever submitted it, has
-              to approve or reject it instead.
+              — someone with <em>Expense approvals</em> (or{" "}
+              <em>Reimbursement approvals</em>) other than whoever submitted it
+              has to approve or reject it instead.
             </li>
           </ol>
+          <p className="mt-2">
+            The approval pages read the threshold each time a submission is
+            opened, so a change applies straight away. Setting it to 0 sends
+            every submission, however small, to a second approver; a threshold
+            that was never set does the same rather than switching approval off.
+          </p>
         </HowToSection>
-        <HowToSection heading="The sales tax rate">
+        <HowToSection heading="Workflow settings: sales tax">
           <p>
             The rate is prefilled on every sale at the register, where the
             cashier can change it for that one sale. Tax is added on top of the
             pre-tax prices in the catalog, and what is collected is reported
-            separately from income. Changing the rate here never alters a sale
-            already recorded.
+            separately from income, because it is owed to the state rather than
+            earned. Changing the rate here never alters a sale already recorded.
           </p>
         </HowToSection>
-        <HowToSection heading="The outbound email switch">
+        <HowToSection heading="Branding">
+          <p>
+            A blank field keeps the platform default. Saving restyles the public
+            site, your links page and this portal at once, so the page you are
+            on changes as soon as the save lands.
+          </p>
+          <p>
+            The logo appears in the site header and footer, the portal sidebar
+            and at the top of every email, so it has to load for someone who
+            isn&apos;t signed in to anything. A Google Drive file must be shared
+            as &ldquo;Anyone with the link&rdquo;; one that only opens while you
+            are signed in to Drive shows as a broken image in an inbox. The app
+            icon is what a phone shows when someone installs the portal; left
+            blank, it shows your initials on your brand colour, which usually
+            reads better than a wide logo cropped to a circle.
+          </p>
+        </HowToSection>
+        <HowToSection heading="Notifications: the outbound email switch">
           <p>
             It is a stop, not a preference. Each person chooses what they want
             in{" "}
@@ -1790,33 +1812,39 @@ export const helpContent: Record<string, HelpEntry> = {
             >
               My Account
             </Link>
-            , and this overrides all of them, including the public receipts and
-            the daily ops report. Turn it off if messages are going somewhere
-            they shouldn&apos;t. Nothing queues while it is off, so turning it
-            back on does not send what was missed.
+            , and this overrides all of them, including the receipts set up
+            under{" "}
+            <Link
+              href="/portal/administration/automatic-replies"
+              className="underline hover:text-foreground"
+            >
+              Automatic Replies
+            </Link>{" "}
+            and the daily ops report. Turn it off if messages are going
+            somewhere they shouldn&apos;t. Nothing queues while it is off, so
+            turning it back on does not send what was missed.
           </p>
         </HowToSection>
-        <HowToSection heading="Who your email comes from">
+        <HowToSection heading="Notifications: sending and the ops report">
           <p>
             Everything the portal sends goes out under your organization&apos;s
             name, from a sending address that nobody reads. The Reply-To is
             where a reply lands instead; without it, a reply bounces. Sending
             from your own address needs your platform operator to verify your
-            domain with the email provider first, and the field stays read-only
-            until they have.
+            domain with the email provider first, because mail from an
+            unverified domain is rejected or marked as spam; the field stays
+            read-only until they have.
           </p>
-        </HowToSection>
-        <HowToSection heading="The daily ops report">
           <p>
-            Each morning the listed addresses get a summary of the day:
-            approvals waiting, events and shift gaps in the next week, new
+            Each morning the ops report&apos;s addresses get a summary of the
+            day: approvals waiting, events and shift gaps in the next week, new
             messages and applications, and donations received. It goes by
-            address rather than to a person, because it is usually a shared
-            inbox such as board@ or leadership@, so nobody can opt in or out of
-            it on their own account.
+            address rather than to a person because it is usually a shared inbox
+            such as board@ or leadership@, so nobody can opt in or out of it on
+            their own account.
           </p>
         </HowToSection>
-        <HowToSection heading="Reading who receives what">
+        <HowToSection heading="Notifications: reading who receives what">
           <ul className="list-disc space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Staff notifications</strong>{" "}
@@ -1837,40 +1865,36 @@ export const helpContent: Record<string, HelpEntry> = {
             </li>
           </ul>
         </HowToSection>
-        <HowToSection heading="Who can do this">
+        <HowToSection heading="Data">
           <p>
-            <strong className="text-foreground">admin</strong> and{" "}
-            <strong className="text-foreground">board</strong> can change these
-            settings; every other role has no access to this page.
+            The export is one file with every record the organization holds
+            here, people included, so it contains personal data: store it as
+            carefully as the portal does and delete it once it has served its
+            purpose.
+          </p>
+          <p>
+            Deleting the organization can&apos;t be undone and takes the audit
+            trail and the site with it, so it isn&apos;t a button. The platform
+            operator carries it out once the organization is archived, on a
+            request from an admin account. Take an export first.
           </p>
         </HowToSection>
-        <HowToSection heading="What happens downstream">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              These two numbers don&apos;t do anything on this page directly —
-              they&apos;re read by the expense and reimbursement approval flow
-              each time an approver opens a submission, so changing one here
-              changes behavior on those two pages immediately, without a code
-              change.
-            </li>
-            <li>
-              Every change to a threshold is written to the audit log
-              (Administration &gt; Audit log), so you can see who moved it and
-              when.
-            </li>
-          </ul>
-        </HowToSection>
-        <HowToSection heading="Common mistakes">
-          <ul className="list-disc space-y-2 pl-4">
-            <li>
-              Setting a threshold to 0 forces every submission through
-              second-approval, even trivial ones.
-            </li>
-            <li>
-              Leaving a threshold blank doesn&apos;t disable approval — it just
-              means the page falls back to always requiring a second approver.
-            </li>
-          </ul>
+        <HowToSection heading="Who can do this">
+          <p>
+            Anyone whose role has{" "}
+            <strong className="text-foreground">Administration</strong> or{" "}
+            <strong className="text-foreground">System settings</strong> at
+            Manage can open this page and change every tab on it. Which roles
+            hold those is set per organization under{" "}
+            <Link
+              href="/portal/administration/roles"
+              className="underline hover:text-foreground"
+            >
+              Roles
+            </Link>
+            . Every change here is written to the audit log, so you can see who
+            changed what and when.
+          </p>
         </HowToSection>
       </>
     ),
