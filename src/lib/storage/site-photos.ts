@@ -1,5 +1,5 @@
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { compressImage } from "./compress-image";
+import { canEncodeWebp, compressImage } from "./compress-image";
 
 /** The bucket created by 20260921050000. Public read, RLS-gated write. */
 export const SITE_PHOTOS_BUCKET = "site-photos";
@@ -33,7 +33,48 @@ export const SITE_PHOTO_MAX_EDGE = 2400;
 const CACHE_CONTROL_SECONDS = 31536000;
 
 /**
- * The `{tenant}/{uuid}.jpg` object path inside a public site-photo URL, or
+ * Longest edge of a stored logo or app icon, in pixels (#1488).
+ *
+ * The widest a logo is drawn is a 10rem header mark and email's 180px, and an
+ * app icon wants 512px; 1024 is double the largest of those, for high-density
+ * screens, and keeps a lossless PNG fallback well under the bucket's 5 MiB.
+ */
+export const SITE_LOGO_MAX_EDGE = 1024;
+
+/**
+ * What a picture in this bucket is, which decides how it is encoded.
+ *
+ * - `photo`: a JPEG, as every site photo has been since #921.
+ * - `logo`: WebP, or PNG where the browser cannot make WebP, because both keep
+ *   the alpha channel and a JPEG would paint a logo's transparent background
+ *   black or white (#1488). SVG is not accepted: an SVG served from a public
+ *   bucket can carry script, and the canvas re-encode that makes every other
+ *   upload safe would rasterize it anyway.
+ */
+export type SitePictureKind = "photo" | "logo";
+
+export type SitePictureFormat = {
+  type: "image/jpeg" | "image/webp" | "image/png";
+  extension: "jpg" | "webp" | "png";
+  maxEdge: number;
+};
+
+/** How an upload of `kind` is encoded in this browser. */
+export function sitePictureFormat(kind: SitePictureKind): SitePictureFormat {
+  if (kind === "photo") {
+    return {
+      type: "image/jpeg",
+      extension: "jpg",
+      maxEdge: SITE_PHOTO_MAX_EDGE,
+    };
+  }
+  return canEncodeWebp()
+    ? { type: "image/webp", extension: "webp", maxEdge: SITE_LOGO_MAX_EDGE }
+    : { type: "image/png", extension: "png", maxEdge: SITE_LOGO_MAX_EDGE };
+}
+
+/**
+ * The `{tenant}/{uuid}.{jpg,webp,png}` object path inside a public site-photo URL, or
  * null for anything that isn't one (a Google Drive link, a root-relative site
  * image, an empty value).
  *
@@ -83,10 +124,11 @@ const GENERIC_UPLOAD_ERROR =
 export async function uploadSitePhoto(
   file: File,
   path: string,
+  format: SitePictureFormat = sitePictureFormat("photo"),
 ): Promise<SitePhotoUploadResult> {
   let body: Blob;
   try {
-    body = await compressImage(file, SITE_PHOTO_MAX_EDGE);
+    body = await compressImage(file, format.maxEdge, format.type);
   } catch (error) {
     console.error("Could not read the selected image", error);
     return {
@@ -99,7 +141,9 @@ export async function uploadSitePhoto(
   const { error } = await supabase.storage
     .from(SITE_PHOTOS_BUCKET)
     .upload(path, body, {
-      contentType: "image/jpeg",
+      // Off the blob rather than `format`: a browser asked for WebP that
+      // cannot make it returns a PNG, and the label has to match the bytes.
+      contentType: body.type || format.type,
       cacheControl: String(CACHE_CONTROL_SECONDS),
       upsert: false,
     });
@@ -148,3 +192,9 @@ export async function deleteSitePhoto(path: string): Promise<void> {
     console.error("Could not remove the discarded site photo", error);
   }
 }
+
+/**
+ * The file picker's `accept` for a logo: the raster formats a browser can
+ * decode into a canvas, and not SVG (see `SitePictureKind`).
+ */
+export const SITE_LOGO_ACCEPT = "image/png,image/webp,image/jpeg,image/gif";
