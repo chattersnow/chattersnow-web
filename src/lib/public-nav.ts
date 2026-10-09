@@ -47,9 +47,10 @@ export type NavGroup = {
  * Base UI NavigationMenuTrigger opens its panel instead of navigating, so
  * without one the landing page is unreachable from the desktop nav.
  *
- * `/about` and `/inventory` deliberately have no such entry: both redirect to a
- * child that is already listed (`/about/story`, `/inventory/library`), so an
- * overview item would be a second route to the same page.
+ * `/about` deliberately has no such entry: it redirects to a child that is
+ * already listed (`/about/story`), so an overview item would be a second route
+ * to the same page. `/inventory` is the catalog itself, listed as its own
+ * first child for the same reason any landing page is.
  */
 export const NAV_GROUPS: readonly NavGroup[] = [
   // Everything the site says about the product itself (#1328, #1329, #1330),
@@ -129,7 +130,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     href: "/inventory",
     slot: "gears",
     links: [
-      { label: "{collection_public}", href: "/inventory/library" },
+      { label: "{collection_public}", href: "/inventory" },
       {
         label: "Sizing Guide",
         href: "/inventory/sizing",

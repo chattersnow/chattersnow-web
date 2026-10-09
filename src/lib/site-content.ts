@@ -173,7 +173,7 @@ export const CONTENT_PAGES: readonly ContentPage[] = [
   {
     key: "gears",
     label: "Gear",
-    route: "/inventory/library",
+    route: "/inventory",
     visibilityKey: "gears",
   },
   {
@@ -333,7 +333,7 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
 
   { key: "learn:opening", page: "learn", label: "Opening" },
 
-  { key: "gears:library", page: "gears", label: "Gear library" },
+  { key: "gears:library", page: "gears", label: "Catalog" },
   {
     key: "gears:donate",
     page: "gears",
@@ -2210,7 +2210,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     key: "gears.library_heading",
     page: "gears",
     section: "gears:library",
-    label: "Library heading",
+    label: "Catalog heading",
     type: "text",
     default: "{collection_public}",
   },
@@ -2218,9 +2218,10 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     key: "gears.library_intro",
     page: "gears",
     section: "gears:library",
-    label: "Library introduction",
+    label: "Catalog introduction",
     type: "text",
-    default: "Browse {item_plural:lower} currently available to the community.",
+    default:
+      "Browse donated {item_plural:lower} that are free to take home and keep.",
   },
   {
     key: "gears.donate_heading",
@@ -2228,7 +2229,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     section: "gears:donate",
     label: "How it works heading",
     type: "text",
-    default: "How the {collection_public:lower} works",
+    default: "How it works",
   },
   {
     key: "gears.donate_intro",
@@ -2237,7 +2238,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "How it works",
     type: "text",
     default:
-      "Describe how your {collection_public:lower} works: what you collect, who can borrow it, and how a request is fulfilled.",
+      "Describe how your {collection_public:lower} works: what you collect, who can take it home, and how a request is fulfilled.",
   },
   {
     key: "gears.request_heading",
@@ -2254,7 +2255,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     label: "Request",
     type: "text",
     default:
-      "If your size or item isn't currently in the {collection_public:lower}, send us a message and we'll do our best to match you with available {item_plural:lower}.",
+      "If your size or item isn't available right now, send us a message and we'll do our best to match you with {item_plural:lower}.",
   },
   {
     key: "gears.accept_heading",
@@ -2313,7 +2314,7 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     "gears",
     "gears:library",
     "Gear placeholder",
-    "Shown in the gear library for any gear item that doesn't have its own photo.",
+    "Shown in the public catalog for any item that doesn't have its own photo.",
     "1/1",
   ),
   image(

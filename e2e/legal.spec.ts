@@ -204,7 +204,7 @@ test.describe("notice at the point of collection", () => {
   });
 
   test("the gear request", async ({ page }) => {
-    await page.goto("/inventory/library");
+    await page.goto("/inventory");
 
     // Read-only: the cart lives in the browser, and nothing here submits it.
     await page.getByRole("checkbox", { name: "Add to cart" }).first().click();

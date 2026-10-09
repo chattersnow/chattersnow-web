@@ -123,7 +123,7 @@ export async function requestGearItemsAction(
   }
   const { requestId } = submitted;
 
-  revalidatePath("/inventory/library");
+  revalidatePath("/inventory");
   revalidatePath("/portal/inventory/items");
   revalidatePath("/portal/inventory/requests");
 

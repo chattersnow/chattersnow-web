@@ -34,6 +34,7 @@ describe("publicCdnCacheControl", () => {
       "/events/e/0520fa8e-6c21-47bc-98d8-bb3b39f2accb",
       "/contact",
       "/get-involved/volunteer",
+      "/inventory",
       "/inventory/donate",
       "/waiver",
       "/my",

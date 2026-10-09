@@ -187,7 +187,7 @@ describe("renderGearRequestEmail", () => {
 
   test("names the requester and the collection in the subject", () => {
     expect(renderGearRequestEmail(notice, SITE_URL).subject).toBe(
-      "New library request: Jo Rivera",
+      "New free items request: Jo Rivera",
     );
     expect(
       renderGearRequestEmail(notice, SITE_URL, {
