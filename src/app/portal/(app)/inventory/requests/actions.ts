@@ -57,6 +57,7 @@ import {
 export type GearRequestActionResult = { error: string } | { success: true };
 
 const REQUESTS_PATH = "/portal/inventory/requests";
+const SETTINGS_PATH = `${REQUESTS_PATH}/settings`;
 
 const STATUS_ERROR_MESSAGES: Record<string, string> = {
   PERMISSION_DENIED: "You don't have permission to update requests.",
@@ -329,7 +330,7 @@ export async function updateGearRequestSettingsAction(
     };
   }
 
-  revalidatePath(REQUESTS_PATH);
+  revalidatePath(SETTINGS_PATH);
   // The public form reads two of these through public_gear_request_settings.
   revalidatePath("/inventory/library");
   return { success: true };
@@ -395,6 +396,8 @@ export async function updateGearRequestPassphraseAction(
     };
   }
 
+  revalidatePath(SETTINGS_PATH);
+  // The queue says when a passphrase is required.
   revalidatePath(REQUESTS_PATH);
   revalidatePath("/inventory/library");
   return { success: true };

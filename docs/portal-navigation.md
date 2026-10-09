@@ -1,6 +1,6 @@
 # Portal navigation: where a new surface goes
 
-**Updated:** 2026-10-04
+**Updated:** 2026-10-09
 
 The rule for deciding how a portal surface exposes its parts — sidebar entry,
 tab, rail or card — and the boundary between Administration and a feature
@@ -106,18 +106,57 @@ right-hand side is something to read rather than something to edit.
 
 ## What the rule decides
 
-| Surface               | Parts                                 | Answer                                    |
-| --------------------- | ------------------------------------- | ----------------------------------------- |
-| Event detail          | 19 cards over 4 phases                | left rail, phases as headings — the model |
-| Site Content          | 15 pages, 121 slots                   | left rail + search — the model            |
-| Organization Settings | 5 configuration panels                | tabs, via `useUrlTabState`                |
-| Website site settings | Layout, visibility, legal documents   | sidebar entries, grouped                  |
-| Roles + Permissions   | 2 views of one role                   | one entry, two tabs                       |
-| Governance            | 10 distinct jobs                      | sidebar entries, grouped                  |
-| Finance → Sales       | Sales, Register, Products             | Register and Products nest under Sales    |
-| Permission Reference  | 35 permissions over 10 sections       | left rail + search, page stays a document |
-| People segments       | 7 views of one directory              | segments of one page                      |
-| Users page            | table, pending access, support access | stacked cards                             |
+| Surface                  | Parts                                         | Answer                                       |
+| ------------------------ | --------------------------------------------- | -------------------------------------------- |
+| Event detail             | 19 cards over 4 phases                        | left rail, phases as headings — the model    |
+| Site Content             | 15 pages, 121 slots                           | left rail + search — the model               |
+| Organization Settings    | 5 configuration panels                        | tabs, via `useUrlTabState`                   |
+| Website site settings    | Layout, visibility, legal documents           | sidebar entries, grouped                     |
+| Roles + Permissions      | 2 views of one role                           | one entry, two tabs                          |
+| Governance               | 10 distinct jobs                              | sidebar entries, grouped                     |
+| Finance → Sales          | Sales, Register, Products                     | Register and Products nest under Sales       |
+| Permission Reference     | 35 permissions over 10 sections               | left rail + search, page stays a document    |
+| People segments          | 7 views of one directory                      | segments of one page                         |
+| Users page               | table, pending access, support access         | stacked cards                                |
+| Inventory › Requests     | delivery/postage, payment methods, passphrase | `requests/settings` sub-route, header button |
+| Finance › Donations      | online giving (one group)                     | header button → sheet                        |
+| Events                   | registration questions                        | header button → sheet                        |
+| Expenses, Reimbursements | approval thresholds (org-wide)                | link to Organization Settings › Workflow     |
+
+## Settings beside a work list
+
+> **A work list's page is for the work. Its settings open from the page header
+> and are never stacked under the list.**
+
+Working a queue is a daily job for whoever is on duty; configuring the form that
+fills it is an occasional one for a manager. Cards under the table bury the
+settings below a busy list, and bury the list under two forms when the filter is
+empty (#1547). "Where configuration lives" above decides _where_ a setting
+belongs; this decides how a feature's own settings sit beside its list.
+
+1. **Org-wide setting:** link to its Organization Settings tab, as Expenses and
+   Reimbursements do. No copy of the control.
+2. **Small** — one group, no repeating rows, short enough to fill in without
+   scrolling far: a header button that opens a `Sheet`. Events' Registration
+   (`events/registration-settings-sheet.tsx`) and Donations' Giving settings
+   (`finance/donations/giving-settings-sheet.tsx`).
+3. **Larger** — several groups, a repeating list, or long text: a sub-route at
+   `<list>/settings` with a header **Settings** button, a breadcrumb back to the
+   list, an `h1` and title of "<List> settings", and a command-palette entry
+   (`SETTINGS_PAGES` in `command-palette.tsx`). No sidebar entry: the header is
+   where the reader already is. Each group is a card with a real heading, not a
+   muted label. `inventory/requests/settings` is the model.
+4. **Gate the entry, not just the form.** The header button renders only for the
+   permission the server action requires, and the sub-route checks that same
+   permission, so a reader never sees a door they cannot open.
+5. **The list may show one line of the state a setting creates** — "A passphrase
+   is required to request items" on the requests queue — linking to the
+   settings. Never the form itself.
+
+Not tabs: settings are a different job from the list, not another view of it,
+and a `Requests | Settings` strip would put a control for the rarer job on every
+visit to the queue. The reasoning is in the planning repo's
+`coven/design/2026-10-09-feature-settings-beside-a-work-list.md`.
 
 ## Two things the rule forbids
 

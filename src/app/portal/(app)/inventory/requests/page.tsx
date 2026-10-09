@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import {
@@ -13,9 +15,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
+import { LinkPendingPulse } from "@/components/link-pending";
 import { GearRequestsTable, type GearRequestListRow } from "./requests-table";
-import { GearRequestSettingsPanel } from "./request-settings-panel";
-import { GearRequestPassphrasePanel } from "./request-passphrase-panel";
 import { AskAllAsIsDialog } from "./ask-all-as-is-dialog";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
 import {
@@ -39,6 +40,8 @@ const STATUS_FILTERS = [
 ] as const;
 
 const OPEN_STATUSES = ["new", "quoted", "paid"];
+
+const SETTINGS_PATH = "/portal/inventory/requests/settings";
 
 type RawAsIsRequest = AsIsRequestStatus | AsIsRequestStatus[] | null;
 type RawListRow = Omit<GearRequestListRow, "as_is_request"> & {
@@ -82,6 +85,8 @@ export default async function GearRequestsPage({
   const [{ data: rows, error }, settingsResult, asIsCandidates, orgEmail] =
     await Promise.all([
       query,
+      // Read only for the passphrase line below: the settings themselves are
+      // edited at SETTINGS_PATH (#1547).
       canManage
         ? supabase.rpc("get_gear_request_settings")
         : Promise.resolve(null),
@@ -115,23 +120,56 @@ export default async function GearRequestsPage({
     ...row,
     as_is_request: oneAsIsRequest(row.as_is_request),
   }));
+  const passphraseRequired =
+    settingsResult && !settingsResult.error
+      ? parseGearRequestSettings(settingsResult.data).passphraseRequired
+      : false;
   const filterLabel =
     STATUS_FILTERS.find((option) => option.value === statusFilter)?.label ??
     statusFilter;
 
   return (
     <>
-      <div className="w-fit">
-        <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
-          {lexicon.collection} requests
-        </h1>
-        <div className="rainbow-accent mt-3 w-full" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="w-fit">
+          <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
+            {lexicon.collection} requests
+          </h1>
+          <div className="rainbow-accent mt-3 w-full" />
+        </div>
+        {/* The request form's settings are a different job from working the
+            queue, so they open from here rather than sitting under the table
+            (docs/portal-navigation.md, "Settings beside a work list"). */}
+        {canManage ? (
+          <Button
+            variant="secondary"
+            nativeButton={false}
+            render={<Link href={SETTINGS_PATH} />}
+          >
+            <Settings className="size-4" />
+            <LinkPendingPulse>Settings</LinkPendingPulse>
+          </Button>
+        ) : null}
       </div>
       <p className="app-muted mt-2 max-w-2xl text-sm">
         What visitors have asked for from the public{" "}
         {lexicon.collection_public.toLowerCase()}, how they want it delivered,
         and where the postage conversation stands for anything being shipped.
       </p>
+      {/* One line of the state a setting creates, never its form: it changes
+          whether visitors can reach the cart at all, which is the first thing
+          to rule out when requests stop arriving. */}
+      {passphraseRequired ? (
+        <p className="app-muted mt-2 text-sm">
+          A passphrase is required to request items.{" "}
+          <Link
+            href={SETTINGS_PATH}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            Change in settings
+          </Link>
+        </p>
+      ) : null}
 
       <form
         method="get"
@@ -205,18 +243,6 @@ export default async function GearRequestsPage({
           <GearRequestsTable rows={requests} />
         )}
       </div>
-
-      {canManage && settingsResult && !settingsResult.error ? (
-        <div className="mt-8 flex flex-col gap-6">
-          <GearRequestSettingsPanel
-            settings={parseGearRequestSettings(settingsResult.data)}
-            collectionLabel={lexicon.collection}
-          />
-          <GearRequestPassphrasePanel
-            settings={parseGearRequestSettings(settingsResult.data)}
-          />
-        </div>
-      ) : null}
     </>
   );
 }

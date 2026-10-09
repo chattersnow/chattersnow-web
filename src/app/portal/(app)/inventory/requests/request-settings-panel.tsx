@@ -114,8 +114,8 @@ export function GearRequestSettingsPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="app-muted text-sm font-semibold">
-          Delivery and postage settings
+        <CardTitle>
+          <h2 className="text-lg font-semibold">Delivery and postage</h2>
         </CardTitle>
       </CardHeader>
       <CardContent>
