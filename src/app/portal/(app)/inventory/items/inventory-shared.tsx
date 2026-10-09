@@ -104,6 +104,13 @@ export const STATUSES = [
   { value: "other", label: "Other" },
 ];
 
+/** The items list's Tag filter: any tag at all -- asset tag, numbered code,
+ *  barcode or NFC serial -- counts as tagged. */
+export const TAG_FILTERS = [
+  { value: "untagged", label: "No tag" },
+  { value: "tagged", label: "Tagged" },
+];
+
 /**
  * The statuses an item has left inventory in. Entering one gives back its
  * numbered code (#1444) -- release_numbered_tags_on_item_exit() in SQL.
