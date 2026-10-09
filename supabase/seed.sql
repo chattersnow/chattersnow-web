@@ -1770,7 +1770,7 @@ insert into public.site_content (key, value, published_at) values
   -- Seeded so local and CI have a tenant that has written one; the unwritten
   -- case is what every other tenant has and what the unit tests cover.
   ('events.minor_accompaniment', '["Anyone under 18 is welcome with a parent or legal guardian, and that adult needs to be with them for the whole event. Example Nonprofit is not staffed to supervise anyone.","The accompanying adult registers too, so please count them in the number attending. None of this is real: this is a development environment for a fictional organization."]', now()),
-  ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment, lends it out, and takes it back at the end of the season."', now()),
+  ('gears.donate_intro', '"Sample gear-program copy. Example Nonprofit collects gently used equipment and gives it away, free and for keeps, to people who need it."', now()),
   ('get_involved.intro', '"Sample copy for the ways someone could get involved with a fictional organization."', now()),
   ('get_involved.partner_body', '"Example Nonprofit has no real partners. This slot is seeded so the page renders."', now()),
   -- Blank by default, like org.security_note above: the platform does not

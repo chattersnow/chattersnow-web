@@ -75,11 +75,7 @@ test.describe("module gating on the public site", () => {
   }) => {
     await setModule(false);
 
-    for (const path of [
-      "/inventory",
-      "/inventory/library",
-      "/inventory/donate",
-    ]) {
+    for (const path of ["/inventory", "/inventory", "/inventory/donate"]) {
       const response = await page.goto(path);
       expect(response?.status(), `${path} should be gone`).toBe(404);
     }

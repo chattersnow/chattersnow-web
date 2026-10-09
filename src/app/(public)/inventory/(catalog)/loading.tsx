@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function GearLibraryLoading() {
+export default function GearCatalogLoading() {
   return (
     <div>
       <div className="w-fit">

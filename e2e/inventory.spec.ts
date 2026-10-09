@@ -68,17 +68,29 @@ async function seedAvailableGearItems(admin: AdminClient, count: number) {
 
 // The labels below are the platform's own words, not Chatter Snow's (#896).
 // The section is named from the tenant's lexicon now, and the seeded local
-// tenant -- "Example Nonprofit" -- sets none, so it reads "Items" / "Library"
-// where a tenant that has said it lends gear reads "Gear" / "Gear Library".
+// tenant -- "Example Nonprofit" -- sets none, so it reads "Items" / "Free items"
+// where a tenant that has said it gives away gear reads "Gear" / "Free Gear".
 // That is the point of the ticket, and exercising the unset path here is worth
 // more than restating one organization's vocabulary.
 test.describe("public inventory pages", () => {
-  test("the section index redirects to the library", async ({ page }) => {
+  test("the section index is the catalog", async ({ page }) => {
     await page.goto("/inventory");
-    await expect(page).toHaveURL(/\/inventory\/library$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Library" }),
+      page.getByRole("heading", { level: 1, name: "Free items" }),
     ).toBeVisible();
+  });
+
+  // The catalog was at /inventory/library until it stopped calling itself a
+  // library. Shared item links carry `?item=`, which has to survive the hop.
+  test("the old /inventory/library path redirects to the catalog", async ({
+    page,
+  }) => {
+    const itemId = crypto.randomUUID();
+    const response = await page.goto(`/inventory/library?item=${itemId}`);
+    expect(response?.status()).toBe(200);
+    const url = new URL(page.url());
+    expect(url.pathname).toBe("/inventory");
+    expect(url.searchParams.get("item")).toBe(itemId);
   });
 
   // The section was at /gears until #897. Links to it are in the wild -- other
@@ -87,8 +99,8 @@ test.describe("public inventory pages", () => {
   // lives in next.config.ts and only exists in a built, running app.
   test("the old /gears paths redirect to the new segment", async ({ page }) => {
     const moved = [
-      ["/gears", "/inventory/library"],
-      ["/gears/library", "/inventory/library"],
+      ["/gears", "/inventory"],
+      ["/gears/library", "/inventory"],
       ["/gears/donate", "/inventory/donate"],
     ];
 
@@ -99,13 +111,13 @@ test.describe("public inventory pages", () => {
     }
   });
 
-  test("nav resolves to the library", async ({ page }) => {
+  test("nav resolves to the catalog", async ({ page }) => {
     await page.goto("/home");
-    await clickNavLink(page, "Library", { group: "Items" });
+    await clickNavLink(page, "Free items", { group: "Items" });
 
-    await expect(page).toHaveURL(/\/inventory\/library$/);
+    await expect(page).toHaveURL(/\/inventory$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Library" }),
+      page.getByRole("heading", { level: 1, name: "Free items" }),
     ).toBeVisible();
   });
 
@@ -127,26 +139,28 @@ test.describe("public inventory pages", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "How the library works",
+        name: "How it works",
       }),
     ).toBeVisible();
   });
 
-  test("library and donate copy don't imply formal membership", async ({
+  test("catalog and donate copy don't imply formal membership", async ({
     page,
   }) => {
-    await page.goto("/inventory/library");
+    await page.goto("/inventory");
     await expect(
-      page.getByText("Browse items currently available to the community."),
+      page.getByText(
+        "Browse donated items that are free to take home and keep.",
+      ),
     ).toBeVisible();
     await expect(page.getByText(/\bmembers\b/i)).toHaveCount(0);
 
     await page.goto("/inventory/donate");
-    // Anchored the same way as the library page above: both absences below
+    // Anchored the same way as the catalog page above: both absences below
     // are satisfied by a page that has not streamed in, so without a positive
     // assertion first neither of them could go red.
     await expect(
-      page.getByRole("heading", { level: 1, name: "How the library works" }),
+      page.getByRole("heading", { level: 1, name: "How it works" }),
     ).toBeVisible();
     await expect(page.getByText(/community members/i)).toHaveCount(0);
     await expect(page.getByText(/where members can/i)).toHaveCount(0);
@@ -158,7 +172,7 @@ test.describe("public inventory pages", () => {
     const requesterEmail = `e2e-gear-${gear.suffix}@example.test`;
 
     try {
-      await page.goto("/inventory/library");
+      await page.goto("/inventory");
 
       // Narrow the catalog to this run's own items so the checkbox counts
       // below are exact no matter what else is in the seeded catalog.
@@ -218,7 +232,7 @@ test.describe("public inventory pages", () => {
     const gear = await seedAvailableGearItems(admin, 1);
 
     try {
-      await page.goto("/inventory/library");
+      await page.goto("/inventory");
       await page.getByLabel("Search").fill(gear.suffix);
 
       await page
@@ -258,7 +272,7 @@ test.describe("public inventory pages", () => {
     const gear = await seedAvailableGearItems(admin, 1);
 
     try {
-      await page.goto("/inventory/library");
+      await page.goto("/inventory");
       await page.getByLabel("Search").fill(gear.suffix);
 
       const card = page.getByRole("button", {
@@ -269,12 +283,12 @@ test.describe("public inventory pages", () => {
       await card.click();
       await expect(detail).toBeVisible();
       await expect(page).toHaveURL(
-        new RegExp(`/inventory/library\\?item=${gear.itemIds[0]}$`),
+        new RegExp(`/inventory\\?item=${gear.itemIds[0]}$`),
       );
 
       await page.goBack();
       await expect(detail).toBeHidden();
-      await expect(page).toHaveURL(/\/inventory\/library$/);
+      await expect(page).toHaveURL(/\/inventory$/);
       // The catalog was not remounted: the search the reader typed survives.
       await expect(page.getByLabel("Search")).toHaveValue(gear.suffix);
 
@@ -282,7 +296,7 @@ test.describe("public inventory pages", () => {
       await expect(detail).toBeVisible();
       await detail.getByRole("button", { name: "Close" }).click();
       await expect(detail).toBeHidden();
-      await expect(page).toHaveURL(/\/inventory\/library$/);
+      await expect(page).toHaveURL(/\/inventory$/);
     } finally {
       await gear.cleanup();
     }
@@ -295,7 +309,7 @@ test.describe("public inventory pages", () => {
     const gear = await seedAvailableGearItems(admin, 1);
 
     try {
-      await page.goto(`/inventory/library?item=${gear.itemIds[0]}`);
+      await page.goto(`/inventory?item=${gear.itemIds[0]}`);
 
       const detail = page.getByRole("dialog", { name: gear.descriptions[0] });
       await expect(detail).toBeVisible();
@@ -306,7 +320,7 @@ test.describe("public inventory pages", () => {
       // entry rather than stepping Back off the site.
       await detail.getByRole("button", { name: "Close" }).click();
       await expect(detail).toBeHidden();
-      await expect(page).toHaveURL(/\/inventory\/library$/);
+      await expect(page).toHaveURL(/\/inventory$/);
     } finally {
       await gear.cleanup();
     }
@@ -315,7 +329,7 @@ test.describe("public inventory pages", () => {
   test("a link to an item no longer in the catalog says so", async ({
     page,
   }) => {
-    await page.goto(`/inventory/library?item=${crypto.randomUUID()}`);
+    await page.goto(`/inventory?item=${crypto.randomUUID()}`);
 
     await expect(
       page.getByRole("dialog", { name: "This item is no longer available" }),

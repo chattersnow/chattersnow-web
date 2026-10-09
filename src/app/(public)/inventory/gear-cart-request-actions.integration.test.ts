@@ -166,7 +166,7 @@ describe("requestGearItemsAction (integration)", () => {
     expect(await getInventoryItemStatus(first)).toBe("reserved");
     expect(await getInventoryItemStatus(second)).toBe("reserved");
     expect(await getInventoryItemStatus(third)).toBe("reserved");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/inventory/library");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/inventory");
     expect(revalidatePathMock).toHaveBeenCalledWith("/portal/inventory/items");
   });
 

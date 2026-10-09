@@ -59,7 +59,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function GearLibraryPage() {
+export default async function GearCatalogPage() {
   const supabase = await createSupabaseServerClient();
 
   const [

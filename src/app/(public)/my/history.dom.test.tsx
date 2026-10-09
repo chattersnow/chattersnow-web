@@ -98,7 +98,7 @@ describe("a section with nothing in it", () => {
     expect(screen.getByText("Events")).toBeInTheDocument();
     expect(screen.queryByText("Volunteer activity")).not.toBeInTheDocument();
     expect(screen.queryByText("Giving")).not.toBeInTheDocument();
-    expect(screen.queryByText("Library")).not.toBeInTheDocument();
+    expect(screen.queryByText("Free items")).not.toBeInTheDocument();
   });
 
   test("renders nothing at all for a person with no history", () => {

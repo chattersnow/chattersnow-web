@@ -125,7 +125,7 @@ export async function setGearRequestStatusAction(
   // A cancellation puts items back in the catalogue, public and portal.
   if (status === "cancelled") {
     revalidatePath("/portal/inventory/items");
-    revalidatePath("/inventory/library");
+    revalidatePath("/inventory");
   }
   return { success: true };
 }
@@ -134,7 +134,7 @@ const EDIT_ERROR_MESSAGES: Record<string, string> = {
   PERMISSION_DENIED: "You don't have permission to update requests.",
   REQUEST_NOT_FOUND: "This request could not be found.",
   REQUEST_CLOSED: "This request is already fulfilled or cancelled.",
-  ITEM_NOT_FOUND: "That item could not be found in the gear library.",
+  ITEM_NOT_FOUND: "That item could not be found in the public catalog.",
   ITEM_NOT_AVAILABLE: "That item is no longer available.",
   ITEM_NOT_HELD: "This request is not holding that item.",
   LAST_ITEM:
@@ -183,7 +183,7 @@ async function editGearRequest(
   // An item taken off or put on a request leaves or joins the catalogue.
   if (itemsMoved) {
     revalidatePath("/portal/inventory/items");
-    revalidatePath("/inventory/library");
+    revalidatePath("/inventory");
   }
   return { success: true };
 }
@@ -332,7 +332,7 @@ export async function updateGearRequestSettingsAction(
 
   revalidatePath(SETTINGS_PATH);
   // The public form reads two of these through public_gear_request_settings.
-  revalidatePath("/inventory/library");
+  revalidatePath("/inventory");
   return { success: true };
 }
 
@@ -399,7 +399,7 @@ export async function updateGearRequestPassphraseAction(
   revalidatePath(SETTINGS_PATH);
   // The queue says when a passphrase is required.
   revalidatePath(REQUESTS_PATH);
-  revalidatePath("/inventory/library");
+  revalidatePath("/inventory");
   return { success: true };
 }
 
