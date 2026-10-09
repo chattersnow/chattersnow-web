@@ -111,9 +111,13 @@ test.describe("public inventory pages", () => {
     }
   });
 
-  test("nav resolves to the catalog", async ({ page }) => {
+  test("nav resolves to the catalog", async ({ page, isMobile }) => {
     await page.goto("/home");
-    await clickNavLink(page, "Free items", { group: "Items" });
+    // The catalog is the section's own page, so the mobile sheet folds its
+    // link into the section heading rather than listing `/inventory` twice.
+    await clickNavLink(page, isMobile ? "Items" : "Free items", {
+      group: "Items",
+    });
 
     await expect(page).toHaveURL(/\/inventory$/);
     await expect(

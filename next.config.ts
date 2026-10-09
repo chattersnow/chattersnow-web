@@ -141,16 +141,6 @@ const nextConfig: NextConfig = {
         destination: "/inventory/:path*",
         permanent: true,
       },
-      // The catalog moved up from `/inventory/library` to `/inventory`: it is
-      // a giveaway, not a lending library, and the word is out of the URL as
-      // well as the copy. Permanent for the same reason as `/gears` above, and
-      // listed after it so `/gears/library` lands here in a second hop. A
-      // shared `?item=<id>` link keeps its query string through both.
-      {
-        source: "/inventory/library",
-        destination: "/inventory",
-        permanent: true,
-      },
       // `/events/<uuid>` -> `/events/e/<uuid>` is NOT here. It was, and it
       // 404'd the whole portal (#1145): redirects in this file are matched
       // before `src/proxy.ts` runs and carry no idea what host they are on,
