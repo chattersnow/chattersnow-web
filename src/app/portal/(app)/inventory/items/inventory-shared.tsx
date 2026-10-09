@@ -104,11 +104,18 @@ export const STATUSES = [
   { value: "other", label: "Other" },
 ];
 
-/** The items list's Tag filter: any tag at all -- asset tag, numbered code,
- *  barcode or NFC serial -- counts as tagged. */
+/**
+ * The items list's Tag filter, read off the view's `tag_kinds` computed field.
+ * "Tag code" is the random asset-tag code intake gives an item nothing was
+ * scanned for (#1420); "tag code only" is such an item still waiting for a
+ * reusable numbered code (#1444).
+ */
 export const TAG_FILTERS = [
-  { value: "untagged", label: "No tag" },
-  { value: "tagged", label: "Tagged" },
+  { value: "no_numbered", label: "No numbered code" },
+  { value: "asset_only", label: "Tag code only" },
+  { value: "numbered", label: "Numbered code" },
+  { value: "untagged", label: "No tag of any kind" },
+  { value: "tagged", label: "Any tag" },
 ];
 
 /**

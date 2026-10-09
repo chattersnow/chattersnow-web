@@ -141,9 +141,21 @@ export default async function InventoryPage({
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
   if (intendedUseFilter !== "all")
     query = query.eq("intended_use", intendedUseFilter);
-  // `has_tag` is a computed field on the view (any asset tag, numbered code,
-  // barcode or NFC serial), so items with nothing to scan can be found.
-  if (tagFilter !== "all") query = query.is("has_tag", tagFilter === "tagged");
+  // `tag_kinds` is a computed field on the view: the distinct kinds of tag on
+  // the item, empty when it has none.
+  if (tagFilter === "no_numbered") {
+    query = query.not("tag_kinds", "cs", "{numbered}");
+  } else if (tagFilter === "asset_only") {
+    query = query
+      .contains("tag_kinds", ["asset_tag"])
+      .not("tag_kinds", "cs", "{numbered}");
+  } else if (tagFilter === "numbered") {
+    query = query.contains("tag_kinds", ["numbered"]);
+  } else if (tagFilter === "untagged") {
+    query = query.filter("tag_kinds", "eq", "{}");
+  } else if (tagFilter === "tagged") {
+    query = query.filter("tag_kinds", "neq", "{}");
+  }
 
   const { offset, to } = pageRange(page, perPage);
   const { data: items, count } = await query
@@ -431,7 +443,7 @@ export default async function InventoryPage({
                     defaultValue={tagFilter}
                     className={selectClassName}
                   >
-                    <option value="all">Tagged or not</option>
+                    <option value="all">All items</option>
                     {TAG_FILTERS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
