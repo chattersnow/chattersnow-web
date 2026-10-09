@@ -105,6 +105,20 @@ export const STATUSES = [
 ];
 
 /**
+ * The items list's Tag filter, read off the view's `tag_kinds` computed field.
+ * "Tag code" is the random asset-tag code intake gives an item nothing was
+ * scanned for (#1420); "tag code only" is such an item still waiting for a
+ * reusable numbered code (#1444).
+ */
+export const TAG_FILTERS = [
+  { value: "no_numbered", label: "No numbered code" },
+  { value: "asset_only", label: "Tag code only" },
+  { value: "numbered", label: "Numbered code" },
+  { value: "untagged", label: "No tag of any kind" },
+  { value: "tagged", label: "Any tag" },
+];
+
+/**
  * The statuses an item has left inventory in. Entering one gives back its
  * numbered code (#1444) -- release_numbered_tags_on_item_exit() in SQL.
  */

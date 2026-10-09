@@ -31,6 +31,7 @@ import {
   CONDITIONS,
   INTENDED_USES,
   STATUSES,
+  TAG_FILTERS,
   isSortColumn,
   type SortColumn,
 } from "./inventory-shared";
@@ -75,6 +76,10 @@ export default async function InventoryPage({
   const conditionFilter = raw("condition") || "all";
   const statusFilter = raw("status") || "all";
   const intendedUseFilter = raw("intendedUse") || "all";
+  const tagParam = raw("tag") ?? "";
+  const tagFilter = TAG_FILTERS.some((option) => option.value === tagParam)
+    ? tagParam
+    : "all";
   // One item, with its sheet open, was where a scanned tag landed (#1420).
   // The item has its own page now (#1441); links and NFC tags written before
   // that still carry this form. Anything but a uuid is ignored.
@@ -136,6 +141,21 @@ export default async function InventoryPage({
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
   if (intendedUseFilter !== "all")
     query = query.eq("intended_use", intendedUseFilter);
+  // `tag_kinds` is a computed field on the view: the distinct kinds of tag on
+  // the item, empty when it has none.
+  if (tagFilter === "no_numbered") {
+    query = query.not("tag_kinds", "cs", "{numbered}");
+  } else if (tagFilter === "asset_only") {
+    query = query
+      .contains("tag_kinds", ["asset_tag"])
+      .not("tag_kinds", "cs", "{numbered}");
+  } else if (tagFilter === "numbered") {
+    query = query.contains("tag_kinds", ["numbered"]);
+  } else if (tagFilter === "untagged") {
+    query = query.filter("tag_kinds", "eq", "{}");
+  } else if (tagFilter === "tagged") {
+    query = query.filter("tag_kinds", "neq", "{}");
+  }
 
   const { offset, to } = pageRange(page, perPage);
   const { data: items, count } = await query
@@ -162,6 +182,7 @@ export default async function InventoryPage({
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
   if (intendedUseFilter !== "all")
     filterParams.set("intendedUse", intendedUseFilter);
+  if (tagFilter !== "all") filterParams.set("tag", tagFilter);
   // On filterParams rather than in each href, so sorting and paging both
   // carry the reader's choice -- including the sort links the table builds
   // from `filterQueryString` below.
@@ -192,12 +213,14 @@ export default async function InventoryPage({
     categoryFilter !== "all" ||
     conditionFilter !== "all" ||
     statusFilter !== "all" ||
-    intendedUseFilter !== "all";
+    intendedUseFilter !== "all" ||
+    tagFilter !== "all";
   const activeFilterCount = [
     categoryFilter !== "all",
     conditionFilter !== "all",
     statusFilter !== "all",
     intendedUseFilter !== "all",
+    tagFilter !== "all",
   ].filter(Boolean).length;
   // A filter value is an id, a "group:<key>" token or "uncategorized"; the chip
   // has to show what a human picked, not the token.
@@ -253,6 +276,15 @@ export default async function InventoryPage({
           ?.label ?? intendedUseFilter,
     });
   }
+  if (tagFilter !== "all") {
+    appliedFilters.push({
+      param: "tag",
+      label: "Tag",
+      value:
+        TAG_FILTERS.find((option) => option.value === tagFilter)?.label ??
+        tagFilter,
+    });
+  }
 
   return (
     <>
@@ -288,6 +320,7 @@ export default async function InventoryPage({
                 condition: conditionFilter,
                 status: statusFilter,
                 intendedUse: intendedUseFilter,
+                tag: tagFilter,
                 sort,
                 dir,
               }}
@@ -397,6 +430,28 @@ export default async function InventoryPage({
                   </select>
                 </div>
 
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="tag"
+                    className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  >
+                    Tag
+                  </label>
+                  <select
+                    id="tag"
+                    name="tag"
+                    defaultValue={tagFilter}
+                    className={selectClassName}
+                  >
+                    <option value="all">All items</option>
+                    {TAG_FILTERS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-2">
                   <FilterSubmitButton />
                   {hasActiveFilters && (
@@ -435,6 +490,7 @@ export default async function InventoryPage({
             condition: conditionFilter,
             status: statusFilter,
             intendedUse: intendedUseFilter,
+            tag: tagFilter,
             sort,
             dir,
           }}
