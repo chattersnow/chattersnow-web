@@ -88,6 +88,35 @@ export async function setTagPrefixAction(
   return { prefix: data ?? value };
 }
 
+/**
+ * Numbered codes only (#1541): intake leaves an item with nothing scanned
+ * untagged instead of giving it a random code, and no new random code can be
+ * made. The database refuses it without a prefix.
+ */
+export async function setNumberedCodesOnlyAction(
+  on: boolean,
+): Promise<{ numberedOnly: boolean } | { error: string }> {
+  const guard = await manageGuard(
+    "You must be signed in to change how items are labelled.",
+  );
+  if ("error" in guard) return guard;
+
+  const { data, error } = await guard.supabase.rpc(
+    "set_inventory_numbered_codes_only",
+    { p_on: on },
+  );
+  if (error) {
+    if (error.message === "INVENTORY_TAG_PREFIX_MISSING") {
+      return { error: "Set the prefix before using numbered codes only." };
+    }
+    return { error: "Could not save the setting. Please try again." };
+  }
+  revalidatePath(NUMBERED_CODES_PATH);
+  revalidatePath("/portal/inventory/items");
+  revalidatePath("/portal/inventory/donations");
+  return { numberedOnly: data ?? on };
+}
+
 export async function generateNumberedCodesAction(
   count: number,
 ): Promise<{ range: NumberRange } | { error: string }> {

@@ -97,7 +97,10 @@ export async function createAssetTagsAction(
       error:
         error.code === "23505"
           ? "Some of these items were just given codes. Reload and try again."
-          : "Could not create the codes. Please try again.",
+          : // Numbered codes only (#1541): the database makes no random code.
+            error.message === "INVENTORY_RANDOM_CODES_OFF"
+            ? "Your organization labels items with numbered codes only. Assign one from the item's page."
+            : "Could not create the codes. Please try again.",
     };
   }
 

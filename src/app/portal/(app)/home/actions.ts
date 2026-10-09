@@ -6,6 +6,7 @@ import type { CreateDonationInput, DonationItemInput } from "./donation-form";
 import { createDonation, type CreateDonationResult } from "./donation-core";
 import { checkAnyPermission, checkPermission } from "@/lib/auth/permissions";
 import { donationLabelsHref } from "@/lib/inventory-labels";
+import { getInventoryTagSettings } from "@/lib/inventory-tags";
 
 export type { CreateDonationInput, DonationItemInput };
 export type {
@@ -32,11 +33,17 @@ export async function createDonationAction(
 
   // The received items' labels (#1420), offered only to a reader who can open
   // the page they print from -- Inventory -> Donations' own gate. A
-  // finance-only recorder has the codes in the confirmation but no page.
-  const canPrint = !(await checkAnyPermission(supabase, [
-    { resource: "inventory", level: "view" },
-    { resource: "inventory_intake", level: "manage" },
-  ]));
+  // finance-only recorder has the codes in the confirmation but no page. On
+  // numbered codes only (#1541) every code came off a label already printed,
+  // and that page prints random codes, so there is nothing to offer.
+  const [permissionError, { numberedOnly }] = await Promise.all([
+    checkAnyPermission(supabase, [
+      { resource: "inventory", level: "view" },
+      { resource: "inventory_intake", level: "manage" },
+    ]),
+    getInventoryTagSettings(supabase),
+  ]);
+  const canPrint = !permissionError && !numberedOnly;
 
   return {
     ...result,
@@ -45,6 +52,23 @@ export async function createDonationAction(
         ? donationLabelsHref(result.donationId)
         : null,
   };
+}
+
+/**
+ * Whether the tenant labels with numbered codes only (#1541), for the
+ * donation sheet's wording: it is opened from client components, so this
+ * can't arrive as a server prop. Gated like recording the donation.
+ */
+export async function getIntakeNumberedOnlyAction(): Promise<
+  { data: boolean } | { error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "finance", level: "manage" },
+    { resource: "inventory_intake", level: "manage" },
+  ]);
+  if (permissionError) return permissionError;
+  return { data: (await getInventoryTagSettings(supabase)).numberedOnly };
 }
 
 export type GiveawayTierOption = {

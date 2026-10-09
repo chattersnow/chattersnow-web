@@ -210,14 +210,29 @@ export async function lookupInventoryTag(
 export async function getInventoryTagPrefix(
   supabase: SupabaseClient<Database>,
 ): Promise<string | null> {
+  return (await getInventoryTagSettings(supabase)).prefix;
+}
+
+/**
+ * How the current tenant labels its inventory: its numbered-code prefix
+ * (#1444), and whether it uses numbered codes only (#1541) -- intake leaves
+ * an item with nothing scanned untagged, and the portal offers no random
+ * asset-tag codes. Off, and no prefix, when the tenant can't be read.
+ */
+export async function getInventoryTagSettings(
+  supabase: SupabaseClient<Database>,
+): Promise<{ prefix: string | null; numberedOnly: boolean }> {
   const { data: tenantId } = await supabase.rpc("current_tenant_id");
-  if (!tenantId) return null;
+  if (!tenantId) return { prefix: null, numberedOnly: false };
   const { data } = await supabase
     .from("tenants")
-    .select("inventory_tag_prefix")
+    .select("inventory_tag_prefix, inventory_numbered_codes_only")
     .eq("id", tenantId)
     .maybeSingle();
-  return data?.inventory_tag_prefix ?? null;
+  return {
+    prefix: data?.inventory_tag_prefix ?? null,
+    numberedOnly: data?.inventory_numbered_codes_only ?? false,
+  };
 }
 
 /** A numbered code a handout freed (#1444), and the item it came off. */
