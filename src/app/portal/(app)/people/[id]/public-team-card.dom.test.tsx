@@ -37,6 +37,11 @@ mock.module("@/lib/storage/site-photos", () => ({
   SITE_PHOTO_MAX_EDGE: 2400,
   sitePhotoPathFromUrl: () => null,
   uploadSitePhoto: uploadSitePhotoMock,
+  sitePictureFormat: () => ({
+    type: "image/jpeg",
+    extension: "jpg",
+    maxEdge: 2400,
+  }),
   deleteSitePhoto: async () => {},
 }));
 

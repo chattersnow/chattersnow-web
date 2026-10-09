@@ -131,12 +131,23 @@ describe("site-photos writes", () => {
     expect(error).toBeNull();
   });
 
+  // The writers of a field that can hold one of these pictures, and nobody
+  // else: an event coordinator for a flier (events:manage, #1487) and the
+  // board for the branding logo (system_settings:manage, #1488).
+  test("an events manager and Organization Settings can upload", async () => {
+    for (const client of [coordinator, board]) {
+      const { error } = await client.storage
+        .from(SITE_PHOTOS_BUCKET)
+        .upload(path(tenantId), jpegBlob(), { contentType: "image/jpeg" });
+      expect(error).toBeNull();
+    }
+  });
+
   // The gate that makes this its own bucket rather than a corner of
-  // gear-photos: whoever may set the site's copy may set its pictures, and
-  // nobody else -- an intake volunteer who can upload a gear photo cannot
+  // gear-photos: an intake volunteer who can upload a gear photo cannot
   // change what is on the website.
-  test("nobody without site_content:manage can upload", async () => {
-    for (const client of [coordinator, finance, board, volunteer]) {
+  test("nobody without a picture field to save can upload", async () => {
+    for (const client of [finance, volunteer]) {
       const { error } = await client.storage
         .from(SITE_PHOTOS_BUCKET)
         .upload(path(tenantId), jpegBlob(), { contentType: "image/jpeg" });

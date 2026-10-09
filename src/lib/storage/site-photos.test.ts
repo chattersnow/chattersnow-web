@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { SITE_PHOTO_MAX_EDGE, sitePhotoPathFromUrl } from "./site-photos";
+import {
+  SITE_LOGO_MAX_EDGE,
+  SITE_PHOTO_MAX_EDGE,
+  sitePhotoPathFromUrl,
+  sitePictureFormat,
+} from "./site-photos";
 
 describe("sitePhotoPathFromUrl", () => {
   const path =
@@ -76,5 +81,24 @@ describe("SITE_PHOTO_MAX_EDGE", () => {
   test("stays within what the free tier allows for a set of slots", () => {
     expect(SITE_PHOTO_MAX_EDGE).toBeGreaterThan(1600);
     expect(SITE_PHOTO_MAX_EDGE).toBeLessThanOrEqual(3000);
+  });
+});
+
+describe("sitePictureFormat (#1488)", () => {
+  test("a photo is a JPEG at the site photo size", () => {
+    expect(sitePictureFormat("photo")).toEqual({
+      type: "image/jpeg",
+      extension: "jpg",
+      maxEdge: SITE_PHOTO_MAX_EDGE,
+    });
+  });
+
+  // A JPEG has no alpha channel: a logo's transparent background would come
+  // out black or white.
+  test("a logo is never a JPEG, and its name matches its type", () => {
+    const format = sitePictureFormat("logo");
+    expect(["image/webp", "image/png"]).toContain(format.type);
+    expect(String(format.type)).toBe(`image/${format.extension}`);
+    expect(format.maxEdge).toBe(SITE_LOGO_MAX_EDGE);
   });
 });
