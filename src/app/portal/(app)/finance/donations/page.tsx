@@ -51,7 +51,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
-import { GivingSettingsPanel } from "./giving-settings-panel";
+import { GivingSettingsSheet } from "./giving-settings-sheet";
 import { EmptyState } from "@/components/portal/empty-state";
 
 type DonationsPageProps = {
@@ -251,6 +251,15 @@ export default async function FinanceDonationsPage({
           <div className="rainbow-accent mt-3 w-full" />
         </div>
         <div className="flex items-center gap-2">
+          {/* Configuring the giving link is a different job from recording
+              gifts, so it opens from the header rather than under the
+              ledger (docs/portal-navigation.md, "Settings beside a work
+              list"). */}
+          {canManageGiving && givingResult && !givingResult.error ? (
+            <GivingSettingsSheet
+              settings={parseGivingSettings(givingResult.data)}
+            />
+          ) : null}
           <PageHelpContent title="How monetary donations work">
             <HowToSection heading="Steps">
               <ol className="list-decimal space-y-2 pl-4">
@@ -527,12 +536,6 @@ export default async function FinanceDonationsPage({
             perPageHrefFor={perPageHref}
           />
         )}
-
-        {canManageGiving && givingResult && !givingResult.error ? (
-          <GivingSettingsPanel
-            settings={parseGivingSettings(givingResult.data)}
-          />
-        ) : null}
       </div>
     </>
   );

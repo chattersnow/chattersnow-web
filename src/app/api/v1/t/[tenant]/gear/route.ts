@@ -1,7 +1,7 @@
 import { publicRead, unwrap } from "@/lib/api/handler";
 
 /**
- * The lending library: every available item, newest first.
+ * The public catalog: every available item, newest first.
  *
  * The four filters are the four the organization's own catalogue offers, by
  * the same rules -- `category` and `condition` and `gender` match exactly,

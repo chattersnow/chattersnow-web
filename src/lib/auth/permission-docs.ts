@@ -59,7 +59,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   events: {
     view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18, each registration's answers to the event's registration questions, and whether it has been asked for or has given answers by emailed link. Also what the Calendar reads to show events alongside calendar items.",
     manage:
-      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, the questions registration asks (including copying them from another event), discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page. Also an event's registration questions, editing a registration's answers to them, and the registrants tab's Download answers (CSV), which carries a registrant's email and phone only where they ticked the event's consent question for sharing them, and their Instagram handle on every row. Also emailing registrants a link to fill in missing answers (Ask for missing answers, and Ask for answers on one registrant), which works without an account for that one registration's answers until the event ends.",
+      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, the questions registration asks (including copying them from another event), discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page. Also an event's registration questions, editing a registration's answers to them, and the registrants tab's Download answers (CSV), which carries a registrant's email and phone only where they ticked the event's consent question for sharing them, and their Instagram handle on every row. Also emailing registrants a link to fill in missing answers (Ask for missing answers, and Ask for answers on one registrant), which works without an account for that one registration's answers until the event ends. Also uploading an event's flier to the site's photos.",
     notes: [
       "A registrant cancels their own registration from their account or the event page with no grant at all, until the event starts. That path reaches only their own registration and records the reason as can't attend; staff cancel, with a reason, and undo from the Registrants tab at Manage.",
     ],
@@ -355,7 +355,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   people: {
     view: "Open the People directory and its segments, and search people from the command palette.",
     manage:
-      "Create, edit, merge and delete people, work the duplicate queue, and manage a person's organization memberships.",
+      "Create, edit, merge and delete people, work the duplicate queue, manage a person's organization memberships, and list them on the public team page with a photo uploaded to the site's photos (or upload an organization's sponsor logo there).",
     excludes: [
       {
         key: "people_intake",
@@ -559,7 +559,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   system_settings: {
     view: null,
     manage:
-      "Edit org-wide configuration -- the expense approval threshold, organization identity, notification settings, automatic replies -- and the Website section's own settings: layout, page visibility and legal documents.",
+      "Edit org-wide configuration -- the expense approval threshold, organization identity, branding (including uploading its logo and app icon to the site's photos), notification settings, automatic replies -- and the Website section's own settings: layout, page visibility and legal documents.",
     excludes: [
       { key: "administration", covers: "users, roles and the audit log" },
       { key: "site_content", covers: "the copy on the public website" },

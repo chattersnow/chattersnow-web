@@ -35,6 +35,11 @@ mock.module("@/lib/storage/site-photos", () => ({
       : url.slice(at + "/site-photos/".length).split("#")[0] || null;
   },
   uploadSitePhoto: uploadSitePhotoMock,
+  sitePictureFormat: () => ({
+    type: "image/jpeg",
+    extension: "jpg",
+    maxEdge: 2400,
+  }),
   deleteSitePhoto: deleteSitePhotoMock,
 }));
 

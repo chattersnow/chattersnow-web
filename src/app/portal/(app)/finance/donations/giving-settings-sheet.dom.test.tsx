@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as DonationActions from "./actions";
 import type { DonationActionResult } from "./actions";
@@ -16,7 +16,8 @@ mock.module("./actions", () => ({
   updateGivingSettingsAction: updateGivingSettingsActionMock,
 }));
 
-const { GivingSettingsPanel } = await import("./giving-settings-panel");
+const { GivingSettingsForm, GivingSettingsSheet } =
+  await import("./giving-settings-sheet");
 
 const CONFIGURED: GivingSettings = {
   enabled: true,
@@ -32,13 +33,13 @@ function save(user: ReturnType<typeof userEvent.setup>) {
   return user.click(screen.getByRole("button", { name: "Save settings" }));
 }
 
-describe("GivingSettingsPanel", () => {
+describe("GivingSettingsForm", () => {
   beforeEach(() => {
     updateGivingSettingsActionMock.mockClear();
   });
 
   test("opens on what the tenant has stored", () => {
-    render(<GivingSettingsPanel settings={CONFIGURED} />);
+    render(<GivingSettingsForm settings={CONFIGURED} />);
 
     expect(screen.getByLabelText(labelText("Giving page address"))).toHaveValue(
       "https://givebutter.com/example",
@@ -53,7 +54,7 @@ describe("GivingSettingsPanel", () => {
 
   test("sends the parsed amounts, not the text they were typed as", async () => {
     const user = userEvent.setup();
-    render(<GivingSettingsPanel settings={CONFIGURED} />);
+    render(<GivingSettingsForm settings={CONFIGURED} />);
 
     const amounts = screen.getByLabelText(labelText("Suggested amounts"));
     await user.clear(amounts);
@@ -70,7 +71,7 @@ describe("GivingSettingsPanel", () => {
   // rather than letting the RPC answer with a code.
   test("refuses an address the public site could not publish", async () => {
     const user = userEvent.setup();
-    render(<GivingSettingsPanel settings={CONFIGURED} />);
+    render(<GivingSettingsForm settings={CONFIGURED} />);
 
     const url = screen.getByLabelText(labelText("Giving page address"));
     await user.clear(url);
@@ -84,7 +85,7 @@ describe("GivingSettingsPanel", () => {
   test("refuses to switch giving on with nothing to point at", async () => {
     const user = userEvent.setup();
     render(
-      <GivingSettingsPanel
+      <GivingSettingsForm
         settings={{ ...DEFAULT_GIVING_SETTINGS, enabled: false }}
       />,
     );
@@ -102,7 +103,7 @@ describe("GivingSettingsPanel", () => {
   // rather than showing a preview of buttons that would never render.
   test("says the amount buttons need the provider's parameter", async () => {
     const user = userEvent.setup();
-    render(<GivingSettingsPanel settings={CONFIGURED} />);
+    render(<GivingSettingsForm settings={CONFIGURED} />);
 
     expect(screen.getByText(/\$25, \$50/)).toBeTruthy();
 
@@ -115,11 +116,35 @@ describe("GivingSettingsPanel", () => {
   });
 
   test("keeps the tax sentence out of this panel entirely", () => {
-    render(<GivingSettingsPanel settings={CONFIGURED} />);
+    render(<GivingSettingsForm settings={CONFIGURED} />);
 
     // No field for it: the only place it belongs is Site Content, and the
     // panel's job is to say where (docs/legal-basis.md rule 1).
     expect(screen.queryByLabelText(labelText("Tax note"))).toBeNull();
     expect(screen.getByText(/Site Content/)).toBeTruthy();
+  });
+
+  // #1547: the form opens from the Donations header, not under the ledger,
+  // and steps out of the way once it has saved.
+  test("opens from its header button and closes on a successful save", async () => {
+    const user = userEvent.setup();
+    render(<GivingSettingsSheet settings={CONFIGURED} />);
+
+    expect(
+      screen.queryByLabelText(labelText("Giving page address")),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Giving settings" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Online giving" }),
+    ).toBeTruthy();
+
+    await save(user);
+
+    expect(updateGivingSettingsActionMock).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Online giving" }),
+      ).toBeNull(),
+    );
   });
 });

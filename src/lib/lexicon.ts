@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * "Gear" is one organization's vocabulary for the concept these tables call
  * inventory. Another reads the same rows and calls it a tool library, a
  * lending library, a pantry, an equipment room. Before this, a tenant could
- * rename the heading on `/inventory/library` -- that heading is a `site_content`
+ * rename the heading on `/inventory` -- that heading is a `site_content`
  * slot -- and the navigation item directly above it still said "Gear", because
  * every other surface carried the word as a literal.
  *
@@ -54,8 +54,10 @@ export const LEXICON_TERMS: readonly LexiconTerm[] = [
     key: "collection_public",
     label: "The collection, publicly",
     description:
-      "The same thing as visitors see it named on the public site, which is often longer: Gear Library, Tool Library, Food Pantry.",
-    default: "Library",
+      "The same thing as visitors see it named on the public site, which is often longer: Free Gear, Tool Library, Food Pantry.",
+    // Not "Library": the platform's request flow gives items away to keep,
+    // and a library is something you bring back.
+    default: "Free items",
   },
   {
     key: "item",

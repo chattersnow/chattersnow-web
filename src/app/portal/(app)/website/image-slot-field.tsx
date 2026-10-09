@@ -1,18 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { ImageCropField } from "@/components/portal/image-crop-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import { parseImageCrop, withTypedSrc } from "@/lib/image-crop";
-import {
-  deleteSitePhoto,
-  sitePhotoPathFromUrl,
-  uploadSitePhoto,
-} from "@/lib/storage/site-photos";
-import { createSitePhotoPathAction } from "./site-photo-actions";
+import { SitePhotoFileInput, useSitePhotoUpload } from "./site-photo-upload";
 import { OpenPictureLink, useImagePreview } from "./image-preview";
 
 /**
@@ -64,64 +57,10 @@ export function ImageSlotField({
   onChange: (value: string | null) => void;
 }) {
   const preview = useImagePreview(value);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  /**
-   * Object paths uploaded during *this* editing session, and the only ones
-   * ever deleted when the slot's photo is replaced.
-   *
-   * A URL that arrived as the slot's stored value is never touched, even when
-   * it points into this bucket: `site_content` holds a draft value and a
-   * published one, so the photo being replaced on screen may still be the one
-   * the live site is serving. A stale object costs a few hundred kilobytes; a
-   * deleted live one takes the picture off the website.
-   */
-  const uploadedPaths = useRef<Set<string>>(new Set());
-
-  function discard(url: string | null) {
-    const path = sitePhotoPathFromUrl(parseImageCrop(url).src);
-    if (path && uploadedPaths.current.has(path)) {
-      uploadedPaths.current.delete(path);
-      void deleteSitePhoto(path);
-    }
-  }
-
-  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // Clear the input straight away so picking the same file twice in a row
-    // still fires a change event.
-    event.target.value = "";
-    if (!file) return;
-
-    setError(null);
-    setUploading(true);
-    try {
-      // Path first, so somebody without `site_content:manage` is told
-      // immediately rather than after the browser has spent several seconds
-      // re-encoding a 12 MP photo.
-      const pathResult = await createSitePhotoPathAction();
-      if ("error" in pathResult) {
-        setError(pathResult.error);
-        return;
-      }
-
-      const result = await uploadSitePhoto(file, pathResult.path);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-
-      uploadedPaths.current.add(result.path);
-      const previous = value;
-      // Through `withTypedSrc` rather than set directly, so the one rule about
-      // what happens to a crop when the photo changes lives in one place: a
-      // different picture needs a different crop and gets none.
-      onChange(withTypedSrc(previous, result.url) || null);
-      discard(previous);
-    } finally {
-      setUploading(false);
-    }
-  }
+  const { uploading, error, setError, handleFile } = useSitePhotoUpload({
+    value,
+    onChange: (next) => onChange(next || null),
+  });
 
   return (
     <>
@@ -135,24 +74,12 @@ export function ImageSlotField({
         />
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {/*
-          A visible native file input rather than a Button over a hidden one:
-          one tab stop, a real <label> (the slot's own, which points here), a
-          native focus ring, and nothing for axe's aria-hidden-focus rule to
-          catch. Same control as gear intake uses (#781).
-        */}
-        <input
-          id={id}
-          type="file"
-          accept="image/*"
-          disabled={uploading}
-          onChange={handleFile}
-          aria-describedby={describedBy}
-          className="text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        {uploading && <Spinner aria-label="Uploading photo" />}
-      </div>
+      <SitePhotoFileInput
+        id={id}
+        describedBy={describedBy}
+        uploading={uploading}
+        onChange={handleFile}
+      />
 
       <FieldLabel htmlFor={`${id}-url`} className="font-normal">
         Or paste a link

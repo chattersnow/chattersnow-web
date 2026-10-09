@@ -2,7 +2,6 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +25,7 @@ import {
   type Branding,
   type TypographySet,
 } from "@/lib/branding";
-import { resolveImageUrl } from "@/lib/inventory";
+import { LogoField } from "../../website/logo-field";
 import { cn } from "@/lib/utils";
 import { updateBrandingAction, type SettingActionResult } from "./actions";
 
@@ -190,8 +189,6 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
       ? [previewStops[0], previewStops[0]]
       : DEFAULT_ACCENT_STOPS
   ).join(", ")})`;
-  const logoPreview = resolveImageUrl(logoUrl.trim() || null);
-  const appIconPreview = resolveImageUrl(appIconUrl.trim() || null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -325,47 +322,36 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
           </CardHeader>
           <CardContent>
             <FieldGroup>
-              {logoPreview && (
-                <div className="relative size-20 overflow-hidden rounded-md bg-muted">
-                  <Image
-                    src={logoPreview}
-                    alt="Logo preview"
-                    fill
-                    sizes="5rem"
-                    className="object-contain"
-                  />
-                </div>
-              )}
-              <Field>
-                <FieldLabel htmlFor="brand-logo-url">Logo URL</FieldLabel>
-                <Input
-                  id="brand-logo-url"
-                  name="logo_url"
-                  // Deliberately not `type="url"`, for the reason the website
-                  // list editor writes out at length (#1267): the browser's own
-                  // URL validation demands a scheme, and a file this site
-                  // serves itself -- `/chatter-logo-transparent.png`, which is
-                  // the first tenant's logo -- is exactly what it rejects.
-                  // `resolveImageUrl()` supports those paths on purpose, so the
-                  // box has to accept what the stack already stores. Worse, a
-                  // rejected field blocks the whole form: a tenant whose logo
-                  // is a path could not save a colour or a typeface either.
-                  inputMode="url"
-                  placeholder="https://drive.google.com/file/d/..."
-                  value={logoUrl}
-                  onChange={(event) => setLogoUrl(event.target.value)}
-                />
-                <FieldDescription>
-                  A Google Drive link, any image URL, or a path to a file this
-                  site serves, starting with <code>/</code>. Shown in the site
-                  header and footer, in the portal sidebar, and at the top of
-                  every email you send &mdash; so it has to be reachable without
-                  signing in. A link that only works while you are signed in to
-                  Drive will show as a broken image in an inbox. About
-                  360&times;120 or larger keeps it sharp; email caps it at 180px
-                  wide.
-                </FieldDescription>
-              </Field>
+              <LogoField
+                id="brand-logo"
+                uploadLabel="Upload a logo"
+                label="Logo URL"
+                name="logo_url"
+                // Paths allowed, so not `type="url"` (#1267): the browser's
+                // own URL validation demands a scheme, and a file this site
+                // serves itself -- `/chatter-logo-transparent.png`, which is
+                // the first tenant's logo -- is exactly what it rejects.
+                // `resolveImageUrl()` supports those paths on purpose, so the
+                // box has to accept what the stack already stores. Worse, a
+                // rejected field blocks the whole form: a tenant whose logo
+                // is a path could not save a colour or a typeface either.
+                allowPaths
+                ratio="3 / 1"
+                value={logoUrl}
+                onChange={setLogoUrl}
+                description={
+                  <>
+                    A link may be a Google Drive link, any image URL, or a path
+                    to a file this site serves, starting with <code>/</code>.
+                    Shown in the site header and footer, in the portal sidebar,
+                    and at the top of every email you send &mdash; so it has to
+                    be reachable without signing in. A link that only works
+                    while you are signed in to Drive will show as a broken image
+                    in an inbox. About 360&times;120 or larger keeps it sharp;
+                    email caps it at 180px wide.
+                  </>
+                }
+              />
             </FieldGroup>
           </CardContent>
         </Card>
@@ -376,39 +362,27 @@ export function BrandingPanel({ branding }: { branding: Branding }) {
           </CardHeader>
           <CardContent>
             <FieldGroup>
-              {appIconPreview && (
-                <div className="relative size-20 overflow-hidden rounded-[22%] bg-muted">
-                  <Image
-                    src={appIconPreview}
-                    alt="App icon preview"
-                    fill
-                    sizes="5rem"
-                    className="object-contain"
-                  />
-                </div>
-              )}
-              <Field>
-                <FieldLabel htmlFor="brand-app-icon-url">
-                  App icon URL
-                </FieldLabel>
-                <Input
-                  id="brand-app-icon-url"
-                  name={APP_ICON_URL_TOKEN}
-                  // Same as the logo above (#1267), and for the same reason:
-                  // an icon in `public/` is a path, not a URL with a scheme.
-                  inputMode="url"
-                  placeholder="https://drive.google.com/file/d/..."
-                  value={appIconUrl}
-                  onChange={(event) => setAppIconUrl(event.target.value)}
-                />
-                <FieldDescription>
-                  A <strong>square</strong> image, at least 512&times;512, used
-                  when someone installs the portal on a phone. Leave this blank
-                  and the home screen shows your initials on your brand colour
-                  &mdash; which is usually better than a wide logo, since a
-                  phone crops an app icon to a circle.
-                </FieldDescription>
-              </Field>
+              <LogoField
+                id="brand-app-icon"
+                uploadLabel="Upload an app icon"
+                label="App icon URL"
+                name={APP_ICON_URL_TOKEN}
+                // Same as the logo above (#1267), and for the same reason:
+                // an icon in `public/` is a path, not a URL with a scheme.
+                allowPaths
+                ratio="1 / 1"
+                value={appIconUrl}
+                onChange={setAppIconUrl}
+                description={
+                  <>
+                    A <strong>square</strong> image, at least 512&times;512,
+                    used when someone installs the portal on a phone. Leave this
+                    blank and the home screen shows your initials on your brand
+                    colour &mdash; which is usually better than a wide logo,
+                    since a phone crops an app icon to a circle.
+                  </>
+                }
+              />
             </FieldGroup>
           </CardContent>
         </Card>

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const NEXT_STEPS: readonly { href: string; label: string }[] = [
   { href: "/events", label: "Find an event" },
   { href: "/get-involved/volunteer", label: "Volunteer with us" },
-  { href: "/inventory/library", label: "Browse the {collection_public:lower}" },
+  { href: "/inventory", label: "Browse the {collection_public:lower}" },
   { href: "/support/donations", label: "Make a donation" },
 ] as const;
 

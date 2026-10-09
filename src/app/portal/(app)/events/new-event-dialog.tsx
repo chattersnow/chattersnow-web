@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createEventAction } from "./actions";
+import { FlierField } from "./flier-field";
 import { listProgramsAction, type Program } from "../programs/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -240,16 +241,11 @@ export function NewEventDialog({
           />
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="flierUrl">Flier image URL</FieldLabel>
-          <Input
-            id="flierUrl"
-            type="url"
-            placeholder="https://drive.google.com/file/d/..."
-            value={form.flierUrl}
-            onChange={(event) => update("flierUrl", event.target.value)}
-          />
-        </Field>
+        <FlierField
+          id="flier"
+          value={form.flierUrl}
+          onChange={(value) => update("flierUrl", value)}
+        />
 
         <Field orientation="responsive">
           <Field>

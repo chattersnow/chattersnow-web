@@ -1,8 +1,54 @@
-import { describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { contentSlot, type ListItem } from "@/lib/site-content";
-import { ListEditor } from "./list-editor";
+
+const UPLOADED =
+  "http://127.0.0.1:54321/storage/v1/object/public/site-photos/tenant-1/photo-1.jpg";
+const SECOND =
+  "http://127.0.0.1:54321/storage/v1/object/public/site-photos/tenant-1/photo-2.jpg";
+
+const uploadSitePhotoMock = mock<
+  (
+    file: File,
+    path: string,
+  ) => Promise<{ url: string; path: string } | { error: string }>
+>(async (_file, path) => ({ url: UPLOADED, path }));
+
+const deleteSitePhotoMock = mock<(path: string) => Promise<void>>(
+  async () => {},
+);
+
+mock.module("@/lib/storage/site-photos", () => ({
+  SITE_PHOTOS_BUCKET: "site-photos",
+  SITE_PHOTO_MAX_EDGE: 2400,
+  sitePhotoPathFromUrl: (url: string | null) => {
+    if (!url) return null;
+    const at = url.indexOf("/site-photos/");
+    return at === -1
+      ? null
+      : url.slice(at + "/site-photos/".length).split("#")[0] || null;
+  },
+  uploadSitePhoto: uploadSitePhotoMock,
+  sitePictureFormat: () => ({
+    type: "image/jpeg",
+    extension: "jpg",
+    maxEdge: 2400,
+  }),
+  deleteSitePhoto: deleteSitePhotoMock,
+}));
+
+mock.module("./site-photo-actions", () => ({
+  createSitePhotoPathAction: async () => ({ path: "tenant-1/photo-1.jpg" }),
+}));
+
+const { ListEditor } = await import("./list-editor");
+
+function pngFile() {
+  return new File([new Uint8Array([137, 80, 78, 71])], "ada.png", {
+    type: "image/png",
+  });
+}
 
 const SLOT = contentSlot("about_team.members");
 if (!SLOT || SLOT.type !== "list") {
@@ -63,6 +109,15 @@ function renderEditor(
  * descriptions further down the same page.
  */
 describe("a team member's photo control", () => {
+  beforeEach(() => {
+    uploadSitePhotoMock.mockClear();
+    uploadSitePhotoMock.mockImplementation(async (_file, path) => ({
+      url: UPLOADED,
+      path,
+    }));
+    deleteSitePhotoMock.mockClear();
+  });
+
   test("asks one question, not two free-text boxes", () => {
     renderEditor(member());
 
@@ -86,7 +141,7 @@ describe("a team member's photo control", () => {
     // The shared fallback and the free link are the other two answers; the
     // hero strip at the top of the page is not a team member's photo.
     expect(options).toContain("Team member photo (shared)");
-    expect(options).toContain("A link of their own");
+    expect(options).toContain("A photo of their own");
     expect(options.join(" ")).not.toContain("top photo");
   });
 
@@ -105,14 +160,42 @@ describe("a team member's photo control", () => {
   test("choosing a link of their own asks for it and drops the slot", async () => {
     const view = renderEditor(member({ photo_slot: "about_team_photo_cass" }));
 
-    await view.pick("A link of their own");
+    await view.pick("A photo of their own");
 
     expect(view.stored()).toEqual(member({ photo_slot: "" }));
-    const box = screen.getByRole("textbox", { name: "Photo link" });
+    const box = screen.getByRole("textbox", { name: "Or paste a link" });
     await userEvent.setup().type(box, "https://example.test/ada.jpg");
     expect(view.stored()).toEqual(
       member({ photo_url: "https://example.test/ada.jpg", photo_slot: "" }),
     );
+  });
+
+  // An upload is stored as the row's own link, so the page and the preview
+  // read it exactly as they read a pasted one (#1486).
+  test("an uploaded photo becomes the row's own, with its crop control", async () => {
+    const view = renderEditor(member({ photo_slot: "about_team_photo_cass" }));
+
+    await view.pick("A photo of their own");
+    await userEvent.upload(screen.getByLabelText("Upload a photo"), pngFile());
+
+    await waitFor(() =>
+      expect(view.stored()).toEqual(
+        member({ photo_url: UPLOADED, photo_slot: "" }),
+      ),
+    );
+    expect(screen.getByText("Showing their own photo.")).toBeTruthy();
+    expect(screen.getByRole("group", { name: /^Crop of/ })).toBeTruthy();
+  });
+
+  // A stored photo may still be the one the published page serves, so
+  // uploading over it never deletes it; only this sitting's uploads go.
+  test("uploading over a stored photo leaves the stored one alone", async () => {
+    renderEditor(member({ photo_url: `${SECOND}#crop=0.1,0.1,0.5,0.5` }));
+    const input = screen.getByLabelText("Upload a photo");
+
+    await userEvent.upload(input, pngFile());
+    await waitFor(() => expect(uploadSitePhotoMock).toHaveBeenCalledTimes(1));
+    expect(deleteSitePhotoMock).not.toHaveBeenCalled();
   });
 
   test("says which picture the page will use", () => {
@@ -140,9 +223,9 @@ describe("a team member's photo control", () => {
     );
 
     expect(screen.getByRole("group", { name: "Crop of Photo" })).toBeTruthy();
-    expect(screen.getByRole("textbox", { name: "Photo link" })).toHaveValue(
-      "https://example.test/ada.jpg",
-    );
+    expect(
+      screen.getByRole("textbox", { name: "Or paste a link" }),
+    ).toHaveValue("https://example.test/ada.jpg");
   });
 
   test("leaves a borrowed photo's crop with the photo", () => {

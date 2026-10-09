@@ -13,6 +13,10 @@ import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { runAction } from "@/components/portal/action-toast";
 import { ImageCropField } from "@/components/portal/image-crop-field";
 import { ImagePreviewBox, useImagePreview } from "../../website/image-preview";
+import {
+  SitePhotoFileInput,
+  useSitePhotoUpload,
+} from "../../website/site-photo-upload";
 import { parseImageCrop, withTypedSrc } from "@/lib/image-crop";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -162,9 +166,18 @@ export function PublicTeamCard({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Uploaded to the same bucket as the Website photos, so the team page reads
+  // it like any other link (#1486). A photo uploaded and then cancelled is left
+  // for the site-photos sweep.
+  const upload = useSitePhotoUpload({
+    value: form.photoUrl,
+    onChange: (url) => update("photoUrl", url),
+  });
+
   function cancel() {
     setForm(formStateFor(membership));
     setError(null);
+    upload.setError(null);
     setMode("view");
   }
 
@@ -318,24 +331,44 @@ export function PublicTeamCard({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`${formId}-photo`}>Photo URL</FieldLabel>
-                <Input
+                <FieldLabel htmlFor={`${formId}-photo`}>Photo</FieldLabel>
+                <SitePhotoFileInput
                   id={`${formId}-photo`}
+                  describedBy={`${formId}-photo-help`}
+                  uploading={upload.uploading}
+                  onChange={upload.handleFile}
+                />
+                <FieldLabel
+                  htmlFor={`${formId}-photo-url`}
+                  className="font-normal"
+                >
+                  Or paste a link
+                </FieldLabel>
+                <Input
+                  id={`${formId}-photo-url`}
                   type="url"
                   value={parseImageCrop(form.photoUrl).src ?? ""}
                   placeholder="https://..."
-                  onChange={(event) =>
+                  disabled={upload.uploading}
+                  onChange={(event) => {
+                    upload.setError(null);
                     update(
                       "photoUrl",
                       withTypedSrc(form.photoUrl, event.target.value),
-                    )
-                  }
+                    );
+                  }}
                 />
-                <FieldDescription>
-                  A Google Drive share link or a direct image URL, as the Site
-                  Content photos take. Blank shows the site&apos;s team member
-                  photo instead.
+                <FieldDescription id={`${formId}-photo-help`}>
+                  Upload a photo, or give a Google Drive share link or a direct
+                  image URL, as the Site Content photos take. An uploaded photo
+                  is resized for the web automatically. Blank shows the
+                  site&apos;s team member photo instead.
                 </FieldDescription>
+                {upload.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{upload.error}</AlertDescription>
+                  </Alert>
+                )}
                 {form.photoUrl && (
                   <PhotoField
                     url={form.photoUrl}
@@ -387,7 +420,11 @@ export function PublicTeamCard({
           <Button type="button" variant="ghost" onClick={cancel}>
             Cancel
           </Button>
-          <Button type="submit" form={formId} disabled={isPending}>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={isPending || upload.uploading}
+          >
             {isPending ? (
               <>
                 <Spinner /> Saving...

@@ -130,7 +130,7 @@ describe("isPublishableHref", () => {
   test.each([
     ["mailto:privacy@example.org", true],
     ["https://example.org/policy", true],
-    ["/inventory/library", true],
+    ["/inventory", true],
     ["#other-agreements", true],
     ["#", false],
     ["mailto:", false],

@@ -254,7 +254,7 @@ describe("slotsForHref", () => {
   test("resolves a section landing page and its children to that slot", () => {
     expect(slotsForHref("/programs")).toEqual(["programs"]);
     expect(slotsForHref("/learn/getting-started")).toEqual(["learn"]);
-    expect(slotsForHref("/inventory/library")).toEqual(["gears"]);
+    expect(slotsForHref("/inventory")).toEqual(["gears"]);
   });
 
   // The sizing guide lives under Gear and has its own slot, so it depends on
@@ -289,7 +289,7 @@ describe("isHrefVisible", () => {
 
   test("drops a link whose own slot is hidden even though its parent is live", () => {
     expect(isHrefVisible(["gears-sizing"], "/inventory/sizing")).toBe(false);
-    expect(isHrefVisible(["gears-sizing"], "/inventory/library")).toBe(true);
+    expect(isHrefVisible(["gears-sizing"], "/inventory")).toBe(true);
   });
 
   test("drops a link whose parent section is hidden even though its own slot is live", () => {

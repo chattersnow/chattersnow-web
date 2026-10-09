@@ -14,8 +14,8 @@
  *
  *   - `/events/e/<id>` shows a signed-in constituent their own registration;
  *   - `/contact`, `/get-involved/*` below the landing, `/inventory/donate`,
- *     `/inventory/library`, `/support/*` below the landing and `/waiver` are
- *     forms;
+ *     `/inventory` (the catalog, with its request form), `/support/*` below
+ *     the landing and `/waiver` are forms;
  *   - `/my/*` and the `confirm-*` pages are one person's.
  *
  * Adding a page here is a claim that it renders the same for everyone on its
@@ -35,7 +35,6 @@ const CACHEABLE_PATHS = new Set([
   "/events",
   "/events/community",
   "/get-involved",
-  "/inventory",
   "/inventory/sizing",
   "/learn",
   "/modules",

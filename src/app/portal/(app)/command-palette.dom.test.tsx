@@ -86,6 +86,24 @@ describe("CommandPalette", () => {
     ).not.toBeInTheDocument();
   });
 
+  test("offers a work list's settings page only to who can change them (#1547)", async () => {
+    const user = await openPalette({ ...ADMIN, inventory: "manage" });
+    await user.click(
+      await screen.findByRole("option", { name: /request settings/ }),
+    );
+    expect(pushMock).toHaveBeenCalledWith(
+      "/portal/inventory/requests/settings",
+    );
+  });
+
+  test("leaves the settings page out for an inventory viewer", async () => {
+    await openPalette({ ...ADMIN, inventory: "view" });
+    await screen.findByRole("option", { name: /Requests/ });
+    expect(
+      screen.queryByRole("option", { name: /request settings/ }),
+    ).not.toBeInTheDocument();
+  });
+
   test("names the owning section, since two page titles are ambiguous alone", async () => {
     await openPalette();
     const roles = await screen.findAllByRole("option", { name: /Roles/ });

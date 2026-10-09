@@ -112,7 +112,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/gear",
     method: "get",
     operationId: "listGear",
-    summary: "Available items in the lending library",
+    summary: "Items available in the public catalog",
     queryParams: [
       { name: "category", description: "Exact `category_key`." },
       { name: "condition", description: "Exact condition." },
@@ -255,7 +255,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/gear-requests",
     method: "post",
     operationId: "requestGear",
-    summary: "Request items from the lending library",
+    summary: "Request items from the public catalog",
     body: gearRequestSchema,
     response: idResponse,
     status: 201,

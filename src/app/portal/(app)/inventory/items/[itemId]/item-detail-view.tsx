@@ -33,12 +33,15 @@ export function ItemDetailView({
   canManage,
   history,
   distribute = null,
+  numberedOnly = false,
 }: {
   item: InventoryItem;
   categories: InventoryCategory[];
   canManage: boolean;
   history: HistoryEntry[];
   distribute?: ItemDistribute | null;
+  /** Numbered codes only (#1543): a tag code shows only where one exists. */
+  numberedOnly?: boolean;
 }) {
   const imageUrl = resolveImageUrl(item.photo_url);
   const hasActions = canManage || !!distribute;
@@ -71,6 +74,7 @@ export function ItemDetailView({
             categories={categories}
             canManage={canManage}
             distribute={distribute}
+            numberedOnly={numberedOnly}
           />
         </div>
       )}
@@ -155,24 +159,30 @@ export function ItemDetailView({
           </CardHeader>
           <CardContent>
             <FieldGroup>
-              <ReadOnlyField label="Tag code" htmlFor="item-assetTag">
-                {item.assetTag ? (
-                  <CodeActions
-                    itemId={item.id}
-                    code={item.assetTag}
-                    kind="tag"
-                  />
-                ) : (
-                  "None yet"
-                )}
-              </ReadOnlyField>
-              <p className="app-muted text-sm">
-                {item.assetTag
-                  ? "Tapping an NFC tag with either code, or scanning its label, opens this page. To write the tag on an iPhone, copy the tag URL and write it to the tag with a free app such as NFC Tools."
-                  : canManage
-                    ? "Generate a code to print this item's label or write it to an NFC tag."
-                    : "This item has no tag code yet."}
-              </p>
+              {/* On numbered codes only, a random code is legacy: shown
+                  where an item still has one, never offered (#1543). */}
+              {(item.assetTag || !numberedOnly) && (
+                <>
+                  <ReadOnlyField label="Tag code" htmlFor="item-assetTag">
+                    {item.assetTag ? (
+                      <CodeActions
+                        itemId={item.id}
+                        code={item.assetTag}
+                        kind="tag"
+                      />
+                    ) : (
+                      "None yet"
+                    )}
+                  </ReadOnlyField>
+                  <p className="app-muted text-sm">
+                    {item.assetTag
+                      ? "Tapping an NFC tag with either code, or scanning its label, opens this page. To write the tag on an iPhone, copy the tag URL and write it to the tag with a free app such as NFC Tools."
+                      : canManage
+                        ? "Generate a code to print this item's label or write it to an NFC tag."
+                        : "This item has no tag code yet."}
+                  </p>
+                </>
+              )}
               <ReadOnlyField label="Numbered code" htmlFor="item-numberedCode">
                 {item.numberedCode ? (
                   <CodeActions

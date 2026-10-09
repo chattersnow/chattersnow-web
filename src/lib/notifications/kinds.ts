@@ -111,7 +111,7 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
     audience: "staff",
     label: "New gear requests",
     description:
-      "An email as soon as someone requests items from the public library, linking straight to the request.",
+      "An email as soon as someone requests items from the public catalog, linking straight to the request.",
     // The inventory managers own the request queue. inventory_intake:manage
     // deliberately does not qualify: an intake volunteer records what comes
     // in, and has no view of what is being asked for.
@@ -137,7 +137,7 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
     defaultEnabled: true,
     label: "Gear request updates",
     description:
-      "Confirmation that we have your request for items from the library, and what happens next.",
+      "Confirmation that we have your request for items from the catalog, and what happens next.",
   },
   {
     key: "event_registration_confirmation",

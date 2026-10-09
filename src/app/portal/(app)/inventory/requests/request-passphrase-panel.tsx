@@ -69,8 +69,8 @@ export function GearRequestPassphrasePanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="app-muted text-sm font-semibold">
-          Request passphrase
+        <CardTitle>
+          <h2 className="text-lg font-semibold">Request passphrase</h2>
         </CardTitle>
       </CardHeader>
       <CardContent>

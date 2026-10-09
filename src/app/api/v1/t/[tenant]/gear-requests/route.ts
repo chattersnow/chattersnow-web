@@ -10,7 +10,7 @@ import {
 } from "@/lib/notifications/submission-notifications";
 
 /**
- * Request items from the lending library.
+ * Request items from the public catalog.
  *
  * Whether shipping is on offer at all, and whether the payment method is one
  * this organization accepts, are re-decided inside `request_gear_items()`

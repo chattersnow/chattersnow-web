@@ -24,11 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PronounsField } from "@/components/pronouns-field";
-import {
-  ImagePreviewBox,
-  OpenPictureLink,
-  useImagePreview,
-} from "../website/image-preview";
+import { LogoField } from "../website/logo-field";
 
 export type PersonFormState = {
   name: string;
@@ -506,7 +502,8 @@ export function PersonFormFields({
 }
 
 /**
- * The sponsor logo box, with the picture it points at (#1028).
+ * The sponsor logo box, with the picture it points at (#1028), and an upload
+ * beside it that keeps transparency (#1488).
  *
  * It was a bare `<Input>` while every other picture field in the portal --
  * branding, Site Content slots, inventory photos, event fliers -- showed a
@@ -514,9 +511,8 @@ export function PersonFormFields({
  * wall silently falls back to the sponsor's name (#914), so nothing anywhere
  * said the link was dead. Chatter Snow shipped one that way.
  *
- * Contained rather than cropped, and in a box roughly the shape of the widest
- * mark the wall draws, because neither wall layout crops a logo -- previewing
- * it `object-cover` would show ends cut off that the site never cuts.
+ * In a box roughly the shape of the widest mark the wall draws, because
+ * neither wall layout crops a logo.
  */
 function LogoUrlField({
   id,
@@ -527,40 +523,16 @@ function LogoUrlField({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const preview = useImagePreview(value || null);
-
   return (
-    <Field>
-      <FieldLabel htmlFor={id}>Logo URL</FieldLabel>
-      {preview.url && (
-        <ImagePreviewBox
-          url={preview.url}
-          ratio="4 / 1"
-          fit="contain"
-          className="h-16"
-          onError={preview.markFailed}
-        />
-      )}
-      <Input
-        id={id}
-        type="url"
-        placeholder="https://drive.google.com/file/d/..."
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      {preview.failed ? (
-        <FieldDescription className="text-destructive">
-          That link did not load as a picture. A Google Drive link has to be a
-          file rather than a folder, and shared with anyone who has the link.
-        </FieldDescription>
-      ) : (
-        <FieldDescription>
-          A Google Drive share link or a direct image URL. Shown on the public
-          sponsor wall.
-        </FieldDescription>
-      )}
-      {preview.url && <OpenPictureLink url={preview.url} label="Logo" />}
-    </Field>
+    <LogoField
+      id={id}
+      uploadLabel="Upload a logo"
+      label="Logo URL"
+      value={value}
+      onChange={onChange}
+      ratio="4 / 1"
+      description="Shown on the public sponsor wall."
+    />
   );
 }
 

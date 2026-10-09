@@ -3,7 +3,7 @@ import { ViewerTime } from "@/components/viewer-time";
 import { deliveryMethodLabel } from "@/lib/gear-requests";
 import { formatCalendarDate, formatCurrency, formatNumber } from "@/lib/format";
 import { personRoleLabel } from "@/lib/person-roles";
-import type { Lexicon } from "@/lib/lexicon";
+import { DEFAULT_LEXICON, type Lexicon } from "@/lib/lexicon";
 import {
   gearRequestStanding,
   groupGear,
@@ -472,12 +472,12 @@ function GearSection({
   vocabulary: Lexicon;
 }) {
   return (
-    // The collection as the public site names it -- "Gear Library", "Tool
+    // The collection as the public site names it -- "Free Gear", "Tool
     // Library", "Food Pantry" -- because this section is about dealings with
     // that, not about a pile of items.
     <MySection
       id={mySectionAnchor("gear")}
-      title={vocabulary.collection_public ?? "Library"}
+      title={vocabulary.collection_public ?? DEFAULT_LEXICON.collection_public}
     >
       <MyGroup title="Requests" isEmpty={gear.requests.length === 0}>
         {gear.requests.map((row) => {

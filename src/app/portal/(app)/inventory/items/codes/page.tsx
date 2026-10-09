@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth/permissions";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { getTenantBranding } from "@/lib/tenant-branding";
-import { getInventoryTagPrefix, tagUrl } from "@/lib/inventory-tags";
+import { getInventoryTagSettings, tagUrl } from "@/lib/inventory-tags";
 import {
   MAX_LABEL_ITEMS,
   parseLabelOptions,
@@ -65,7 +65,12 @@ import {
   type PrintableLabel,
 } from "../labels/label-sheets";
 import { LabelToolbar } from "../labels/label-toolbar";
-import { GenerateCodesForm, PrefixForm, PrintRangeForm } from "./code-forms";
+import {
+  GenerateCodesForm,
+  NumberedOnlyForm,
+  PrefixForm,
+  PrintRangeForm,
+} from "./code-forms";
 import { CodesTable, type CodeRow } from "./codes-table";
 
 export const metadata: Metadata = { title: "Codes" };
@@ -160,9 +165,9 @@ export default async function CodesPage({
   );
 
   const supabase = await createSupabaseServerClient();
-  const [permissions, prefix] = await Promise.all([
+  const [permissions, { prefix, numberedOnly }] = await Promise.all([
     getCurrentUserPermissions(supabase),
-    getInventoryTagPrefix(supabase),
+    getInventoryTagSettings(supabase),
   ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
@@ -330,6 +335,20 @@ export default async function CodesPage({
         )
       )}
 
+      {prefix && canManage && (
+        <Card className="mt-6 max-w-xl">
+          <CardHeader>
+            <CardTitle>At intake</CardTitle>
+            <CardDescription>
+              Whether an item received with nothing scanned gets a code.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NumberedOnlyForm current={numberedOnly} />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
         <SearchField
           action={CODES_PATH}
@@ -453,6 +472,7 @@ export default async function CodesPage({
           filterQuery={codeFilterParams(filters).toString()}
           filtered={filtered}
           canManage={canManage}
+          numberedOnly={numberedOnly}
         />
       </div>
 

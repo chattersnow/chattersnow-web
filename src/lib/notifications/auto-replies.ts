@@ -252,7 +252,7 @@ export const AUTO_REPLIES: AutoReplyDefinition[] = [
     kind: GEAR_REQUEST_CONFIRMATION_KIND,
     label: "Gear request confirmation",
     description:
-      "Sent to somebody as soon as they request items from the public library. The item list and your meetup or shipping instructions are added by the platform.",
+      "Sent to somebody as soon as they request items from the public catalog. The item list and your meetup or shipping instructions are added by the platform.",
     notificationKind: GEAR_REQUEST_CONFIRMATION_KIND,
     module: "inventory",
     slots: [

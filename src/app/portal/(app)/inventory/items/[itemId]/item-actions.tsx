@@ -32,11 +32,14 @@ export function ItemActions({
   categories,
   canManage,
   distribute,
+  numberedOnly = false,
 }: {
   item: InventoryItem;
   categories: InventoryCategory[];
   canManage: boolean;
   distribute: ItemDistribute | null;
+  /** Numbered codes only (#1543): no random code to generate. */
+  numberedOnly?: boolean;
 }) {
   const code = item.assetTag ?? null;
   const numbered = item.numberedCode ?? null;
@@ -45,7 +48,9 @@ export function ItemActions({
   return (
     <>
       {distribute && <DistributeButton itemId={item.id} {...distribute} />}
-      {canManage && !code && <GenerateCodeButton itemId={item.id} />}
+      {canManage && !code && !numberedOnly && (
+        <GenerateCodeButton itemId={item.id} />
+      )}
       {canManage && inStock && (
         <AssignNumberedCodeButton itemId={item.id} current={numbered} />
       )}

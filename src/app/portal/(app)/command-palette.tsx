@@ -111,8 +111,32 @@ function pageItems(
       });
     }
   }
+  // A work list's settings sub-route (#1547) has no sidebar entry -- it is
+  // reached from the list's header -- so this is the navigation surface it
+  // needs. Gated on the permission the page itself requires.
+  for (const settings of SETTINGS_PAGES) {
+    if (!hasPermission(permissions, settings.resource, settings.level)) {
+      continue;
+    }
+    push({
+      value: `page:${settings.href}`,
+      label: applyLexicon(settings.label, lexicon),
+      detail: applyLexicon(settings.detail, lexicon),
+      href: settings.href,
+    });
+  }
   return items;
 }
+
+const SETTINGS_PAGES = [
+  {
+    href: "/portal/inventory/requests/settings",
+    label: "{collection} request settings",
+    detail: "{collection}",
+    resource: "inventory",
+    level: "manage",
+  },
+] as const;
 
 function matches(item: PaletteItem, query: string) {
   const needle = query.toLowerCase();

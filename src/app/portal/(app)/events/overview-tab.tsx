@@ -15,6 +15,7 @@ import {
   utcIsoToDatetimeLocalInBrowser,
 } from "@/lib/time";
 import { updateEventAction } from "./actions";
+import { FlierField, FlierPreview } from "./flier-field";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import { StatusBadge, VisibilityBadge } from "./event-badges";
@@ -240,8 +241,8 @@ export function OverviewTab({
           <span className="whitespace-pre-line">{form.description || "—"}</span>
         </ReadOnlyField>
 
-        <ReadOnlyField label="Flier image URL" htmlFor="details-flierUrl">
-          {form.flierUrl || "—"}
+        <ReadOnlyField label="Flier" htmlFor="details-flier">
+          <FlierPreview url={form.flierUrl} />
         </ReadOnlyField>
       </FieldGroup>
     );
@@ -420,18 +421,11 @@ export function OverviewTab({
           />
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="details-flierUrl">Flier image URL</FieldLabel>
-          <Input
-            id="details-flierUrl"
-            type="url"
-            placeholder="https://drive.google.com/file/d/..."
-            value={form.flierUrl}
-            onChange={(changeEvent) =>
-              update("flierUrl", changeEvent.target.value)
-            }
-          />
-        </Field>
+        <FlierField
+          id="details-flier"
+          value={form.flierUrl}
+          onChange={(value) => update("flierUrl", value)}
+        />
 
         {error && (
           <Alert variant="destructive">

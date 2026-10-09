@@ -137,7 +137,7 @@ describe("gear request item edits", () => {
 
     expect(
       await addGearRequestItemAction(request.id, fixture.itemIds[0]),
-    ).toEqual({ error: "That item could not be found in the gear library." });
+    ).toEqual({ error: "That item could not be found in the public catalog." });
   });
 
   test("removing an item releases it and takes it off the request", async () => {

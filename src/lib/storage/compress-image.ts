@@ -44,7 +44,9 @@ export function targetDimensions(
 
 /**
  * Re-encodes a picked image to a JPEG no larger than `MAX_EDGE` on its longest
- * edge.
+ * edge -- or to WebP or PNG when `type` says so, which keeps transparency: a
+ * JPEG has no alpha channel, so a logo's transparent background would come out
+ * black or white (#1488).
  *
  * `imageOrientation: "from-image"` is not optional. Phone photos carry their
  * rotation in EXIF rather than in the pixels, and `drawImage` of a raw bitmap
@@ -68,6 +70,7 @@ export function targetDimensions(
 export async function compressImage(
   file: File,
   maxEdge: number = MAX_EDGE,
+  type: "image/jpeg" | "image/webp" | "image/png" = "image/jpeg",
 ): Promise<Blob> {
   const bitmap = await createImageBitmap(file, {
     imageOrientation: "from-image",
@@ -78,9 +81,31 @@ export async function compressImage(
       bitmap.height,
       maxEdge,
     );
-    return await encode(bitmap, width, height, "image/jpeg", JPEG_QUALITY);
+    // Safari's canvas cannot make WebP and hands back a PNG instead. For a
+    // logo that is the right fallback -- both keep the alpha channel -- so the
+    // caller reads the type off the blob rather than assuming it.
+    return await encode(bitmap, width, height, type, JPEG_QUALITY);
   } finally {
     bitmap.close();
+  }
+}
+
+/**
+ * Whether this browser's canvas can encode WebP: true in Chrome, Edge and
+ * Firefox, false in Safari, which quietly returns a PNG instead.
+ *
+ * Asked before an upload rather than read off the encoded blob, because the
+ * object's name (and so its extension) is decided before the image is
+ * encoded -- see `createSitePhotoPathAction`.
+ */
+export function canEncodeWebp(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL("image/webp").startsWith("data:image/webp");
+  } catch {
+    return false;
   }
 }
 

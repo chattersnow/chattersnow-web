@@ -5,18 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CONDITIONS, GENDERS, labelFor } from "@/lib/inventory";
+import { CONDITIONS, GENDERS } from "@/lib/inventory";
 import type { NonNullColumns, Views } from "@/lib/supabase/types";
 import { GearCard } from "./gear-card";
+import { GearFilterRail, type GearFacet } from "./gear-filter-rail";
 import { GearDetailSheet } from "./gear-detail-sheet";
 import { GEAR_ITEM_PARAM } from "./gear-item-path";
 import { GearCartTray } from "./gear-cart-tray";
@@ -50,8 +42,6 @@ export type GearItem = NonNullColumns<
   Views<"public_gear_catalog">,
   "id" | "description" | "condition" | "created_at"
 >;
-
-const FILTER_ALL = "all";
 
 /** The request the cart has just submitted, as the receipt needs it (#1359). */
 export type SubmittedRequest = {
@@ -271,18 +261,108 @@ export function GearCatalog({
       }));
   }, [items]);
 
-  const visibleItems = useMemo(() => {
+  // Which items pass the search and every facet but `except`. With no
+  // exception it is the catalog the grid shows; with one it is the set that
+  // facet's counts are taken over, so each number says what clicking that
+  // option would show.
+  const matching = useMemo(() => {
     const query = search.trim().toLowerCase();
-
-    return items.filter((item) => {
-      if (typeFilter && item.category_key !== typeFilter) return false;
-      if (conditionFilter && item.condition !== conditionFilter) return false;
-      if (genderFilter && item.gender !== genderFilter) return false;
-      if (query && !item.description.toLowerCase().includes(query))
-        return false;
-      return true;
-    });
+    return (except: "type" | "condition" | "gender" | null) =>
+      items.filter((item) => {
+        if (except !== "type" && typeFilter && item.category_key !== typeFilter)
+          return false;
+        if (
+          except !== "condition" &&
+          conditionFilter &&
+          item.condition !== conditionFilter
+        )
+          return false;
+        if (except !== "gender" && genderFilter && item.gender !== genderFilter)
+          return false;
+        if (query && !item.description.toLowerCase().includes(query))
+          return false;
+        return true;
+      });
   }, [items, search, typeFilter, conditionFilter, genderFilter]);
+
+  const visibleItems = useMemo(() => matching(null), [matching]);
+
+  const facets = useMemo((): GearFacet[] => {
+    const tally = (
+      pool: GearItem[],
+      keyOf: (item: GearItem) => string | null,
+    ) => {
+      const counts = new Map<string, number>();
+      for (const item of pool) {
+        const key = keyOf(item);
+        if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      return counts;
+    };
+    const typePool = matching("type");
+    const conditionPool = matching("condition");
+    const genderPool = matching("gender");
+    const typeCounts = tally(typePool, (item) => item.category_key);
+    const conditionCounts = tally(conditionPool, (item) => item.condition);
+    const genderCounts = tally(genderPool, (item) => item.gender);
+
+    return [
+      {
+        id: "type",
+        label: "Type",
+        allLabel: "All types",
+        total: typePool.length,
+        value: typeFilter,
+        onChange: handleTypeFilterChange,
+        groups: typeGroups.map((group) => ({
+          key: group.key,
+          label: group.label,
+          options: group.options.map((option) => ({
+            ...option,
+            count: typeCounts.get(option.key) ?? 0,
+          })),
+        })),
+      },
+      {
+        id: "condition",
+        label: "Condition",
+        allLabel: "All conditions",
+        total: conditionPool.length,
+        value: conditionFilter,
+        onChange: handleConditionFilterChange,
+        groups: [
+          {
+            key: "all",
+            label: null,
+            options: CONDITIONS.map((option) => ({
+              key: option.value,
+              label: option.label,
+              count: conditionCounts.get(option.value) ?? 0,
+            })),
+          },
+        ],
+      },
+      {
+        id: "gender",
+        label: "Gender",
+        allLabel: "All genders",
+        total: genderPool.length,
+        value: genderFilter,
+        onChange: handleGenderFilterChange,
+        groups: [
+          {
+            key: "all",
+            label: null,
+            options: GENDERS.map((option) => ({
+              key: option.value,
+              label: option.label,
+              count: genderCounts.get(option.value) ?? 0,
+            })),
+          },
+        ],
+      },
+    ];
+  }, [matching, typeGroups, typeFilter, conditionFilter, genderFilter]);
 
   const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -315,6 +395,13 @@ export function GearCatalog({
     setPage(1);
   }
 
+  function clearFilters() {
+    setTypeFilter(null);
+    setConditionFilter(null);
+    setGenderFilter(null);
+    setPage(1);
+  }
+
   if (items.length === 0) {
     return (
       <p className="app-muted py-16 text-center text-sm">
@@ -325,172 +412,102 @@ export function GearCatalog({
 
   return (
     <div className="space-y-4">
-      <div className="rainbow-surface flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="gear-search"
-            className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-          >
-            Search
-          </label>
-          <Input
-            id="gear-search"
-            placeholder="Search description..."
-            value={search}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            className="h-8 w-full bg-card sm:w-64"
-          />
-        </div>
-
-        <FiltersSheet activeCount={activeFilterCount}>
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="gear-type-filter"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Type
-            </label>
-            <Select
-              value={typeFilter ?? FILTER_ALL}
-              onValueChange={(value) =>
-                handleTypeFilterChange(value === FILTER_ALL ? null : value)
-              }
-            >
-              <SelectTrigger id="gear-type-filter">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FILTER_ALL}>All types</SelectItem>
-                {typeGroups.map((group) => (
-                  <SelectGroup key={group.key}>
-                    <SelectLabel>{group.label}</SelectLabel>
-                    {group.options.map((option) => (
-                      <SelectItem key={option.key} value={option.key}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+        <aside aria-label="Filters" className="hidden lg:block">
+          <div className="sticky top-8">
+            <GearFilterRail
+              facets={facets}
+              activeCount={activeFilterCount}
+              onClear={clearFilters}
+            />
           </div>
+        </aside>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="gear-condition-filter"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Condition
-            </label>
-            <Select
-              value={conditionFilter ?? FILTER_ALL}
-              onValueChange={(value) =>
-                handleConditionFilterChange(value === FILTER_ALL ? null : value)
-              }
-            >
-              <SelectTrigger id="gear-condition-filter">
-                <SelectValue placeholder="Condition">
-                  {(value: string) =>
-                    value === FILTER_ALL
-                      ? "All conditions"
-                      : (labelFor(CONDITIONS, value) ?? "Condition")
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FILTER_ALL}>All conditions</SelectItem>
-                {CONDITIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="gear-gender-filter"
-              className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
-            >
-              Gender
-            </label>
-            <Select
-              value={genderFilter ?? FILTER_ALL}
-              onValueChange={(value) =>
-                handleGenderFilterChange(value === FILTER_ALL ? null : value)
-              }
-            >
-              <SelectTrigger id="gear-gender-filter">
-                <SelectValue placeholder="Gender">
-                  {(value: string) =>
-                    value === FILTER_ALL
-                      ? "All genders"
-                      : (labelFor(GENDERS, value) ?? "Gender")
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FILTER_ALL}>All genders</SelectItem>
-                {GENDERS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </FiltersSheet>
-      </div>
-
-      {visibleItems.length === 0 ? (
-        <p className="app-muted py-16 text-center text-sm">
-          No gear matches your filters.
-        </p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {pagedItems.map((item) => (
-              <GearCard
-                key={item.id}
-                item={item}
-                onSelect={() => openItem(item.id)}
-                inCart={cartIds.has(item.id)}
-                onToggleCart={() => toggleCartItem(item.id)}
-                placeholderUrl={placeholderUrl}
+        <div className="min-w-0 space-y-4">
+          <div className="rainbow-surface flex flex-wrap items-end gap-4 rounded-xl border border-[var(--line)] p-4 shadow-md">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <label
+                htmlFor="gear-search"
+                className="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+              >
+                Search
+              </label>
+              <Input
+                id="gear-search"
+                placeholder="Search description..."
+                value={search}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                className="h-8 w-full bg-card sm:w-64"
               />
-            ))}
+            </div>
+
+            <p className="app-muted text-sm tabular-nums" aria-live="polite">
+              {visibleItems.length === items.length
+                ? `${items.length} available`
+                : `${visibleItems.length} of ${items.length}`}
+            </p>
+
+            <div className="lg:hidden">
+              <FiltersSheet activeCount={activeFilterCount}>
+                <GearFilterRail
+                  facets={facets}
+                  activeCount={activeFilterCount}
+                  onClear={clearFilters}
+                />
+              </FiltersSheet>
+            </div>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="app-muted text-sm">
-                Page {currentPage} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setPage(currentPage - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setPage(currentPage + 1)}
-                >
-                  Next
-                </Button>
+          {visibleItems.length === 0 ? (
+            <p className="app-muted py-16 text-center text-sm">
+              No gear matches your filters.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {pagedItems.map((item) => (
+                  <GearCard
+                    key={item.id}
+                    item={item}
+                    onSelect={() => openItem(item.id)}
+                    inCart={cartIds.has(item.id)}
+                    onToggleCart={() => toggleCartItem(item.id)}
+                    placeholderUrl={placeholderUrl}
+                  />
+                ))}
               </div>
-            </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <p className="app-muted text-sm">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage(currentPage - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setPage(currentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
 
       <GearDetailSheet
         item={detailOpen ? selectedItem : shownItem}

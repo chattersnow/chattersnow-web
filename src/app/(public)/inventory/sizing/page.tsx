@@ -48,10 +48,10 @@ export default async function GearSizingPage() {
         <p className="app-muted mt-4 max-w-3xl text-sm leading-relaxed sm:text-base">
           Not sure what size to look for in the{" "}
           <Link
-            href="/inventory/library"
+            href="/inventory"
             className="underline underline-offset-4 hover:text-foreground"
           >
-            gear library
+            free gear
           </Link>
           ? These charts use standard, widely published industry sizing
           guidelines to help you find a good starting point for skis,
