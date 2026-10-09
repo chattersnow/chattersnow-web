@@ -151,9 +151,10 @@ test.describe("gear request settings", () => {
       page.getByRole("heading", { name: "Delivery and postage" }),
     ).toHaveCount(0);
 
+    // A Link rendered through Base UI's Button carries role="button".
     await page
       .getByRole("main")
-      .getByRole("link", { name: "Settings", exact: true })
+      .getByRole("button", { name: "Settings", exact: true })
       .click();
     await expect(page).toHaveURL(/\/portal\/inventory\/requests\/settings$/);
     await expect(
