@@ -139,3 +139,44 @@ test.describe("portal gear request messaging", () => {
     }
   });
 });
+
+// #1547: the request form's settings are a page of their own, opened from the
+// queue's header, rather than two forms stacked under the table.
+test.describe("gear request settings", () => {
+  test("open from the queue's header, not below it", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/portal/inventory/requests");
+
+    await expect(
+      page.getByRole("heading", { name: "Delivery and postage" }),
+    ).toHaveCount(0);
+
+    await page
+      .getByRole("main")
+      .getByRole("link", { name: "Settings", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/portal\/inventory\/requests\/settings$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: /request settings$/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Delivery and postage" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Request passphrase" }),
+    ).toBeVisible();
+
+    // The breadcrumb leads back to the queue.
+    await page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByRole("link", { name: "Requests" })
+      .click();
+    await expect(page).toHaveURL(/\/portal\/inventory\/requests$/);
+  });
+
+  test("refuse a deep link without inventory:manage", async ({ page }) => {
+    await signIn(page, { email: "volunteer@example.test" });
+    await page.goto("/portal/inventory/requests/settings");
+    await expect(page).toHaveURL(/\/portal\/home\?denied=/);
+  });
+});
