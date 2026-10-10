@@ -95,7 +95,7 @@ export function useIdleTimeout({
     let expired = false;
 
     // Adopt whatever the other tabs already know, so a new tab doesn't hand
-    // someone a fresh 30 minutes just by being opened.
+    // someone a fresh four hours just by being opened.
     let lastActivity = readLastActivity() ?? Date.now();
     let lastWrite = lastActivity;
     writeLastActivity(lastActivity);

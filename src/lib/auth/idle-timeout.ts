@@ -1,7 +1,7 @@
 /**
  * Durations, storage and clock math for the portal's idle timeout (#617).
  *
- * Portal sessions otherwise never end: `jwt_expiry` is an hour, but the proxy
+ * Portal sessions otherwise never end: `jwt_expiry` is four hours, but the proxy
  * refreshes the session on every portal request and refresh tokens don't
  * expire, so a board member who signs in on a shared laptop and walks away
  * stays signed in on donor names, finances and people records indefinitely.
@@ -15,13 +15,13 @@
  * so the boundaries can be tested without timers, a DOM, or a rendered tree.
  */
 
-const DEFAULT_IDLE_MINUTES = 30;
+const DEFAULT_IDLE_MINUTES = 240;
 const DEFAULT_WARNING_MINUTES = 2;
 
 /**
  * Reads a minutes-valued env override, falling back on anything that isn't a
  * usable positive number. The overrides exist so the timeout can be exercised
- * by hand in seconds rather than half an hour; `NEXT_PUBLIC_*` is inlined at
+ * by hand in seconds rather than four hours; `NEXT_PUBLIC_*` is inlined at
  * build time, so changing one needs a dev-server restart.
  */
 function minutesFromEnv(raw: string | undefined, fallbackMinutes: number) {
@@ -54,7 +54,7 @@ export const IDLE_WARNING_MS = Math.min(
  * How often activity reaches storage. Every pointer move counts as activity in
  * memory, but only one write per interval is persisted: a synchronous,
  * cross-tab-notifying write on every mousemove would be a real performance
- * problem. A stamp up to this stale against a 30-minute budget signs someone
+ * problem. A stamp up to this stale against a four-hour budget signs someone
  * out at most a fraction of a percent early.
  */
 export const ACTIVITY_WRITE_INTERVAL_MS = 15_000;

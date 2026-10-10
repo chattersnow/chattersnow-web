@@ -35,12 +35,12 @@ test("an idle session is signed out and told why", async ({ page }) => {
   await signIn(page);
 
   // Seeds a stamp older than the timeout rather than shortening the timeout
-  // itself, so this exercises the real 30-minute configuration. addInitScript
+  // itself, so this exercises the real four-hour configuration. addInitScript
   // runs before the page's own scripts, so the shell reads it on first mount.
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "chattersnow:portal-last-activity",
-      String(Date.now() - 31 * 60 * 1000),
+      String(Date.now() - 241 * 60 * 1000),
     );
   });
 
