@@ -13,7 +13,13 @@ import { createAdminClient } from "./helpers/admin-client";
 import { modal } from "./helpers/dialog";
 import { markOnboarded } from "./helpers/onboarding";
 
-async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
+async function seedCheckinFixture(
+  admin: ReturnType<typeof createAdminClient>,
+  overrides: {
+    eventName?: string;
+    registration?: Record<string, unknown>;
+  } = {},
+) {
   const suffix = crypto.randomUUID().slice(0, 8);
   const email = `e2e-checkin-${suffix}@example.test`;
   const password = "password123";
@@ -54,7 +60,7 @@ async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
     .single();
   if (personError) throw personError;
 
-  const eventName = `E2E Checkin Event ${suffix}`;
+  const eventName = overrides.eventName ?? `E2E Checkin Event ${suffix}`;
   const { data: event, error: eventError } = await admin
     .from("events")
     .insert({
@@ -85,6 +91,7 @@ async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
       name: registrantName,
       email: `e2e-registrant-${suffix}@example.test`,
       party_size: 1,
+      ...overrides.registration,
     });
   if (registrationError) throw registrationError;
 
@@ -106,6 +113,7 @@ async function seedCheckinFixture(admin: ReturnType<typeof createAdminClient>) {
 
 test("checks in a registrant from the Happening Now quick action", async ({
   page,
+  isMobile,
 }) => {
   const admin = createAdminClient();
   const fixture = await seedCheckinFixture(admin);
@@ -133,11 +141,26 @@ test("checks in a registrant from the Happening Now quick action", async ({
     ).toBeVisible();
     await expect(sheet.getByText(fixture.registrantName)).toBeVisible();
 
-    // exact: true -- otherwise this also matches "+ Check in walk-in".
-    await sheet.getByRole("button", { name: "Check in", exact: true }).click();
-    await expect(
-      sheet.getByRole("button", { name: "Undo check-in" }),
-    ).toBeVisible();
+    if (isMobile) {
+      // The phone's door list (#1558): one toggle per row, pressed once in.
+      // It opens on Not here, which the row leaves the moment it is checked
+      // in, so it is found again under In.
+      const toggle = sheet.getByRole("button", {
+        name: `Check in ${fixture.registrantName}`,
+      });
+      await toggle.click();
+      await expect(toggle).toHaveCount(0);
+      await sheet.getByRole("button", { name: "In 1" }).click();
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    } else {
+      // exact: true -- otherwise this also matches "+ Check in walk-in".
+      await sheet
+        .getByRole("button", { name: "Check in", exact: true })
+        .click();
+      await expect(
+        sheet.getByRole("button", { name: "Undo check-in" }),
+      ).toBeVisible();
+    }
   } finally {
     await fixture.cleanup();
   }
@@ -186,4 +209,83 @@ test("deep-links from the awaiting check-in attention item to the event's Regist
   } finally {
     await fixture.cleanup();
   }
+});
+
+// #1558. The phone's check-in sheet fills the screen and never widens the
+// document, with the content's real extremes rather than tidy samples.
+test.describe("the phone check-in sheet", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test("fills the width at 390px and 430px without scrolling sideways", async ({
+    page,
+  }) => {
+    const admin = createAdminClient();
+    const fixture = await seedCheckinFixture(admin, {
+      eventName:
+        "Queer Ride Day x 5 Boroughs Summer 2026 Community Edition Fundraiser",
+      registration: {
+        name: "María Fernanda Castillo-Wojciechowski de la Fuente-Okonkwo",
+        // 40 characters, the column's cap.
+        pronouns: "they/them/theirs or she/her, ask me 1st!",
+        party_size: 4,
+        party_includes_minor: true,
+        photo_consent: false,
+        photo_consent_at: new Date().toISOString(),
+      },
+    });
+
+    try {
+      await signIn(page, { email: fixture.email, password: fixture.password });
+      await page
+        .context()
+        .addCookies([
+          { name: "device_override", value: "mobile", url: page.url() },
+        ]);
+
+      for (const width of [390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto("/portal/home");
+        await page
+          .locator('[data-slot="card"]')
+          .filter({
+            has: page.locator('[data-slot="card-title"]', {
+              hasText: fixture.eventName,
+            }),
+          })
+          .getByRole("button", { name: "Check in", exact: true })
+          .click();
+
+        const sheet = modal(page);
+        await expect(
+          sheet.getByRole("searchbox", { name: "Search registrants" }),
+        ).toBeVisible();
+        await expect(
+          sheet.getByRole("button", { name: "+ Check in walk-in" }),
+        ).toBeInViewport();
+
+        const report = await page.evaluate(() => {
+          const doc = document.documentElement;
+          const popup = document.querySelector<HTMLElement>(
+            '[data-slot="sheet-content"]',
+          );
+          return {
+            clientWidth: doc.clientWidth,
+            scrollWidth: doc.scrollWidth,
+            sheetWidth: popup?.getBoundingClientRect().width ?? 0,
+            sheetScrollWidth: popup?.scrollWidth ?? 0,
+          };
+        });
+        expect(report.scrollWidth).toBeLessThanOrEqual(report.clientWidth);
+        expect(Math.round(report.sheetWidth)).toBe(report.clientWidth);
+        expect(report.sheetScrollWidth).toBeLessThanOrEqual(
+          Math.ceil(report.sheetWidth),
+        );
+
+        await page.keyboard.press("Escape");
+        await expect(sheet).toHaveCount(0);
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
 });
