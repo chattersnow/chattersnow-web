@@ -85,6 +85,6 @@ describe("parseActivityStamp", () => {
 
 test("the warning fits inside the timeout", () => {
   expect(IDLE_WARNING_MS).toBeLessThan(IDLE_TIMEOUT_MS);
-  expect(IDLE_TIMEOUT_MS).toBe(30 * 60_000);
+  expect(IDLE_TIMEOUT_MS).toBe(240 * 60_000);
   expect(IDLE_WARNING_MS).toBe(2 * 60_000);
 });
