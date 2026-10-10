@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Ban, Check, Snowflake, Undo2 } from "lucide-react";
 import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantMessageActions } from "./registrant-message-actions";
 import { RegistrantAnswers } from "./registrant-answers";
+import { RegistrantBadges } from "./registrant-badges";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -38,12 +39,27 @@ import {
 } from "@/lib/rider-profile";
 import { formatDateTime } from "@/lib/format";
 import { instagramUrl } from "@/components/instagram-link";
+import { cn } from "@/lib/utils";
 
 /**
  * What a deep link names, so a future notification can open the portal at one
  * registration the way #742's links open it at one application.
  */
 export const REGISTRANT_PARAM = "registrant";
+
+/**
+ * The row actions, for the phone check-in sheet (#1558), whose rows carry
+ * only the check-in button: the rider profile and cancelling a registration
+ * live here instead, with Cancel at the bottom and well away from Check in.
+ */
+export type RegistrantDoorActions = {
+  pending: boolean;
+  onToggleCheckIn: () => void;
+  /** Absent where the registration has no person record to hang one off. */
+  onRiderProfile?: () => void;
+  /** Absent without `events: manage`, and once they are through the door. */
+  onCancel?: () => void;
+};
 
 /**
  * One registration, in full, and the correspondence about it (#1317).
@@ -77,6 +93,7 @@ export function RegistrantDetailSheet({
   onClosed,
   onSent,
   onAnswersSaved,
+  door,
 }: {
   registrant: EventRegistrant;
   eventName: string;
@@ -122,6 +139,8 @@ export function RegistrantDetailSheet({
   onClosed: () => void;
   onSent?: () => void;
   onAnswersSaved?: () => void;
+  /** #1558. Set by the phone check-in sheet, which this fills the screen of. */
+  door?: RegistrantDoorActions;
 }) {
   // Always mounted open: the tab renders this only once it has a registrant to
   // show, so the hook's job here is the other half of its contract -- taking
@@ -167,6 +186,7 @@ export function RegistrantDetailSheet({
         side="right"
         showCloseButton={false}
         initialFocus={popupRef}
+        className={door ? "data-[side=right]:w-full" : undefined}
       >
         <SheetHeader className="flex-row items-start gap-2 space-y-0">
           <Tooltip>
@@ -179,6 +199,7 @@ export function RegistrantDetailSheet({
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Close"
+                      className={door ? "size-11" : undefined}
                     />
                   }
                 />
@@ -188,8 +209,10 @@ export function RegistrantDetailSheet({
             </SheetClose>
             <TooltipContent>Close</TooltipContent>
           </Tooltip>
-          <div className="flex flex-1 flex-col gap-0.5">
-            <SheetTitle>{registrant.name}</SheetTitle>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <SheetTitle className={cn(door && "text-lg break-words")}>
+              {registrant.name}
+            </SheetTitle>
             <SheetDescription>
               Registered {formatDateTime(registrant.created_at)}
             </SheetDescription>
@@ -197,6 +220,33 @@ export function RegistrantDetailSheet({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {door && (
+            <div className="mb-6 flex flex-col gap-3">
+              {/* What has to be known before they are through the door, above
+                  the button that lets them through. */}
+              <div className="flex flex-wrap gap-1 empty:hidden">
+                <RegistrantBadges registrant={registrant} />
+              </div>
+              <Button
+                type="button"
+                size="lg"
+                variant={registrant.checked_in_at ? "secondary" : "default"}
+                className="h-12 w-full text-base"
+                disabled={door.pending}
+                onClick={door.onToggleCheckIn}
+              >
+                {registrant.checked_in_at ? (
+                  <>
+                    <Undo2 /> Undo check-in
+                  </>
+                ) : (
+                  <>
+                    <Check /> Check in party of {registrant.party_size}
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
           <FieldGroup>
             <ReadOnlyField label="Pronouns" htmlFor="registrant-pronouns">
               {registrant.pronouns || "—"}
@@ -402,6 +452,16 @@ export function RegistrantDetailSheet({
                 ) : null}
               </ReadOnlyField>
             ) : null}
+            {door?.onRiderProfile && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 self-start"
+                onClick={door.onRiderProfile}
+              >
+                <Snowflake /> Edit rider profile
+              </Button>
+            )}
           </FieldGroup>
 
           <RegistrantAnswers
@@ -437,6 +497,20 @@ export function RegistrantDetailSheet({
               />
             </section>
           ) : null}
+
+          {door?.onCancel && (
+            <div className="mt-8 border-t pt-4">
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-11 w-full"
+                disabled={door.pending}
+                onClick={door.onCancel}
+              >
+                <Ban /> Cancel registration
+              </Button>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

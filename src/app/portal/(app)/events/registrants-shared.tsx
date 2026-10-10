@@ -8,7 +8,10 @@ import type {
 } from "./registrants-actions";
 import { RiderProfileDialog } from "./rider-profile-dialog";
 import { CancelRegistrationDialog } from "./cancel-registration-dialog";
-import { RegistrantDetailSheet } from "./registrant-detail-sheet";
+import {
+  RegistrantDetailSheet,
+  type RegistrantDoorActions,
+} from "./registrant-detail-sheet";
 import { RegistrantAnnouncements } from "./registrant-announcements";
 import { cancellationReasonLabel } from "@/lib/registration-cancellation";
 import { announcementBatches } from "@/lib/event-announcements";
@@ -184,6 +187,7 @@ export function RegistrantOverlays({
   onRiderClosed,
   onChanged,
   onRegistrantsChanged,
+  detailDoor,
 }: {
   data: EventRegistrantsData | undefined;
   eventName: string;
@@ -197,6 +201,8 @@ export function RegistrantOverlays({
   onChanged: () => void;
   /** After something only the list itself shows: a message, an answer. */
   onRegistrantsChanged: () => void;
+  /** #1558. The phone check-in sheet's actions for the registration open. */
+  detailDoor?: (registrant: EventRegistrant) => RegistrantDoorActions;
 }) {
   const messages = data?.messages ?? NO_RECORD_MESSAGES;
   const messaging = data?.messaging ?? null;
@@ -230,6 +236,7 @@ export function RegistrantOverlays({
           onClosed={onDetailClosed}
           onSent={onRegistrantsChanged}
           onAnswersSaved={onRegistrantsChanged}
+          door={detailDoor?.(detailTarget)}
         />
       )}
 

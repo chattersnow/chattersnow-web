@@ -12,6 +12,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
 import {
   hasOptionAnswer,
@@ -19,6 +20,10 @@ import {
   type OptionCounts,
 } from "@/lib/registration-options";
 import { useRegistrationOptions } from "./use-registration-options";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 import { RegistrationQuestionsFields } from "@/components/registration-questions-fields";
 import { answersError, type AnswerDraft } from "@/lib/registration-questions";
 import {
@@ -30,16 +35,27 @@ export function CheckInWalkInDialog({
   eventId,
   triggerLabel = "+ Check in walk-in",
   triggerVariant = "secondary",
+  triggerClassName,
+  initialName,
   onSaved,
-}: {
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger,
+}: ControlledOpenProps & {
   eventId: string;
   triggerLabel?: string;
   /** `default` where this is the page's primary action: the registrants page. */
   triggerVariant?: "default" | "secondary";
+  triggerClassName?: string;
+  /**
+   * Seeds the person search, for the phone check-in sheet's "no one matches"
+   * walk-in (#1558): the name the door just typed is the name to look up.
+   */
+  initialName?: string;
   onSaved?: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
     null,
@@ -131,11 +147,12 @@ export function CheckInWalkInDialog({
     <PortalFormSurface
       open={open}
       onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
       trigger={
         <Button
           type="button"
           variant={triggerVariant}
-          className="shrink-0 whitespace-nowrap"
+          className={cn("shrink-0 whitespace-nowrap", triggerClassName)}
         >
           {triggerLabel}
         </Button>
@@ -173,6 +190,7 @@ export function CheckInWalkInDialog({
             onSelect={setSelectedPerson}
             onPersonCreated={handlePersonCreated}
             newPersonRole="is_attendee"
+            initialQuery={initialName}
             placeholder="Search by name or email..."
           />
         </Field>
