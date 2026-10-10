@@ -143,10 +143,14 @@ test("checks in a registrant from the Happening Now quick action", async ({
 
     if (isMobile) {
       // The phone's door list (#1558): one toggle per row, pressed once in.
+      // It opens on Not here, which the row leaves the moment it is checked
+      // in, so it is found again under In.
       const toggle = sheet.getByRole("button", {
         name: `Check in ${fixture.registrantName}`,
       });
       await toggle.click();
+      await expect(toggle).toHaveCount(0);
+      await sheet.getByRole("button", { name: "In 1" }).click();
       await expect(toggle).toHaveAttribute("aria-pressed", "true");
     } else {
       // exact: true -- otherwise this also matches "+ Check in walk-in".
