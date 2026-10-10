@@ -38,6 +38,17 @@ const SIZE_CLASS = {
 export type PortalFormSurfaceSize = keyof typeof SIZE_CLASS;
 
 /**
+ * The phone sheet's own classes, for a form that cannot sit inside this
+ * component (a multi-step sheet whose desktop branch stays a right-hand
+ * sheet) but must still open as the same bottom drawer. See the branch below
+ * for why each one is spelled the way it is.
+ */
+export const MOBILE_FORM_SHEET_CLASS =
+  "data-[side=bottom]:h-[92dvh] rounded-t-xl";
+export const MOBILE_FORM_SHEET_FOOTER_CLASS =
+  "pb-[max(env(safe-area-inset-bottom),1rem)]";
+
+/**
  * The cancel button a footer renders, in either branch.
  *
  * `dialog.tsx` and `sheet.tsx` wrap the *same* `Dialog` primitive from
@@ -185,7 +196,7 @@ export function PortalFormSurface({
         // corner mean anything.
         <SheetContent
           side="bottom"
-          className="data-[side=bottom]:h-[92dvh] rounded-t-xl"
+          className={MOBILE_FORM_SHEET_CLASS}
           initialFocus={initialFocus}
         >
           <SheetHeader>
@@ -215,7 +226,7 @@ export function PortalFormSurface({
                 `viewport-fit=cover`, which this app does not. The constant
                 clears the home indicator today and the inset takes over by
                 itself if that is ever turned on. */}
-            <SheetFooter className="pb-[max(env(safe-area-inset-bottom),1rem)]">
+            <SheetFooter className={MOBILE_FORM_SHEET_FOOTER_CLASS}>
               {footer}
             </SheetFooter>
           </form>
