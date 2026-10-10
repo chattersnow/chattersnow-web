@@ -17,7 +17,7 @@ const manager = BaseToast.createToastManager();
  * renders it as a `<button>`, so a destination is reached with `window.open`
  * from the handler rather than with an `<a>`.
  */
-type ToastAction = { label: string; onClick: () => void };
+export type ToastAction = { label: string; onClick: () => void };
 
 type ToastOptions = {
   description?: string;

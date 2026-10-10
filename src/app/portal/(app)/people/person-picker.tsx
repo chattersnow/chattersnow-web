@@ -50,6 +50,7 @@ export function PersonPicker({
   onlyOrganizations = false,
   id,
   required = false,
+  initialQuery = "",
 }: {
   people: PersonListItem[];
   selected: PickedPerson | null;
@@ -78,11 +79,13 @@ export function PersonPicker({
    * picker says nothing to a screen reader.
    */
   required?: boolean;
+  /** What the search starts with, for a caller that already has a name. */
+  initialQuery?: string;
 }) {
   const pickerPersonType: PersonType = onlyOrganizations
     ? "organization"
     : "individual";
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   // Escape closes the result list without clearing what was typed. Reset on
   // every keystroke so typing again reopens it.
   const [dismissed, setDismissed] = useState(false);

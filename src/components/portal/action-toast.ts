@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useTransition } from "react";
-import { toast } from "@/components/ui/toast";
+import { toast, type ToastAction } from "@/components/ui/toast";
 
 /**
  * What a portal Server Action settles into: a failure carries a message, a
@@ -27,6 +27,11 @@ export type RunActionOptions<T> = {
    */
   success: string | ((result: Succeeded<T>) => string);
   description?: string | ((result: Succeeded<T>) => string | undefined);
+  /**
+   * One button in the receipt, for the next thing the reader may want -- the
+   * check-in sheet's Undo (#1558).
+   */
+  action?: ToastAction;
   /** Shown only when the action throws or fails without a message of its own. */
   error?: string;
   /**
@@ -105,6 +110,7 @@ export async function runAction<T extends ActionResult>(
   const succeeded = result as Succeeded<T>;
   toast.success(resolve(options.success, succeeded) as string, {
     description: resolve(options.description, succeeded),
+    action: options.action,
   });
   options.onSuccess?.(succeeded);
   return { ok: true, data: succeeded };

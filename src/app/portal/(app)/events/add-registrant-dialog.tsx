@@ -8,6 +8,10 @@ import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PortalFormSurface } from "@/components/portal/portal-form-surface";
+import {
+  useControlledOpen,
+  type ControlledOpenProps,
+} from "@/components/portal/use-controlled-open";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -30,13 +34,16 @@ export function AddRegistrantDialog({
   eventId,
   triggerLabel = "+ Add registrant",
   onSaved,
-}: {
+  open: controlledOpen,
+  onOpenChange,
+  withTrigger,
+}: ControlledOpenProps & {
   eventId: string;
   triggerLabel?: string;
   onSaved?: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControlledOpen(controlledOpen, onOpenChange);
   const [people, setPeople] = useState<PersonListItem[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
     null,
@@ -128,6 +135,7 @@ export function AddRegistrantDialog({
     <PortalFormSurface
       open={open}
       onOpenChange={handleOpenChange}
+      withTrigger={withTrigger}
       trigger={
         <Button
           type="button"
