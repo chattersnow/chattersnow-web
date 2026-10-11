@@ -61,6 +61,12 @@ type ReportPayload = {
     event_id: string | null;
     event_name: string | null;
   }[];
+  giveaway_ticket_sales: {
+    amount: string | number;
+    sold_at: string;
+    event_id: string | null;
+    event_name: string | null;
+  }[];
 };
 
 async function report(
@@ -466,6 +472,7 @@ describe("get_finance_report_data period filtering", () => {
       in_kind_items: [],
       monetary_donations: [],
       sales: [],
+      giveaway_ticket_sales: [],
     });
   });
 
