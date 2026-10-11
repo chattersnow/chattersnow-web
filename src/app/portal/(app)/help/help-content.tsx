@@ -2493,6 +2493,12 @@ export const helpContent: Record<string, HelpEntry> = {
               its net is income less what has been paid out, counted the same
               way as Finance → Reports.
             </li>
+            <li>
+              <strong className="text-foreground">Cash donations</strong>, in
+              the Money group, lists the cash gifts linked to the event, for
+              anyone who can read Finance. They are recorded and edited in
+              Finance → Donations by choosing the event on the gift.
+            </li>
           </ol>
         </HowToSection>
         <HowToSection heading="Who can do this">
@@ -2535,9 +2541,12 @@ export const helpContent: Record<string, HelpEntry> = {
             <li>
               Retyping figures in the Impact section that the system already
               has. Participants, first-time participants, beginners, volunteers
-              on site and assigned discount codes are computed from attendance,
-              check-ins, volunteer records and rider profiles — only the figures
-              under &ldquo;Staff-entered&rdquo; need typing.
+              on site, people served and assigned discount codes are computed
+              from attendance, check-ins, distributions, volunteer records and
+              rider profiles — only the figures under
+              &ldquo;Staff-entered&rdquo; need typing. The same goes for a
+              giveaway: tickets sold and revenue are counted from the sales
+              recorded under Ticket packages.
             </li>
           </ul>
         </HowToSection>

@@ -20,6 +20,7 @@ const getEventImpactDerivedActionMock = mock(async () => ({
     profiledAttendees: 0,
     discountCodesAssigned: 0,
     autoAssignDiscountCodes: false,
+    peopleServed: { distributed: 0, recipients: 0, value: 0 },
   },
 }));
 

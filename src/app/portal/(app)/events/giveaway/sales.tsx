@@ -6,7 +6,12 @@ import type { GiveawayTierConfig } from "../giveaway-tier-actions";
 import { GiveawaySummaryStrip } from "./summary-strip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
@@ -25,17 +30,6 @@ export function GiveawaySalesForm({
   onCancel?: () => void;
 }) {
   const [name, setName] = useState(giveaway?.name ?? "");
-  const [ticketsSold, setTicketsSold] = useState(
-    String(giveaway?.tickets_sold ?? 0),
-  );
-  const [ticketPrice, setTicketPrice] = useState(
-    giveaway?.ticket_price === null || giveaway?.ticket_price === undefined
-      ? ""
-      : String(giveaway.ticket_price),
-  );
-  const [revenueAmount, setRevenueAmount] = useState(
-    String(giveaway?.revenue_amount ?? 0),
-  );
   // The drawing happens at the event, so a giveaway being set up for the first
   // time opens on the event's date; an existing one keeps what was saved.
   const eventDates = useEventDateDefaults();
@@ -53,9 +47,6 @@ export function GiveawaySalesForm({
 
     const formData = new FormData();
     formData.set("name", name);
-    formData.set("ticketsSold", ticketsSold);
-    formData.set("ticketPrice", ticketPrice);
-    formData.set("revenueAmount", revenueAmount);
     formData.set("drawingDate", drawingDate);
     formData.set("notes", notes);
 
@@ -84,54 +75,18 @@ export function GiveawaySalesForm({
           />
         </Field>
 
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="giveaway-ticketsSold">Tickets sold</FieldLabel>
-            <Input
-              id="giveaway-ticketsSold"
-              type="number"
-              min={0}
-              step={1}
-              value={ticketsSold}
-              onChange={(e) => setTicketsSold(e.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="giveaway-ticketPrice">
-              Ticket price ($)
-            </FieldLabel>
-            <Input
-              id="giveaway-ticketPrice"
-              type="number"
-              min="0"
-              step="0.01"
-              value={ticketPrice}
-              onChange={(e) => setTicketPrice(e.target.value)}
-            />
-          </Field>
-        </Field>
-
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="giveaway-revenue">Revenue ($)</FieldLabel>
-            <Input
-              id="giveaway-revenue"
-              type="number"
-              min="0"
-              step="0.01"
-              value={revenueAmount}
-              onChange={(e) => setRevenueAmount(e.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="giveaway-drawingDate">Drawing date</FieldLabel>
-            <Input
-              id="giveaway-drawingDate"
-              type="date"
-              value={drawingDate}
-              onChange={(e) => setDrawingDate(e.target.value)}
-            />
-          </Field>
+        <Field>
+          <FieldLabel htmlFor="giveaway-drawingDate">Drawing date</FieldLabel>
+          <Input
+            id="giveaway-drawingDate"
+            type="date"
+            value={drawingDate}
+            onChange={(e) => setDrawingDate(e.target.value)}
+          />
+          <FieldDescription>
+            Tickets sold and revenue are counted from the sales recorded under
+            Ticket packages, so there is nothing to type here.
+          </FieldDescription>
         </Field>
 
         <Field>

@@ -9,6 +9,7 @@ import {
   computeEventImpactDerived,
   type CheckinCountRow,
   type DiscountCodeRow,
+  type DistributedMovementRow,
   type EventImpactDerived,
   type EventRow,
   type PersonEventRow,
@@ -25,6 +26,7 @@ type DerivedData = {
   discount_codes: DiscountCodeRow[] | null;
   beginner_attendees: PersonEventRow[] | null;
   profiled_attendees: PersonEventRow[] | null;
+  distributions: DistributedMovementRow[];
 };
 
 /**
@@ -73,6 +75,7 @@ export async function getEventImpactDerivedAction(
         ? (result.profiled_attendees ?? null)
         : null,
       autoAssignDiscountCodes: result.auto_assign_discount_codes ?? false,
+      distributions: result.distributions ?? [],
     }),
   };
 }

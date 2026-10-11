@@ -5,6 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import type { GiveawayActionResult } from "./giveaway-actions";
+import {
+  summarizeTicketSales,
+  type GiveawayTicketSalesSummary,
+} from "./giveaway/ticket-sales";
 
 export type GiveawayTier = {
   id: string;
@@ -75,6 +79,7 @@ export type GiveawayTierConfig = {
   buckets: GiveawayBucket[];
   packages: GiveawayTicketPackage[];
   totals: GiveawayTicketTotal[];
+  sales: GiveawayTicketSalesSummary;
 };
 
 /**
@@ -89,43 +94,60 @@ export async function getGiveawayTierConfigAction(
   const permissionError = await checkPermission(supabase, "events", "view");
   if (permissionError) return permissionError;
 
-  const [tiers, grants, rules, buckets, packages, totals] = await Promise.all([
-    supabase
-      .from("giveaway_tiers")
-      .select("id, giveaway_id, key, label, rank")
-      .eq("giveaway_id", giveawayId)
-      .order("rank"),
-    supabase
-      .from("giveaway_tier_grants")
-      .select("id, source_tier_id, ticket_tier_id, quantity")
-      .eq("giveaway_id", giveawayId),
-    supabase
-      .from("giveaway_tier_rules")
-      .select("id, tier_id, match_text")
-      .eq("giveaway_id", giveawayId)
-      .order("match_text"),
-    supabase
-      .from("giveaway_buckets")
-      .select("id, giveaway_id, tier_id, name, rank")
-      .eq("giveaway_id", giveawayId)
-      .order("rank"),
-    supabase
-      .from("giveaway_ticket_packages")
-      .select(
-        "id, giveaway_id, name, price, tier_id, bundle_quantity, rank, is_active",
-      )
-      .eq("giveaway_id", giveawayId)
-      .order("rank"),
-    supabase.rpc("giveaway_ticket_totals", {
-      p_giveaway_id: giveawayId,
-      p_donation_id: null,
-      p_sale_id: null,
-    }),
-  ]);
+  const [tiers, grants, rules, buckets, packages, totals, sales, saleGrants] =
+    await Promise.all([
+      supabase
+        .from("giveaway_tiers")
+        .select("id, giveaway_id, key, label, rank")
+        .eq("giveaway_id", giveawayId)
+        .order("rank"),
+      supabase
+        .from("giveaway_tier_grants")
+        .select("id, source_tier_id, ticket_tier_id, quantity")
+        .eq("giveaway_id", giveawayId),
+      supabase
+        .from("giveaway_tier_rules")
+        .select("id, tier_id, match_text")
+        .eq("giveaway_id", giveawayId)
+        .order("match_text"),
+      supabase
+        .from("giveaway_buckets")
+        .select("id, giveaway_id, tier_id, name, rank")
+        .eq("giveaway_id", giveawayId)
+        .order("rank"),
+      supabase
+        .from("giveaway_ticket_packages")
+        .select(
+          "id, giveaway_id, name, price, tier_id, bundle_quantity, rank, is_active",
+        )
+        .eq("giveaway_id", giveawayId)
+        .order("rank"),
+      supabase.rpc("giveaway_ticket_totals", {
+        p_giveaway_id: giveawayId,
+        p_donation_id: null,
+        p_sale_id: null,
+      }),
+      supabase
+        .from("giveaway_ticket_sales")
+        .select("amount")
+        .eq("giveaway_id", giveawayId),
+      supabase
+        .from("giveaway_ticket_grants")
+        .select("quantity")
+        .eq("giveaway_id", giveawayId)
+        .not("sale_id", "is", null),
+    ]);
 
-  const failed = [tiers, grants, rules, buckets, packages, totals].find(
-    (result) => result.error,
-  );
+  const failed = [
+    tiers,
+    grants,
+    rules,
+    buckets,
+    packages,
+    totals,
+    sales,
+    saleGrants,
+  ].find((result) => result.error);
   if (failed) {
     return { error: "Could not load the giveaway setup. Please try again." };
   }
@@ -138,6 +160,7 @@ export async function getGiveawayTierConfigAction(
       buckets: (buckets.data ?? []) as GiveawayBucket[],
       packages: (packages.data ?? []) as GiveawayTicketPackage[],
       totals: (totals.data ?? []) as GiveawayTicketTotal[],
+      sales: summarizeTicketSales(sales.data ?? [], saleGrants.data ?? []),
     },
   };
 }

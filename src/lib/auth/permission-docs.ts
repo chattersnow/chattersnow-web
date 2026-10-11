@@ -230,7 +230,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
 
   // --------------------------------------------------------------- Finance
   finance: {
-    view: "Open the Finance section and see its landing figures, and read the in-kind items donated at an event on its Donations card. Enough to reach the section, not to read a ledger.",
+    view: "Open the Finance section and see its landing figures, read the in-kind items donated at an event on its Donations card, and read the cash gifts linked to an event on its Cash donations card. Enough to reach the section, not to work the ledger: Finance → Donations itself takes Manage.",
     manage:
       "Work the donation ledger, the expense ledger and event revenue: record, edit and delete entries, record a donation from the dashboard's quick actions (tagging its items as intake does), import a giving provider's CSV export into the donation ledger, and set the giving path the public site points at — which giving page it opens, and the amounts it offers.",
     excludes: [

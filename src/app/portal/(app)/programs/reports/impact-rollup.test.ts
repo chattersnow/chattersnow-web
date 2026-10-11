@@ -272,8 +272,20 @@ describe("computeProgramImpactRollup", () => {
       { event_id: "e2", rental_subsidies_count: 0, assistance_total: 50 },
     ];
     const distributedMovements = [
-      { quantity: 6, event_id: "e1" },
-      { quantity: 4, event_id: "e2" },
+      {
+        quantity: 6,
+        event_id: "e1",
+        recipient_person_id: "p1",
+        inventory_item_id: "i1",
+        face_value: "30.00",
+      },
+      {
+        quantity: 4,
+        event_id: "e2",
+        recipient_person_id: "p1",
+        inventory_item_id: "i2",
+        face_value: 20,
+      },
     ];
     const volunteerHours = [
       { event_id: "e1", hours: 10 },
@@ -333,6 +345,8 @@ describe("computeProgramImpactRollup", () => {
       volunteerParticipants: 3, // e1: p3 + p5 (p3 deduped across both sources), e2: p4
       assistedParticipants: 3, // 1 assigned discount code + 2 rental_subsidies_count
       equipmentDistributed: 10,
+      distributionRecipients: 2, // p1 at e1 and again at e2
+      distributedValue: 50,
       volunteerHours: 15.5,
       participantAssistanceTotal: 200,
       repeatParticipants: 1,

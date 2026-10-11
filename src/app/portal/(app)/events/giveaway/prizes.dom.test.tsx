@@ -85,7 +85,6 @@ function makeGiveaway(prizes: GiveawayPrize[]): Giveaway {
     event_id: "event-1",
     name: "Season pass giveaway",
     tickets_sold: 0,
-    ticket_price: null,
     revenue_amount: 0,
     drawing_date: null,
     notes: null,

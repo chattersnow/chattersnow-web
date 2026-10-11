@@ -151,6 +151,14 @@ export default async function ProgramImpactReportPage({
           value: formatNumber(rollup.equipmentDistributed),
         },
         {
+          label: "People who received items",
+          value: formatNumber(rollup.distributionRecipients),
+        },
+        {
+          label: "Value of items distributed ($)",
+          value: formatCurrency(rollup.distributedValue),
+        },
+        {
           label: "Volunteers on site",
           value: formatNumber(rollup.volunteerParticipants),
         },
@@ -180,14 +188,15 @@ export default async function ProgramImpactReportPage({
       <p className="app-muted mt-2 max-w-2xl text-sm">
         Season/program rollup across every event tagged to the selected program.
         Every figure here is computed live from attendance, check-ins, discount
-        codes, {canSeeRider ? "rider profiles, " : ""}inventory and volunteer
-        records — only rental subsidies and assistance dollars are still
-        staff-entered per event, because nothing in the system records them. Two
-        caveats worth knowing when quoting these numbers: internally-granted
-        scholarships and fee waivers aren&apos;t modelled anywhere, so
-        assistance undercounts; and &ldquo;Volunteers on site&rdquo; counts each
-        person once per event, so someone who volunteered three times counts
-        three times.
+        codes, {canSeeRider ? "rider profiles, " : ""}distributions and
+        volunteer records — only rental subsidies and assistance dollars are
+        still staff-entered per event, because nothing in the system records
+        them. Two caveats worth knowing when quoting these numbers:
+        internally-granted scholarships and fee waivers aren&apos;t modelled
+        anywhere, so assistance undercounts; and &ldquo;Volunteers on
+        site&rdquo; counts each person once per event, so someone who
+        volunteered three times counts three times. &ldquo;People who received
+        items&rdquo; counts the same way, once per event.
       </p>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">

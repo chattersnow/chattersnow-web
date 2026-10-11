@@ -21,6 +21,7 @@ import { AttendanceTab } from "./attendance-tab";
 import { RegistrantsTab } from "./registrants-tab";
 import { DiscountCodesTab } from "./discount-codes-tab";
 import { DonationsTab } from "./donations-tab";
+import { CashDonationsTab } from "./cash-donations-tab";
 import { DistributionsTab } from "./distributions-tab";
 import { IncidentsTab } from "./incidents-tab";
 import { ChecklistTab } from "./checklist-tab";
@@ -67,7 +68,8 @@ export type TabValue =
   | "sales"
   | "report"
   | "impact"
-  | "donations";
+  | "donations"
+  | "cash-donations";
 
 export type TabRenderContext = {
   event: EventRow;
@@ -416,6 +418,19 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         triggerLabel="New Revenue"
         onSaved={ctx.onSaved}
       />
+    ),
+  },
+  {
+    value: "cash-donations",
+    label: "Cash donations",
+    keywords: ["gifts", "money", "donors"],
+    group: "money",
+    kind: "plain",
+    // Finance > Donations' own check: in-kind items have their own card in
+    // Goods, readable by inventory too, but a cash gift is finance data.
+    access: [{ resource: "finance", level: "view" }],
+    render: (ctx) => (
+      <CashDonationsTab eventId={ctx.event.id} mode={ctx.mode} />
     ),
   },
   {

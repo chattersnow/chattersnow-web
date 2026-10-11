@@ -393,8 +393,9 @@ begin
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item3, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (id, inventory_item_id, movement_type, quantity, reason, event_id, created_by)
-  values (v_movement_distributed, v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_admin_id);
+  -- With a recipient, so the past event's Impact card has someone served (#1577).
+  insert into public.inventory_movements (id, inventory_item_id, movement_type, quantity, reason, event_id, recipient_person_id, created_by)
+  values (v_movement_distributed, v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_person_volunteer, v_admin_id);
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item4, 'received', 1, 'Donation intake', v_admin_id);
 
@@ -414,8 +415,10 @@ begin
   values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_gear_request, v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
-  insert into public.giveaways (id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
-  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, (now() - interval '40 days')::date, v_admin_id);
+  -- Tickets sold and revenue come from the ticket sales below (#1577); the
+  -- retired hand-entered columns are left at their defaults.
+  insert into public.giveaways (id, event_id, name, drawing_date, created_by)
+  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', (now() - interval '40 days')::date, v_admin_id);
 
   insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
   values (v_giveaway_id, 'Weekend cabin stay', v_person_sponsor, 400.00, v_admin_id)
@@ -477,6 +480,17 @@ begin
   values
     (v_giveaway_id, v_giveaway_package, 3, 20.00, 60.00, now() - interval '40 days', v_admin_id),
     (v_giveaway_id, v_giveaway_package, 1, 20.00, 20.00, now() - interval '40 days', v_admin_id);
+
+  -- The tickets those sales issued, expanded through the tier matrix the way
+  -- record_giveaway_ticket_sale does, so the Giveaway card's "Tickets sold"
+  -- has grants to count (#1577).
+  insert into public.giveaway_ticket_grants (giveaway_id, ticket_tier_id, source_tier_id, quantity, sale_id, created_by)
+  select v_giveaway_id, g.ticket_tier_id, g.source_tier_id, g.quantity * pkg.bundle_quantity * sale.quantity, sale.id, v_admin_id
+  from public.giveaway_ticket_sales sale
+  join public.giveaway_ticket_packages pkg on pkg.id = sale.package_id
+  join public.giveaway_tier_grants g
+    on g.giveaway_id = sale.giveaway_id and g.source_tier_id = pkg.tier_id
+  where sale.giveaway_id = v_giveaway_id and g.quantity > 0;
 
   insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, status, created_by, submitted_by)
   values (v_event_past, 'Dumpster rental', current_date - 40, 150.00, 'USD', 'Paid on the day.', 'paid', v_admin_id, v_admin_id);
