@@ -15,6 +15,7 @@ import {
   labelFor,
   type DonationItemRow,
   type DonationRow,
+  type EventOption,
 } from "../donation-shared";
 import {
   AlertDialog,
@@ -63,6 +64,7 @@ function donationFormStateFor(donation: DonationRow) {
     // Already "YYYY-MM-DD": a `date` column, straight into the date input.
     donatedAt: donation.donated_at,
     notes: donation.notes ?? "",
+    eventId: donation.event_id ?? "",
   };
 }
 
@@ -108,7 +110,14 @@ function isItemDirty(form: ItemFormState, item: DonationItemRow) {
  * shows the read-only view that used to live in the old DonationSheet's view
  * mode, and this sheet carries over its edit mode unchanged.
  */
-export function EditDonationSheet({ donation }: { donation: DonationRow }) {
+export function EditDonationSheet({
+  donation,
+  events,
+}: {
+  donation: DonationRow;
+  /** Events the donation can be linked to, newest first. */
+  events: EventOption[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [donationForm, setDonationForm] = useState(() =>
@@ -131,6 +140,12 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
   const [isPending, startTransition] = useTransition();
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const formId = `edit-donation-form-${donation.id}`;
+  // The events query is capped, so an older linked event may be missing from
+  // it; keep it selectable so opening the sheet never silently drops it.
+  const eventOptions =
+    donation.event && !events.some((event) => event.id === donation.event!.id)
+      ? [...events, donation.event]
+      : events;
 
   const dirty =
     isDonationDirty(donationForm, donation) ||
@@ -186,6 +201,7 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
     const donationFormData = new FormData();
     donationFormData.set("donatedAt", donationForm.donatedAt);
     donationFormData.set("notes", donationForm.notes);
+    donationFormData.set("eventId", donationForm.eventId);
 
     startTransition(async () => {
       const donationResult = await updateDonationAction(
@@ -295,6 +311,39 @@ export function EditDonationSheet({ donation }: { donation: DonationRow }) {
                       updateDonationField("donatedAt", event.target.value)
                     }
                   />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="donation-event-edit">
+                    Source event
+                  </FieldLabel>
+                  <Select
+                    value={donationForm.eventId || "none"}
+                    onValueChange={(value) =>
+                      updateDonationField(
+                        "eventId",
+                        value === "none" ? "" : (value ?? ""),
+                      )
+                    }
+                  >
+                    <SelectTrigger id="donation-event-edit" className="w-full">
+                      <SelectValue placeholder="No event">
+                        {(value: string) =>
+                          value && value !== "none"
+                            ? (eventOptions.find((event) => event.id === value)
+                                ?.name ?? "No event")
+                            : "No event"
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No event</SelectItem>
+                      {eventOptions.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="donation-notes-edit">

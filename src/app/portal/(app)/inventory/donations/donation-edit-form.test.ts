@@ -33,6 +33,20 @@ describe("parseDonationEditForm", () => {
     }
   });
 
+  test("passes the chosen event through", () => {
+    const result = parseDonationEditForm(
+      formData({ donatedAt: "2026-05-01", eventId: "event-1" }),
+    );
+    expect("data" in result && result.data.event_id).toBe("event-1");
+  });
+
+  test("maps a blank event to null, unlinking the donation", () => {
+    const result = parseDonationEditForm(
+      formData({ donatedAt: "2026-05-01", eventId: "" }),
+    );
+    expect("data" in result && result.data.event_id).toBeNull();
+  });
+
   test("maps blank notes to null", () => {
     const result = parseDonationEditForm(
       formData({ donatedAt: "2026-05-01", notes: "   " }),

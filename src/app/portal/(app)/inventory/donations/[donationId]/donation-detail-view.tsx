@@ -11,12 +11,19 @@ import {
   formatFaceValue,
   labelFor,
   type DonationRow,
+  type EventOption,
 } from "../donation-shared";
 import { EditDonationSheet } from "./edit-donation-sheet";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 
-export function DonationDetailView({ donation }: { donation: DonationRow }) {
+export function DonationDetailView({
+  donation,
+  events,
+}: {
+  donation: DonationRow;
+  events: EventOption[];
+}) {
   return (
     <>
       <div>
@@ -32,7 +39,7 @@ export function DonationDetailView({ donation }: { donation: DonationRow }) {
       </div>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <EditDonationSheet donation={donation} />
+        <EditDonationSheet donation={donation} events={events} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
