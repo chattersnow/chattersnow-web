@@ -3426,6 +3426,91 @@ export type Database = {
           },
         ];
       };
+      event_retro_items: {
+        Row: {
+          area: string | null;
+          author_id: string | null;
+          body: string;
+          completed_at: string | null;
+          created_at: string;
+          event_id: string;
+          id: string;
+          kind: string;
+          owner_person_id: string | null;
+          status: string | null;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          author_name: string | null;
+        };
+        Insert: {
+          area?: string | null;
+          author_id?: string | null;
+          body: string;
+          completed_at?: string | null;
+          created_at?: string;
+          event_id: string;
+          id?: string;
+          kind: string;
+          owner_person_id?: string | null;
+          status?: string | null;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          area?: string | null;
+          author_id?: string | null;
+          body?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          event_id?: string;
+          id?: string;
+          kind?: string;
+          owner_person_id?: string | null;
+          status?: string | null;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_retro_items_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_owner_in_tenant";
+            columns: ["tenant_id", "owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_owner_in_tenant";
+            columns: ["tenant_id", "owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_revenue: {
         Row: {
           amount: number;
@@ -10361,6 +10446,12 @@ export type Database = {
           outcome: string;
         }[];
       };
+      author_name: {
+        Args: { "": Database["public"]["Tables"]["event_retro_items"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.author_name with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
+      };
       available_content_packs: {
         Args: never;
         Returns: {
@@ -10381,6 +10472,7 @@ export type Database = {
         Args: { p_report_id: string };
         Returns: boolean;
       };
+      can_write_event_retro: { Args: { p_event_id: string }; Returns: boolean };
       cancel_event_registration: {
         Args: { p_note?: string; p_reason: string; p_registration_id: string };
         Returns: undefined;
@@ -10842,6 +10934,7 @@ export type Database = {
         }[];
       };
       is_admin: { Args: never; Returns: boolean };
+      is_on_event_staff: { Args: { p_event_id: string }; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
       issue_distribution_acknowledgement_token: {
         Args: { p_event_id: string; p_token_hash: string };

@@ -33,7 +33,6 @@ export type EventRow = {
   event_lead: EventLeadPerson | null;
   report_status: string;
   report_summary: string | null;
-  lessons_learned: string | null;
   feedback_notes: string | null;
   content_notes: string | null;
   report_submitted_at: string | null;

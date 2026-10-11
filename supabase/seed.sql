@@ -766,6 +766,15 @@ begin
   )
   values (v_event_past, 14, 7, 480.00, 9, 'Participants especially valued loaner gear and peer support.', v_admin_id);
 
+  -- The past event's retro (#1578): one of each kind, plus an action already
+  -- done, owned by the guide on its staff roster.
+  insert into public.event_retro_items (event_id, kind, body, area, author_id, owner_person_id, status, completed_at, created_at)
+  values
+    (v_event_past, 'went_well', 'Ability groups kept everyone moving; nobody waited long at the trailhead.', 'guests', v_admin_id, null, null, null, now() - interval '39 days'),
+    (v_event_past, 'improve', 'The sign-in table backed up at the start. Two greeters next time.', 'operations', v_admin_id, null, null, null, now() - interval '39 days'),
+    (v_event_past, 'action', 'Print the roster the night before rather than the morning of.', 'operations', v_admin_id, v_person_volunteer, 'open', null, now() - interval '39 days'),
+    (v_event_past, 'action', 'Send thank-you notes to the giveaway prize donors.', 'sponsors', v_admin_id, v_person_volunteer, 'done', now() - interval '35 days', now() - interval '39 days');
+
   -- Content and community calendar.
   insert into public.calendar_items (
     id, title, item_type, starts_at, ends_at, time_zone, summary, priority_tier,

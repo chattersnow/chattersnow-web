@@ -353,7 +353,7 @@ export async function updateEventReportAction(
   if ("error" in parsed) return parsed;
   // `report_summary` is no longer written (#1576): the card computes the
   // summary from the event's records, and old text stays read-only.
-  const { feedbackNotes, contentNotes, lessonsLearned } = parsed.data;
+  const { feedbackNotes, contentNotes } = parsed.data;
 
   const { data: current } = await supabase
     .from("events")
@@ -366,7 +366,6 @@ export async function updateEventReportAction(
     .update({
       feedback_notes: feedbackNotes,
       content_notes: contentNotes,
-      lessons_learned: lessonsLearned,
       report_status:
         current?.report_status === "not_started"
           ? "in_progress"

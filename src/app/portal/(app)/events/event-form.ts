@@ -202,7 +202,6 @@ export function parseEventPlanningForm(
 export type EventReportFormData = {
   feedbackNotes: string | null;
   contentNotes: string | null;
-  lessonsLearned: string | null;
 };
 
 export function parseEventReportForm(
@@ -210,13 +209,11 @@ export function parseEventReportForm(
 ): ParseResult<EventReportFormData> {
   const feedbackNotes = String(formData.get("feedbackNotes") ?? "").trim();
   const contentNotes = String(formData.get("contentNotes") ?? "").trim();
-  const lessonsLearned = String(formData.get("lessonsLearned") ?? "").trim();
 
   return {
     data: {
       feedbackNotes: feedbackNotes || null,
       contentNotes: contentNotes || null,
-      lessonsLearned: lessonsLearned || null,
     },
   };
 }

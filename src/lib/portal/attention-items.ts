@@ -592,8 +592,10 @@ const TASK_KIND_ORDER: Record<EventTaskKind, number> = {
   planning: 0,
   attendance: 1,
   report: 2,
-  impact: 3,
-  checklist: 4,
+  retro: 3,
+  retro_actions: 4,
+  impact: 5,
+  checklist: 6,
 };
 
 /**

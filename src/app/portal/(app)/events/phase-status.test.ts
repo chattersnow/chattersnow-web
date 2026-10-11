@@ -29,7 +29,6 @@ const baseEvent: EventRow = {
   event_lead: null,
   report_status: "not_started",
   report_summary: null,
-  lessons_learned: null,
   feedback_notes: null,
   content_notes: null,
   report_submitted_at: null,
@@ -221,6 +220,72 @@ describe("deriveEventPhaseTasks", () => {
     expect(tasks.map((task) => task.taskLabel)).not.toContain(
       "Impact not recorded",
     );
+  });
+
+  test("the retro rules are opt-in and land on the Report card", () => {
+    const signals = {
+      hasImpactNote: true,
+      retroItemCount: 0,
+      openActionItemCount: 0,
+    };
+    expect(
+      deriveEventPhaseTasks(started, signals, now).map((t) => t.kind),
+    ).not.toContain("retro");
+    const tasks = deriveEventPhaseTasks(started, signals, now, {
+      includeRetro: true,
+    });
+    expect(tasks.find((task) => task.kind === "retro")).toEqual({
+      kind: "retro",
+      taskLabel: "Retro not started",
+      tab: "report",
+    });
+  });
+
+  test("submitting the report clears an empty retro, not its open actions", () => {
+    const tasks = deriveEventPhaseTasks(
+      { ...started, report_status: "submitted" },
+      { hasImpactNote: true, retroItemCount: 0, openActionItemCount: 0 },
+      now,
+      { includeRetro: true },
+    );
+    const retroKinds = (list: typeof tasks) =>
+      list
+        .filter(
+          (task) => task.kind === "retro" || task.kind === "retro_actions",
+        )
+        .map((task) => task.taskLabel);
+    expect(retroKinds(tasks)).toEqual([]);
+    const withOpen = deriveEventPhaseTasks(
+      { ...started, report_status: "submitted" },
+      { hasImpactNote: true, retroItemCount: 1, openActionItemCount: 1 },
+      now,
+      { includeRetro: true },
+    );
+    expect(retroKinds(withOpen)).toEqual(["1 open action item"]);
+  });
+
+  test("a retro is not owed before the event starts", () => {
+    const tasks = deriveEventPhaseTasks(
+      upcoming,
+      { hasImpactNote: false, retroItemCount: 0 },
+      now,
+      { includeRetro: true },
+    );
+    expect(tasks.map((task) => task.kind)).not.toContain("retro");
+  });
+
+  test("open action items are counted until each is done", () => {
+    const labelsFor = (open: number) =>
+      deriveEventPhaseTasks(
+        started,
+        { hasImpactNote: true, retroItemCount: 3, openActionItemCount: open },
+        now,
+        { includeRetro: true },
+      ).map((task) => task.taskLabel);
+    expect(labelsFor(1)).toContain("1 open action item");
+    expect(labelsFor(2)).toContain("2 open action items");
+    expect(labelsFor(0).join()).not.toContain("open action item");
+    expect(labelsFor(0)).not.toContain("Retro not started");
   });
 
   test("every task names the card it is done on", () => {

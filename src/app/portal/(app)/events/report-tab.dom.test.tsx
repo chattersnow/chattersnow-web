@@ -4,6 +4,7 @@ import type { EventRow } from "./event-badges";
 import * as EventsActions from "./actions";
 import { labelText } from "../../../../../test/labels";
 import type { EventReport } from "@/lib/portal/event-report-metrics";
+import type { EventRetro, EventRetroItem } from "./retro-actions";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -51,6 +52,28 @@ mock.module("./report-data-actions", () => ({
   getEventReportAction: getEventReportActionMock,
 }));
 
+const emptyRetro = async (): Promise<{ data: EventRetro }> => ({
+  data: {
+    items: [],
+    canWrite: false,
+    canManage: false,
+    userId: "user-1",
+    locked: false,
+    owners: [],
+  },
+});
+
+const getEventRetroActionMock =
+  mock<(eventId: string) => Promise<{ data: EventRetro }>>(emptyRetro);
+
+mock.module("./retro-actions", () => ({
+  getEventRetroAction: getEventRetroActionMock,
+  createEventRetroItemAction: mock(async () => ({ success: true })),
+  updateEventRetroItemAction: mock(async () => ({ success: true })),
+  setEventRetroActionDoneAction: mock(async () => ({ success: true })),
+  deleteEventRetroItemAction: mock(async () => ({ success: true })),
+}));
+
 const { ReportTab } = await import("./report-tab");
 
 function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
@@ -75,7 +98,6 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     event_lead: null,
     report_status: "not_started",
     report_summary: null,
-    lessons_learned: null,
     feedback_notes: null,
     content_notes: null,
     report_submitted_at: null,
@@ -89,6 +111,7 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
 describe("ReportTab", () => {
   beforeEach(() => {
     getEventReportActionMock.mockImplementation(emptyReport);
+    getEventRetroActionMock.mockImplementation(emptyRetro);
     getCanReopenEventReportActionMock.mockClear();
     reopenEventReportActionMock.mockClear();
     getCanReopenEventReportActionMock.mockImplementation(async () => ({
@@ -237,5 +260,99 @@ describe("ReportTab", () => {
       await screen.findByText("Great turnout despite the snow."),
     ).toBeInTheDocument();
     expect(screen.getByText("Earlier written summary")).toBeInTheDocument();
+  });
+
+  // #1578: the retro replaces the lessons-learned textarea.
+  describe("retro", () => {
+    const item = (overrides: Partial<EventRetroItem>): EventRetroItem => ({
+      id: "item",
+      event_id: "event-1",
+      kind: "went_well",
+      body: "",
+      area: null,
+      author_id: "user-1",
+      author_name: "Jordan Lee",
+      owner: null,
+      status: null,
+      completed_at: null,
+      created_at: "2026-09-02T00:00:00.000Z",
+      ...overrides,
+    });
+
+    test("groups items by kind, and lets an author change only their own", async () => {
+      getEventRetroActionMock.mockImplementation(async () => ({
+        data: {
+          ...(await emptyRetro()).data,
+          canWrite: true,
+          items: [
+            item({ id: "a", body: "Ability groups", area: "team" }),
+            item({
+              id: "b",
+              kind: "improve",
+              body: "Sign-in table",
+              author_id: "someone-else",
+              author_name: "Avery Morgan",
+            }),
+            item({
+              id: "c",
+              kind: "action",
+              body: "Print the roster",
+              status: "open",
+              owner: { id: "p1", name: "Casey Rivera" },
+            }),
+          ],
+        },
+      }));
+
+      render(
+        <ReportTab
+          event={makeEvent()}
+          formId="report-form"
+          mode="view"
+          onSaved={() => {}}
+        />,
+      );
+
+      const wentWell = await screen.findByRole("region", {
+        name: "Went well",
+      });
+      expect(wentWell).toHaveTextContent("Ability groups");
+      expect(wentWell).toHaveTextContent("Team");
+      expect(wentWell).toHaveTextContent("by Jordan Lee");
+      expect(
+        screen.getByRole("region", { name: "To improve" }),
+      ).toHaveTextContent("Sign-in table");
+      const actions = screen.getByRole("region", { name: "Action items" });
+      expect(actions).toHaveTextContent("Owner: Casey Rivera");
+      expect(
+        screen.getByRole("checkbox", { name: 'Mark "Print the roster" done' }),
+      ).not.toBeDisabled();
+
+      // Two of the three are this reader's own.
+      expect(
+        screen.getAllByRole("button", { name: "Edit retro item" }),
+      ).toHaveLength(2);
+      expect(
+        screen.getByRole("button", { name: "+ Add to retro" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText(/lessons learned/i)).toBeNull();
+    });
+
+    test("offers no add button to a reader who cannot write", async () => {
+      render(
+        <ReportTab
+          event={makeEvent()}
+          formId="report-form"
+          mode="view"
+          onSaved={() => {}}
+        />,
+      );
+      expect(
+        await screen.findByRole("region", { name: "Went well" }),
+      ).toHaveTextContent("Nothing yet.");
+      expect(
+        screen.queryByRole("button", { name: "+ Add to retro" }),
+      ).toBeNull();
+    });
   });
 });
