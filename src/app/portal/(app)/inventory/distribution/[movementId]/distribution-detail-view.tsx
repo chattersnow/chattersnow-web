@@ -30,12 +30,19 @@ export type DistributionDetailRow = {
   } | null;
 };
 
+export type DistributionEventOption = NonNullable<
+  DistributionDetailRow["event"]
+>;
+
 export function DistributionDetailView({
   movement,
   canManage,
+  events = [],
 }: {
   movement: DistributionDetailRow;
   canManage: boolean;
+  /** Events the distribution can be linked to, newest first. */
+  events?: DistributionEventOption[];
 }) {
   return (
     <>
@@ -54,7 +61,7 @@ export function DistributionDetailView({
 
       {canManage && (
         <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <EditDistributionSheet movement={movement} />
+          <EditDistributionSheet movement={movement} events={events} />
           <DeleteDistributionButton
             movementId={movement.id}
             itemDescription={

@@ -43,14 +43,25 @@ export default async function DistributionDetailPage({
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
-  const { data: movement, error } = await supabase
-    .from("inventory_movements")
-    .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name, email, phone)",
-    )
-    .eq("id", movementId)
-    .eq("movement_type", "distributed")
-    .maybeSingle();
+  const [{ data: movement, error }, { data: events }] = await Promise.all([
+    supabase
+      .from("inventory_movements")
+      .select(
+        "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name, email, phone)",
+      )
+      .eq("id", movementId)
+      .eq("movement_type", "distributed")
+      .maybeSingle(),
+    // A capped, newest-first list for the edit sheet's event picker, the
+    // same one the donation detail page uses.
+    canManage
+      ? supabase
+          .from("events")
+          .select("id, name")
+          .order("starts_at", { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   if (error) {
     return (
@@ -75,6 +86,7 @@ export default async function DistributionDetailPage({
       <DistributionDetailView
         movement={movement as unknown as DistributionDetailRow}
         canManage={canManage}
+        events={events ?? []}
       />
     </>
   );
