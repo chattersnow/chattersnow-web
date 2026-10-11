@@ -21,7 +21,7 @@ import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
 import * as EventsActions from "../actions";
 import type { EventRow } from "../event-badges";
-import { eventPhases } from "../event-tabs-config";
+import { eventGroups } from "../event-tabs-config";
 import { mockUrlTabState } from "@/../test/url-tab-state-mock";
 
 mockUrlTabState();
@@ -175,9 +175,9 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
 // Every card, as an admin holding the lot gets them. #903 made the rail's
 // groups a function of the permission map -- the Finance and Inventory cards
 // drop out for a reader (or a tenant) without those sections -- and these tests
-// are about the rail's behaviour, not about who sees what. eventPhases() is
+// are about the rail's behaviour, not about who sees what. eventGroups() is
 // covered on its own in event-tabs-config.test.tsx.
-const ALL_PHASES = eventPhases(
+const ALL_GROUPS = eventGroups(
   Object.fromEntries(
     [
       "events",
@@ -219,7 +219,7 @@ function renderView(
       programs={[]}
       canManage={true}
       deleteBlockers={[]}
-      phases={ALL_PHASES}
+      groups={ALL_GROUPS}
       initialCard="overview"
       {...props}
     />,
@@ -227,13 +227,21 @@ function renderView(
 }
 
 describe("EventDetailView", () => {
-  test("lists every section at once, under its phase heading", () => {
+  test("lists every section at once, under its group heading", () => {
     renderView();
 
     // The whole point of the rail (#1008): all 19 sections are readable
     // without opening anything, so finding one is not a memory test.
     expect(rail().getAllByRole("button")).toHaveLength(19);
-    for (const heading of ["Overview", "Planning", "During", "After"]) {
+    for (const heading of [
+      "Overview",
+      "Guests",
+      "Team",
+      "Goods",
+      "Operations",
+      "Money",
+      "Results",
+    ]) {
       expect(rail().getByText(heading)).toBeInTheDocument();
     }
     for (const section of [

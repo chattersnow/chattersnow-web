@@ -89,7 +89,7 @@ export type ToolbarActionContext = {
 export type TabConfigEntry = {
   value: TabValue;
   label: string;
-  phase: PhaseKey;
+  group: EventGroupKey;
   kind: "form" | "plain";
   /**
    * What a reader needs before this card is rendered at all. Omitted means
@@ -135,7 +135,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "overview",
     label: "Overview",
-    phase: "basic",
+    group: "overview",
     kind: "form",
     render: (ctx) => (
       <OverviewTab
@@ -151,20 +151,10 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
-    value: "checklist",
-    label: "Checklist",
-    phase: "basic",
-    kind: "plain",
-    render: (ctx) => <ChecklistTab eventId={ctx.event.id} mode={ctx.mode} />,
-    toolbarActions: (ctx) => (
-      <AddChecklistItemDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-    ),
-  },
-  {
     value: "planning",
     label: "Planning",
     keywords: ["budget", "capacity", "lead", "registration", "deadline"],
-    phase: "planning",
+    group: "overview",
     kind: "form",
     sharedData: ["people"],
     render: (ctx) => (
@@ -182,86 +172,20 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
-    value: "logistics",
-    label: "Logistics",
-    keywords: ["venue", "setup", "parking", "equipment", "load-in"],
-    phase: "planning",
-    kind: "form",
-    render: (ctx) => (
-      <LogisticsTab
-        ref={ctx.formCallbacks.logistics.registerHandle}
-        eventId={ctx.event.id}
-        formId={ctx.formId("logistics")}
-        mode={ctx.mode}
-        onSaved={ctx.onSaved}
-        onPendingChange={ctx.formCallbacks.logistics.onPendingChange}
-        onDirtyChange={ctx.formCallbacks.logistics.onDirtyChange}
-      />
-    ),
-  },
-  {
-    value: "volunteers",
-    label: "Volunteers",
-    phase: "planning",
+    value: "checklist",
+    label: "Checklist",
+    group: "overview",
     kind: "plain",
-    render: (ctx) => <VolunteersTab eventId={ctx.event.id} mode={ctx.mode} />,
+    render: (ctx) => <ChecklistTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
-      <>
-        <AddShiftDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-        <AddVolunteerDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-        <LogHoursDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-      </>
-    ),
-  },
-  {
-    value: "staff",
-    label: "Staff",
-    phase: "planning",
-    kind: "plain",
-    render: (ctx) => <StaffTab eventId={ctx.event.id} mode={ctx.mode} />,
-    toolbarActions: (ctx) => (
-      <AddStaffDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-    ),
-  },
-  {
-    value: "sponsors",
-    label: "Sponsors",
-    phase: "planning",
-    kind: "plain",
-    sharedData: ["people"],
-    render: (ctx) => (
-      <SponsorsTab
-        eventId={ctx.event.id}
-        people={ctx.shared.people.data ?? []}
-        onPersonCreated={ctx.shared.addLocalPerson}
-        mode={ctx.mode}
-      />
-    ),
-    toolbarActions: (ctx) => (
-      <AddSponsorDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
-    ),
-  },
-  {
-    value: "attendance",
-    label: "Attendance",
-    keywords: ["headcount", "turnout", "check-in"],
-    phase: "during",
-    kind: "plain",
-    sharedData: ["impactDerived"],
-    render: (ctx) => (
-      <AttendanceTab
-        event={ctx.event}
-        mode={ctx.mode}
-        derived={ctx.shared.impactDerived.data}
-        onExitEdit={ctx.onSaved}
-      />
+      <AddChecklistItemDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
     ),
   },
   {
     value: "registrants",
     label: "Registrants",
     keywords: ["tickets", "rsvp", "sign-ups", "check-in"],
-    phase: "during",
+    group: "guests",
     kind: "plain",
     sharedData: ["registrants", "impactDerived"],
     render: (ctx) => (
@@ -279,9 +203,25 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
+    value: "attendance",
+    label: "Attendance",
+    keywords: ["headcount", "turnout", "check-in"],
+    group: "guests",
+    kind: "plain",
+    sharedData: ["impactDerived"],
+    render: (ctx) => (
+      <AttendanceTab
+        event={ctx.event}
+        mode={ctx.mode}
+        derived={ctx.shared.impactDerived.data}
+        onExitEdit={ctx.onSaved}
+      />
+    ),
+  },
+  {
     value: "discount-codes",
     label: "Discount codes",
-    phase: "during",
+    group: "guests",
     kind: "plain",
     sharedData: ["registrants"],
     render: (ctx) => (
@@ -296,10 +236,84 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
+    value: "staff",
+    label: "Staff",
+    group: "team",
+    kind: "plain",
+    render: (ctx) => <StaffTab eventId={ctx.event.id} mode={ctx.mode} />,
+    toolbarActions: (ctx) => (
+      <AddStaffDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+    ),
+  },
+  {
+    value: "volunteers",
+    label: "Volunteers",
+    group: "team",
+    kind: "plain",
+    render: (ctx) => <VolunteersTab eventId={ctx.event.id} mode={ctx.mode} />,
+    toolbarActions: (ctx) => (
+      <>
+        <AddShiftDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+        <AddVolunteerDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+        <LogHoursDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+      </>
+    ),
+  },
+  {
+    value: "sponsors",
+    label: "Sponsors",
+    group: "goods",
+    kind: "plain",
+    sharedData: ["people"],
+    render: (ctx) => (
+      <SponsorsTab
+        eventId={ctx.event.id}
+        people={ctx.shared.people.data ?? []}
+        onPersonCreated={ctx.shared.addLocalPerson}
+        mode={ctx.mode}
+      />
+    ),
+    toolbarActions: (ctx) => (
+      <AddSponsorDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
+    ),
+  },
+  {
+    value: "donations",
+    label: "Donations",
+    group: "goods",
+    kind: "plain",
+    access: [{ resource: "finance", level: "view" }],
+    render: (ctx) => <DonationsTab eventId={ctx.event.id} mode={ctx.mode} />,
+    toolbarActions: (ctx) => (
+      <AddDonationModal
+        triggerLabel="Record donation for this event"
+        eventId={ctx.eventId}
+        onSaved={ctx.onSaved}
+      />
+    ),
+  },
+  {
+    value: "giveaway",
+    label: "Giveaway",
+    keywords: ["raffle", "prizes", "tiers", "winners"],
+    group: "goods",
+    kind: "plain",
+    sharedData: ["people"],
+    render: (ctx) => (
+      <GiveawayTab
+        eventId={ctx.event.id}
+        people={ctx.shared.people.data ?? []}
+        onPersonCreated={ctx.shared.addLocalPerson}
+        mode={ctx.mode}
+        onExitEdit={ctx.onSaved}
+      />
+    ),
+  },
+  {
     value: "distributions",
     label: "Distributions",
     keywords: ["inventory", "supplies", "handed out"],
-    phase: "during",
+    group: "goods",
     kind: "plain",
     access: [
       { resource: "inventory", level: "manage" },
@@ -317,9 +331,27 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
+    value: "logistics",
+    label: "Logistics",
+    keywords: ["venue", "setup", "parking", "equipment", "load-in"],
+    group: "operations",
+    kind: "form",
+    render: (ctx) => (
+      <LogisticsTab
+        ref={ctx.formCallbacks.logistics.registerHandle}
+        eventId={ctx.event.id}
+        formId={ctx.formId("logistics")}
+        mode={ctx.mode}
+        onSaved={ctx.onSaved}
+        onPendingChange={ctx.formCallbacks.logistics.onPendingChange}
+        onDirtyChange={ctx.formCallbacks.logistics.onDirtyChange}
+      />
+    ),
+  },
+  {
     value: "incidents",
     label: "Incidents",
-    phase: "during",
+    group: "operations",
     kind: "plain",
     render: (ctx) => <IncidentsTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
@@ -327,105 +359,9 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
-    value: "giveaway",
-    label: "Giveaway",
-    keywords: ["raffle", "prizes", "tiers", "winners"],
-    phase: "during",
-    kind: "plain",
-    sharedData: ["people"],
-    render: (ctx) => (
-      <GiveawayTab
-        eventId={ctx.event.id}
-        people={ctx.shared.people.data ?? []}
-        onPersonCreated={ctx.shared.addLocalPerson}
-        mode={ctx.mode}
-        onExitEdit={ctx.onSaved}
-      />
-    ),
-  },
-  {
-    value: "report",
-    label: "Report",
-    keywords: ["debrief", "lessons learned", "feedback"],
-    phase: "after",
-    kind: "form",
-    render: (ctx) => (
-      <ReportTab
-        ref={ctx.formCallbacks.report.registerHandle}
-        event={ctx.event}
-        formId={ctx.formId("report")}
-        mode={ctx.mode}
-        onSaved={ctx.onSaved}
-        onPendingChange={ctx.formCallbacks.report.onPendingChange}
-        onDirtyChange={ctx.formCallbacks.report.onDirtyChange}
-      />
-    ),
-  },
-  {
-    value: "donations",
-    label: "Donations",
-    phase: "after",
-    kind: "plain",
-    access: [{ resource: "finance", level: "view" }],
-    render: (ctx) => <DonationsTab eventId={ctx.event.id} mode={ctx.mode} />,
-    toolbarActions: (ctx) => (
-      <AddDonationModal
-        triggerLabel="Record donation for this event"
-        eventId={ctx.eventId}
-        onSaved={ctx.onSaved}
-      />
-    ),
-  },
-  {
-    value: "expenses",
-    label: "Expenses",
-    phase: "after",
-    kind: "plain",
-    access: [{ resource: "event_expenses", level: "view" }],
-    render: (ctx) => (
-      <EventExpensesTab
-        eventId={ctx.event.id}
-        eventName={ctx.event.name}
-        mode={ctx.mode}
-      />
-    ),
-    toolbarActions: (ctx) => (
-      <NewExpenseDialog
-        events={[{ id: ctx.eventId, name: ctx.eventName }]}
-        defaultEventId={ctx.eventId}
-        lockEventSelection
-        triggerLabel="New Expense"
-        onSaved={ctx.onSaved}
-      />
-    ),
-  },
-  {
-    value: "revenue",
-    label: "Revenue",
-    phase: "after",
-    kind: "plain",
-    access: [{ resource: "event_revenue", level: "view" }],
-    render: (ctx) => (
-      <EventRevenueTab
-        eventId={ctx.event.id}
-        eventName={ctx.event.name}
-        mode={ctx.mode}
-      />
-    ),
-    toolbarActions: (ctx) => (
-      <NewRevenueDialog
-        events={[{ id: ctx.eventId, name: ctx.eventName }]}
-        defaultEventId={ctx.eventId}
-        lockEventSelection
-        triggerLabel="New Revenue"
-        onSaved={ctx.onSaved}
-      />
-    ),
-  },
-  {
     value: "sales",
     label: "Sales",
-    phase: "after",
+    group: "money",
     kind: "plain",
     // Gated like Expenses and Revenue beside it (#903): `sales` belongs to the
     // Finance module, so a tenant that was never sold Finance must not be
@@ -454,10 +390,74 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
+    value: "revenue",
+    label: "Revenue",
+    group: "money",
+    kind: "plain",
+    access: [{ resource: "event_revenue", level: "view" }],
+    render: (ctx) => (
+      <EventRevenueTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
+        mode={ctx.mode}
+      />
+    ),
+    toolbarActions: (ctx) => (
+      <NewRevenueDialog
+        events={[{ id: ctx.eventId, name: ctx.eventName }]}
+        defaultEventId={ctx.eventId}
+        lockEventSelection
+        triggerLabel="New Revenue"
+        onSaved={ctx.onSaved}
+      />
+    ),
+  },
+  {
+    value: "expenses",
+    label: "Expenses",
+    group: "money",
+    kind: "plain",
+    access: [{ resource: "event_expenses", level: "view" }],
+    render: (ctx) => (
+      <EventExpensesTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
+        mode={ctx.mode}
+      />
+    ),
+    toolbarActions: (ctx) => (
+      <NewExpenseDialog
+        events={[{ id: ctx.eventId, name: ctx.eventName }]}
+        defaultEventId={ctx.eventId}
+        lockEventSelection
+        triggerLabel="New Expense"
+        onSaved={ctx.onSaved}
+      />
+    ),
+  },
+  {
+    value: "report",
+    label: "Report",
+    keywords: ["debrief", "lessons learned", "feedback"],
+    group: "results",
+    kind: "form",
+    render: (ctx) => (
+      <ReportTab
+        ref={ctx.formCallbacks.report.registerHandle}
+        event={ctx.event}
+        formId={ctx.formId("report")}
+        mode={ctx.mode}
+        onSaved={ctx.onSaved}
+        onPendingChange={ctx.formCallbacks.report.onPendingChange}
+        onDirtyChange={ctx.formCallbacks.report.onDirtyChange}
+      />
+    ),
+  },
+  {
     value: "impact",
     label: "Impact",
     keywords: ["outcomes", "metrics", "stories"],
-    phase: "after",
+    group: "results",
     kind: "form",
     sharedData: ["impactDerived"],
     render: (ctx) => (
@@ -496,22 +496,48 @@ export const LOCKED_ON_REPORT_SUBMIT_TABS: ReadonlySet<TabValue> = new Set([
 ]);
 
 /**
- * The rail's group headings (#1008). `basic` is called Overview because that is
- * what the group holds; it was "Basic" only to avoid colliding with the
- * Overview card back when the phase was a tab of its own.
+ * The rail's groups, in the order it lists them (#1571).
+ *
+ * By what a card is about rather than when it is used. #1008 kept the
+ * lifecycle phases as headings, but most cards do not belong to one moment:
+ * donations, sales and revenue come in during the event and after it,
+ * registrants and discount codes matter before it, and incidents can happen at
+ * setup -- so a coordinator had to guess which phase held the card. Goods
+ * follows items through the event: sponsors mostly give in kind, donations are
+ * mostly in kind and land in inventory, giveaway prizes reserve inventory, and
+ * distributions hand it out.
+ *
+ * The lifecycle still exists where it means something, in `phase-status.ts`'s
+ * outstanding tasks.
  */
-const PHASE_LABELS: Record<PhaseKey, string> = {
-  basic: "Overview",
-  planning: "Planning",
-  during: "During",
-  after: "After",
+export const EVENT_GROUPS = [
+  { key: "overview", label: "Overview" },
+  { key: "guests", label: "Guests" },
+  { key: "team", label: "Team" },
+  { key: "goods", label: "Goods" },
+  { key: "operations", label: "Operations" },
+  { key: "money", label: "Money" },
+  { key: "results", label: "Results" },
+] as const;
+
+export type EventGroupKey = (typeof EVENT_GROUPS)[number]["key"];
+
+/**
+ * Where a `?phase=` link from before the rail lands (#958's phase tabs, read
+ * since #1008): the card each phase used to open on.
+ */
+export const LEGACY_PHASE_CARDS: Record<PhaseKey, TabValue> = {
+  basic: "overview",
+  planning: "planning",
+  during: "attendance",
+  after: "report",
 };
 
 /**
  * Card titles that differ from the catalog label, so the rail row and the card
- * heading it opens always read the same. Both are ambiguous on their own:
- * "Overview" is also the group heading above it, and "Planning" is the group
- * as well as the card that carries registration settings.
+ * heading it opens always read the same. "Overview" is also the group heading
+ * above it, and "Planning" alone would not say the card carries registration
+ * settings.
  */
 export const CARD_TITLES: Partial<Record<TabValue, string>> = {
   overview: "Event details",
@@ -530,8 +556,8 @@ export type EventSection = {
   keywords: string[];
 };
 
-export type EventPhase = {
-  key: PhaseKey;
+export type EventGroup = {
+  key: EventGroupKey;
   label: string;
   tabs: EventSection[];
 };
@@ -543,38 +569,21 @@ export type EventPhase = {
  * a card whose `access` this reader does not hold is not rendered, so the
  * Expenses and Revenue cards disappear along with the Finance module instead
  * of standing there empty above a button that cannot save. A group left with
- * no cards drops out entirely -- nothing in the catalog makes that possible
- * today, every group holding at least one ungated events card, but a heading
- * with nothing under it would be worse than one heading fewer.
- *
- * Still keyed by phase after #1008 replaced the phase tabs with the rail: the
- * lifecycle is a real thing to group by, it just is not a thing to make the
- * reader select before they can see the card they want.
+ * no cards drops out entirely -- Money does, for a tenant without Finance --
+ * since a heading with nothing under it would be worse than one heading fewer.
  */
-export function eventPhases(permissions: PermissionMap): EventPhase[] {
-  const order: PhaseKey[] = [];
-  const tabsByPhase = new Map<PhaseKey, EventSection[]>();
-  for (const entry of TAB_CONFIG) {
-    if (!tabsByPhase.has(entry.phase)) {
-      order.push(entry.phase);
-      tabsByPhase.set(entry.phase, []);
-    }
-    if (entry.access && !hasAnyPermission(permissions, entry.access)) continue;
-    tabsByPhase.get(entry.phase)!.push({
+export function eventGroups(permissions: PermissionMap): EventGroup[] {
+  return EVENT_GROUPS.map(({ key, label }) => ({
+    key,
+    label,
+    tabs: TAB_CONFIG.filter(
+      (entry) =>
+        entry.group === key &&
+        (!entry.access || hasAnyPermission(permissions, entry.access)),
+    ).map((entry) => ({
       value: entry.value,
       label: cardTitle(entry.value, entry.label),
       keywords: [...(entry.keywords ?? [])],
-    });
-  }
-  return order
-    .map((key) => ({
-      key,
-      label: PHASE_LABELS[key],
-      tabs: tabsByPhase.get(key)!,
-    }))
-    .filter((phase) => phase.tabs.length > 0);
-}
-
-export function phaseForTab(tab: TabValue): PhaseKey {
-  return TAB_CONFIG.find((entry) => entry.value === tab)!.phase;
+    })),
+  })).filter((group) => group.tabs.length > 0);
 }
