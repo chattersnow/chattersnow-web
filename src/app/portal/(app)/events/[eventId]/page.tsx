@@ -10,7 +10,12 @@ import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
 import { toEventRegistrationQuestion } from "../registration-questions-draft";
-import { eventPhases, isTabValue, type TabValue } from "../event-tabs-config";
+import {
+  LEGACY_PHASE_CARDS,
+  eventGroups,
+  isTabValue,
+  type TabValue,
+} from "../event-tabs-config";
 import { eventCardTaskLabels, isPhaseKey } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { deviceClass } from "@/lib/portal/device";
@@ -65,14 +70,14 @@ export default async function EventDetailPage({
   // Resolved here rather than in the client view, so a card whose section this
   // reader has no access to -- or whose module this tenant was never sold
   // (#903) -- is absent from the payload rather than hidden in it.
-  const phases = eventPhases(permissions);
+  const groups = eventGroups(permissions);
 
   // Which section the rail opens on, resolved here so a card this reader has
   // no access to is never the answer. `?tab=` is the parameter the rail keeps
   // and every deep link already writes; `?card=` and `?phase=` are #958's two
   // tab levels, read so a bookmark from before the rail still lands where it
   // meant to (#1008).
-  const visible = phases.flatMap((phase) => phase.tabs);
+  const visible = groups.flatMap((group) => group.tabs);
   const named = (value: string | undefined): TabValue | undefined => {
     if (!value || !isTabValue(value)) return undefined;
     return visible.some((section) => section.value === value)
@@ -84,7 +89,7 @@ export default async function EventDetailPage({
     named(one(query.tab)) ??
     named(one(query.card)) ??
     (legacyPhase && isPhaseKey(legacyPhase)
-      ? phases.find((phase) => phase.key === legacyPhase)?.tabs[0]?.value
+      ? named(LEGACY_PHASE_CARDS[legacyPhase])
       : undefined) ??
     visible[0]?.value ??
     "overview";
@@ -178,7 +183,7 @@ export default async function EventDetailPage({
         programs={programs}
         canManage={canManage}
         deleteBlockers={deleteBlockers ?? []}
-        phases={phases}
+        groups={groups}
         initialCard={initialCard}
         cardTasks={cardTasks}
       />

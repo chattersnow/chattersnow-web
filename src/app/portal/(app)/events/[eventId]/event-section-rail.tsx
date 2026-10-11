@@ -5,39 +5,40 @@ import { PortalRail, PortalRailResults } from "@/components/portal/portal-rail";
 import { cn } from "@/lib/utils";
 import type { DeviceClass } from "@/proxy";
 import { OutstandingBadge } from "../event-badges";
-import type { EventPhase, EventSection, TabValue } from "../event-tabs-config";
+import type { EventGroup, EventSection, TabValue } from "../event-tabs-config";
 
 type Match = EventSection & { group: string };
 
 /**
  * The event's sections, all of them, in one list.
  *
- * Event detail used to put its 19 cards behind four phase tabs (#958). The
- * phases are a real grouping -- most of the During cards genuinely only matter
- * on the day -- but making the reader *select* one charged two things for it.
+ * Event detail used to put its 19 cards behind four phase tabs (#958), and
+ * making the reader *select* one charged two things for it.
  * Nothing on screen said which phase held Sponsors or Discount codes, so
  * finding a card you had not used lately meant opening phases until it turned
  * up; and the lifecycle is not one-way, so a coordinator correcting the budget
  * or the venue a week after the event was working against a control that models
  * the job as a sequence.
  *
- * So the phases stay as headings and stop being controls, and search runs over
- * every section at once -- with `keywords` behind it, since "budget" is on a
- * card called Registration & planning and "raffle" is on one called Giveaway.
+ * So the phases became headings and stopped being controls, and search runs
+ * over every section at once -- with `keywords` behind it, since "budget" is on
+ * a card called Registration & planning and "raffle" is on one called Giveaway.
+ * #1571 then regrouped the headings by subject (`EVENT_GROUPS`), since most
+ * cards are used across more than one phase.
  *
  * The disclosure, the sticky column and the sheet a phone gets are
  * `PortalRail`'s (#1093); what is left here is what this event lists.
  */
 export function EventSectionRail({
   device,
-  phases,
+  groups,
   current,
   currentTitle,
   cardTasks,
   onSelect,
 }: {
   device: DeviceClass;
-  phases: readonly EventPhase[];
+  groups: readonly EventGroup[];
   current: TabValue;
   /** The open card's title, so the closed rail still says where you are. */
   currentTitle: string;
@@ -52,13 +53,13 @@ export function EventSectionRail({
       label={`Sections · ${currentTitle}`}
       hideLabel="Hide sections"
       title="Sections"
-      description="Every part of this event, grouped by when it matters."
+      description="Every part of this event, grouped by what it covers."
       searchLabel="Search this event's sections"
       searchPlaceholder="Search this event"
     >
       {({ query, close }) => (
         <RailBody
-          phases={phases}
+          groups={groups}
           current={current}
           cardTasks={cardTasks}
           query={query}
@@ -72,13 +73,13 @@ export function EventSectionRail({
 }
 
 function RailBody({
-  phases,
+  groups,
   current,
   cardTasks,
   query,
   onSelect,
 }: {
-  phases: readonly EventPhase[];
+  groups: readonly EventGroup[];
   current: TabValue;
   cardTasks?: Partial<Record<TabValue, string[]>>;
   query: string;
@@ -86,16 +87,16 @@ function RailBody({
 }) {
   const matches = useMemo<Match[]>(() => {
     if (!query) return [];
-    return phases.flatMap((phase) =>
-      phase.tabs
+    return groups.flatMap((group) =>
+      group.tabs
         .filter((section) =>
-          [section.label, phase.label, ...section.keywords].some((field) =>
+          [section.label, group.label, ...section.keywords].some((field) =>
             field.toLowerCase().includes(query),
           ),
         )
-        .map((section) => ({ ...section, group: phase.label })),
+        .map((section) => ({ ...section, group: group.label })),
     );
-  }, [phases, query]);
+  }, [groups, query]);
 
   if (query) {
     return (
@@ -120,11 +121,11 @@ function RailBody({
   return (
     <nav aria-label="Event sections">
       <ul className="space-y-4">
-        {phases.map((phase) => (
-          <li key={phase.key}>
-            <span className="app-eyebrow px-2">{phase.label}</span>
+        {groups.map((group) => (
+          <li key={group.key}>
+            <span className="app-eyebrow px-2">{group.label}</span>
             <ul className="mt-1 space-y-0.5">
-              {phase.tabs.map((section) => (
+              {group.tabs.map((section) => (
                 <li key={section.value}>
                   <SectionRow
                     label={section.label}

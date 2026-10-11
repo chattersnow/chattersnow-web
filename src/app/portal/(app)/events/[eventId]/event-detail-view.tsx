@@ -25,7 +25,7 @@ import {
   LOCKED_ON_REPORT_SUBMIT_TABS,
   TAB_CONFIG,
   cardTitle,
-  type EventPhase,
+  type EventGroup,
   type TabConfigEntry,
   type TabRenderContext,
   type TabValue,
@@ -256,8 +256,8 @@ export function EventDetailView(props: {
    * Inventory cards have to be gone before the markup reaches the browser, not
    * hidden in it.
    */
-  phases: EventPhase[];
-  /** The card to open, already resolved against `phases` on the server. */
+  groups: EventGroup[];
+  /** The card to open, already resolved against `groups` on the server. */
   initialCard: TabValue;
   cardTasks?: Partial<Record<TabValue, string[]>>;
 }) {
@@ -274,7 +274,7 @@ function EventDetailContent({
   programs,
   canManage,
   deleteBlockers,
-  phases,
+  groups,
   initialCard,
   cardTasks,
 }: {
@@ -283,7 +283,7 @@ function EventDetailContent({
   programs: Program[];
   canManage: boolean;
   deleteBlockers: string[];
-  phases: EventPhase[];
+  groups: EventGroup[];
   initialCard: TabValue;
   cardTasks?: Partial<Record<TabValue, string[]>>;
 }) {
@@ -295,10 +295,10 @@ function EventDetailContent({
   // pair is still read on the way in -- `page.tsx` resolves `initialCard` from
   // whichever of the three a bookmark carries -- and dropped on the way out.
   //
-  // Validated against `phases` rather than the whole catalog: since #903 a
+  // Validated against `groups` rather than the whole catalog: since #903 a
   // reader without Finance has no Expenses card, and a deep link to one has to
   // fall back rather than render an empty card.
-  const sections = phases.flatMap((phase) => phase.tabs);
+  const sections = groups.flatMap((group) => group.tabs);
   const visible = (value: string): value is TabValue =>
     sections.some((section) => section.value === value);
   const [card, setCard] = useUrlTabState<TabValue>({
@@ -342,7 +342,7 @@ function EventDetailContent({
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
         <EventSectionRail
           device={device}
-          phases={phases}
+          groups={groups}
           current={card}
           currentTitle={title}
           cardTasks={cardTasks}
