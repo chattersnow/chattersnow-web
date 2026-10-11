@@ -69,7 +69,7 @@ const PREVIEW_COLUMNS = withoutSorting(COLUMNS);
  * Cash gifts linked to this event (#1577). Read-only: they are recorded and
  * edited in Finance > Donations, which this card links to filtered to the
  * event for a reader who may open it. A sponsorship's cash mirror is listed and marked, since it is a real
- * gift on the event; the Report card counts it once, under sponsorship.
+ * gift on the event; the Results card counts it once, under sponsorship.
  */
 export function CashDonationsTab({
   eventId,

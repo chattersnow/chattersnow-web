@@ -4,7 +4,7 @@ import type { TabValue } from "./event-tabs-config";
 
 /**
  * One figure, optionally linked to the card its rows come from. Shared by the
- * Report card's sections and the summary at the top of each event card
+ * Results card's sections and the summary at the top of each event card
  * (#1586), so a figure looks the same wherever it is shown.
  */
 export function Figure({

@@ -79,12 +79,14 @@ describe("riderStats", () => {
 
   test("counts someone who does both in each discipline's levels", () => {
     expect(stats.ski).toEqual({
+      first_time: 0,
       beginner: 1,
       intermediate: 1,
       advanced: 1,
       unknown: 0,
     });
     expect(stats.snowboard).toEqual({
+      first_time: 0,
       beginner: 2,
       intermediate: 0,
       advanced: 0,
@@ -97,6 +99,22 @@ describe("riderStats", () => {
   test("reads as one line for the registrants card", () => {
     expect(ridersLine(stats)).toBe(
       "Skis 3 (1 beginner, 1 intermediate, 1 advanced) · Snowboard 3 (2 beginner, 0 intermediate, 0 advanced)",
+    );
+  });
+});
+
+// #1588: first time on snow sits below beginner, and the line only names it
+// where there are any, so a tenant that never records it reads as before.
+describe("first time on snow", () => {
+  test("counts in its own column and in the total", () => {
+    const stats = riderStats([
+      rider({ riding_discipline: "ski", ski_experience_level: "first_time" }),
+      rider({ riding_discipline: "ski", ski_experience_level: "beginner" }),
+    ]);
+    expect(stats.ski.first_time).toBe(1);
+    expect(levelTotal(stats.ski)).toBe(2);
+    expect(ridersLine(stats)).toStartWith(
+      "Skis 2 (1 first time, 1 beginner, 0 intermediate, 0 advanced)",
     );
   });
 });

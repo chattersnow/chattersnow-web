@@ -78,7 +78,7 @@ export function RetroItemDialog({
 
   function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
-    // The retro sits inside the Report card's own <form> in edit mode, and a
+    // The retro sits inside the Results card's own <form> in edit mode, and a
     // React submit event bubbles through the portal to it.
     formEvent.stopPropagation();
     setError(null);

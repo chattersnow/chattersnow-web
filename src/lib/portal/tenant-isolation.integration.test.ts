@@ -1327,6 +1327,9 @@ describe("security definer RPCs answer for the caller's tenant", () => {
     );
     expect(impact.events).toEqual([]);
     expect(impact.registrations).toEqual([]);
+    // #1588's keys are tenant-scoped through the same event lookup.
+    expect(impact.assistance_expenses).toEqual([]);
+    expect(impact.first_time_attendees).toEqual([]);
 
     const rollup = await must(
       bAdmin.rpc("get_program_impact_rollup_data", {

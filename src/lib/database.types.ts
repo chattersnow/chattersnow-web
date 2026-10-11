@@ -2180,6 +2180,7 @@ export type Database = {
           description: string | null;
           event_id: string;
           id: string;
+          kind: string | null;
           notes: string | null;
           registration_id: string | null;
           sent_at: string | null;
@@ -2189,6 +2190,7 @@ export type Database = {
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
+          value: number | null;
         };
         Insert: {
           assigned_at?: string | null;
@@ -2198,6 +2200,7 @@ export type Database = {
           description?: string | null;
           event_id: string;
           id?: string;
+          kind?: string | null;
           notes?: string | null;
           registration_id?: string | null;
           sent_at?: string | null;
@@ -2207,6 +2210,7 @@ export type Database = {
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
+          value?: number | null;
         };
         Update: {
           assigned_at?: string | null;
@@ -2216,6 +2220,7 @@ export type Database = {
           description?: string | null;
           event_id?: string;
           id?: string;
+          kind?: string | null;
           notes?: string | null;
           registration_id?: string | null;
           sent_at?: string | null;
@@ -2225,6 +2230,7 @@ export type Database = {
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
+          value?: number | null;
         };
         Relationships: [
           {
@@ -2617,6 +2623,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -2643,6 +2650,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           paid_by_person_id?: string | null;
+          participant_assistance?: boolean;
           receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
@@ -2669,6 +2677,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           paid_by_person_id?: string | null;
+          participant_assistance?: boolean;
           receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
@@ -10385,6 +10394,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -11076,6 +11086,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -11708,6 +11719,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;

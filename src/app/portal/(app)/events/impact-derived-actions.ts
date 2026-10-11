@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/permissions";
 import {
   computeEventImpactDerived,
+  type AssistanceExpenseRow,
   type CheckinCountRow,
   type DiscountCodeRow,
   type DistributedMovementRow,
@@ -25,12 +26,15 @@ type DerivedData = {
   volunteer_hour_people: PersonEventRow[];
   discount_codes: DiscountCodeRow[] | null;
   beginner_attendees: PersonEventRow[] | null;
+  first_time_attendees: PersonEventRow[] | null;
   profiled_attendees: PersonEventRow[] | null;
   distributions: DistributedMovementRow[];
+  assistance_expenses: AssistanceExpenseRow[] | null;
 };
 
 /**
- * Figures the Impact and Attendance cards used to ask staff to type by hand.
+ * The Results card's Outcomes and the Attendance card's figures -- all of them
+ * derived from records, never typed (#1588).
  *
  * Goes through the get_event_impact_derived_data RPC rather than querying the
  * tables directly because the board role holds event_impact:view but events:none
@@ -41,7 +45,8 @@ type DerivedData = {
  *
  * The rider-profile keys are also dropped here for a caller without
  * rider_profiles:view, which carries the rider_profile module (#1408): on a
- * tenant without it there is no "Beginner participants" figure for anyone.
+ * tenant without it there is no "Beginner participants" or "First time on
+ * snow" figure for anyone.
  */
 export async function getEventImpactDerivedAction(
   eventId: string,
@@ -71,11 +76,15 @@ export async function getEventImpactDerivedAction(
       beginnerAttendees: canSeeRider
         ? (result.beginner_attendees ?? null)
         : null,
+      firstTimeAttendees: canSeeRider
+        ? (result.first_time_attendees ?? null)
+        : null,
       profiledAttendees: canSeeRider
         ? (result.profiled_attendees ?? null)
         : null,
       autoAssignDiscountCodes: result.auto_assign_discount_codes ?? false,
       distributions: result.distributions ?? [],
+      assistanceExpenses: result.assistance_expenses ?? null,
     }),
   };
 }

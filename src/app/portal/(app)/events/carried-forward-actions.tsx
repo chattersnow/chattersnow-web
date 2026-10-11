@@ -78,7 +78,7 @@ export function CarriedForwardActions({ eventId }: { eventId: string }) {
               onToggle={(done) => handleToggle(item.id, done)}
             >
               <Link
-                href={`/portal/events/${item.event.id}?tab=report`}
+                href={`/portal/events/${item.event.id}?tab=results`}
                 className="text-xs underline underline-offset-2"
               >
                 From {item.event.name}

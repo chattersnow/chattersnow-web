@@ -1,5 +1,5 @@
 // The impact metric definitions moved to src/lib/portal/impact-metrics.ts so the
-// per-event Impact card and this program rollup compute every figure with the
+// per-event Results card and this program rollup compute every figure with the
 // same functions instead of two implementations that agree only by comment.
 // This module stays as the reports page's import surface.
 export {
@@ -14,11 +14,14 @@ export {
   countVolunteerParticipants,
   countBeginnerParticipants,
   countProfiledAttendees,
+  countFirstTimeOnSnow,
+  countRentalSubsidies,
+  computeParticipantAssistance,
   computeProgramImpactRollup,
 } from "@/lib/portal/impact-metrics";
 
 export type {
-  ImpactNoteRow,
+  AssistanceExpenseRow,
   DistributedMovementRow,
   VolunteerHoursRow,
   RegistrationRow,

@@ -1,7 +1,8 @@
 // Rider profile vocabulary (issue #563). Shared by the public registration
 // forms (#1415) and the portal person form, so it lives here rather than
 // inside either route group. Values must stay in sync with the CHECK
-// constraints in supabase/migrations/20260901050000_add_rider_profile_to_people.sql.
+// constraints in supabase/migrations/20260901050000_add_rider_profile_to_people.sql
+// (first_time added by 20261011230000_event_results_card.sql, #1588).
 
 export const RIDING_DISCIPLINES = [
   { value: "ski", label: "Skis" },
@@ -12,6 +13,7 @@ export const RIDING_DISCIPLINES = [
 export type RidingDiscipline = (typeof RIDING_DISCIPLINES)[number]["value"];
 
 export const EXPERIENCE_LEVELS = [
+  { value: "first_time", label: "First time on snow" },
   { value: "beginner", label: "Beginner" },
   { value: "intermediate", label: "Intermediate" },
   { value: "advanced", label: "Advanced" },

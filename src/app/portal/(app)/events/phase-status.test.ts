@@ -163,10 +163,8 @@ describe("deriveEventPhaseTasks", () => {
   const now = new Date("2026-09-01T12:00:00Z");
   const upcoming = { ...baseEvent, starts_at: "2026-09-10T12:00:00Z" };
   const started = { ...baseEvent, starts_at: "2026-08-30T12:00:00Z" };
-  const labels = (event: EventRow, options?: { includeImpact?: boolean }) =>
-    deriveEventPhaseTasks(event, { hasImpactNote: false }, now, options).map(
-      (task) => task.taskLabel,
-    );
+  const labels = (event: EventRow) =>
+    deriveEventPhaseTasks(event, {}, now).map((task) => task.taskLabel);
 
   test("an upcoming event with nothing filled in only owes planning", () => {
     expect(labels(upcoming)).toEqual(["Planning incomplete"]);
@@ -206,25 +204,15 @@ describe("deriveEventPhaseTasks", () => {
     );
   });
 
-  test("the impact rule is opt-in, so the dashboard is unaffected by default", () => {
-    expect(labels(started)).not.toContain("Impact not recorded");
-    expect(labels(started, { includeImpact: true })).toContain(
-      "Impact not recorded",
-    );
+  test("there is no separate impact task: the report covers it (#1588)", () => {
+    const kinds = deriveEventPhaseTasks(started, {}, now, {
+      includeRetro: true,
+    }).map((task) => task.kind as string);
+    expect(kinds).not.toContain("impact");
   });
 
-  test("an existing impact note clears the impact task", () => {
-    const tasks = deriveEventPhaseTasks(started, { hasImpactNote: true }, now, {
-      includeImpact: true,
-    });
-    expect(tasks.map((task) => task.taskLabel)).not.toContain(
-      "Impact not recorded",
-    );
-  });
-
-  test("the retro rules are opt-in and land on the Report card", () => {
+  test("the retro rules are opt-in and land on the Results card", () => {
     const signals = {
-      hasImpactNote: true,
       retroItemCount: 0,
       openActionItemCount: 0,
     };
@@ -237,14 +225,14 @@ describe("deriveEventPhaseTasks", () => {
     expect(tasks.find((task) => task.kind === "retro")).toEqual({
       kind: "retro",
       taskLabel: "Retro not started",
-      tab: "report",
+      tab: "results",
     });
   });
 
   test("submitting the report clears an empty retro, not its open actions", () => {
     const tasks = deriveEventPhaseTasks(
       { ...started, report_status: "submitted" },
-      { hasImpactNote: true, retroItemCount: 0, openActionItemCount: 0 },
+      { retroItemCount: 0, openActionItemCount: 0 },
       now,
       { includeRetro: true },
     );
@@ -257,7 +245,7 @@ describe("deriveEventPhaseTasks", () => {
     expect(retroKinds(tasks)).toEqual([]);
     const withOpen = deriveEventPhaseTasks(
       { ...started, report_status: "submitted" },
-      { hasImpactNote: true, retroItemCount: 1, openActionItemCount: 1 },
+      { retroItemCount: 1, openActionItemCount: 1 },
       now,
       { includeRetro: true },
     );
@@ -265,12 +253,9 @@ describe("deriveEventPhaseTasks", () => {
   });
 
   test("a retro is not owed before the event starts", () => {
-    const tasks = deriveEventPhaseTasks(
-      upcoming,
-      { hasImpactNote: false, retroItemCount: 0 },
-      now,
-      { includeRetro: true },
-    );
+    const tasks = deriveEventPhaseTasks(upcoming, { retroItemCount: 0 }, now, {
+      includeRetro: true,
+    });
     expect(tasks.map((task) => task.kind)).not.toContain("retro");
   });
 
@@ -278,7 +263,7 @@ describe("deriveEventPhaseTasks", () => {
     const labelsFor = (open: number) =>
       deriveEventPhaseTasks(
         started,
-        { hasImpactNote: true, retroItemCount: 3, openActionItemCount: open },
+        { retroItemCount: 3, openActionItemCount: open },
         now,
         { includeRetro: true },
       ).map((task) => task.taskLabel);
@@ -289,14 +274,9 @@ describe("deriveEventPhaseTasks", () => {
   });
 
   test("every task names the card it is done on", () => {
-    const tasks = deriveEventPhaseTasks(
-      started,
-      { hasImpactNote: false },
-      now,
-      {
-        includeImpact: true,
-      },
-    );
+    const tasks = deriveEventPhaseTasks(started, {}, now, {
+      includeRetro: true,
+    });
     for (const task of tasks) {
       expect(task.tab).toBeTruthy();
     }
@@ -310,15 +290,14 @@ describe("eventCardTaskLabels", () => {
   test("files each task under the card it is done on", () => {
     const labels = eventCardTaskLabels(
       started,
-      { hasImpactNote: false, openChecklistTitles: [] },
+      { openChecklistTitles: [] },
       now,
     );
 
     // Keyed by card since #1008: the rail hangs the badge off Attendance and
-    // Report themselves, rather than off a phase holding six cards.
+    // Results themselves, rather than off a phase holding six cards.
     expect(labels.attendance).toEqual(["Attendance not logged"]);
-    expect(labels.report).toEqual(["After-report not started"]);
-    expect(labels.impact).toEqual(["Impact not recorded"]);
+    expect(labels.results).toEqual(["After-report not started"]);
     expect(labels.planning).toBeUndefined();
   });
 
@@ -326,7 +305,6 @@ describe("eventCardTaskLabels", () => {
     const labels = eventCardTaskLabels(
       started,
       {
-        hasImpactNote: true,
         openChecklistTitles: ["Send thank-you emails", "Return the van"],
       },
       now,
@@ -336,6 +314,5 @@ describe("eventCardTaskLabels", () => {
       "Send thank-you emails",
       "Return the van",
     ]);
-    expect(labels.impact).toBeUndefined();
   });
 });

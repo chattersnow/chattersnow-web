@@ -1,7 +1,8 @@
 // The figures at the top of an event card (#1586). Each summary is computed
 // from every row the card loaded -- not the preview it shows -- through the
-// Report card's definitions in event-report-metrics.ts, so a card and the
-// Report never disagree about the same figure.
+// Results card's definitions (event-report-metrics.ts, and impact-metrics.ts
+// for distributions, which are Outcomes' people served since #1588), so a
+// card and the Results card never disagree about the same figure.
 
 import {
   CASH_DONATIONS_STREAM,
@@ -13,6 +14,7 @@ import {
   SPONSOR_SUPPORT_TYPES,
   type EventReportMoneyRows,
 } from "@/lib/portal/event-report-metrics";
+import { computePeopleServed } from "@/lib/portal/impact-metrics";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { CardSummary, Figure } from "./summary-figures";
 
@@ -129,11 +131,7 @@ export function InKindDonationsSummary({
   }[];
 }) {
   if (items.length === 0) return null;
-  const goods = computeEventGoods({
-    in_kind_items: items,
-    distributions: [],
-    prizes: [],
-  });
+  const goods = computeEventGoods({ in_kind_items: items, prizes: [] });
   const donors = new Set(
     items
       .filter((item) => !item.sponsor_id && item.donor_id)
@@ -203,23 +201,22 @@ export function DistributionsSummary({
   }[];
 }) {
   if (distributions.length === 0) return null;
-  const { distributed } = computeEventGoods({
-    in_kind_items: [],
-    distributions,
-    prizes: [],
-  });
+  const served = computePeopleServed(
+    distributions.map((row) => ({ ...row, event_id: null })),
+  );
+  const items = new Set(distributions.map((row) => row.inventory_item_id));
 
   return (
     <CardSummary label="Distributions summary">
       <Figure
         label="Distributed"
-        value={formatNumber(distributed.quantity)}
-        caption={plural(distributed.items, "inventory item")}
+        value={formatNumber(served.distributed)}
+        caption={plural(items.size, "inventory item")}
       />
-      <Figure label="Recipients" value={formatNumber(distributed.recipients)} />
+      <Figure label="Recipients" value={formatNumber(served.recipients)} />
       <Figure
         label="Value given out"
-        value={formatCurrency(distributed.value)}
+        value={formatCurrency(served.value)}
         caption="Face value"
       />
     </CardSummary>

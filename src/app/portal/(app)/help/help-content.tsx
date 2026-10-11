@@ -1347,17 +1347,26 @@ export const helpContent: Record<string, HelpEntry> = {
           <ul className="list-disc space-y-2 pl-4">
             <li>
               <strong className="text-foreground">
-                Participants, first-time, beginner, and assistance figures
+                Participants, first-time and beginner figures
               </strong>{" "}
-              — summed from each event&apos;s impact note. An event with no
-              impact note recorded contributes zero to all of them.
+              — computed from each event&apos;s attendance headcount, check-ins
+              and the rider levels recorded at check-in. Nothing is typed.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Rental subsidies and participant assistance
+              </strong>{" "}
+              — rental subsidies are rental discount codes given to registrants
+              who didn&apos;t cancel; assistance adds up the value of assigned
+              codes, the value of items given out, and paid expenses marked
+              participant assistance. Codes on an event that gives one to every
+              registrant don&apos;t count. Figures typed by hand on older events
+              are archived on those events and never added in.
             </li>
             <li>
               <strong className="text-foreground">Equipment distributed</strong>{" "}
               — summed from inventory movements of type <code>distributed</code>{" "}
-              tied to the program&apos;s events; this is separate from{" "}
-              <strong className="text-foreground">Equipment loans</strong>,
-              which is self-reported on the impact note instead.
+              tied to the program&apos;s events.
             </li>
             <li>
               <strong className="text-foreground">Volunteer hours</strong> —
@@ -1403,9 +1412,9 @@ export const helpContent: Record<string, HelpEntry> = {
               those hours won&apos;t reach this rollup.
             </li>
             <li>
-              Expecting an event to count just because it&apos;s scheduled — the
-              participant and assistance figures only show up once someone
-              records that event&apos;s impact note.
+              Leaving a discount code&apos;s kind and value blank, or an expense
+              for participants unmarked — the help was given, but nothing says
+              so, so it can&apos;t reach the assistance figures.
             </li>
           </ul>
         </HowToSection>
@@ -2477,21 +2486,23 @@ export const helpContent: Record<string, HelpEntry> = {
                   for a headcount once the start time has passed.
                 </li>
                 <li>
-                  <strong className="text-foreground">Report</strong> and{" "}
-                  <strong className="text-foreground">Impact</strong> ask for
-                  the after-report and the impact figures, until the report is
-                  submitted and an impact record exists.
+                  <strong className="text-foreground">Results</strong> asks for
+                  the after-report and the retro, until the report is submitted,
+                  and counts open retro action items.
                 </li>
               </ul>
             </li>
             <li>
-              <strong className="text-foreground">The Report card</strong>{" "}
-              summarizes the event from its own records — money, goods,
-              sponsors, team, guests and incidents — so nothing is retyped. Each
-              figure links to the card it comes from. You only see the sections
-              your role can read: Money needs access to financial reports, and
-              its net is income less what has been paid out, counted the same
-              way as Finance → Reports.
+              <strong className="text-foreground">The Results card</strong>{" "}
+              summarizes the event from its own records, so no figure is ever
+              typed. Outcomes comes first: participation, people served,
+              assistance given and discount codes. Then money, goods, sponsors,
+              team and incidents, then the written parts — participant feedback,
+              photos, impact notes and the retro. Each figure links to the card
+              it comes from. You only see the sections your role can read: Money
+              needs access to financial reports, and its net is income less what
+              has been paid out, counted the same way as Finance → Reports.
+              Submitting the report locks the whole card until it is reopened.
             </li>
             <li>
               <strong className="text-foreground">Cash donations</strong>, in
@@ -2539,14 +2550,13 @@ export const helpContent: Record<string, HelpEntry> = {
               keep computing from its own data.
             </li>
             <li>
-              Retyping figures in the Impact section that the system already
-              has. Participants, first-time participants, beginners, volunteers
-              on site, people served and assigned discount codes are computed
-              from attendance, check-ins, distributions, volunteer records and
-              rider profiles — only the figures under
-              &ldquo;Staff-entered&rdquo; need typing. The same goes for a
-              giveaway: tickets sold and revenue are counted from the sales
-              recorded under Ticket packages.
+              Looking for a box to type a result into. Every figure is counted
+              from where the work was recorded: first time on snow from the
+              rider level, rental subsidies from rental discount codes,
+              assistance from code values, items given out and expenses marked
+              participant assistance. If a figure looks low, fix the record it
+              comes from. The same goes for a giveaway: tickets sold and revenue
+              are counted from the sales recorded under Ticket packages.
             </li>
           </ul>
         </HowToSection>

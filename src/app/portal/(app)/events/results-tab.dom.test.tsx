@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { EventRow } from "./event-badges";
 import * as EventsActions from "./actions";
+import * as ImpactActions from "./impact-actions";
+import * as RetroActions from "./retro-actions";
 import { labelText } from "../../../../../test/labels";
 import type { EventReport } from "@/lib/portal/event-report-metrics";
 import type { EventRetro, EventRetroItem } from "./retro-actions";
+import type { EventImpactNotes } from "./impact-actions";
+import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -15,11 +19,52 @@ const reopenEventReportActionMock = mock<
   (id: string, reason: string) => Promise<ActionResult>
 >(async () => ({ success: true }));
 
+const updateEventReportActionMock = mock<
+  (id: string, formData: FormData) => Promise<ActionResult>
+>(async () => ({ success: true }));
+
 mock.module("./actions", () => ({
   ...EventsActions,
   getCanReopenEventReportAction: getCanReopenEventReportActionMock,
   reopenEventReportAction: reopenEventReportActionMock,
+  updateEventReportAction: updateEventReportActionMock,
 }));
+
+const noImpact = async (): Promise<{ data: EventImpactNotes }> => ({
+  data: { note: null, canView: false, canManage: false },
+});
+const getEventImpactActionMock =
+  mock<(eventId: string) => Promise<{ data: EventImpactNotes }>>(noImpact);
+const upsertEventImpactActionMock = mock<
+  (eventId: string, formData: FormData) => Promise<ActionResult>
+>(async () => ({ success: true }));
+
+mock.module("./impact-actions", () => ({
+  ...ImpactActions,
+  getEventImpactAction: getEventImpactActionMock,
+  upsertEventImpactAction: upsertEventImpactActionMock,
+}));
+
+const derived: EventImpactDerived = {
+  participants: 42,
+  checkedIn: 30,
+  firstTimeParticipants: 12,
+  recurringParticipants: 18,
+  volunteerParticipants: 6,
+  beginnerParticipants: 9,
+  firstTimeOnSnow: 4,
+  profiledAttendees: 30,
+  discountCodesAssigned: 5,
+  rentalSubsidies: 3,
+  assistance: {
+    discountCodes: 150,
+    distributions: 80,
+    expenses: 200,
+    total: 430,
+  },
+  autoAssignDiscountCodes: false,
+  peopleServed: { distributed: 7, recipients: 5, value: 80 },
+};
 
 const emptyMoney = {
   incomeStreams: [],
@@ -66,7 +111,10 @@ const emptyRetro = async (): Promise<{ data: EventRetro }> => ({
 const getEventRetroActionMock =
   mock<(eventId: string) => Promise<{ data: EventRetro }>>(emptyRetro);
 
+// Spread, so a later file in the same run still finds the exports this one
+// does not replace (mock.module is process-wide).
 mock.module("./retro-actions", () => ({
+  ...RetroActions,
   getEventRetroAction: getEventRetroActionMock,
   createEventRetroItemAction: mock(async () => ({ success: true })),
   updateEventRetroItemAction: mock(async () => ({ success: true })),
@@ -74,7 +122,7 @@ mock.module("./retro-actions", () => ({
   deleteEventRetroItemAction: mock(async () => ({ success: true })),
 }));
 
-const { ReportTab } = await import("./report-tab");
+const { ResultsTab } = await import("./results-tab");
 
 function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
   return {
@@ -108,8 +156,11 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
   };
 }
 
-describe("ReportTab", () => {
+describe("ResultsTab", () => {
   beforeEach(() => {
+    getEventImpactActionMock.mockImplementation(noImpact);
+    upsertEventImpactActionMock.mockClear();
+    updateEventReportActionMock.mockClear();
     getEventReportActionMock.mockImplementation(emptyReport);
     getEventRetroActionMock.mockImplementation(emptyRetro);
     getCanReopenEventReportActionMock.mockClear();
@@ -124,7 +175,7 @@ describe("ReportTab", () => {
 
   test("hides the reopen button for a non-admin, even once the report is submitted", async () => {
     render(
-      <ReportTab
+      <ResultsTab
         event={makeEvent({ report_status: "submitted" })}
         formId="report-form"
         mode="view"
@@ -144,7 +195,7 @@ describe("ReportTab", () => {
     }));
 
     render(
-      <ReportTab
+      <ResultsTab
         event={makeEvent({ report_status: "in_progress" })}
         formId="report-form"
         mode="view"
@@ -163,7 +214,7 @@ describe("ReportTab", () => {
     }));
 
     render(
-      <ReportTab
+      <ResultsTab
         event={makeEvent({ report_status: "submitted" })}
         formId="report-form"
         mode="view"
@@ -209,7 +260,7 @@ describe("ReportTab", () => {
     }));
 
     render(
-      <ReportTab
+      <ResultsTab
         event={makeEvent()}
         formId="report-form"
         mode="edit"
@@ -231,7 +282,7 @@ describe("ReportTab", () => {
 
   test("says so when a visible section has nothing recorded", async () => {
     render(
-      <ReportTab
+      <ResultsTab
         event={makeEvent()}
         formId="report-form"
         mode="view"
@@ -248,7 +299,7 @@ describe("ReportTab", () => {
 
   test("keeps an old typed summary readable", async () => {
     render(
-      <ReportTab
+      <ResultsTab
         event={makeEvent({ report_summary: "Great turnout despite the snow." })}
         formId="report-form"
         mode="view"
@@ -260,6 +311,148 @@ describe("ReportTab", () => {
       await screen.findByText("Great turnout despite the snow."),
     ).toBeInTheDocument();
     expect(screen.getByText("Earlier written summary")).toBeInTheDocument();
+  });
+
+  // #1588: Report and Impact are one card.
+  test("shows Outcomes from the derived figures, before the rest", async () => {
+    render(
+      <ResultsTab
+        event={makeEvent()}
+        derived={derived}
+        formId="report-form"
+        mode="view"
+        onSaved={() => {}}
+      />,
+    );
+
+    const participation = screen.getByRole("region", {
+      name: "Participation",
+    });
+    expect(participation).toHaveTextContent("42");
+    expect(participation).toHaveTextContent("First time on snow");
+    expect(
+      screen.getByRole("region", { name: "People served" }),
+    ).toHaveTextContent("$80.00");
+    const assistance = screen.getByRole("region", {
+      name: "Assistance given",
+    });
+    expect(assistance).toHaveTextContent("Rental subsidies");
+    expect(assistance).toHaveTextContent("$430.00");
+    // The Report's old Guests section is gone: participation shows once.
+    expect(await screen.findByRole("region", { name: "Money" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Guests" })).toBeNull();
+    expect(screen.getAllByText("Participants")).toHaveLength(1);
+  });
+
+  test("hides the figures a reader may not see", () => {
+    render(
+      <ResultsTab
+        event={makeEvent()}
+        derived={{
+          ...derived,
+          beginnerParticipants: null,
+          firstTimeOnSnow: null,
+          discountCodesAssigned: null,
+          rentalSubsidies: null,
+          assistance: null,
+        }}
+        formId="report-form"
+        mode="view"
+        onSaved={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText("First time on snow")).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "Assistance given" }),
+    ).toBeNull();
+    expect(screen.queryByRole("region", { name: "Discount codes" })).toBeNull();
+  });
+
+  test("leaves no numeric input on the card, only the free text", async () => {
+    getEventImpactActionMock.mockImplementation(async () => ({
+      data: {
+        note: null,
+        canView: true,
+        canManage: true,
+      },
+    }));
+    const { container } = render(
+      <ResultsTab
+        event={makeEvent()}
+        derived={derived}
+        formId="report-form"
+        mode="edit"
+        onSaved={() => {}}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Impact notes")).toBeInTheDocument();
+    expect(screen.getByLabelText("Participant feedback")).toBeInTheDocument();
+    expect(screen.getByLabelText("Photos / content")).toBeInTheDocument();
+    expect(container.querySelector('input[type="number"]')).toBeNull();
+  });
+
+  test("shows archived hand-entered figures read-only, where they exist", async () => {
+    getEventImpactActionMock.mockImplementation(async () => ({
+      data: {
+        note: {
+          id: "note-1",
+          event_id: "event-1",
+          notes: "Great day.",
+          first_time_riders: 11,
+          rental_subsidies_count: null,
+          assistance_total: "250.00",
+          beginner_pairings_count: null,
+        },
+        canView: true,
+        canManage: false,
+      },
+    }));
+    render(
+      <ResultsTab
+        event={makeEvent()}
+        derived={derived}
+        formId="report-form"
+        mode="view"
+        onSaved={() => {}}
+      />,
+    );
+
+    const archived = await screen.findByRole("region", {
+      name: "Entered by hand (archived)",
+    });
+    expect(archived).toHaveTextContent("First-time skiers/snowboarders");
+    expect(archived).toHaveTextContent("$250.00");
+    // Only the figures that hold a value.
+    expect(archived).not.toHaveTextContent("Beginners paired");
+    expect(screen.getByText("Great day.")).toBeInTheDocument();
+  });
+
+  test("saves impact notes only when they changed", async () => {
+    getEventImpactActionMock.mockImplementation(async () => ({
+      data: { note: null, canView: true, canManage: true },
+    }));
+    render(
+      <ResultsTab
+        event={makeEvent()}
+        derived={derived}
+        formId="report-form"
+        mode="edit"
+        onSaved={() => {}}
+      />,
+    );
+
+    const notes = await screen.findByLabelText("Impact notes");
+    fireEvent.change(notes, { target: { value: "Snow all day." } });
+    fireEvent.submit(document.getElementById("report-form")!);
+
+    await waitFor(() =>
+      expect(upsertEventImpactActionMock).toHaveBeenCalledTimes(1),
+    );
+    expect(updateEventReportActionMock).toHaveBeenCalledTimes(1);
+    const sent = upsertEventImpactActionMock.mock.calls[0][1];
+    expect(sent.get("notes")).toBe("Snow all day.");
   });
 
   // #1578: the retro replaces the lessons-learned textarea.
@@ -305,7 +498,7 @@ describe("ReportTab", () => {
       }));
 
       render(
-        <ReportTab
+        <ResultsTab
           event={makeEvent()}
           formId="report-form"
           mode="view"
@@ -340,7 +533,7 @@ describe("ReportTab", () => {
 
     test("offers no add button to a reader who cannot write", async () => {
       render(
-        <ReportTab
+        <ResultsTab
           event={makeEvent()}
           formId="report-form"
           mode="view"

@@ -29,7 +29,7 @@ export type EffectiveRider = {
 /**
  * The level snapshotted at check-in, falling back to the person's current
  * profile only when there is no snapshot at all -- the same all-or-nothing
- * rule the impact RPCs apply, so these figures and the Impact card's beginner
+ * rule the impact RPCs apply, so these figures and the Results card's beginner
  * figure can never disagree.
  */
 export function effectiveRider(rider: RiderAnswers): EffectiveRider {
@@ -74,12 +74,22 @@ export type RiderStats = {
 /** Everybody who rides this way, whatever their level. */
 export function levelTotal(levels: LevelCounts): number {
   return (
-    levels.beginner + levels.intermediate + levels.advanced + levels.unknown
+    levels.first_time +
+    levels.beginner +
+    levels.intermediate +
+    levels.advanced +
+    levels.unknown
   );
 }
 
 function emptyLevels(): LevelCounts {
-  return { beginner: 0, intermediate: 0, advanced: 0, unknown: 0 };
+  return {
+    first_time: 0,
+    beginner: 0,
+    intermediate: 0,
+    advanced: 0,
+    unknown: 0,
+  };
 }
 
 export function riderStats(riders: readonly RiderAnswers[]): RiderStats {
@@ -110,6 +120,9 @@ export function riderStats(riders: readonly RiderAnswers[]): RiderStats {
 
 function levelsLine(levels: LevelCounts): string {
   return [
+    // Only when there are any, so a tenant that never records first-timers
+    // keeps the line it had (#1588).
+    ...(levels.first_time > 0 ? [`${levels.first_time} first time`] : []),
     `${levels.beginner} beginner`,
     `${levels.intermediate} intermediate`,
     `${levels.advanced} advanced`,

@@ -29,8 +29,7 @@ import { EventExpensesTab } from "./event-expenses-tab";
 import { EventRevenueTab } from "./event-revenue-tab";
 import { EventSalesTab } from "./event-sales-tab";
 import { GiveawayTab } from "./giveaway-tab";
-import { ReportTab } from "./report-tab";
-import { ImpactTab } from "./impact-tab";
+import { ResultsTab } from "./results-tab";
 import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
 import { LogIncidentDialog } from "./log-incident-dialog";
 import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
@@ -66,8 +65,7 @@ export type TabValue =
   | "expenses"
   | "revenue"
   | "sales"
-  | "report"
-  | "impact"
+  | "results"
   | "donations"
   | "cash-donations";
 
@@ -458,9 +456,16 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
   },
   {
-    value: "report",
-    label: "Report",
+    // Report and Impact merged (#1588). `?tab=report` and `?tab=impact`
+    // links still land here, through LEGACY_TAB_VALUES.
+    value: "results",
+    label: "Results",
     keywords: [
+      "report",
+      "impact",
+      "outcomes",
+      "metrics",
+      "stories",
       "debrief",
       "retro",
       "lessons learned",
@@ -469,37 +474,24 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ],
     group: "results",
     kind: "form",
+    // The route layout already requires events:view; event_impact:view is
+    // named so the card's audience is said in one place. Each section inside
+    // is gated by its own permission or module.
+    access: [
+      { resource: "events", level: "view" },
+      { resource: "event_impact", level: "view" },
+    ],
     sharedData: ["impactDerived"],
     render: (ctx) => (
-      <ReportTab
-        ref={ctx.formCallbacks.report.registerHandle}
+      <ResultsTab
+        ref={ctx.formCallbacks.results.registerHandle}
         event={ctx.event}
-        guests={ctx.shared.impactDerived.data}
-        formId={ctx.formId("report")}
-        mode={ctx.mode}
-        onSaved={ctx.onSaved}
-        onPendingChange={ctx.formCallbacks.report.onPendingChange}
-        onDirtyChange={ctx.formCallbacks.report.onDirtyChange}
-      />
-    ),
-  },
-  {
-    value: "impact",
-    label: "Impact",
-    keywords: ["outcomes", "metrics", "stories"],
-    group: "results",
-    kind: "form",
-    sharedData: ["impactDerived"],
-    render: (ctx) => (
-      <ImpactTab
-        ref={ctx.formCallbacks.impact.registerHandle}
-        eventId={ctx.event.id}
-        formId={ctx.formId("impact")}
         derived={ctx.shared.impactDerived.data}
+        formId={ctx.formId("results")}
         mode={ctx.mode}
         onSaved={ctx.onSaved}
-        onPendingChange={ctx.formCallbacks.impact.onPendingChange}
-        onDirtyChange={ctx.formCallbacks.impact.onDirtyChange}
+        onPendingChange={ctx.formCallbacks.results.onPendingChange}
+        onDirtyChange={ctx.formCallbacks.results.onDirtyChange}
       />
     ),
   },
@@ -517,12 +509,22 @@ export function isTabValue(value: string | undefined): value is TabValue {
   return !!value && TAB_VALUE_SET.has(value as TabValue);
 }
 
+/**
+ * Cards that were merged into another, and where a link to them lands now:
+ * Report and Impact became Results (#1588).
+ */
+export const LEGACY_TAB_VALUES: Readonly<Record<string, TabValue>> = {
+  report: "results",
+  impact: "results",
+};
+
 // Tabs that must revert to read-only once the event's report has been
-// submitted, since submitted report data shouldn't shift underneath it.
+// submitted, since submitted report data shouldn't shift underneath it. Results
+// is one card since #1588, so this locks its Outcomes and notes too.
 export const LOCKED_ON_REPORT_SUBMIT_TABS: ReadonlySet<TabValue> = new Set([
   "overview",
   "planning",
-  "report",
+  "results",
 ]);
 
 /**
@@ -560,7 +562,7 @@ export const LEGACY_PHASE_CARDS: Record<PhaseKey, TabValue> = {
   basic: "overview",
   planning: "planning",
   during: "attendance",
-  after: "report",
+  after: "results",
 };
 
 /**

@@ -104,7 +104,7 @@ function RetroItemMeta({ item }: { item: EventRetroItem }) {
 }
 
 /**
- * The event's retro (#1578), on the Report card: went-well, improve and action
+ * The event's retro (#1578), on the Results card: went-well, improve and action
  * items from anyone on the event's staff roster or holding events:manage. It
  * keeps its own controls rather than following the card's edit mode, since
  * staff who add items cannot edit the report itself.

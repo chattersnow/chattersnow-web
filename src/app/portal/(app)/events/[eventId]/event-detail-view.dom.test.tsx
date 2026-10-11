@@ -16,6 +16,7 @@ import * as RevenueActions from "../../finance/revenue/actions";
 import * as SalesActions from "../../finance/sales/actions";
 import * as ImpactActions from "../impact-actions";
 import * as ImpactDerivedActions from "../impact-derived-actions";
+import * as RetroActions from "../retro-actions";
 import * as HomeActions from "../../home/actions";
 import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
@@ -113,7 +114,34 @@ mock.module("../../finance/sales/actions", () => ({
 }));
 mock.module("../impact-actions", () => ({
   ...ImpactActions,
-  getEventImpactAction: mock(async () => ({ data: null })),
+  getEventImpactAction: mock(async () => ({
+    data: { note: null, canView: false, canManage: false },
+  })),
+}));
+// The Results card reads these on open (#1588).
+mock.module("../report-data-actions", () => ({
+  getEventReportAction: mock(async () => ({
+    data: {
+      money: null,
+      goods: null,
+      sponsors: null,
+      team: null,
+      operations: null,
+    },
+  })),
+}));
+mock.module("../retro-actions", () => ({
+  ...RetroActions,
+  getEventRetroAction: mock(async () => ({
+    data: {
+      items: [],
+      canWrite: false,
+      canManage: false,
+      userId: "user-1",
+      locked: false,
+      owners: [],
+    },
+  })),
 }));
 mock.module("../impact-derived-actions", () => ({
   ...ImpactDerivedActions,
@@ -232,7 +260,7 @@ describe("EventDetailView", () => {
 
     // The whole point of the rail (#1008): all 20 sections are readable
     // without opening anything, so finding one is not a memory test.
-    expect(rail().getAllByRole("button")).toHaveLength(20);
+    expect(rail().getAllByRole("button")).toHaveLength(19);
     for (const heading of [
       "Overview",
       "Guests",
@@ -242,7 +270,8 @@ describe("EventDetailView", () => {
       "Money",
       "Results",
     ]) {
-      expect(rail().getByText(heading)).toBeInTheDocument();
+      // getAll: the Results heading holds a card of the same name (#1588).
+      expect(rail().getAllByText(heading)[0]).toBeInTheDocument();
     }
     for (const section of [
       "Event details",
@@ -250,7 +279,7 @@ describe("EventDetailView", () => {
       "Registration & planning",
       "Sponsors",
       "Registrants",
-      "Impact",
+      "Results",
     ]) {
       expect(railRow(section)).toBeVisible();
     }
@@ -277,8 +306,8 @@ describe("EventDetailView", () => {
 
     // And back across the lifecycle in one click, which is the other half of
     // it: Planning is still edited after the event has happened.
-    fireEvent.click(railRow("Impact"));
-    expect(cardTitled("Impact")).not.toBeNull();
+    fireEvent.click(railRow("Results"));
+    expect(cardTitled("Results")).not.toBeNull();
     fireEvent.click(railRow("Registration & planning"));
     expect(cardTitled("Registration & planning")).not.toBeNull();
   });
@@ -400,7 +429,7 @@ describe("EventDetailView", () => {
       cardTasks: {
         checklist: ["Bring the folding tables", "Confirm the DJ"],
         planning: ["Planning incomplete"],
-        report: ["After-report not started"],
+        results: ["After-report not started"],
       },
     });
 
@@ -415,7 +444,7 @@ describe("EventDetailView", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      within(railRow("Report")).getByLabelText("1 outstanding"),
+      within(railRow("Results")).getByLabelText("1 outstanding"),
     ).toBeInTheDocument();
     expect(screen.getAllByLabelText(/outstanding/)).toHaveLength(3);
   });

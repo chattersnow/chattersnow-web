@@ -23,7 +23,6 @@ import {
   type EventReport,
   type IncomeStream,
 } from "@/lib/portal/event-report-metrics";
-import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useTabData } from "@/hooks/use-tab-data";
@@ -56,19 +55,22 @@ const SUPPORT_TYPE_LABELS: Record<string, string> = {
   other: "other",
 };
 
-function plural(count: number, one: string, many = `${one}s`) {
+export function plural(count: number, one: string, many = `${one}s`) {
   return `${formatNumber(count)} ${count === 1 ? one : many}`;
 }
 
-function Section({
+export function Section({
   title,
   empty,
   emptyMessage,
+  note,
   children,
 }: {
   title: string;
   empty: boolean;
   emptyMessage: string;
+  /** A line under the figures, e.g. how they are counted. */
+  note?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -79,6 +81,7 @@ function Section({
       ) : (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>
       )}
+      {note && !empty && <p className="app-muted text-xs">{note}</p>}
     </section>
   );
 }
@@ -173,7 +176,7 @@ function GoodsSection({
     <Section
       title="Goods"
       empty={!goodsHasData(goods)}
-      emptyMessage="No donations, distributions or prizes recorded for this event."
+      emptyMessage="No donations or prizes recorded for this event."
     >
       {goods.inKindReceived.count > 0 && (
         <Figure
@@ -191,15 +194,6 @@ function GoodsSection({
           label="Sponsor in-kind"
           value={plural(goods.sponsorInKind.count, "item")}
           caption={`${formatCurrency(goods.sponsorInKind.value)} face value`}
-        />
-      )}
-      {goods.distributed.quantity > 0 && (
-        <Figure
-          eventId={eventId}
-          card="distributions"
-          label="Distributed"
-          value={plural(goods.distributed.quantity, "item")}
-          caption={`${plural(goods.distributed.recipients, "recipient")} · ${formatCurrency(goods.distributed.value)} face value`}
         />
       )}
       {goods.prizes.count > 0 && (
@@ -306,42 +300,6 @@ function TeamSection({
   );
 }
 
-function GuestsSection({
-  eventId,
-  guests,
-}: {
-  eventId: string;
-  guests: EventImpactDerived;
-}) {
-  return (
-    <Section
-      title="Guests"
-      empty={guests.participants === 0 && guests.checkedIn === 0}
-      emptyMessage="No attendance recorded for this event."
-    >
-      <Figure
-        eventId={eventId}
-        card="attendance"
-        label="Participants"
-        value={formatNumber(guests.participants)}
-        caption="Headcount from the Attendance card"
-      />
-      <Figure
-        eventId={eventId}
-        card="registrants"
-        label="Checked in"
-        value={formatNumber(guests.checkedIn)}
-      />
-      <Figure
-        eventId={eventId}
-        card="impact"
-        label="First-time participants"
-        value={formatNumber(guests.firstTimeParticipants)}
-      />
-    </Section>
-  );
-}
-
 function OperationsSection({
   eventId,
   operations,
@@ -374,18 +332,12 @@ function OperationsSection({
 }
 
 /**
- * The Report card's computed summary (#1576): read-only figures from the
- * event's own records, in place of the typed `report_summary`. A section the
- * reader may not see is not rendered; one with nothing recorded says so
- * rather than showing zeros.
+ * The Results card's Money, Goods, Sponsors, Team and Operations sections
+ * (#1576, #1588): read-only figures from the event's own records. A section
+ * the reader may not see is not rendered; one with nothing recorded says so
+ * rather than showing zeros. Participation and people served are Outcomes'.
  */
-export function EventReportSummary({
-  eventId,
-  guests,
-}: {
-  eventId: string;
-  guests: EventImpactDerived | undefined;
-}) {
+export function EventReportSummary({ eventId }: { eventId: string }) {
   const { data: report, loadError } = useTabData<EventReport>(
     () => getEventReportAction(eventId),
     [eventId],
@@ -415,7 +367,6 @@ export function EventReportSummary({
         <SponsorsSection eventId={eventId} sponsors={report.sponsors} />
       )}
       {report.team && <TeamSection eventId={eventId} team={report.team} />}
-      {guests && <GuestsSection eventId={eventId} guests={guests} />}
       {report.operations && (
         <OperationsSection eventId={eventId} operations={report.operations} />
       )}

@@ -60,7 +60,7 @@ const COUNT_COLUMN: Record<string, string> = {
 const EXPECTED_COUNTS: Record<string, number> = {
   people: 135,
   events: 58,
-  event_registrations: 89,
+  event_registrations: 91,
   donations: 143,
   inventory_items: 277,
   inventory_movements: 433,
@@ -69,7 +69,7 @@ const EXPECTED_COUNTS: Record<string, number> = {
   governance_meetings: 21,
   volunteer_applications: 47,
   reimbursements: 36,
-  discount_codes: 135,
+  discount_codes: 138,
   // Hand-authored rather than drawn (#907, #908), so these are exact by
   // construction: three products, six variants, and two sales (#908) -- one
   // completed with two lines, one voided with one.
