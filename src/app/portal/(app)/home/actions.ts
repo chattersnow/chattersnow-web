@@ -127,7 +127,13 @@ export async function listEventDonationsAction(
   eventId: string,
 ): Promise<{ data: EventDonationRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "finance", "view");
+  // In-kind donations are inventory as much as finance (#1572): the same
+  // inventory checks as the event's Distributions card, alongside finance.
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "finance", level: "view" },
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_reports", level: "view" },
+  ]);
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
