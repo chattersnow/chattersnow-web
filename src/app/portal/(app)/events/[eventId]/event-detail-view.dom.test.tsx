@@ -41,6 +41,7 @@ const getEventImpactDerivedActionMock = mock(async () => ({
     profiledAttendees: 0,
     discountCodesAssigned: 0,
     autoAssignDiscountCodes: false,
+    peopleServed: { distributed: 0, recipients: 0, value: 0 },
   },
 }));
 
@@ -230,9 +231,9 @@ describe("EventDetailView", () => {
   test("lists every section at once, under its group heading", () => {
     renderView();
 
-    // The whole point of the rail (#1008): all 19 sections are readable
+    // The whole point of the rail (#1008): all 20 sections are readable
     // without opening anything, so finding one is not a memory test.
-    expect(rail().getAllByRole("button")).toHaveLength(19);
+    expect(rail().getAllByRole("button")).toHaveLength(20);
     for (const heading of [
       "Overview",
       "Guests",

@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseDonationForm } from "./donation-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import {
+  checkPermission,
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
+import { DONATION_COLUMNS, type MonetaryDonationRow } from "./donations-shared";
 import {
   AMOUNT_PARAM_PATTERN,
   givingUrlError,
@@ -17,6 +22,51 @@ import {
 } from "@/lib/giving";
 
 export type DonationActionResult = { error: string } | { success: true };
+
+export type EventMonetaryDonationRow = MonetaryDonationRow & {
+  /** Set when the gift is a sponsorship's cash mirror (sponsor sync). */
+  event_sponsors: { id: string }[];
+};
+
+export type EventMonetaryDonations = {
+  rows: EventMonetaryDonationRow[];
+  /** Finance > Donations is the ledger, which takes `finance:manage`. */
+  canOpenLedger: boolean;
+};
+
+/**
+ * An event's cash donations, for the event page's Cash donations card
+ * (#1577). Behind `finance:view`, the table's own select policy -- the card
+ * is a read of the rows, and Finance > Donations, where they are edited,
+ * takes `finance:manage`.
+ */
+export async function listEventMonetaryDonationsAction(
+  eventId: string,
+): Promise<{ data: EventMonetaryDonations } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const permissionError = await checkPermission(supabase, "finance", "view");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("monetary_donations")
+    .select(`${DONATION_COLUMNS}, event_sponsors(id)`)
+    .eq("event_id", eventId)
+    .order("received_date", { ascending: false })
+    .order("id", { ascending: true });
+
+  if (error) {
+    return {
+      error: "Could not load this event's donations. Please try again.",
+    };
+  }
+  const permissions = await getCurrentUserPermissions(supabase);
+  return {
+    data: {
+      rows: (data ?? []) as unknown as EventMonetaryDonationRow[],
+      canOpenLedger: hasPermission(permissions, "finance", "manage"),
+    },
+  };
+}
 
 function revalidateDonationPaths() {
   revalidatePath("/portal/finance/donations");

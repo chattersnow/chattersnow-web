@@ -120,6 +120,28 @@ function DerivedFigures({ derived }: { derived: EventImpactDerived | null }) {
         </p>
       </div>
 
+      <div className="flex flex-col gap-3">
+        <h4 className="text-sm font-semibold">People served</h4>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatTile
+            label="Items distributed"
+            value={derived.peopleServed.distributed}
+          />
+          <StatTile
+            label="People who received items"
+            value={derived.peopleServed.recipients}
+          />
+          <StatTile
+            label="Value given out"
+            value={formatCurrency(derived.peopleServed.value)}
+          />
+        </div>
+        <p className="app-muted text-xs">
+          From the Distributions card. A distribution recorded without a
+          recipient counts as items given out but not as a person served.
+        </p>
+      </div>
+
       {derived.discountCodesAssigned !== null && (
         <div className="flex flex-col gap-3">
           <h4 className="text-sm font-semibold">Discount codes</h4>
@@ -235,8 +257,8 @@ export function ImpactTab({
           <InfoIcon />
           <AlertTitle>How these numbers are calculated</AlertTitle>
           <AlertDescription>
-            Participation and discount-code figures are computed live from
-            attendance, check-ins,{" "}
+            Participation, people served and discount-code figures are computed
+            live from attendance, check-ins, distributions,{" "}
             {derived?.beginnerParticipants != null
               ? "volunteer records and rider profiles"
               : "and volunteer records"}{" "}

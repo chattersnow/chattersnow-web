@@ -14,6 +14,10 @@ export type ImpactNoteRow = {
 export type DistributedMovementRow = {
   quantity: number | string;
   event_id: string | null;
+  /** Who received it, when the movement recorded one. */
+  recipient_person_id?: string | null;
+  inventory_item_id?: string | null;
+  face_value?: number | string | null;
 };
 export type VolunteerHoursRow = {
   event_id: string | null;
@@ -66,6 +70,53 @@ export function sumDistributedQuantity(
     (total, movement) => total + toNumber(movement.quantity),
     0,
   );
+}
+
+export type PeopleServed = {
+  /** Units handed out: the sum of the movements' quantities. */
+  distributed: number;
+  /**
+   * Distinct recipients per event, summed across events -- a participation
+   * count like `participants`, not a unique-people count. Movements with no
+   * recorded recipient are in `distributed` but not here.
+   */
+  recipients: number;
+  /** Face value of the distinct items handed out, each item counted once. */
+  value: number;
+};
+
+/**
+ * People served by an event's distributions (#1577). One definition for the
+ * Impact card, the Report card's Goods section and the program rollup.
+ */
+export function computePeopleServed(
+  movements: DistributedMovementRow[],
+): PeopleServed {
+  const recipientsByEvent = new Map<string, Set<string>>();
+  const valueByItem = new Map<string, number>();
+  for (const movement of movements) {
+    if (movement.recipient_person_id) {
+      const key = movement.event_id ?? "";
+      const people = recipientsByEvent.get(key) ?? new Set<string>();
+      people.add(movement.recipient_person_id);
+      recipientsByEvent.set(key, people);
+    }
+    if (movement.inventory_item_id) {
+      valueByItem.set(
+        movement.inventory_item_id,
+        toNumber(movement.face_value ?? null),
+      );
+    }
+  }
+  let recipients = 0;
+  for (const people of recipientsByEvent.values()) recipients += people.size;
+  let value = 0;
+  for (const itemValue of valueByItem.values()) value += itemValue;
+  return {
+    distributed: sumDistributedQuantity(movements),
+    recipients,
+    value,
+  };
 }
 
 export function sumVolunteerHours(rows: VolunteerHoursRow[]): number {
@@ -222,6 +273,7 @@ export type EventImpactDerivedInput = {
   beginnerAttendees: PersonEventRow[] | null;
   profiledAttendees: PersonEventRow[] | null;
   autoAssignDiscountCodes: boolean;
+  distributions: DistributedMovementRow[];
 };
 
 export type EventImpactDerived = {
@@ -239,6 +291,7 @@ export type EventImpactDerived = {
   discountCodesAssigned: number | null;
   /** True when every registrant is auto-assigned a code, so it isn't a subsidy signal. */
   autoAssignDiscountCodes: boolean;
+  peopleServed: PeopleServed;
 };
 
 export function computeEventImpactDerived(
@@ -269,6 +322,7 @@ export function computeEventImpactDerived(
       ? countSubsidizedTickets(input.discountCodes)
       : null,
     autoAssignDiscountCodes: input.autoAssignDiscountCodes,
+    peopleServed: computePeopleServed(input.distributions),
   };
 }
 
@@ -287,6 +341,10 @@ export type ProgramImpactRollup = {
   volunteerParticipants: number;
   assistedParticipants: number;
   equipmentDistributed: number;
+  /** Distinct distribution recipients per event, summed. */
+  distributionRecipients: number;
+  /** Face value of the items distributed. */
+  distributedValue: number;
   volunteerHours: number;
   participantAssistanceTotal: number;
   repeatParticipants: number;
@@ -310,6 +368,7 @@ export type ProgramImpactRollupInput = {
 export function computeProgramImpactRollup(
   input: ProgramImpactRollupInput,
 ): ProgramImpactRollup {
+  const peopleServed = computePeopleServed(input.distributedMovements);
   return {
     eventCount: input.eventCount,
     participants: computeParticipants(input.events, input.registrations),
@@ -330,7 +389,9 @@ export function computeProgramImpactRollup(
     assistedParticipants:
       countSubsidizedTickets(input.discountCodes) +
       sumNotes(input.notes, "rental_subsidies_count"),
-    equipmentDistributed: sumDistributedQuantity(input.distributedMovements),
+    equipmentDistributed: peopleServed.distributed,
+    distributionRecipients: peopleServed.recipients,
+    distributedValue: peopleServed.value,
     volunteerHours: sumVolunteerHours(input.volunteerHours),
     participantAssistanceTotal: sumNotes(input.notes, "assistance_total"),
     repeatParticipants: countRepeatParticipants(input.registrations),

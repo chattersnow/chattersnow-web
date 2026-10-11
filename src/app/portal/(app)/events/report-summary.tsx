@@ -36,10 +36,10 @@ const STREAM_LABELS: Record<string, string> = {
   [CASH_SPONSORSHIPS_STREAM]: "Cash sponsorships",
 };
 
-// Where each income stream's rows live. Cash donations have no card on the
-// event page yet (#1577), so that figure has nowhere to link.
+// Where each income stream's rows live.
 const STREAM_CARDS: Record<string, TabValue | undefined> = {
   [MERCHANDISE_SOURCE]: "sales",
+  [CASH_DONATIONS_STREAM]: "cash-donations",
   [GIVEAWAY_TICKETS_SOURCE]: "giveaway",
   [CASH_SPONSORSHIPS_STREAM]: "sponsors",
 };

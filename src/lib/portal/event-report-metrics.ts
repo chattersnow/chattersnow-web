@@ -18,6 +18,7 @@ import {
   type SpendReportRow,
   type StatusTotal,
 } from "@/app/portal/(app)/finance/reports/summary";
+import { computePeopleServed } from "@/lib/portal/impact-metrics";
 
 type Amount = number | string | null;
 
@@ -249,13 +250,13 @@ export function computeEventGoods(
   const sponsorItems = rows.in_kind_items.filter((row) => row.sponsor_id);
   const donatedItems = rows.in_kind_items.filter((row) => !row.sponsor_id);
 
-  // An item's face value is counted once however many movements it has.
-  const distributedItems = new Map<string, Amount>();
-  const recipients = new Set<string>();
-  for (const row of rows.distributions) {
-    distributedItems.set(row.inventory_item_id, row.face_value);
-    if (row.recipient_person_id) recipients.add(row.recipient_person_id);
-  }
+  // People served is Impact's definition (#1577), so the two cards agree.
+  const served = computePeopleServed(
+    rows.distributions.map((row) => ({ ...row, event_id: null })),
+  );
+  const distributedItems = new Set(
+    rows.distributions.map((row) => row.inventory_item_id),
+  );
 
   const awarded = rows.prizes.filter((prize) => prize.awarded);
 
@@ -269,10 +270,10 @@ export function computeEventGoods(
       value: sum(sponsorItems, (row) => row.face_value),
     },
     distributed: {
-      quantity: rows.distributions.reduce((t, row) => t + row.quantity, 0),
+      quantity: served.distributed,
       items: distributedItems.size,
-      recipients: recipients.size,
-      value: sum([...distributedItems.values()], (value) => value),
+      recipients: served.recipients,
+      value: served.value,
     },
     prizes: {
       count: rows.prizes.length,

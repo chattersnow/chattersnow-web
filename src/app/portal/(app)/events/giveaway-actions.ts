@@ -69,8 +69,8 @@ export type Giveaway = {
   id: string;
   event_id: string;
   name: string | null;
+  /** Retired hand-entered figures (#1577), read only to show the archive. */
   tickets_sold: number;
-  ticket_price: number | string | null;
   revenue_amount: number | string;
   drawing_date: string | null;
   notes: string | null;
@@ -102,7 +102,7 @@ export async function getEventGiveawayAction(
   const { data, error } = await supabase
     .from("giveaways")
     .select(
-      "id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, source_inventory_item_id, source_monetary_donation_id, bucket_id, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
+      "id, event_id, name, tickets_sold, revenue_amount, drawing_date, notes, giveaway_prizes(id, giveaway_id, prize_name, donor_person_id, donor:people(id, name, email, phone), estimated_value, notes, source_inventory_item_id, source_monetary_donation_id, bucket_id, giveaway_winners(id, giveaway_prize_id, winner_name, winner_contact, distribution_status, distributed_at, notes))",
     )
     .eq("event_id", eventId)
     .order("created_at", {
@@ -177,16 +177,14 @@ export async function upsertEventGiveawayAction(
 
   const parsed = parseGiveawayForm(formData);
   if ("error" in parsed) return parsed;
-  const { name, ticketsSold, ticketPrice, revenueAmount, drawingDate, notes } =
-    parsed.data;
+  const { name, drawingDate, notes } = parsed.data;
 
   const { error } = await supabase.from("giveaways").upsert(
     {
       event_id: eventId,
       name,
-      tickets_sold: ticketsSold,
-      ticket_price: ticketPrice,
-      revenue_amount: revenueAmount,
+      // tickets_sold, ticket_price and revenue_amount are retired (#1577) and
+      // left as they are, so a hand-entered figure stays archived.
       drawing_date: drawingDate,
       notes,
     },

@@ -19,6 +19,7 @@ import {
   createPublishedEvent,
   signInAs,
 } from "../../../../../test/integration-setup";
+import { SEEDED_EVENT_IDS } from "../../../../../test/seed-fixtures";
 
 let currentSupabase: SupabaseClient;
 mock.module("@/lib/supabase/server", () => ({
@@ -134,6 +135,33 @@ describe("get_event_impact_derived_data (integration)", () => {
       expect(result.data).toEqual(asAdmin.data);
     }
 
+    await seeded.cleanup();
+  });
+
+  // #1577: the seeded past event hands out one $15 pullover to one person.
+  test("people served reads the event's distributions, for board as for admin", async () => {
+    for (const user of [SEEDED_USERS.admin, SEEDED_USERS.board]) {
+      currentSupabase = await signInAs(user);
+      const result = await getEventImpactDerivedAction(SEEDED_EVENT_IDS.past);
+      if ("error" in result) throw new Error(result.error);
+      expect(result.data.peopleServed).toEqual({
+        distributed: 1,
+        recipients: 1,
+        value: 15,
+      });
+    }
+  });
+
+  test("an event with nothing distributed serves nobody", async () => {
+    const seeded = await seedEvent();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.peopleServed).toEqual({
+      distributed: 0,
+      recipients: 0,
+      value: 0,
+    });
     await seeded.cleanup();
   });
 
