@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { CreateDonationInput } from "./donation-form";
 import * as HomeActions from "./actions";
 import { labelText } from "../../../../../test/labels";
+import { PortalDeviceProvider } from "@/lib/portal/device-context";
 
 type CreateDonationResult = HomeActions.CreateDonationResult & {
   labelsHref?: string | null;
@@ -149,6 +150,27 @@ describe("AddDonationModal", () => {
     getIntakeNumberedOnlyActionMock.mockImplementation(async () => ({
       data: false,
     }));
+  });
+
+  // A form slides up from the bottom on a phone, like every other portal
+  // form; at a desk it stays a right-hand sheet.
+  test("opens from the bottom on a phone and the right at a desk", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(
+      <PortalDeviceProvider device="mobile">
+        <AddDonationModal />
+      </PortalDeviceProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Record donation" }));
+    expect(
+      document.querySelector('[data-slot="sheet-content"]'),
+    ).toHaveAttribute("data-side", "bottom");
+    unmount();
+
+    await openModal(user);
+    expect(
+      document.querySelector('[data-slot="sheet-content"]'),
+    ).toHaveAttribute("data-side", "right");
   });
 
   test("blocks continuing without a donor name", async () => {

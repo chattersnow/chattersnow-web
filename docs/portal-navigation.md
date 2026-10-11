@@ -182,6 +182,12 @@ Three surfaces, three answers, decided once so no call site re-opens them.
   footer, because a dialog pins its footer with `sticky` and a sheet pins it
   with `mt-auto` inside a fixed-height column — incompatible layouts that a
   call site should not have to pick between.
+- **On a phone, every form slides up from the bottom** — the 92dvh sheet with a
+  rounded top and a pinned, safe-area-padded footer — whatever it is at a desk.
+  A form that cannot sit inside `PortalFormSurface` (a multi-step right-hand
+  sheet such as "Accept a donation") forks `side` on `usePortalDevice()` and
+  takes `MOBILE_FORM_SHEET_CLASS` / `MOBILE_FORM_SHEET_FOOTER_CLASS` from the
+  surface rather than restating them. The audit of existing forms is #1561.
 - **A destructive confirm is an `AlertDialog`, centred on both.** It is a
   question, not a task. Giving two lines 92% of a phone screen overstates it,
   and it lands "Delete" under the thumb that was on "Cancel" a moment ago.
