@@ -55,6 +55,8 @@ export type DonationRow = {
   inventory_items: DonationItemRow[];
 };
 
+export type EventOption = { id: string; name: string };
+
 export function donorLabel(donor: DonationRow["donor"]) {
   return donor.is_anonymous ? "Anonymous" : donor.name || "—";
 }

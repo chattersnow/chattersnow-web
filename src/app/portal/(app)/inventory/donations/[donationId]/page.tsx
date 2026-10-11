@@ -37,14 +37,23 @@ export default async function DonationDetailPage({
   const { donationId } = await params;
   const supabase = await createSupabaseServerClient();
 
-  const { data: donation, error } = await supabase
-    .from("donations")
-    .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
-    )
-    .eq("id", donationId)
-    .order("id", { referencedTable: "inventory_items", ascending: true })
-    .maybeSingle();
+  const [{ data: donation, error }, { data: events }] = await Promise.all([
+    supabase
+      .from("donations")
+      .select(
+        "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
+      )
+      .eq("id", donationId)
+      .order("id", { referencedTable: "inventory_items", ascending: true })
+      .maybeSingle(),
+    // The same capped list the donations page filters by, for the edit
+    // sheet's event picker.
+    supabase
+      .from("events")
+      .select("id, name")
+      .order("starts_at", { ascending: false })
+      .limit(200),
+  ]);
 
   if (error) {
     return (
@@ -56,15 +65,29 @@ export default async function DonationDetailPage({
     );
   }
   if (!donation) notFound();
+  const row = donation as unknown as DonationRow;
 
   return (
     <>
       <PortalBreadcrumbs
-        current={donorLabel((donation as unknown as DonationRow).donor)}
+        current={donorLabel(row.donor)}
+        // A donation taken at an event sits under that event's donations,
+        // so the trail leads back to the list filtered to it.
+        parents={
+          row.event
+            ? [
+                {
+                  label: row.event.name,
+                  href: `/portal/inventory/donations?event=${row.event.id}`,
+                },
+              ]
+            : undefined
+        }
       />
 
       <DonationDetailView
-        donation={withFlatItemCategories(donation as unknown as DonationRow)}
+        donation={withFlatItemCategories(row)}
+        events={events ?? []}
       />
     </>
   );

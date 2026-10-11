@@ -6,6 +6,8 @@ export type DonationEditFormData = {
    *  is what used to turn it into UTC midnight and read back a day early. */
   donated_at: string;
   notes: string | null;
+  /** The event the donation came in at, or null for none. */
+  event_id: string | null;
 };
 
 export function parseDonationEditForm(
@@ -24,6 +26,7 @@ export function parseDonationEditForm(
     data: {
       donated_at: donatedAtRaw,
       notes: String(formData.get("notes") ?? "").trim() || null,
+      event_id: String(formData.get("eventId") ?? "").trim() || null,
     },
   };
 }
