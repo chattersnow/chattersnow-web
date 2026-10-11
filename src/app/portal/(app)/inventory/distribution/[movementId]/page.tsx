@@ -7,6 +7,8 @@ import {
 } from "@/lib/auth/permissions";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ItemHistoryRow } from "../../items/[itemId]/item-history";
+import { acknowledgementFromHistory } from "./acknowledgement";
 import {
   DistributionDetailView,
   type DistributionDetailRow,
@@ -63,6 +65,16 @@ export default async function DistributionDetailPage({
   }
   if (!movement) notFound();
 
+  const itemId = (movement as unknown as DistributionDetailRow).inventory_item
+    ?.id;
+  // The item's history resolves the as-is acknowledgement (#1519), including
+  // one carried by the gear request the handout fulfilled.
+  const { data: history } = itemId
+    ? await supabase
+        .rpc("inventory_item_history", { p_item_id: itemId })
+        .overrideTypes<ItemHistoryRow[], { merge: false }>()
+    : { data: null };
+
   return (
     <>
       <PortalBreadcrumbs
@@ -74,6 +86,7 @@ export default async function DistributionDetailPage({
 
       <DistributionDetailView
         movement={movement as unknown as DistributionDetailRow}
+        acknowledgement={acknowledgementFromHistory(history, movementId)}
         canManage={canManage}
       />
     </>
