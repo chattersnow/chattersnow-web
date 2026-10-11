@@ -40,7 +40,7 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
 
 describe("DonationDetailView", () => {
   test("shows the donation and item details in flat cards", () => {
-    render(<DonationDetailView donation={makeDonation()} />);
+    render(<DonationDetailView donation={makeDonation()} events={[]} />);
 
     expect(
       screen.getByRole("heading", { name: "Jane Donor" }),
@@ -65,6 +65,7 @@ describe("DonationDetailView", () => {
             source_type: "individual",
           },
         })}
+        events={[]}
       />,
     );
 
@@ -74,7 +75,7 @@ describe("DonationDetailView", () => {
   });
 
   test("editing happens through a sheet opened from the page header", () => {
-    render(<DonationDetailView donation={makeDonation()} />);
+    render(<DonationDetailView donation={makeDonation()} events={[]} />);
 
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
   });

@@ -97,7 +97,7 @@ async function openSheet(
   user: ReturnType<typeof userEvent.setup>,
   donation: DonationRow = makeDonation(),
 ) {
-  render(<EditDonationSheet donation={donation} />);
+  render(<EditDonationSheet donation={donation} events={[]} />);
   await user.click(screen.getByRole("button", { name: "Edit" }));
 }
 
@@ -124,6 +124,36 @@ describe("EditDonationSheet", () => {
     expect(screen.getByLabelText(labelText("Item description"))).toHaveValue(
       "Winter jacket",
     );
+  });
+
+  test("keeps the linked event, even one outside the picker's list", async () => {
+    const user = userEvent.setup();
+    await openSheet(
+      user,
+      makeDonation({
+        event_id: "event-old",
+        event: { id: "event-old", name: "Last Winter's Drive" },
+      }),
+    );
+
+    expect(screen.getByLabelText("Source event")).toHaveTextContent(
+      "Last Winter's Drive",
+    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const formData = updateDonationActionMock.mock.calls[0][1];
+    expect(formData.get("eventId")).toBe("event-old");
+  });
+
+  test("sends no event for a donation not taken at one", async () => {
+    const user = userEvent.setup();
+    await openSheet(user);
+
+    expect(screen.getByLabelText("Source event")).toHaveTextContent("No event");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const formData = updateDonationActionMock.mock.calls[0][1];
+    expect(formData.get("eventId")).toBe("");
   });
 
   test("saves an edited donation date and notes", async () => {

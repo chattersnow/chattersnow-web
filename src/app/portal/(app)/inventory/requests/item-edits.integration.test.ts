@@ -1,7 +1,8 @@
 // Integration coverage for staff edits to an open gear request (#1527): adding
 // an item, removing one, and editing the notes -- the RPCs' refusals, the
 // sentences the actions answer with, and that a removed item no longer reads
-// as part of the request anywhere that keys on its `reserved` movements.
+// as part of the request anywhere that keys on its `reserved` movements --
+// including fulfilment, which distributes only what the request still holds.
 //
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
@@ -207,6 +208,33 @@ describe("gear request item edits", () => {
       success: true,
     });
     expect(await itemStatus(removed)).toBe("reserved");
+  });
+
+  test("fulfilling hands over what the request still holds, and nothing else", async () => {
+    const request = await newGearRequest(2);
+    const [removed, kept] = request.itemIds;
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    await removeGearRequestItemAction(request.id, removed);
+
+    expect(await setGearRequestStatusAction(request.id, "fulfilled")).toEqual({
+      success: true,
+    });
+    expect(await itemStatus(kept)).toBe("distributed");
+    expect(await itemStatus(removed)).toBe("available");
+
+    const { data: requester } = await service
+      .from("gear_requests")
+      .select("person_id")
+      .eq("id", request.id)
+      .single();
+    const { data: handover } = await service
+      .from("inventory_movements")
+      .select("inventory_item_id, recipient_person_id")
+      .eq("gear_request_id", request.id)
+      .eq("movement_type", "distributed");
+    expect(handover).toEqual([
+      { inventory_item_id: kept, recipient_person_id: requester?.person_id },
+    ]);
   });
 
   test("notes are trimmed, blank clears them, and a closed request refuses", async () => {
