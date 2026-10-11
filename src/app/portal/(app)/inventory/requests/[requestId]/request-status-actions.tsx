@@ -17,8 +17,9 @@ import type { GearRequestStatus } from "@/lib/gear-requests";
 /**
  * The next thing staff can do with an open request (#1032). For shipping
  * the sequence is quote, then paid, then fulfilled; a meetup skips straight
- * to fulfilled. Cancelling is always available and puts the held items back
- * in the catalogue, so it asks twice.
+ * to fulfilled, which records the held items as distributed to the requester.
+ * Cancelling is always available and puts the held items back in the
+ * catalogue, so it asks twice.
  */
 export function GearRequestStatusActions({
   requestId,
@@ -125,7 +126,7 @@ export function GearRequestStatusActions({
               type="button"
               disabled={isPending}
               onClick={() =>
-                move("fulfilled", null, "Request marked as fulfilled.")
+                move("fulfilled", null, "Request fulfilled; items distributed.")
               }
             >
               Mark fulfilled
