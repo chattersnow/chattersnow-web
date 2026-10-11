@@ -13,6 +13,8 @@ import type { PermissionLevel, PermissionMap } from "@/lib/auth/permissions";
 import {
   EVENT_GROUPS,
   LEGACY_PHASE_CARDS,
+  LEGACY_TAB_VALUES,
+  LOCKED_ON_REPORT_SUBMIT_TABS,
   TAB_CONFIG,
   eventGroups,
   type TabValue,
@@ -70,8 +72,7 @@ describe("eventGroups", () => {
     // donations are inventory too, so their card stays (#1572).
     expect(visible).toContain("donations");
     expect(visible).toContain("overview");
-    expect(visible).toContain("report");
-    expect(visible).toContain("impact");
+    expect(visible).toContain("results");
     expect(visible).toContain("distributions");
   });
 
@@ -128,6 +129,18 @@ describe("eventGroups", () => {
     for (const card of Object.values(LEGACY_PHASE_CARDS)) {
       expect(visible).toContain(card);
     }
+  });
+
+  test("Report and Impact are one Results card, and old links land on it", () => {
+    // #1588: one card, with both old values pointing at it.
+    const visible = cards({ events: "view" });
+    expect(visible).toContain("results");
+    expect(visible).not.toContain("report" as TabValue);
+    expect(visible).not.toContain("impact" as TabValue);
+    expect(LEGACY_TAB_VALUES.report).toBe("results");
+    expect(LEGACY_TAB_VALUES.impact).toBe("results");
+    // Submitting the report locks all of it, Outcomes included.
+    expect(LOCKED_ON_REPORT_SUBMIT_TABS.has("results")).toBe(true);
   });
 
   test("carries each card's display title, not its bare catalog label", () => {

@@ -6,9 +6,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  DiscountCodeDetailFields,
+  emptyDiscountCodeDetails,
+  setDiscountCodeDetails,
+} from "./discount-code-detail-fields";
 
 export function AddDiscountCodesDialog({
   eventId,
@@ -21,15 +25,13 @@ export function AddDiscountCodesDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [codes, setCodes] = useState("");
-  const [description, setDescription] = useState("");
-  const [source, setSource] = useState("");
+  const [details, setDetails] = useState(emptyDiscountCodeDetails);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function reset() {
     setCodes("");
-    setDescription("");
-    setSource("");
+    setDetails(emptyDiscountCodeDetails());
     setError(null);
   }
 
@@ -44,8 +46,7 @@ export function AddDiscountCodesDialog({
 
     const formData = new FormData();
     formData.set("codes", codes);
-    formData.set("description", description);
-    formData.set("source", source);
+    setDiscountCodeDetails(formData, details);
 
     startTransition(async () => {
       const result = await createDiscountCodesAction(eventId, formData);
@@ -109,28 +110,11 @@ export function AddDiscountCodesDialog({
           />
         </Field>
 
-        <Field orientation="responsive">
-          <Field>
-            <FieldLabel htmlFor="discount-codes-description">
-              Discount description
-            </FieldLabel>
-            <Input
-              id="discount-codes-description"
-              placeholder="e.g. $10 off"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="discount-codes-source">Source</FieldLabel>
-            <Input
-              id="discount-codes-source"
-              placeholder="e.g. ACME Vendor"
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-            />
-          </Field>
-        </Field>
+        <DiscountCodeDetailFields
+          idPrefix="discount-codes"
+          details={details}
+          onChange={setDetails}
+        />
 
         {error && (
           <Alert variant="destructive">

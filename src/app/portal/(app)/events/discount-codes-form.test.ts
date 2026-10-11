@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { parseDiscountCodesForm } from "./discount-codes-form";
+import {
+  parseDiscountCodeDetails,
+  parseDiscountCodesForm,
+} from "./discount-codes-form";
 
 function formData(fields: Record<string, string>) {
   const data = new FormData();
@@ -24,6 +27,8 @@ describe("parseDiscountCodesForm", () => {
         codes: ["SNOW10", "SNOW20"],
         description: "Season pass batch",
         source: "Resort partner",
+        kind: null,
+        value: null,
       },
     });
   });
@@ -74,6 +79,48 @@ describe("parseDiscountCodesForm", () => {
   test("rejects an entirely empty form", () => {
     expect(parseDiscountCodesForm(new FormData())).toEqual({
       error: "Enter at least one code, one per line.",
+    });
+  });
+});
+
+// #1588: what a code pays for and is worth feed the Results card.
+describe("parseDiscountCodeDetails", () => {
+  test("reads a kind and a value, rounded to cents", () => {
+    expect(
+      parseDiscountCodeDetails(formData({ kind: "rental", value: "45.555" })),
+    ).toEqual({
+      data: { description: null, source: null, kind: "rental", value: 45.56 },
+    });
+  });
+
+  test("leaves both optional", () => {
+    expect(parseDiscountCodeDetails(formData({}))).toEqual({
+      data: { description: null, source: null, kind: null, value: null },
+    });
+  });
+
+  test("rejects a kind outside the list", () => {
+    expect(parseDiscountCodeDetails(formData({ kind: "parking" }))).toEqual({
+      error: "Choose what the code is for from the list.",
+    });
+  });
+
+  test("rejects a negative or non-numeric value", () => {
+    for (const value of ["-1", "abc", "Infinity"]) {
+      expect(parseDiscountCodeDetails(formData({ value }))).toEqual({
+        error: "Value must be a positive amount.",
+      });
+    }
+  });
+
+  test("a batch carries the details to every code", () => {
+    const result = parseDiscountCodesForm(
+      formData({ codes: "A\nB", kind: "lift", value: "60" }),
+    );
+    expect("data" in result && result.data).toMatchObject({
+      codes: ["A", "B"],
+      kind: "lift",
+      value: 60,
     });
   });
 });

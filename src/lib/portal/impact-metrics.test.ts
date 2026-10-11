@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   computeEventImpactDerived,
+  computeParticipantAssistance,
   computePeopleServed,
   countBeginnerParticipants,
   countCheckedIn,
+  countFirstTimeOnSnow,
   countProfiledAttendees,
+  countRentalSubsidies,
   countVolunteerParticipants,
 } from "./impact-metrics";
 
@@ -104,8 +107,12 @@ describe("computeEventImpactDerived", () => {
     checkinCounts,
     eventVolunteers: [{ event_id: "e1", person_id: "v1" }],
     volunteerHourPeople: [],
-    discountCodes: [{ event_id: "e1", registration_id: "r1" }],
+    discountCodes: [
+      { event_id: "e1", registration_id: "r1", kind: "rental", value: "45" },
+    ],
     beginnerAttendees: [{ event_id: "e1", person_id: "p1" }],
+    firstTimeAttendees: [{ event_id: "e1", person_id: "p2" }],
+    assistanceExpenses: [{ event_id: "e1", amount: "100.00" }],
     profiledAttendees: [
       { event_id: "e1", person_id: "p1" },
       { event_id: "e1", person_id: "p2" },
@@ -147,10 +154,15 @@ describe("computeEventImpactDerived", () => {
       ...baseInput,
       discountCodes: null,
       beginnerAttendees: null,
+      firstTimeAttendees: null,
       profiledAttendees: null,
+      assistanceExpenses: null,
     });
     expect(result.discountCodesAssigned).toBeNull();
+    expect(result.rentalSubsidies).toBeNull();
+    expect(result.assistance).toBeNull();
     expect(result.beginnerParticipants).toBeNull();
+    expect(result.firstTimeOnSnow).toBeNull();
     expect(result.profiledAttendees).toBeNull();
     // Figures the viewer is allowed to see still compute.
     expect(result.participants).toBe(30);
@@ -169,6 +181,137 @@ describe("computeEventImpactDerived", () => {
       computeEventImpactDerived({ ...baseInput, autoAssignDiscountCodes: true })
         .autoAssignDiscountCodes,
     ).toBe(true);
+  });
+
+  // #1588: the four typed figures, derived.
+  test("derives first time on snow, rental subsidies and assistance", () => {
+    const result = computeEventImpactDerived(baseInput);
+    expect(result.firstTimeOnSnow).toBe(1);
+    expect(result.rentalSubsidies).toBe(1);
+    expect(result.assistance).toEqual({
+      discountCodes: 45,
+      distributions: 40,
+      expenses: 100,
+      total: 185,
+    });
+  });
+
+  test("on an auto-assign event, codes are neither subsidy nor assistance", () => {
+    const result = computeEventImpactDerived({
+      ...baseInput,
+      autoAssignDiscountCodes: true,
+    });
+    // Still counted as assigned, with the card's caveat beside it.
+    expect(result.discountCodesAssigned).toBe(1);
+    expect(result.rentalSubsidies).toBe(0);
+    expect(result.assistance).toEqual({
+      discountCodes: 0,
+      distributions: 40,
+      expenses: 100,
+      total: 140,
+    });
+  });
+});
+
+describe("countFirstTimeOnSnow", () => {
+  test("counts distinct first-timers per event", () => {
+    expect(
+      countFirstTimeOnSnow([
+        { event_id: "e1", person_id: "p1" },
+        { event_id: "e1", person_id: "p1" },
+        { event_id: "e2", person_id: "p1" },
+      ]),
+    ).toBe(2);
+  });
+});
+
+describe("countRentalSubsidies", () => {
+  const events = [
+    { event_id: "e1", attendance_count: null },
+    {
+      event_id: "e2",
+      attendance_count: null,
+      auto_assign_discount_codes: true,
+    },
+  ];
+
+  test("counts assigned rental codes only", () => {
+    expect(
+      countRentalSubsidies(
+        [
+          { event_id: "e1", registration_id: "r1", kind: "rental" },
+          { event_id: "e1", registration_id: "r2", kind: "lift" },
+          { event_id: "e1", registration_id: "r3", kind: null },
+          { event_id: "e1", registration_id: null, kind: "rental" },
+        ],
+        events,
+      ),
+    ).toBe(1);
+  });
+
+  test("skips codes on an event that gives one to every registrant", () => {
+    expect(
+      countRentalSubsidies(
+        [
+          { event_id: "e1", registration_id: "r1", kind: "rental" },
+          { event_id: "e2", registration_id: "r2", kind: "rental" },
+        ],
+        events,
+      ),
+    ).toBe(1);
+  });
+});
+
+describe("computeParticipantAssistance", () => {
+  const events = [
+    { event_id: "e1", attendance_count: null },
+    {
+      event_id: "e2",
+      attendance_count: null,
+      auto_assign_discount_codes: true,
+    },
+  ];
+
+  test("adds code values, value given out and paid assistance expenses", () => {
+    expect(
+      computeParticipantAssistance(
+        [
+          { event_id: "e1", registration_id: "r1", kind: "lift", value: 60 },
+          {
+            event_id: "e1",
+            registration_id: "r2",
+            kind: "rental",
+            value: "45.50",
+          },
+          // No value recorded: counts as nothing, not NaN.
+          { event_id: "e1", registration_id: "r3", kind: "rental" },
+          // Unassigned: helped nobody yet.
+          { event_id: "e1", registration_id: null, value: 99 },
+          // Auto-assigned: not evidence of subsidy.
+          { event_id: "e2", registration_id: "r4", value: 25 },
+        ],
+        events,
+        80,
+        [
+          { event_id: "e1", amount: "120.00" },
+          { event_id: "e2", amount: 30 },
+        ],
+      ),
+    ).toEqual({
+      discountCodes: 105.5,
+      distributions: 80,
+      expenses: 150,
+      total: 335.5,
+    });
+  });
+
+  test("is all zeroes with nothing recorded", () => {
+    expect(computeParticipantAssistance([], [], 0, [])).toEqual({
+      discountCodes: 0,
+      distributions: 0,
+      expenses: 0,
+      total: 0,
+    });
   });
 });
 

@@ -15,8 +15,14 @@ import {
   submitEventReportAction,
   updateEventReportAction,
 } from "./actions";
+import {
+  getEventImpactAction,
+  upsertEventImpactAction,
+  type EventImpactNotes,
+} from "./impact-actions";
 import { ReportStatusBadge, type EventRow } from "./event-badges";
 import { EventReportSummary } from "./report-summary";
+import { ArchivedImpactFigures, OutcomesSection } from "./outcomes-section";
 import { RetroSection } from "./retro-section";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -33,23 +39,28 @@ import { useTabData } from "@/hooks/use-tab-data";
 import { runAction } from "@/components/portal/action-toast";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
 
-function formStateFor(event: EventRow) {
+function formStateFor(event: EventRow, impact: EventImpactNotes | undefined) {
   return {
     feedbackNotes: event.feedback_notes ?? "",
     contentNotes: event.content_notes ?? "",
+    impactNotes: impact?.note?.notes ?? "",
   };
 }
 
 type FormState = ReturnType<typeof formStateFor>;
 
-function isDirty(form: FormState, event: EventRow) {
-  const baseline = formStateFor(event);
+function isDirty(
+  form: FormState,
+  event: EventRow,
+  impact: EventImpactNotes | undefined,
+) {
+  const baseline = formStateFor(event, impact);
   return (Object.keys(baseline) as (keyof FormState)[]).some(
     (key) => form[key] !== baseline[key],
   );
 }
 
-export type ReportTabHandle = {
+export type ResultsTabHandle = {
   discard: () => void;
 };
 
@@ -66,9 +77,35 @@ function ArchivedSummary({ event }: { event: EventRow }) {
   );
 }
 
-export function ReportTab({
+/** Every figure on the card, in the issue's order: Outcomes, then the rest. */
+function Figures({
   event,
-  guests,
+  derived,
+  impact,
+}: {
+  event: EventRow;
+  derived: EventImpactDerived | undefined;
+  impact: EventImpactNotes | undefined;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      {derived && <OutcomesSection eventId={event.id} derived={derived} />}
+      <ArchivedImpactFigures eventId={event.id} note={impact?.note ?? null} />
+      <EventReportSummary eventId={event.id} />
+      <ArchivedSummary event={event} />
+    </div>
+  );
+}
+
+/**
+ * The event's Results card (#1588): Report and Impact merged. Outcomes, then
+ * the Money/Goods/Sponsors/Team/Operations summary, then the free text --
+ * every figure derived, and only the text typed. Status, Submit and Reopen
+ * apply to all of it, and submitting locks all of it.
+ */
+export function ResultsTab({
+  event,
+  derived,
   formId,
   mode,
   onSaved,
@@ -77,17 +114,30 @@ export function ReportTab({
   ref,
 }: {
   event: EventRow;
-  /** The Impact card's participant figures, reused for the Guests section. */
-  guests?: EventImpactDerived;
+  /** Outcomes' figures, from the shared get_event_impact_derived_data read. */
+  derived?: EventImpactDerived;
   formId: string;
   mode: "view" | "edit";
   onSaved: () => void;
   onPendingChange?: (pending: boolean) => void;
   onDirtyChange?: (dirty: boolean) => void;
-  ref?: Ref<ReportTabHandle>;
+  ref?: Ref<ResultsTabHandle>;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState(() => formStateFor(event));
+  const {
+    data: impact,
+    loadError: impactLoadError,
+    refresh: refreshImpact,
+  } = useTabData<EventImpactNotes>(
+    () => getEventImpactAction(event.id),
+    [event.id],
+  );
+  const [form, setForm] = useState(() => formStateFor(event, impact));
+  const [prevImpact, setPrevImpact] = useState(impact);
+  if (impact !== prevImpact) {
+    setPrevImpact(impact);
+    setForm((prev) => ({ ...prev, impactNotes: impact?.note?.notes ?? "" }));
+  }
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isSubmitting, startSubmitTransition] = useTransition();
@@ -109,13 +159,13 @@ export function ReportTab({
   }, [isPending, onPendingChange]);
 
   useEffect(() => {
-    onDirtyChange?.(isDirty(form, event));
-  }, [form, event, onDirtyChange]);
+    onDirtyChange?.(isDirty(form, event, impact));
+  }, [form, event, impact, onDirtyChange]);
 
   useImperativeHandle(ref, () => ({
     discard: () => {
       setError(null);
-      setForm(formStateFor(event));
+      setForm(formStateFor(event, impact));
     },
   }));
 
@@ -130,16 +180,31 @@ export function ReportTab({
     const formData = new FormData();
     formData.set("feedbackNotes", form.feedbackNotes);
     formData.set("contentNotes", form.contentNotes);
+    // Impact notes are their own row and permission (event_impact:manage);
+    // only sent when they changed, so a reader who may not write them never
+    // trips a refusal by saving the rest.
+    const notesChanged =
+      impact?.canManage && form.impactNotes !== (impact.note?.notes ?? "");
+    const notesData = new FormData();
+    notesData.set("notes", form.impactNotes);
 
     startTransition(async () => {
-      await runAction(() => updateEventReportAction(event.id, formData), {
-        success: "Event report saved.",
-        onError: setError,
-        onSuccess: () => {
-          router.refresh();
-          onSaved();
+      await runAction(
+        async () => {
+          const result = await updateEventReportAction(event.id, formData);
+          if ("error" in result || !notesChanged) return result;
+          return upsertEventImpactAction(event.id, notesData);
         },
-      });
+        {
+          success: "Event results saved.",
+          onError: setError,
+          onSuccess: () => {
+            refreshImpact();
+            router.refresh();
+            onSaved();
+          },
+        },
+      );
     });
   }
 
@@ -190,8 +255,12 @@ export function ReportTab({
               )}
             </div>
           </Field>
-          <EventReportSummary eventId={event.id} guests={guests} />
-          <ArchivedSummary event={event} />
+          <Figures event={event} derived={derived} impact={impact} />
+          {impactLoadError && (
+            <Alert variant="destructive">
+              <AlertDescription>{impactLoadError}</AlertDescription>
+            </Alert>
+          )}
           <ReadOnlyField
             label="Participant feedback"
             htmlFor="report-feedbackNotes"
@@ -201,6 +270,11 @@ export function ReportTab({
           <ReadOnlyField label="Photos / content" htmlFor="report-contentNotes">
             {form.contentNotes || "—"}
           </ReadOnlyField>
+          {impact?.canView && (
+            <ReadOnlyField label="Impact notes" htmlFor="report-impactNotes">
+              {form.impactNotes || "—"}
+            </ReadOnlyField>
+          )}
           <RetroSection eventId={event.id} />
           {event.report_status !== "submitted" && (
             <Button
@@ -233,7 +307,7 @@ export function ReportTab({
             if (!next) setReopenReason("");
           }}
           title="Reopen report"
-          description="Explain why this submitted report is being reopened. Overview, Planning, and Report will become editable again."
+          description="Explain why this submitted report is being reopened. Event details, Registration & planning, and Results will become editable again."
           size="md"
           onSubmit={handleReopen}
           footer={
@@ -289,8 +363,12 @@ export function ReportTab({
           </div>
         </Field>
 
-        <EventReportSummary eventId={event.id} guests={guests} />
-        <ArchivedSummary event={event} />
+        <Figures event={event} derived={derived} impact={impact} />
+        {impactLoadError && (
+          <Alert variant="destructive">
+            <AlertDescription>{impactLoadError}</AlertDescription>
+          </Alert>
+        )}
 
         <Field>
           <FieldLabel htmlFor="report-feedbackNotes">
@@ -318,6 +396,25 @@ export function ReportTab({
             }
           />
         </Field>
+
+        {impact?.canView &&
+          (impact.canManage ? (
+            <Field>
+              <FieldLabel htmlFor="report-impactNotes">Impact notes</FieldLabel>
+              <Textarea
+                id="report-impactNotes"
+                placeholder="Stories and context behind the outcomes."
+                value={form.impactNotes}
+                onChange={(changeEvent) =>
+                  update("impactNotes", changeEvent.target.value)
+                }
+              />
+            </Field>
+          ) : (
+            <ReadOnlyField label="Impact notes" htmlFor="report-impactNotes">
+              {form.impactNotes || "—"}
+            </ReadOnlyField>
+          ))}
 
         <RetroSection eventId={event.id} />
 

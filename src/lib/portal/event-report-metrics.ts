@@ -1,4 +1,4 @@
-// The event Report card's figures (#1576, part 1 of #1575). Rows arrive raw
+// The event Results card's non-Outcomes figures (#1576, #1588). Rows arrive raw
 // from get_event_report_data (20261011140000_event_report_data.sql) and every
 // total is computed here, in unit-tested TypeScript, the same split as
 // impact-metrics.ts and the finance rollup.
@@ -18,7 +18,6 @@ import {
   type SpendReportRow,
   type StatusTotal,
 } from "@/app/portal/(app)/finance/reports/summary";
-import { computePeopleServed } from "@/lib/portal/impact-metrics";
 
 type Amount = number | string | null;
 
@@ -36,12 +35,8 @@ export type EventReportMoneyRows = {
 export type EventReportGoodsRows = {
   /** `sponsor_id` is set when the item came in through a sponsorship. */
   in_kind_items: { face_value: Amount; sponsor_id: string | null }[];
-  distributions: {
-    quantity: number;
-    recipient_person_id: string | null;
-    inventory_item_id: string;
-    face_value: Amount;
-  }[];
+  // The RPC also returns `distributions`; they are Outcomes' people served
+  // (#1588), read from get_event_impact_derived_data instead.
   prizes: { estimated_value: Amount; awarded: boolean }[];
 };
 
@@ -104,12 +99,6 @@ export type EventReportMoney = {
 export type EventReportGoods = {
   inKindReceived: { count: number; value: number };
   sponsorInKind: { count: number; value: number };
-  distributed: {
-    quantity: number;
-    items: number;
-    recipients: number;
-    value: number;
-  };
   prizes: { count: number; awarded: number; awardedValue: number };
 };
 
@@ -252,14 +241,6 @@ export function computeEventGoods(
   const sponsorItems = rows.in_kind_items.filter((row) => row.sponsor_id);
   const donatedItems = rows.in_kind_items.filter((row) => !row.sponsor_id);
 
-  // People served is Impact's definition (#1577), so the two cards agree.
-  const served = computePeopleServed(
-    rows.distributions.map((row) => ({ ...row, event_id: null })),
-  );
-  const distributedItems = new Set(
-    rows.distributions.map((row) => row.inventory_item_id),
-  );
-
   const awarded = rows.prizes.filter((prize) => prize.awarded);
 
   return {
@@ -270,12 +251,6 @@ export function computeEventGoods(
     sponsorInKind: {
       count: sponsorItems.length,
       value: sum(sponsorItems, (row) => row.face_value),
-    },
-    distributed: {
-      quantity: served.distributed,
-      items: distributedItems.size,
-      recipients: served.recipients,
-      value: served.value,
     },
     prizes: {
       count: rows.prizes.length,
@@ -387,7 +362,6 @@ export function goodsHasData(goods: EventReportGoods): boolean {
   return (
     goods.inKindReceived.count > 0 ||
     goods.sponsorInKind.count > 0 ||
-    goods.distributed.quantity > 0 ||
     goods.prizes.count > 0
   );
 }

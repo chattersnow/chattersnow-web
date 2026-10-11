@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseDiscountCodesForm } from "./discount-codes-form";
+import {
+  parseDiscountCodeDetails,
+  parseDiscountCodesForm,
+} from "./discount-codes-form";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
@@ -18,6 +21,8 @@ export type DiscountCode = {
   code: string;
   description: string | null;
   source: string | null;
+  kind: string | null;
+  value: number | string | null;
   registration_id: string | null;
   assigned_at: string | null;
   sent_at: string | null;
@@ -40,7 +45,7 @@ export async function listDiscountCodesAction(
   const { data, error } = await supabase
     .from("discount_codes")
     .select(
-      "id, event_id, code, description, source, registration_id, assigned_at, sent_at, sent_to_name, sent_to_email, notes, created_at, registration:event_registrations(id, name, email)",
+      "id, event_id, code, description, source, kind, value, registration_id, assigned_at, sent_at, sent_to_name, sent_to_email, notes, created_at, registration:event_registrations(id, name, email)",
     )
     .eq("event_id", eventId)
     .order("created_at", { ascending: true })
@@ -74,6 +79,8 @@ export async function createDiscountCodesAction(
       code,
       description: parsed.data.description,
       source: parsed.data.source,
+      kind: parsed.data.kind,
+      value: parsed.data.value,
     })),
   );
 
@@ -85,6 +92,36 @@ export async function createDiscountCodesAction(
       };
     }
     return { error: "Could not save these codes. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/** A code's description, source, kind and value -- never the code itself. */
+export async function updateDiscountCodeAction(
+  id: string,
+  formData: FormData,
+): Promise<DiscountCodeActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to edit a discount code.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const parsed = parseDiscountCodeDetails(formData);
+  if ("error" in parsed) return parsed;
+
+  const { error } = await supabase
+    .from("discount_codes")
+    .update(parsed.data)
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not save this code. Please try again." };
   }
 
   revalidatePath("/portal/events");

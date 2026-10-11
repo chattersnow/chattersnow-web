@@ -8,7 +8,7 @@ import {
 } from "@/lib/portal/event-report-metrics";
 
 /**
- * The Report card's computed sections (#1576).
+ * The Results card's Money, Goods, Sponsors, Team and Operations (#1576).
  *
  * Goes through the get_event_report_data RPC rather than the tables because
  * the readers of a report do not all hold the source tables' RLS grants -- the

@@ -11,7 +11,7 @@ export const RETRO_KIND_LABELS: Record<RetroKind, string> = {
 };
 
 /**
- * What an item is about: the Report card's computed sections (#1576), so an
+ * What an item is about: the Results card's computed sections (#1576), so an
  * item can be read beside the numbers it explains.
  */
 export const RETRO_AREAS = [

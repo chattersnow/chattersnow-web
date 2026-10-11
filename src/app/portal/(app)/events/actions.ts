@@ -361,6 +361,14 @@ export async function updateEventReportAction(
     .eq("id", id)
     .single();
 
+  // Submitting locks the whole Results card (#1588); reopen to edit.
+  if (current?.report_status === "submitted") {
+    return {
+      error:
+        "This event's report has been submitted. Reopen it to change the report.",
+    };
+  }
+
   const { error } = await supabase
     .from("events")
     .update({

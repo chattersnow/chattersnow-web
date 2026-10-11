@@ -272,11 +272,11 @@ export const riderProfileSchema = z
     }),
     riding_discipline: z.enum(["ski", "snowboard", "both"]),
     ski_experience_level: z
-      .enum(["beginner", "intermediate", "advanced"])
+      .enum(["first_time", "beginner", "intermediate", "advanced"])
       .optional()
       .meta({ description: "Required when the discipline includes skiing." }),
     snowboard_experience_level: z
-      .enum(["beginner", "intermediate", "advanced"])
+      .enum(["first_time", "beginner", "intermediate", "advanced"])
       .optional()
       .meta({
         description: "Required when the discipline includes snowboarding.",

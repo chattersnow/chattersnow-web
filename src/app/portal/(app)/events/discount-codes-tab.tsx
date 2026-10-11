@@ -32,12 +32,29 @@ import {
   LIST_PREVIEW_ROWS,
   ListPreviewSheet,
 } from "@/components/portal/list-preview-sheet";
-import { formatInstantDate } from "@/lib/format";
+import { formatCurrency, formatInstantDate } from "@/lib/format";
+import { DISCOUNT_CODE_KINDS } from "@/lib/portal/impact-metrics";
+import { Pencil } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { EditDiscountCodeDialog } from "./edit-discount-code-dialog";
 import { EmptyState } from "@/components/portal/empty-state";
 
 // Base UI's Select doesn't accept an empty-string item value, so "no
 // registrant assigned" needs its own sentinel instead.
 const UNASSIGNED = "__unassigned__";
+
+/** "Rental · $45.00", "Rental", "$45.00" or "—". */
+function kindAndValue(code: DiscountCode) {
+  const kind = DISCOUNT_CODE_KINDS.find(
+    (option) => option.value === code.kind,
+  )?.label;
+  const value = code.value === null ? null : formatCurrency(code.value);
+  return [kind, value].filter(Boolean).join(" · ") || "—";
+}
 
 export function DiscountCodesTab({
   eventId,
@@ -63,6 +80,7 @@ export function DiscountCodesTab({
   const refreshRegistrants = registrantsData.refresh;
   const [actionError, setActionError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<DiscountCode | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Stable, so the column list below only rebuilds when something it renders
@@ -172,6 +190,14 @@ export function DiscountCodesTab({
         render: (code) => code.source ?? "—",
       },
       {
+        key: "kind",
+        label: "Pays for",
+        hideBelow: "md",
+        sortValue: (code) => code.kind,
+        cellClassName: "app-muted whitespace-nowrap",
+        render: kindAndValue,
+      },
+      {
         key: "registration",
         label: "Assigned to",
         // Sorts on whoever the cell names, whether that came from the linked
@@ -260,14 +286,32 @@ export function DiscountCodesTab({
               headClassName: "w-0",
               cellClassName: "text-right whitespace-nowrap",
               render: (code: DiscountCode) => (
-                <ConfirmDeleteButton
-                  label="Remove code"
-                  title={`Remove discount code ${code.code}?`}
-                  description="This deletes the code and unassigns it from any registrant it was issued to. It can't be undone."
-                  confirmLabel="Remove"
-                  pending={isPending}
-                  onConfirm={() => handleDelete(code.id)}
-                />
+                <>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Edit discount code ${code.code}`}
+                          onClick={() => setEditing(code)}
+                        />
+                      }
+                    >
+                      <Pencil />
+                    </TooltipTrigger>
+                    <TooltipContent>Edit code</TooltipContent>
+                  </Tooltip>
+                  <ConfirmDeleteButton
+                    label="Remove code"
+                    title={`Remove discount code ${code.code}?`}
+                    description="This deletes the code and unassigns it from any registrant it was issued to. It can't be undone."
+                    confirmLabel="Remove"
+                    pending={isPending}
+                    onConfirm={() => handleDelete(code.id)}
+                  />
+                </>
               ),
             } satisfies PortalDataTableColumn<DiscountCode>,
           ]
@@ -293,6 +337,13 @@ export function DiscountCodesTab({
 
   return (
     <div className="flex flex-col gap-4">
+      {editing && (
+        <EditDiscountCodeDialog
+          code={editing}
+          onClose={() => setEditing(null)}
+          onSaved={refreshAll}
+        />
+      )}
       {loadError && (
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>

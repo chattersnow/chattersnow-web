@@ -130,7 +130,7 @@ export function EventSharedDataProvider({
   });
   useRegisterTabRefresh<TabValue>("discount-codes", impactDerived.refresh);
   // The typed headcount is what the derived figures prefer over check-ins, so
-  // saving it changes what the Impact card shows. It cost nothing to leave out
+  // saving it changes what the Results card's Outcomes show. It cost nothing to leave out
   // while a provider was mounted per phase and Attendance and Impact sat in
   // different ones -- moving between them remounted the provider and refetched
   // (#1008). One provider for the page means saying so.

@@ -120,26 +120,6 @@ describe("computeEventGoods", () => {
       { face_value: "30", sponsor_id: null },
       { face_value: 400, sponsor_id: "sponsor-1" },
     ],
-    distributions: [
-      {
-        quantity: 1,
-        recipient_person_id: "p1",
-        inventory_item_id: "i1",
-        face_value: 20,
-      },
-      {
-        quantity: 2,
-        recipient_person_id: "p1",
-        inventory_item_id: "i2",
-        face_value: "15",
-      },
-      {
-        quantity: 1,
-        recipient_person_id: null,
-        inventory_item_id: "i2",
-        face_value: "15",
-      },
-    ],
     prizes: [
       { estimated_value: 100, awarded: true },
       { estimated_value: 50, awarded: false },
@@ -149,15 +129,6 @@ describe("computeEventGoods", () => {
   test("counts sponsor in-kind items once, under sponsorship", () => {
     expect(goods.inKindReceived).toEqual({ count: 2, value: 50 });
     expect(goods.sponsorInKind).toEqual({ count: 1, value: 400 });
-  });
-
-  test("counts distinct recipients and each item's value once", () => {
-    expect(goods.distributed).toEqual({
-      quantity: 4,
-      items: 2,
-      recipients: 1,
-      value: 35,
-    });
   });
 
   test("reports prizes awarded", () => {

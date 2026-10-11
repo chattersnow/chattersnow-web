@@ -594,8 +594,7 @@ const TASK_KIND_ORDER: Record<EventTaskKind, number> = {
   report: 2,
   retro: 3,
   retro_actions: 4,
-  impact: 5,
-  checklist: 6,
+  checklist: 5,
 };
 
 /**
@@ -677,14 +676,10 @@ export async function getEventTaskSummary(
       eventStartsAt: row.starts_at,
     };
 
-    // includeImpact is left off here: the "Impact not recorded" rule belongs on
-    // the event page's section rail, but switching it on for the dashboard would
-    // add an outstanding task to every past event the day it ships.
-    for (const task of deriveEventPhaseTasks(
-      event,
-      { hasImpactNote: false },
-      now,
-    )) {
+    // includeRetro is left off here: the retro rules belong on the event
+    // page's section rail, but switching them on for the dashboard would add
+    // an outstanding task to every past event the day they ship.
+    for (const task of deriveEventPhaseTasks(event, {}, now)) {
       items.push({
         ...base,
         key: `event_${task.kind}_${row.id}`,

@@ -12,6 +12,7 @@ import type { EventRow } from "../event-badges";
 import { toEventRegistrationQuestion } from "../registration-questions-draft";
 import {
   LEGACY_PHASE_CARDS,
+  LEGACY_TAB_VALUES,
   eventGroups,
   isTabValue,
   type TabValue,
@@ -78,7 +79,9 @@ export default async function EventDetailPage({
   // tab levels, read so a bookmark from before the rail still lands where it
   // meant to (#1008).
   const visible = groups.flatMap((group) => group.tabs);
-  const named = (value: string | undefined): TabValue | undefined => {
+  const named = (raw: string | undefined): TabValue | undefined => {
+    // A card merged into another (#1588) lands on the one it became.
+    const value = raw ? (LEGACY_TAB_VALUES[raw] ?? raw) : raw;
     if (!value || !isTabValue(value)) return undefined;
     return visible.some((section) => section.value === value)
       ? value
@@ -139,7 +142,6 @@ export default async function EventDetailPage({
     programsResult,
     { data: deleteBlockers },
     { data: openChecklistItems },
-    { data: impactNote },
     { data: retroItems },
   ] = await Promise.all([
     listProgramsAction(),
@@ -157,11 +159,6 @@ export default async function EventDetailPage({
       .select("title")
       .eq("event_id", eventId)
       .eq("is_done", false),
-    supabase
-      .from("event_impact_notes")
-      .select("event_id")
-      .eq("event_id", eventId)
-      .maybeSingle(),
     // The retro's two phase tasks (#1578): none written yet, and how many of
     // its action items are still open.
     supabase
@@ -176,7 +173,6 @@ export default async function EventDetailPage({
   const device = await deviceClass();
   const programs = "data" in programsResult ? programsResult.data : [];
   const cardTasks = eventCardTaskLabels(event, {
-    hasImpactNote: Boolean(impactNote),
     retroItemCount: retroItems?.length ?? 0,
     openActionItemCount: (retroItems ?? []).filter(
       (item) => item.kind === "action" && item.status === "open",

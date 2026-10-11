@@ -201,6 +201,8 @@ declare
   v_program_id constant uuid := 'babababa-0000-4000-8000-000000000001';
   v_shift_id uuid;
   v_registration_id uuid;
+  v_past_first_timer uuid;
+  v_past_returning uuid;
   v_calendar_promo_id constant uuid := 'ffffffff-0000-4000-8000-000000000001';
   v_calendar_recurring_id constant uuid := 'ffffffff-0000-4000-8000-000000000002';
   -- The series the "generate next year's instance" flow keys on.
@@ -757,14 +759,51 @@ begin
   insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
   values (v_event_upcoming, 'SUMMIT-20', 'Twenty percent off partner gear', 'Summit Outdoor Co.', v_registration_id, now(), v_admin_id);
 
-  -- Only the figures with no system source are stored here now; participants,
-  -- first-time, beginner, volunteer and discount-code counts are derived
-  -- (20260904020000).
+  -- The four typed figures were archived by #1588: nothing writes them, and
+  -- the Results card shows these read-only as "Entered by hand (archived)",
+  -- beside the derived ones and never added to them. Only `notes` is still
+  -- written.
   insert into public.event_impact_notes (
     event_id, first_time_riders, rental_subsidies_count, assistance_total,
     beginner_pairings_count, notes, created_by
   )
   values (v_event_past, 14, 7, 480.00, 9, 'Participants especially valued loaner gear and peer support.', v_admin_id);
+
+  -- #1588: what the past event's Outcomes derive from, so the Results card
+  -- has every figure to show out of the box. Two checked-in riders whose level
+  -- was snapshotted at the door -- one first time on snow, one beginner --
+  -- each holding a code with a kind and value, plus a paid expense marked
+  -- participant assistance.
+  insert into public.event_registrations (
+    event_id, name, email, party_size, person_id, checked_in_at,
+    riding_discipline_at_event, ski_experience_level_at_event,
+    snowboard_experience_level_at_event
+  )
+  values (
+    v_event_past, 'Alex Chen', 'alex.chen@example.test', 1, v_person_donor2,
+    now() - interval '40 days', 'snowboard', null, 'first_time'
+  )
+  returning id into v_past_first_timer;
+
+  insert into public.event_registrations (
+    event_id, name, email, party_size, person_id, checked_in_at,
+    riding_discipline_at_event, ski_experience_level_at_event,
+    snowboard_experience_level_at_event
+  )
+  values (
+    v_event_past, 'Jamie Rivera', 'jamie.rivera@example.test', 1, v_person_donor1,
+    now() - interval '40 days', 'ski', 'beginner', null
+  )
+  returning id into v_past_returning;
+
+  insert into public.discount_codes (event_id, code, description, source, kind, value, registration_id, assigned_at, created_by)
+  values
+    (v_event_past, 'TRAIL-RENT-1', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, v_past_first_timer, now() - interval '42 days', v_admin_id),
+    (v_event_past, 'TRAIL-LIFT-1', 'Half-day lift ticket', 'Bear Creek Resort', 'lift', 60.00, v_past_returning, now() - interval '42 days', v_admin_id),
+    (v_event_past, 'TRAIL-RENT-2', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, null, null, v_admin_id);
+
+  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, status, participant_assistance, created_by, submitted_by)
+  values (v_event_past, 'Ski rentals for two participants', current_date - 40, 90.00, 'USD', 'Paid at the rental counter.', 'paid', true, v_admin_id, v_admin_id);
 
   -- The past event's retro (#1578): one of each kind, plus an action already
   -- done, owned by the guide on its staff roster.

@@ -116,8 +116,11 @@ const derivedFigures: EventImpactDerived = {
   recurringParticipants: 0,
   volunteerParticipants: 0,
   beginnerParticipants: null,
+  firstTimeOnSnow: null,
   profiledAttendees: null,
   discountCodesAssigned: null,
+  rentalSubsidies: null,
+  assistance: null,
   autoAssignDiscountCodes: false,
   peopleServed: { distributed: 0, recipients: 0, value: 0 },
 };

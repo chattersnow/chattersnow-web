@@ -92,6 +92,7 @@ function formStateFor(expense: ExpenseRow): ExpenseFormState {
     receiptUrl: expense.receipt_url ?? "",
     receiptPath: expense.receipt_path ?? "",
     notes: expense.notes ?? "",
+    participantAssistance: expense.participant_assistance ?? false,
   };
 }
 
