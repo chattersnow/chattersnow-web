@@ -10676,10 +10676,7 @@ export type Database = {
         Args: { p_event_id: string };
         Returns: Json;
       };
-      get_event_report_data: {
-        Args: { p_event_id: string };
-        Returns: Json;
-      };
+      get_event_report_data: { Args: { p_event_id: string }; Returns: Json };
       get_finance_report_data: {
         Args: { p_from: string; p_to: string };
         Returns: Json;
