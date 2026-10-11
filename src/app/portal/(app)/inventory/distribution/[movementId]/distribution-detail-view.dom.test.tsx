@@ -45,6 +45,15 @@ describe("DistributionDetailView", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
+  test("links the item to its own page for editing its details", () => {
+    render(<DistributionDetailView movement={makeMovement()} canManage />);
+
+    expect(screen.getByRole("link", { name: "Winter jacket" })).toHaveAttribute(
+      "href",
+      "/portal/inventory/items/item-1",
+    );
+  });
+
   test("shows dashes for a general distribution with no event or recipient", () => {
     render(
       <DistributionDetailView

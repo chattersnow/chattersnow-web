@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
+import { itemHref } from "../../items/inventory-shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -72,7 +74,18 @@ export function DistributionDetailView({
           <CardContent>
             <FieldGroup>
               <ReadOnlyField label="Item" htmlFor="distribution-item-view">
-                {movement.inventory_item?.description ?? "—"}
+                {movement.inventory_item ? (
+                  // The item's own page is where its details (face value,
+                  // condition, photo) are edited.
+                  <Link
+                    href={itemHref(movement.inventory_item.id)}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {movement.inventory_item.description}
+                  </Link>
+                ) : (
+                  "—"
+                )}
               </ReadOnlyField>
               <ReadOnlyField
                 label="Item category"
