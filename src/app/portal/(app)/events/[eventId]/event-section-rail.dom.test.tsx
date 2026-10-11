@@ -2,27 +2,28 @@ import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EventSectionRail } from "./event-section-rail";
-import type { EventPhase } from "../event-tabs-config";
+import type { EventGroup } from "../event-tabs-config";
 
-const PHASES: EventPhase[] = [
+const GROUPS: EventGroup[] = [
   {
-    key: "basic",
+    key: "overview",
     label: "Overview",
     tabs: [
       { value: "overview", label: "Event details", keywords: [] },
-      { value: "checklist", label: "Checklist", keywords: [] },
-    ],
-  },
-  {
-    key: "planning",
-    label: "Planning",
-    tabs: [
       {
         value: "planning",
         label: "Registration & planning",
         keywords: ["budget", "capacity"],
       },
+      { value: "checklist", label: "Checklist", keywords: [] },
+    ],
+  },
+  {
+    key: "operations",
+    label: "Operations",
+    tabs: [
       { value: "logistics", label: "Logistics", keywords: ["venue"] },
+      { value: "incidents", label: "Incidents", keywords: [] },
     ],
   },
 ];
@@ -34,7 +35,7 @@ function renderRail(
   render(
     <EventSectionRail
       device="desktop"
-      phases={PHASES}
+      groups={GROUPS}
       current="overview"
       currentTitle="Event details"
       onSelect={onSelect}
@@ -62,9 +63,9 @@ describe("EventSectionRail", () => {
   test("lists every section under its group heading", () => {
     renderRail();
 
-    expect(sections().getAllByRole("button")).toHaveLength(4);
+    expect(sections().getAllByRole("button")).toHaveLength(5);
     expect(sections().getByText("Overview")).toBeInTheDocument();
-    expect(sections().getByText("Planning")).toBeInTheDocument();
+    expect(sections().getByText("Operations")).toBeInTheDocument();
     expect(
       sections().getByRole("button", { name: /Registration & planning/ }),
     ).toBeVisible();
@@ -100,7 +101,7 @@ describe("EventSectionRail", () => {
 
   test("matches a search on a keyword the title does not contain", () => {
     // The lookup the phase tabs could not answer: "budget" is on a card
-    // called Registration & planning, in a group called Planning.
+    // called Registration & planning, in a group called Overview.
     renderRail();
 
     fireEvent.change(search(), { target: { value: "Budget" } });
@@ -113,7 +114,7 @@ describe("EventSectionRail", () => {
   test("matches a search on the group heading", () => {
     renderRail();
 
-    fireEvent.change(search(), { target: { value: "planning" } });
+    fireEvent.change(search(), { target: { value: "operations" } });
 
     expect(results().getAllByRole("button")).toHaveLength(2);
   });
@@ -124,7 +125,7 @@ describe("EventSectionRail", () => {
     fireEvent.change(search(), { target: { value: "venue" } });
 
     const row = results().getByRole("button", { name: /^Logistics/ });
-    expect(within(row).getByText("Planning")).toBeInTheDocument();
+    expect(within(row).getByText("Operations")).toBeInTheDocument();
   });
 
   test("says so when nothing matches", () => {
@@ -186,7 +187,7 @@ describe("EventSectionRail on a phone", () => {
     render(
       <EventSectionRail
         device="mobile"
-        phases={PHASES}
+        groups={GROUPS}
         current="overview"
         currentTitle="Event details"
         onSelect={() => {}}
@@ -217,7 +218,7 @@ describe("EventSectionRail on a phone", () => {
     render(
       <EventSectionRail
         device="mobile"
-        phases={PHASES}
+        groups={GROUPS}
         current="overview"
         currentTitle="Event details"
         onSelect={onSelect}
