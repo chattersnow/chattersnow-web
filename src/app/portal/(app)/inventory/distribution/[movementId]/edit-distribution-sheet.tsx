@@ -6,7 +6,10 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { updateDistributionAction } from "../actions";
 import { listPeopleAction, type PersonListItem } from "../../../people/actions";
 import { PersonPicker } from "../../../people/person-picker";
-import type { DistributionDetailRow } from "./distribution-detail-view";
+import type {
+  DistributionDetailRow,
+  DistributionEventOption,
+} from "./distribution-detail-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetClose,
@@ -49,6 +59,7 @@ function formStateFor(movement: DistributionDetailRow) {
     occurredAt: utcIsoToDatetimeLocalInBrowser(movement.occurred_at),
     reason: movement.reason ?? "",
     recipient: movement.recipient,
+    eventId: movement.event?.id ?? "",
   };
 }
 
@@ -60,14 +71,17 @@ function isDirty(form: FormState, movement: DistributionDetailRow) {
     form.quantity !== baseline.quantity ||
     form.occurredAt !== baseline.occurredAt ||
     form.reason !== baseline.reason ||
+    form.eventId !== baseline.eventId ||
     (form.recipient?.id ?? null) !== (baseline.recipient?.id ?? null)
   );
 }
 
 export function EditDistributionSheet({
   movement,
+  events,
 }: {
   movement: DistributionDetailRow;
+  events: DistributionEventOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -78,6 +92,12 @@ export function EditDistributionSheet({
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const formId = `edit-distribution-form-${movement.id}`;
   const dirty = isDirty(form, movement);
+  // The events query is capped, so an older linked event may be missing from
+  // it; keep it selectable so opening the sheet never silently drops it.
+  const eventOptions =
+    movement.event && !events.some((event) => event.id === movement.event!.id)
+      ? [...events, movement.event]
+      : events;
 
   useEffect(() => {
     if (!open) return;
@@ -122,6 +142,7 @@ export function EditDistributionSheet({
     formData.set("occurredAt", new Date(form.occurredAt).toISOString());
     formData.set("reason", form.reason);
     formData.set("recipientPersonId", form.recipient?.id ?? "");
+    formData.set("eventId", form.eventId);
 
     startTransition(async () => {
       const result = await updateDistributionAction(movement.id, formData);
@@ -181,9 +202,34 @@ export function EditDistributionSheet({
                 <ReadOnlyField label="Item" htmlFor="edit-dist-item">
                   {movement.inventory_item?.description ?? "—"}
                 </ReadOnlyField>
-                <ReadOnlyField label="Event" htmlFor="edit-dist-event">
-                  {movement.event?.name ?? "—"}
-                </ReadOnlyField>
+                <Field>
+                  <FieldLabel htmlFor="edit-dist-event">Event</FieldLabel>
+                  <Select
+                    value={form.eventId || "none"}
+                    onValueChange={(value) =>
+                      update("eventId", value === "none" ? "" : (value ?? ""))
+                    }
+                  >
+                    <SelectTrigger id="edit-dist-event" className="w-full">
+                      <SelectValue placeholder="No event">
+                        {(value: string) =>
+                          value && value !== "none"
+                            ? (eventOptions.find((event) => event.id === value)
+                                ?.name ?? "No event")
+                            : "No event"
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No event</SelectItem>
+                      {eventOptions.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
                 <Field orientation="responsive">
                   <Field>

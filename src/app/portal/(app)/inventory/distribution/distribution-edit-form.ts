@@ -5,6 +5,8 @@ export type DistributionEditFormData = {
   occurred_at: string;
   reason: string | null;
   recipient_person_id: string | null;
+  /** The event the items went out at, or null for none. */
+  event_id: string | null;
 };
 
 export function parseDistributionEditForm(
@@ -32,6 +34,7 @@ export function parseDistributionEditForm(
       reason: String(formData.get("reason") ?? "").trim() || null,
       recipient_person_id:
         String(formData.get("recipientPersonId") ?? "").trim() || null,
+      event_id: String(formData.get("eventId") ?? "").trim() || null,
     },
   };
 }
