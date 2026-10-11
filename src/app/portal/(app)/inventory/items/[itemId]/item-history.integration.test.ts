@@ -126,10 +126,11 @@ describe("inventory_item_history", () => {
     expect(donated.recorded_by_name).toBeTruthy();
   });
 
-  test("a reader with inventory but not donations access sees that it was donated, not by whom", async () => {
+  test("a reader with inventory but not people access sees the donation, not who gave it", async () => {
     // The board role is `none` across inventory, finance and people. Granting
-    // it the inventory catalog alone leaves `donations` (finance:view,
-    // inventory:manage or inventory_intake:manage) unreadable.
+    // it inventory_reports:view makes `donations` readable (#1572, so an
+    // event's Donations card works for it) while `people` stays closed, so the
+    // donor is the part that stays hidden.
     const { data: board } = await adminClient
       .from("roles")
       .select("id")
@@ -160,13 +161,12 @@ describe("inventory_item_history", () => {
 
       expect(rows).toHaveLength(3);
       expect(donated).toMatchObject({
-        donation_id: null,
+        donation_id: donationId,
         donor_id: null,
         donor_name: null,
-        donated_on: null,
         intake_route: "intake_form",
       });
-      // The intake movement still dates the entry for this reader.
+      expect(donated!.donated_on).toBeTruthy();
       expect(donated!.occurred_at).toBeTruthy();
     } finally {
       await adminClient

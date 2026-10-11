@@ -48,7 +48,7 @@ describe("eventPhases", () => {
     expect(cards(FULL_ACCESS)).toEqual(TAB_CONFIG.map((entry) => entry.value));
   });
 
-  test("Finance off takes the Expenses, Revenue, Sales and Donations cards", () => {
+  test("Finance off takes the Expenses, Revenue and Sales cards", () => {
     // The four resources a tenant loses when the Finance module is disabled --
     // `sales` joined them in #907: my_permissions() reports `none` for each,
     // whatever the matrix says.
@@ -59,9 +59,10 @@ describe("eventPhases", () => {
     expect(visible).not.toContain("expenses");
     expect(visible).not.toContain("revenue");
     expect(visible).not.toContain("sales");
-    expect(visible).not.toContain("donations");
 
-    // And nothing else moves -- the event's own cards are untouched.
+    // And nothing else moves -- the event's own cards are untouched. In-kind
+    // donations are inventory too, so their card stays (#1572).
+    expect(visible).toContain("donations");
     expect(visible).toContain("overview");
     expect(visible).toContain("report");
     expect(visible).toContain("impact");
@@ -71,8 +72,15 @@ describe("eventPhases", () => {
   test("Inventory off takes the Distributions card and leaves the rest", () => {
     const visible = cards(without("inventory", "inventory_reports"));
     expect(visible).not.toContain("distributions");
+    // Finance alone still reads the Donations card.
+    expect(visible).toContain("donations");
     expect(visible).toContain("giveaway");
     expect(visible).toContain("expenses");
+  });
+
+  test("without Finance or Inventory there is no Donations card", () => {
+    const visible = cards(without("finance", "inventory", "inventory_reports"));
+    expect(visible).not.toContain("donations");
   });
 
   test("either half of a two-resource gate is enough", () => {

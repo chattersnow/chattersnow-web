@@ -97,7 +97,8 @@ export type TabConfigEntry = {
    * say nothing here.
    *
    * Four of them read another section's tables, and their server actions have
-   * always said so -- listEventDonationsAction gates on `finance:view`,
+   * always said so -- listEventDonationsAction gates on `finance:view` or
+   * inventory (#1572),
    * listEventDistributionsAction on inventory, and the expense and revenue
    * lists on `event_expenses` / `event_revenue`. Until #903 the cards were
    * rendered anyway and simply came back empty, which was already a poor
@@ -366,7 +367,12 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Donations",
     phase: "after",
     kind: "plain",
-    access: [{ resource: "finance", level: "view" }],
+    // In-kind items, so inventory readers see them too (#1572).
+    access: [
+      { resource: "finance", level: "view" },
+      { resource: "inventory", level: "manage" },
+      { resource: "inventory_reports", level: "view" },
+    ],
     render: (ctx) => <DonationsTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <AddDonationModal

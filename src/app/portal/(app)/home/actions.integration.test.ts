@@ -10,6 +10,7 @@ import {
   anonClient,
   cleanupDonation,
   createDonation,
+  createPublishedEvent,
   signIn,
 } from "../../../../../test/integration-setup";
 import type { CreateDonationInput } from "./donation-form";
@@ -172,6 +173,59 @@ describe("listEventDonationsAction (integration)", () => {
     currentSupabase = await signIn(SEEDED_USERS.volunteer);
     const result = await listEventDonationsAction(crypto.randomUUID());
     expect(result).toEqual(DENIED);
+  });
+
+  test("inventory_reports:view without finance reads the event's in-kind items, not the donor (#1572)", async () => {
+    // The board role is `none` across finance, inventory and people.
+    const { data: board } = await adminClient
+      .from("roles")
+      .select("id")
+      .eq("name", "board")
+      .single();
+    const { data: resource } = await adminClient
+      .from("resources")
+      .select("id")
+      .eq("key", "inventory_reports")
+      .single();
+    if (!board || !resource) {
+      throw new Error("expected the board role and inventory_reports");
+    }
+
+    const event = await createPublishedEvent();
+    const donation = await createDonation();
+    const linked = await adminClient
+      .from("donations")
+      .update({ event_id: event.id })
+      .eq("id", donation.id);
+    if (linked.error) throw linked.error;
+
+    const grant = await adminClient
+      .from("role_permissions")
+      .upsert(
+        { role_id: board.id, resource_id: resource.id, level: "view" },
+        { onConflict: "role_id,resource_id" },
+      );
+    if (grant.error) throw grant.error;
+
+    try {
+      currentSupabase = await signIn(SEEDED_USERS.board);
+      const result = await listEventDonationsAction(event.id);
+      if (!("data" in result)) throw new Error(result.error);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe(donation.id);
+      expect(result.data[0].inventory_items).toHaveLength(1);
+      // `people` is still closed to this reader.
+      expect(result.data[0].donor).toBeNull();
+    } finally {
+      await adminClient
+        .from("role_permissions")
+        .update({ level: "none" })
+        .eq("role_id", board.id)
+        .eq("resource_id", resource.id);
+      await donation.cleanup();
+      await event.cleanup();
+    }
   });
 });
 
