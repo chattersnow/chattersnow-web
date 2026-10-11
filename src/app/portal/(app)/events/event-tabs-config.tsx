@@ -443,6 +443,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
       <EventExpensesTab
         eventId={ctx.event.id}
         eventName={ctx.event.name}
+        budgetAmount={ctx.event.budget_amount}
         mode={ctx.mode}
       />
     ),

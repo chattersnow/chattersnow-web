@@ -25,6 +25,7 @@ import {
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { formatCalendarDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { ExpensesSummary } from "./card-summaries";
 
 const EMPTY_APPROVAL_CONTEXT: ExpenseApprovalContext = {
   userId: null,
@@ -49,9 +50,12 @@ const STATUS_ORDER: readonly ExpenseStatus[] = [
 export function EventExpensesTab({
   eventId,
   eventName,
+  budgetAmount = null,
 }: {
   eventId: string;
   eventName: string;
+  /** `events.budget_amount`, for the summary's budget remaining. */
+  budgetAmount?: number | string | null;
   mode: "view" | "edit";
 }) {
   const {
@@ -143,16 +147,19 @@ export function EventExpensesTab({
           description="Add the first one with New Expense above."
         />
       ) : (
-        <PortalDataTable
-          columns={columns}
-          rows={expenses}
-          getRowKey={(expense) => expense.id}
-          // listEventExpensesAction returns newest first.
-          defaultSort={{ key: "expense_date", dir: "desc" }}
-          emptyMessage="No expenses to show."
-          // The tab is already inside its own card on the phase grid.
-          shell="bare"
-        />
+        <>
+          <ExpensesSummary expenses={expenses} budget={budgetAmount} />
+          <PortalDataTable
+            columns={columns}
+            rows={expenses}
+            getRowKey={(expense) => expense.id}
+            // listEventExpensesAction returns newest first.
+            defaultSort={{ key: "expense_date", dir: "desc" }}
+            emptyMessage="No expenses to show."
+            // The tab is already inside its own card on the phase grid.
+            shell="bare"
+          />
+        </>
       )}
     </div>
   );

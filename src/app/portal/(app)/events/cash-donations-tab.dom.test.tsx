@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type {
   EventMonetaryDonationRow,
   EventMonetaryDonations,
@@ -49,7 +49,7 @@ beforeEach(() => {
 });
 
 describe("CashDonationsTab", () => {
-  test("lists the event's gifts with their total and marks a sponsorship", async () => {
+  test("lists the event's gifts and totals a sponsorship apart from donations", async () => {
     respondWith({
       rows: [
         gift(),
@@ -67,7 +67,14 @@ describe("CashDonationsTab", () => {
     expect(await screen.findByText("Jamie Rivera")).toBeInTheDocument();
     expect(screen.getByText("Anonymous")).toBeInTheDocument();
     expect(screen.getByText("Sponsorship")).toBeInTheDocument();
-    expect(screen.getByText("$290.00")).toBeInTheDocument();
+    const summary = within(screen.getByLabelText("Cash donations summary"));
+    expect(summary.getByText("$40.00")).toBeInTheDocument();
+    expect(summary.getByText("1 gift")).toBeInTheDocument();
+    // Counted once, under Sponsors -- never added into the donations total.
+    expect(summary.getByText("$250.00")).toBeInTheDocument();
+    expect(
+      summary.getByText("1 gift, counted under Sponsors"),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open in Finance" }),
     ).toHaveAttribute("href", "/portal/finance/donations?event=event-1");
@@ -92,6 +99,10 @@ describe("CashDonationsTab", () => {
     render(<CashDonationsTab eventId="event-1" mode="view" previewRows={5} />);
 
     expect(await screen.findAllByText("Jamie Rivera")).toHaveLength(5);
+    // The summary covers every gift, not just the preview.
+    const summary = within(screen.getByLabelText("Cash donations summary"));
+    expect(summary.getByText("$280.00")).toBeInTheDocument();
+    expect(summary.getByText("7 gifts")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "View all 7 in Finance" }),
     ).toBeInTheDocument();

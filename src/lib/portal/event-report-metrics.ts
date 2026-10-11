@@ -131,6 +131,8 @@ export type EventReportSponsors = {
 
 export type EventReportTeam = {
   volunteers: number;
+  /** Volunteers with no shift assigned yet. */
+  withoutShift: number;
   staff: number;
   shifts: number;
   /** Shifts with a target headcount whose assigned volunteers meet it. */
@@ -328,6 +330,11 @@ export function computeEventTeam(rows: EventReportTeamRows): EventReportTeam {
 
   return {
     volunteers: new Set(rows.volunteers.map((row) => row.person_id)).size,
+    withoutShift: new Set(
+      rows.volunteers
+        .filter((row) => !row.shift_id)
+        .map((row) => row.person_id),
+    ).size,
     staff: new Set(rows.staff.map((row) => row.person_id)).size,
     shifts: rows.shifts.length,
     shiftsFilled,
