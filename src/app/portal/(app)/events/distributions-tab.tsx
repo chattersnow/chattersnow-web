@@ -22,6 +22,7 @@ import {
 } from "@/components/portal/list-preview-sheet";
 import { formatDateTime } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { DistributionsSummary } from "./card-summaries";
 
 const COLUMNS: PortalDataTableColumn<EventDistributionRow>[] = [
   {
@@ -128,6 +129,14 @@ export function DistributionsTab({
         />
       ) : (
         <>
+          <DistributionsSummary
+            distributions={list.map((movement) => ({
+              quantity: movement.quantity,
+              recipient_person_id: movement.recipient_person_id,
+              inventory_item_id: movement.inventory_item_id,
+              face_value: movement.inventory_item?.face_value ?? null,
+            }))}
+          />
           <PortalDataTable
             columns={previewIsWholeList ? COLUMNS : PREVIEW_COLUMNS}
             rows={capped}

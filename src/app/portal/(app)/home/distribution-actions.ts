@@ -17,9 +17,12 @@ export type EventDistributionRow = {
   quantity: number;
   occurred_at: string;
   reason: string | null;
+  recipient_person_id: string | null;
+  inventory_item_id: string;
   inventory_item: {
     id: string;
     description: string;
+    face_value: number | string | null;
     type: string | null;
     size: string | null;
     inventory_categories?: { key: string; label: string } | null;
@@ -52,7 +55,7 @@ export async function listEventDistributionsAction(
   const { data, error } = await supabase
     .from("inventory_movements")
     .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label))",
+      "id, quantity, occurred_at, reason, recipient_person_id, inventory_item_id, inventory_item:inventory_items(id, description, face_value, type, size, inventory_categories(key, label))",
     )
     .eq("event_id", eventId)
     .eq("movement_type", "distributed")
@@ -79,7 +82,7 @@ export async function listDistributionsAction(
   const { data, error } = await supabase
     .from("inventory_movements")
     .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name)",
+      "id, quantity, occurred_at, reason, recipient_person_id, inventory_item_id, inventory_item:inventory_items(id, description, face_value, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name)",
     )
     .eq("movement_type", "distributed")
     .order("occurred_at", { ascending: false })

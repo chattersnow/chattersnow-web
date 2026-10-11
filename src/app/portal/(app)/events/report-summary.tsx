@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { getEventReportAction } from "./report-data-actions";
 import type { TabValue } from "./event-tabs-config";
+import { Figure } from "./summary-figures";
 import {
   isRevenueSource,
   revenueSourceLabel,
@@ -58,40 +58,6 @@ const SUPPORT_TYPE_LABELS: Record<string, string> = {
 
 function plural(count: number, one: string, many = `${one}s`) {
   return `${formatNumber(count)} ${count === 1 ? one : many}`;
-}
-
-/** One figure, linked to the card its rows come from. */
-function Figure({
-  eventId,
-  card,
-  label,
-  value,
-  caption,
-}: {
-  eventId: string;
-  card?: TabValue;
-  label: string;
-  value: string;
-  caption?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1 rounded-lg border p-3">
-      <dt className="app-muted text-xs font-medium">{label}</dt>
-      <dd className="text-lg font-semibold">
-        {card ? (
-          <Link
-            href={`/portal/events/${eventId}?tab=${card}`}
-            className="underline-offset-4 hover:underline"
-          >
-            {value}
-          </Link>
-        ) : (
-          value
-        )}
-      </dd>
-      {caption && <dd className="app-muted text-xs">{caption}</dd>}
-    </div>
-  );
 }
 
 function Section({

@@ -20,8 +20,8 @@ import {
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { LIST_PREVIEW_ROWS } from "@/components/portal/list-preview-sheet";
 import { formatCalendarDate, formatCurrency } from "@/lib/format";
-import { toNumber } from "@/lib/portal/impact-metrics";
 import { EmptyState } from "@/components/portal/empty-state";
+import { CashDonationsSummary } from "./card-summaries";
 
 const COLUMNS: PortalDataTableColumn<EventMonetaryDonationRow>[] = [
   {
@@ -94,7 +94,6 @@ export function CashDonationsTab({
   const rows = donations?.rows ?? [];
   const capped = previewRows === null ? rows : rows.slice(0, previewRows);
   const hasOverflow = previewRows !== null && rows.length > previewRows;
-  const total = rows.reduce((sum, row) => sum + toNumber(row.amount), 0);
   const financeHref = `/portal/finance/donations?event=${encodeURIComponent(eventId)}`;
 
   return (
@@ -114,6 +113,12 @@ export function CashDonationsTab({
         />
       ) : (
         <>
+          <CashDonationsSummary
+            gifts={rows.map((row) => ({
+              amount: row.amount,
+              sponsor_id: row.event_sponsors[0]?.id ?? null,
+            }))}
+          />
           <PortalDataTable
             columns={hasOverflow ? PREVIEW_COLUMNS : COLUMNS}
             rows={capped}
@@ -126,26 +131,15 @@ export function CashDonationsTab({
             // The tab is already inside its own card on the event page.
             shell="bare"
           />
-          <p className="app-muted text-sm">
-            {rows.length === 1 ? "1 gift" : `${rows.length} gifts`} totalling{" "}
-            <span className="font-medium text-foreground tabular-nums">
-              {formatCurrency(total)}
-            </span>
-            .
-            {donations?.canOpenLedger && (
-              <>
-                {" "}
-                <Link
-                  className="underline underline-offset-4"
-                  href={financeHref}
-                >
-                  {hasOverflow
-                    ? `View all ${rows.length} in Finance`
-                    : "Open in Finance"}
-                </Link>
-              </>
-            )}
-          </p>
+          {donations?.canOpenLedger && (
+            <p className="app-muted text-sm">
+              <Link className="underline underline-offset-4" href={financeHref}>
+                {hasOverflow
+                  ? `View all ${rows.length} in Finance`
+                  : "Open in Finance"}
+              </Link>
+            </p>
+          )}
         </>
       )}
     </div>

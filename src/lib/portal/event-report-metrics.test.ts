@@ -218,6 +218,7 @@ describe("computeEventTeam", () => {
     });
     expect(team).toEqual({
       volunteers: 5,
+      withoutShift: 1,
       staff: 1,
       shifts: 3,
       shiftsFilled: 1,
