@@ -189,6 +189,18 @@ describe("EditDonationSheet", () => {
     expect(itemId).toBe("item-1");
     expect(formData.get("description")).toBe("Winter parka");
     expect(formData.get("status")).toBe("available");
+    // The item action requires an intended use, so an untouched one is
+    // carried through rather than dropped.
+    expect(formData.get("intendedUse")).toBe("gear_library");
+  });
+
+  test("shows each item's intended use as an editable field", async () => {
+    const user = userEvent.setup();
+    await openSheet(user);
+
+    expect(screen.getByLabelText("Intended use")).toHaveTextContent(
+      "Gear library",
+    );
   });
 
   test("does not call updateInventoryItemAction when no item fields changed", async () => {
