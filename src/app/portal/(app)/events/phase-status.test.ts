@@ -241,6 +241,29 @@ describe("deriveEventPhaseTasks", () => {
     });
   });
 
+  test("submitting the report clears an empty retro, not its open actions", () => {
+    const tasks = deriveEventPhaseTasks(
+      { ...started, report_status: "submitted" },
+      { hasImpactNote: true, retroItemCount: 0, openActionItemCount: 0 },
+      now,
+      { includeRetro: true },
+    );
+    const retroKinds = (list: typeof tasks) =>
+      list
+        .filter(
+          (task) => task.kind === "retro" || task.kind === "retro_actions",
+        )
+        .map((task) => task.taskLabel);
+    expect(retroKinds(tasks)).toEqual([]);
+    const withOpen = deriveEventPhaseTasks(
+      { ...started, report_status: "submitted" },
+      { hasImpactNote: true, retroItemCount: 1, openActionItemCount: 1 },
+      now,
+      { includeRetro: true },
+    );
+    expect(retroKinds(withOpen)).toEqual(["1 open action item"]);
+  });
+
   test("a retro is not owed before the event starts", () => {
     const tasks = deriveEventPhaseTasks(
       upcoming,

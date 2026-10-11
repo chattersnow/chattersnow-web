@@ -109,7 +109,14 @@ export function deriveEventPhaseTasks(
     });
   }
 
-  if (options.includeRetro && hasStarted && signals.retroItemCount === 0) {
+  // A submitted report freezes the retro, so an empty one stops being work
+  // anyone can do; open action items can still be closed, so they stay.
+  if (
+    options.includeRetro &&
+    hasStarted &&
+    afterStatus(event) !== "done" &&
+    signals.retroItemCount === 0
+  ) {
     tasks.push({
       kind: "retro",
       taskLabel: "Retro not started",
