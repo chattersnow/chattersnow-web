@@ -64,7 +64,7 @@ const EXPECTED_COUNTS: Record<string, number> = {
   donations: 143,
   inventory_items: 277,
   inventory_movements: 433,
-  monetary_donations: 93,
+  monetary_donations: 94,
   calendar_items: 67,
   governance_meetings: 21,
   volunteer_applications: 47,

@@ -193,6 +193,11 @@ declare
   v_giveaway_id constant uuid := 'babababa-0000-4000-8000-000000000002';
   v_prize1 uuid;
   v_prize2 uuid;
+  v_giveaway_tier uuid;
+  v_giveaway_tier_silver uuid;
+  v_giveaway_tier_bronze uuid;
+  v_giveaway_package uuid;
+  v_sponsor_cash uuid;
   v_program_id constant uuid := 'babababa-0000-4000-8000-000000000001';
   v_shift_id uuid;
   v_registration_id uuid;
@@ -425,6 +430,72 @@ begin
 
   insert into public.giveaway_winners (giveaway_prize_id, winner_name, distribution_status, created_by)
   values (v_prize2, 'T. Nguyen', 'pending', v_admin_id);
+
+  -- The past event's Report card (#1576) computes every section from rows like
+  -- these, so the event carries one of each: raffle tickets sold through a
+  -- package, a paid expense beside the submitted one, a cash sponsorship whose
+  -- mirrored gift must count once (as sponsorship, not also as a donation), and
+  -- an incident.
+  -- The tiers, grants and rules are seed_giveaway_tiers' defaults, written
+  -- directly since the seed has no signed-in user to call it as. Tests that
+  -- call it on this giveaway rely on finding them (it is a no-op once tiers
+  -- exist), and the tenant-isolation suite needs a row in each table.
+  insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
+  values (v_giveaway_id, 'gold', 'Gold', 1, v_admin_id)
+  returning id into v_giveaway_tier;
+  insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
+  values (v_giveaway_id, 'silver', 'Silver', 2, v_admin_id)
+  returning id into v_giveaway_tier_silver;
+  insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
+  values (v_giveaway_id, 'bronze', 'Bronze', 3, v_admin_id)
+  returning id into v_giveaway_tier_bronze;
+
+  insert into public.giveaway_tier_grants (giveaway_id, source_tier_id, ticket_tier_id, quantity, created_by)
+  values
+    (v_giveaway_id, v_giveaway_tier, v_giveaway_tier, 3, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier, v_giveaway_tier_silver, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier, v_giveaway_tier_bronze, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_silver, v_giveaway_tier, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_silver, v_giveaway_tier_silver, 3, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_silver, v_giveaway_tier_bronze, 2, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier, 0, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier_silver, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier_bronze, 3, v_admin_id);
+
+  insert into public.giveaway_tier_rules (giveaway_id, tier_id, match_text, created_by)
+  select v_giveaway_id, v_giveaway_tier, unnest(array['ski', 'snowboard', 'splitboard']), v_admin_id
+  union all
+  select v_giveaway_id, v_giveaway_tier_silver, unnest(array['jacket', 'pant', 'bib', 'outerwear', 'shell']), v_admin_id
+  union all
+  select v_giveaway_id, v_giveaway_tier_bronze, unnest(array['beanie', 'thermal', 'helmet cover', 'base layer']), v_admin_id;
+
+  insert into public.giveaway_ticket_packages (giveaway_id, name, price, tier_id, bundle_quantity, created_by)
+  values (v_giveaway_id, '5 gold tickets', 20.00, v_giveaway_tier, 5, v_admin_id)
+  returning id into v_giveaway_package;
+
+  insert into public.giveaway_ticket_sales (giveaway_id, package_id, quantity, unit_price, amount, sold_at, created_by)
+  values
+    (v_giveaway_id, v_giveaway_package, 3, 20.00, 60.00, now() - interval '40 days', v_admin_id),
+    (v_giveaway_id, v_giveaway_package, 1, 20.00, 20.00, now() - interval '40 days', v_admin_id);
+
+  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, status, created_by, submitted_by)
+  values (v_event_past, 'Dumpster rental', current_date - 40, 150.00, 'USD', 'Paid on the day.', 'paid', v_admin_id, v_admin_id);
+
+  insert into public.monetary_donations (donor_id, event_id, amount, method, received_date, notes, created_by)
+  values (v_person_sponsor, v_event_past, 250.00, 'other', current_date - 40, 'Cleanup sponsorship.', v_admin_id)
+  returning id into v_sponsor_cash;
+
+  insert into public.event_sponsors (
+    event_id, person_id, support_type, contribution_value, is_public, notes,
+    monetary_donation_id, follow_up_status, created_by
+  )
+  values (
+    v_event_past, v_person_sponsor, 'cash', 250.00, false,
+    'Cleanup sponsorship.', v_sponsor_cash, 'not_started', v_admin_id
+  );
+
+  insert into public.event_incidents (event_id, occurred_at, description, severity, reported_by)
+  values (v_event_past, now() - interval '40 days', 'Volunteer slipped on an icy step; first aid given on site.', 'minor', v_admin_id);
 
   -- Programs, event planning, volunteers, and attendance.
   insert into public.programs (id, name, description, status, created_by)

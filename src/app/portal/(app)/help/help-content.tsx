@@ -2484,6 +2484,15 @@ export const helpContent: Record<string, HelpEntry> = {
                 </li>
               </ul>
             </li>
+            <li>
+              <strong className="text-foreground">The Report card</strong>{" "}
+              summarizes the event from its own records — money, goods,
+              sponsors, team, guests and incidents — so nothing is retyped. Each
+              figure links to the card it comes from. You only see the sections
+              your role can read: Money needs access to financial reports, and
+              its net is income less what has been paid out, counted the same
+              way as Finance → Reports.
+            </li>
           </ol>
         </HowToSection>
         <HowToSection heading="Who can do this">

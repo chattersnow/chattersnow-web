@@ -259,10 +259,11 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   finance_reports: {
-    view: "Open Finance → Reports, and read the financial figures a board member is shown on the dashboard and in a meeting's context pack.",
+    view: "Open Finance → Reports, and read the financial figures a board member is shown on the dashboard and in a meeting's context pack, and the Money section of an event's Report card.",
     manage: null,
     notes: [
       "The board's resource: it reads the reports without reaching a ledger. A reporting resource, so Manage is the same as View.",
+      "The event Report card's Money section (income by stream, paid and committed spend, net, budget) is computed from the same definitions as Finance → Reports, so the two agree; without this grant the section is hidden rather than shown as zeros.",
     ],
   },
   finance_approvals: {

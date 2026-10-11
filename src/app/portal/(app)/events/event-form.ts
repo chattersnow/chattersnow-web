@@ -203,7 +203,6 @@ export type EventReportFormData = {
   feedbackNotes: string | null;
   contentNotes: string | null;
   lessonsLearned: string | null;
-  reportSummary: string | null;
 };
 
 export function parseEventReportForm(
@@ -212,14 +211,12 @@ export function parseEventReportForm(
   const feedbackNotes = String(formData.get("feedbackNotes") ?? "").trim();
   const contentNotes = String(formData.get("contentNotes") ?? "").trim();
   const lessonsLearned = String(formData.get("lessonsLearned") ?? "").trim();
-  const reportSummary = String(formData.get("reportSummary") ?? "").trim();
 
   return {
     data: {
       feedbackNotes: feedbackNotes || null,
       contentNotes: contentNotes || null,
       lessonsLearned: lessonsLearned || null,
-      reportSummary: reportSummary || null,
     },
   };
 }

@@ -330,7 +330,6 @@ describe("parseEventReportForm", () => {
         feedbackNotes: null,
         contentNotes: null,
         lessonsLearned: null,
-        reportSummary: null,
       },
     });
   });
@@ -345,7 +344,6 @@ describe("parseEventReportForm", () => {
         feedbackNotes: null,
         contentNotes: null,
         lessonsLearned: "Start setup earlier next time",
-        reportSummary: null,
       },
     });
   });

@@ -447,10 +447,12 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     keywords: ["debrief", "lessons learned", "feedback"],
     group: "results",
     kind: "form",
+    sharedData: ["impactDerived"],
     render: (ctx) => (
       <ReportTab
         ref={ctx.formCallbacks.report.registerHandle}
         event={ctx.event}
+        guests={ctx.shared.impactDerived.data}
         formId={ctx.formId("report")}
         mode={ctx.mode}
         onSaved={ctx.onSaved}

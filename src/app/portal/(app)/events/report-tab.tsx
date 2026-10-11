@@ -16,6 +16,8 @@ import {
   updateEventReportAction,
 } from "./actions";
 import { ReportStatusBadge, type EventRow } from "./event-badges";
+import { EventReportSummary } from "./report-summary";
+import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -35,7 +37,6 @@ function formStateFor(event: EventRow) {
     feedbackNotes: event.feedback_notes ?? "",
     contentNotes: event.content_notes ?? "",
     lessonsLearned: event.lessons_learned ?? "",
-    reportSummary: event.report_summary ?? "",
   };
 }
 
@@ -52,8 +53,22 @@ export type ReportTabHandle = {
   discard: () => void;
 };
 
+/**
+ * Text typed into the retired `report_summary` field before #1576. Shown
+ * read-only, and only on events that have some, so it is never lost.
+ */
+function ArchivedSummary({ event }: { event: EventRow }) {
+  if (!event.report_summary?.trim()) return null;
+  return (
+    <ReadOnlyField label="Earlier written summary" htmlFor="report-summary">
+      {event.report_summary}
+    </ReadOnlyField>
+  );
+}
+
 export function ReportTab({
   event,
+  guests,
   formId,
   mode,
   onSaved,
@@ -62,6 +77,8 @@ export function ReportTab({
   ref,
 }: {
   event: EventRow;
+  /** The Impact card's participant figures, reused for the Guests section. */
+  guests?: EventImpactDerived;
   formId: string;
   mode: "view" | "edit";
   onSaved: () => void;
@@ -114,7 +131,6 @@ export function ReportTab({
     formData.set("feedbackNotes", form.feedbackNotes);
     formData.set("contentNotes", form.contentNotes);
     formData.set("lessonsLearned", form.lessonsLearned);
-    formData.set("reportSummary", form.reportSummary);
 
     startTransition(async () => {
       await runAction(() => updateEventReportAction(event.id, formData), {
@@ -175,9 +191,8 @@ export function ReportTab({
               )}
             </div>
           </Field>
-          <ReadOnlyField label="Report summary" htmlFor="report-reportSummary">
-            {form.reportSummary || "—"}
-          </ReadOnlyField>
+          <EventReportSummary eventId={event.id} guests={guests} />
+          <ArchivedSummary event={event} />
           <ReadOnlyField
             label="Participant feedback"
             htmlFor="report-feedbackNotes"
@@ -280,17 +295,8 @@ export function ReportTab({
           </div>
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="report-reportSummary">Report summary</FieldLabel>
-          <Textarea
-            id="report-reportSummary"
-            placeholder="Write-up of how the event went, pulling together attendance, expenses, incidents, etc."
-            value={form.reportSummary}
-            onChange={(changeEvent) =>
-              update("reportSummary", changeEvent.target.value)
-            }
-          />
-        </Field>
+        <EventReportSummary eventId={event.id} guests={guests} />
+        <ArchivedSummary event={event} />
 
         <Field>
           <FieldLabel htmlFor="report-feedbackNotes">
