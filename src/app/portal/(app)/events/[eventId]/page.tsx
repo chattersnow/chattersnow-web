@@ -97,7 +97,7 @@ export default async function EventDetailPage({
   const { data: eventRow, error } = await supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, confirmation_note, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, column_label, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, confirmation_note, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, column_label, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
     )
     .eq("id", eventId)
     .maybeSingle<RawEventRow>();
@@ -140,6 +140,7 @@ export default async function EventDetailPage({
     { data: deleteBlockers },
     { data: openChecklistItems },
     { data: impactNote },
+    { data: retroItems },
   ] = await Promise.all([
     listProgramsAction(),
     // What, if anything, stops this event from being deleted -- so the delete
@@ -161,6 +162,12 @@ export default async function EventDetailPage({
       .select("event_id")
       .eq("event_id", eventId)
       .maybeSingle(),
+    // The retro's two phase tasks (#1578): none written yet, and how many of
+    // its action items are still open.
+    supabase
+      .from("event_retro_items")
+      .select("kind, status")
+      .eq("event_id", eventId),
   ]);
 
   // Which shape the section rail takes, decided here rather than measured in
@@ -170,6 +177,10 @@ export default async function EventDetailPage({
   const programs = "data" in programsResult ? programsResult.data : [];
   const cardTasks = eventCardTaskLabels(event, {
     hasImpactNote: Boolean(impactNote),
+    retroItemCount: retroItems?.length ?? 0,
+    openActionItemCount: (retroItems ?? []).filter(
+      (item) => item.kind === "action" && item.status === "open",
+    ).length,
     openChecklistTitles: (openChecklistItems ?? []).map((row) => row.title),
   });
 

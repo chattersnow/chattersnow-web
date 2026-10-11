@@ -17,6 +17,7 @@ import {
 } from "./actions";
 import { ReportStatusBadge, type EventRow } from "./event-badges";
 import { EventReportSummary } from "./report-summary";
+import { RetroSection } from "./retro-section";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -36,7 +37,6 @@ function formStateFor(event: EventRow) {
   return {
     feedbackNotes: event.feedback_notes ?? "",
     contentNotes: event.content_notes ?? "",
-    lessonsLearned: event.lessons_learned ?? "",
   };
 }
 
@@ -130,7 +130,6 @@ export function ReportTab({
     const formData = new FormData();
     formData.set("feedbackNotes", form.feedbackNotes);
     formData.set("contentNotes", form.contentNotes);
-    formData.set("lessonsLearned", form.lessonsLearned);
 
     startTransition(async () => {
       await runAction(() => updateEventReportAction(event.id, formData), {
@@ -202,12 +201,7 @@ export function ReportTab({
           <ReadOnlyField label="Photos / content" htmlFor="report-contentNotes">
             {form.contentNotes || "—"}
           </ReadOnlyField>
-          <ReadOnlyField
-            label="Lessons learned"
-            htmlFor="report-lessonsLearned"
-          >
-            {form.lessonsLearned || "—"}
-          </ReadOnlyField>
+          <RetroSection eventId={event.id} />
           {event.report_status !== "submitted" && (
             <Button
               type="button"
@@ -325,18 +319,7 @@ export function ReportTab({
           />
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="report-lessonsLearned">
-            Lessons learned
-          </FieldLabel>
-          <Textarea
-            id="report-lessonsLearned"
-            value={form.lessonsLearned}
-            onChange={(changeEvent) =>
-              update("lessonsLearned", changeEvent.target.value)
-            }
-          />
-        </Field>
+        <RetroSection eventId={event.id} />
 
         {event.report_status !== "submitted" && (
           <Button

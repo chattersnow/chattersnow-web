@@ -329,7 +329,6 @@ describe("parseEventReportForm", () => {
       data: {
         feedbackNotes: null,
         contentNotes: null,
-        lessonsLearned: null,
       },
     });
   });
@@ -337,13 +336,12 @@ describe("parseEventReportForm", () => {
   test("parses report fields", () => {
     expect(
       parseEventReportForm(
-        formData({ lessonsLearned: "Start setup earlier next time" }),
+        formData({ feedbackNotes: "Loved the ability groups" }),
       ),
     ).toEqual({
       data: {
-        feedbackNotes: null,
+        feedbackNotes: "Loved the ability groups",
         contentNotes: null,
-        lessonsLearned: "Start setup earlier next time",
       },
     });
   });

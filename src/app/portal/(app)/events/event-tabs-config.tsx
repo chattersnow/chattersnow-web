@@ -459,7 +459,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "report",
     label: "Report",
-    keywords: ["debrief", "lessons learned", "feedback"],
+    keywords: [
+      "debrief",
+      "retro",
+      "lessons learned",
+      "action items",
+      "feedback",
+    ],
     group: "results",
     kind: "form",
     sharedData: ["impactDerived"],

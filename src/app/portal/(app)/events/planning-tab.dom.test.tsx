@@ -50,7 +50,6 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     event_lead: null,
     report_status: "not_started",
     report_summary: null,
-    lessons_learned: null,
     feedback_notes: null,
     content_notes: null,
     report_submitted_at: null,
