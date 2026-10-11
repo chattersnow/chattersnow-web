@@ -436,9 +436,10 @@ begin
   -- package, a paid expense beside the submitted one, a cash sponsorship whose
   -- mirrored gift must count once (as sponsorship, not also as a donation), and
   -- an incident.
-  -- The tiers are seed_giveaway_tiers' defaults, written directly since the
-  -- seed has no signed-in user to call it as. Tests that call it on this
-  -- giveaway rely on finding them (it is a no-op once tiers exist).
+  -- The tiers, grants and rules are seed_giveaway_tiers' defaults, written
+  -- directly since the seed has no signed-in user to call it as. Tests that
+  -- call it on this giveaway rely on finding them (it is a no-op once tiers
+  -- exist), and the tenant-isolation suite needs a row in each table.
   insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
   values (v_giveaway_id, 'gold', 'Gold', 1, v_admin_id)
   returning id into v_giveaway_tier;
@@ -460,6 +461,13 @@ begin
     (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier, 0, v_admin_id),
     (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier_silver, 1, v_admin_id),
     (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier_bronze, 3, v_admin_id);
+
+  insert into public.giveaway_tier_rules (giveaway_id, tier_id, match_text, created_by)
+  select v_giveaway_id, v_giveaway_tier, unnest(array['ski', 'snowboard', 'splitboard']), v_admin_id
+  union all
+  select v_giveaway_id, v_giveaway_tier_silver, unnest(array['jacket', 'pant', 'bib', 'outerwear', 'shell']), v_admin_id
+  union all
+  select v_giveaway_id, v_giveaway_tier_bronze, unnest(array['beanie', 'thermal', 'helmet cover', 'base layer']), v_admin_id;
 
   insert into public.giveaway_ticket_packages (giveaway_id, name, price, tier_id, bundle_quantity, created_by)
   values (v_giveaway_id, '5 gold tickets', 20.00, v_giveaway_tier, 5, v_admin_id)
