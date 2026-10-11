@@ -176,19 +176,24 @@ describe("listEventDonationsAction (integration)", () => {
   });
 
   test("inventory_reports:view without finance reads the event's in-kind items, not the donor (#1572)", async () => {
-    // The board role is `none` across finance, inventory and people.
+    // The board role is `none` across finance, inventory and people, but
+    // reads `people` through reimbursement_approvals:manage, so that is
+    // closed for the test.
     const { data: board } = await adminClient
       .from("roles")
       .select("id")
       .eq("name", "board")
       .single();
-    const { data: resource } = await adminClient
+    const { data: resources } = await adminClient
       .from("resources")
-      .select("id")
-      .eq("key", "inventory_reports")
-      .single();
-    if (!board || !resource) {
-      throw new Error("expected the board role and inventory_reports");
+      .select("id, key")
+      .in("key", ["inventory_reports", "reimbursement_approvals"]);
+    const resource = resources?.find((r) => r.key === "inventory_reports");
+    const reimbursements = resources?.find(
+      (r) => r.key === "reimbursement_approvals",
+    );
+    if (!board || !resource || !reimbursements) {
+      throw new Error("expected the board role and both resources");
     }
 
     const event = await createPublishedEvent();
@@ -199,12 +204,13 @@ describe("listEventDonationsAction (integration)", () => {
       .eq("id", donation.id);
     if (linked.error) throw linked.error;
 
-    const grant = await adminClient
-      .from("role_permissions")
-      .upsert(
+    const grant = await adminClient.from("role_permissions").upsert(
+      [
         { role_id: board.id, resource_id: resource.id, level: "view" },
-        { onConflict: "role_id,resource_id" },
-      );
+        { role_id: board.id, resource_id: reimbursements.id, level: "none" },
+      ],
+      { onConflict: "role_id,resource_id" },
+    );
     if (grant.error) throw grant.error;
 
     try {
@@ -223,6 +229,11 @@ describe("listEventDonationsAction (integration)", () => {
         .update({ level: "none" })
         .eq("role_id", board.id)
         .eq("resource_id", resource.id);
+      await adminClient
+        .from("role_permissions")
+        .update({ level: "manage" })
+        .eq("role_id", board.id)
+        .eq("resource_id", reimbursements.id);
       await donation.cleanup();
       await event.cleanup();
     }
