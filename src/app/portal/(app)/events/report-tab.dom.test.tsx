@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { EventRow } from "./event-badges";
 import * as EventsActions from "./actions";
 import { labelText } from "../../../../../test/labels";
+import type { EventReport } from "@/lib/portal/event-report-metrics";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -17,6 +18,37 @@ mock.module("./actions", () => ({
   ...EventsActions,
   getCanReopenEventReportAction: getCanReopenEventReportActionMock,
   reopenEventReportAction: reopenEventReportActionMock,
+}));
+
+const emptyMoney = {
+  incomeStreams: [],
+  income: 0,
+  salesTax: 0,
+  expensesByStatus: [],
+  reimbursementsByStatus: [],
+  paidSpend: 0,
+  committedSpend: 0,
+  pendingSpend: 0,
+  net: 0,
+  budget: null,
+  budgetRemaining: null,
+};
+
+const emptyReport = async () => ({
+  data: {
+    money: emptyMoney,
+    goods: null,
+    sponsors: null,
+    team: null,
+    operations: { incidents: 0, bySeverity: {} },
+  } satisfies EventReport,
+});
+
+const getEventReportActionMock =
+  mock<(eventId: string) => Promise<{ data: EventReport }>>(emptyReport);
+
+mock.module("./report-data-actions", () => ({
+  getEventReportAction: getEventReportActionMock,
 }));
 
 const { ReportTab } = await import("./report-tab");
@@ -56,6 +88,7 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
 
 describe("ReportTab", () => {
   beforeEach(() => {
+    getEventReportActionMock.mockImplementation(emptyReport);
     getCanReopenEventReportActionMock.mockClear();
     reopenEventReportActionMock.mockClear();
     getCanReopenEventReportActionMock.mockImplementation(async () => ({
@@ -133,5 +166,76 @@ describe("ReportTab", () => {
       "event-1",
       "Capacity needs correcting after the fact.",
     );
+  });
+
+  // #1576: the summary is computed, not typed.
+  test("shows computed sections the reader may see, and no summary textarea", async () => {
+    getEventReportActionMock.mockImplementation(async () => ({
+      data: {
+        money: {
+          ...emptyMoney,
+          incomeStreams: [{ key: "ticket_sales", count: 2, total: 300 }],
+          income: 300,
+          net: 300,
+        },
+        goods: null,
+        sponsors: null,
+        team: null,
+        operations: { incidents: 1, bySeverity: { minor: 1 } },
+      },
+    }));
+
+    render(
+      <ReportTab
+        event={makeEvent()}
+        formId="report-form"
+        mode="edit"
+        onSaved={() => {}}
+      />,
+    );
+
+    const money = await screen.findByRole("region", { name: "Money" });
+    expect(money).toHaveTextContent("Ticket sales");
+    expect(money).toHaveTextContent("$300.00");
+    expect(
+      screen.getByRole("region", { name: "Operations" }),
+    ).toHaveTextContent("1 minor");
+    // Sections the RPC returned null for are not rendered at all.
+    expect(screen.queryByRole("region", { name: "Goods" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Sponsors" })).toBeNull();
+    expect(screen.queryByLabelText(/report summary/i)).toBeNull();
+  });
+
+  test("says so when a visible section has nothing recorded", async () => {
+    render(
+      <ReportTab
+        event={makeEvent()}
+        formId="report-form"
+        mode="view"
+        onSaved={() => {}}
+      />,
+    );
+
+    expect(
+      await screen.findByText(
+        "No income, expenses or budget recorded for this event.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  test("keeps an old typed summary readable", async () => {
+    render(
+      <ReportTab
+        event={makeEvent({ report_summary: "Great turnout despite the snow." })}
+        formId="report-form"
+        mode="view"
+        onSaved={() => {}}
+      />,
+    );
+
+    expect(
+      await screen.findByText("Great turnout despite the snow."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Earlier written summary")).toBeInTheDocument();
   });
 });

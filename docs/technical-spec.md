@@ -214,7 +214,7 @@ The initial admin dashboard shall summarize:
 - Donation inventory totals
 - Expenses for a selected period
 - Giveaway sales associated with events
-- Revenue for a selected period, which since #909 means event revenue plus completed merchandise sales ([§5.22](spec/finance.md#522-sales-point-of-sale)) — the dashboard tile and the Financial Reports Income figure are derived from the same `get_finance_report_data` rollup so the two can never disagree
+- Revenue for a selected period, which since #909 means event revenue plus completed merchandise sales ([§5.22](spec/finance.md#522-sales-point-of-sale)) — the dashboard tile and the Financial Reports Income figure are derived from the same `get_finance_report_data` rollup so the two can never disagree. Since #1576 that rollup also reads giveaway ticket sales, which count as income, and an event's Report card computes its Money section from the same definitions (`summarizeByEvent`), so an event's net agrees with its row on Financial Reports
 
 Dashboard values should be derived from stored records and clearly indicate the relevant date range. Expanded reports may later include filters, exports, and pending tasks.
 

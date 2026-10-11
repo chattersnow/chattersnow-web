@@ -48,6 +48,15 @@ export type SaleReportRow = {
   event_name: string | null;
 };
 
+// Raffle tickets sold through a giveaway (#1576). Like sales they are cash
+// taken for something, so they join income; they reached no total before.
+export type GiveawayTicketSaleReportRow = {
+  amount: number | string | null;
+  sold_at?: string;
+  event_id: string | null;
+  event_name: string | null;
+};
+
 export type FinanceReportData = {
   revenue: RevenueReportRow[];
   expenses: SpendReportRow[];
@@ -55,6 +64,7 @@ export type FinanceReportData = {
   in_kind_items: InKindItemRow[];
   monetary_donations: MonetaryDonationReportRow[];
   sales: SaleReportRow[];
+  giveaway_ticket_sales: GiveawayTicketSaleReportRow[];
 };
 
 export const SPEND_STATUSES = [
@@ -69,6 +79,9 @@ export const NO_EVENT_LABEL = "No event";
 // event_revenue's retired `merchandise` source (#909). Legacy rows still
 // carry it, and register sales are reported under the same key.
 export const MERCHANDISE_SOURCE = "merchandise";
+
+// Not an event_revenue source: the bucket giveaway ticket sales report under.
+export const GIVEAWAY_TICKETS_SOURCE = "giveaway_tickets";
 
 export function toNumber(value: number | string | null | undefined): number {
   if (value === null || value === undefined) return 0;
@@ -85,6 +98,7 @@ export type SourceTotal = { source: string; count: number; total: number };
 export function summarizeRevenueBySource(
   rows: RevenueReportRow[],
   sales: SaleReportRow[] = [],
+  giveawayTicketSales: GiveawayTicketSaleReportRow[] = [],
 ): SourceTotal[] {
   const totals = new Map<string, SourceTotal>();
   const add = (key: string, amount: number | string | null) => {
@@ -96,6 +110,9 @@ export function summarizeRevenueBySource(
 
   for (const row of rows) add(row.source?.trim() || "other", row.amount);
   for (const sale of sales) add(MERCHANDISE_SOURCE, sale.amount);
+  for (const sale of giveawayTicketSales) {
+    add(GIVEAWAY_TICKETS_SOURCE, sale.amount);
+  }
 
   return [...totals.values()].sort((a, b) => b.total - a.total);
 }
@@ -149,6 +166,7 @@ export function summarizeByEvent(
   spend: SpendReportRow[],
   donations: MonetaryDonationReportRow[] = [],
   sales: SaleReportRow[] = [],
+  giveawayTicketSales: GiveawayTicketSaleReportRow[] = [],
 ): EventTotal[] {
   const totals = new Map<string, EventTotal>();
 
@@ -174,6 +192,9 @@ export function summarizeByEvent(
   for (const row of sales) {
     entryFor(row.event_id, row.event_name).income += toNumber(row.amount);
   }
+  for (const row of giveawayTicketSales) {
+    entryFor(row.event_id, row.event_name).income += toNumber(row.amount);
+  }
   for (const row of spend) {
     if (row.status !== "paid") continue;
     entryFor(row.event_id, row.event_name).paidSpend += toNumber(row.amount);
@@ -195,6 +216,8 @@ export type FinanceSummary = {
   salesCount: number;
   /** Tax collected on completed sales: held for remittance, outside income. */
   salesTaxTotal: number;
+  giveawayTicketTotal: number;
+  giveawayTicketSaleCount: number;
   cashDonations: number;
   cashDonationCount: number;
   paidSpend: number;
@@ -216,11 +239,17 @@ export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
     (total, row) => total + toNumber(row.tax),
     0,
   );
-  // Income is gross cash in from trading: event revenue plus merchandise
-  // sold at the register. Monetary donations stay their own figure below.
+  const giveawayTicketTotal = data.giveaway_ticket_sales.reduce(
+    (total, row) => total + toNumber(row.amount),
+    0,
+  );
+  // Income is gross cash in from trading: event revenue, merchandise sold at
+  // the register and giveaway tickets. Monetary donations stay their own
+  // figure below.
   const income =
     data.revenue.reduce((total, row) => total + toNumber(row.amount), 0) +
-    salesTotal;
+    salesTotal +
+    giveawayTicketTotal;
   const cashDonations = data.monetary_donations.reduce(
     (total, row) => total + toNumber(row.amount),
     0,
@@ -233,6 +262,8 @@ export function computeFinanceSummary(data: FinanceReportData): FinanceSummary {
     salesTotal,
     salesCount: data.sales.length,
     salesTaxTotal,
+    giveawayTicketTotal,
+    giveawayTicketSaleCount: data.giveaway_ticket_sales.length,
     cashDonations,
     cashDonationCount: data.monetary_donations.length,
     paidSpend,

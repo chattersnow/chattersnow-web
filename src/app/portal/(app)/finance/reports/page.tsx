@@ -108,13 +108,18 @@ export default async function FinancialReportsPage({
         in_kind_items: result.in_kind_items ?? [],
         monetary_donations: result.monetary_donations ?? [],
         sales: result.sales ?? [],
+        giveaway_ticket_sales: result.giveaway_ticket_sales ?? [],
       };
     }
   }
 
   const summary = data ? computeFinanceSummary(data) : null;
   const revenueBySource = data
-    ? summarizeRevenueBySource(data.revenue, data.sales)
+    ? summarizeRevenueBySource(
+        data.revenue,
+        data.sales,
+        data.giveaway_ticket_sales,
+      )
     : [];
   const expensesByStatus = data ? summarizeSpendByStatus(data.expenses) : [];
   const reimbursementsByStatus = data
@@ -126,6 +131,7 @@ export default async function FinancialReportsPage({
         [...data.expenses, ...data.reimbursements],
         data.monetary_donations,
         data.sales,
+        data.giveaway_ticket_sales,
       )
     : [];
 
@@ -136,7 +142,7 @@ export default async function FinancialReportsPage({
         {
           label: "Income",
           value: formatCurrency(summary.income),
-          caption: "Event revenue and merchandise sales",
+          caption: "Event revenue, merchandise sales and giveaway tickets",
         },
         {
           label: "Merchandise sales",
@@ -193,7 +199,8 @@ export default async function FinancialReportsPage({
           <p className="app-muted mt-3 max-w-2xl text-sm">
             Summary of income, expenses, and donations across the selected
             period, computed live from event revenue, merchandise sales,
-            expenses, reimbursements, monetary donations, and donation intake.
+            giveaway ticket sales, expenses, reimbursements, monetary donations,
+            and donation intake.
           </p>
         </div>
       </div>

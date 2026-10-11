@@ -5,10 +5,15 @@ import {
   type PortalDataTableColumn,
 } from "@/components/portal/data-table";
 import { isRevenueSource, revenueSourceLabel } from "../revenue/revenue-shared";
-import type { EventTotal, SourceTotal } from "./summary";
+import {
+  GIVEAWAY_TICKETS_SOURCE,
+  type EventTotal,
+  type SourceTotal,
+} from "./summary";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
 function sourceLabel(source: string) {
+  if (source === GIVEAWAY_TICKETS_SOURCE) return "Giveaway tickets";
   return isRevenueSource(source) ? revenueSourceLabel(source) : source;
 }
 
