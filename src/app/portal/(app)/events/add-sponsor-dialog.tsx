@@ -6,14 +6,8 @@ import { SponsorForm, emptySponsorForm } from "./sponsors-tab";
 import { type PickedPerson } from "../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { PortalFormPopup } from "@/components/portal/portal-form-surface";
 
 export function AddSponsorDialog({
   eventId,
@@ -55,14 +49,11 @@ export function AddSponsorDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Add a sponsor</DialogTitle>
-          <DialogDescription>
-            Record a sponsor or partner for this event.
-          </DialogDescription>
-        </DialogHeader>
-
+      <PortalFormPopup
+        size="2xl"
+        title="Add a sponsor"
+        description="Record a sponsor or partner for this event."
+      >
         <SponsorForm
           initial={emptySponsorForm()}
           submitLabel="Add sponsor"
@@ -76,7 +67,7 @@ export function AddSponsorDialog({
           people={people}
           onPersonCreated={handlePersonCreated}
         />
-      </DialogContent>
+      </PortalFormPopup>
     </Dialog>
   );
 }

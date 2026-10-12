@@ -11,14 +11,8 @@ import {
 import { type PickedPerson } from "../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../people/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { PortalFormPopup } from "@/components/portal/portal-form-surface";
 
 export function AddVolunteerDialog({
   eventId,
@@ -68,14 +62,11 @@ export function AddVolunteerDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add a volunteer</DialogTitle>
-          <DialogDescription>
-            Sign someone up to volunteer at this event.
-          </DialogDescription>
-        </DialogHeader>
-
+      <PortalFormPopup
+        size="lg"
+        title="Add a volunteer"
+        description="Sign someone up to volunteer at this event."
+      >
         <AddVolunteerForm
           people={people}
           shifts={shifts}
@@ -89,7 +80,7 @@ export function AddVolunteerDialog({
             onSaved?.();
           }}
         />
-      </DialogContent>
+      </PortalFormPopup>
     </Dialog>
   );
 }

@@ -3,7 +3,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Button } from "@/components/ui/button";
 import { PortalDeviceProvider } from "@/lib/portal/device-context";
+import { Dialog } from "@/components/ui/dialog";
 import {
+  PortalFormPopup,
   PortalFormSurface,
   PortalFormSurfaceClose,
   type PortalFormSurfaceProps,
@@ -233,4 +235,30 @@ describe("opening and closing", () => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
   }
+});
+
+// #1561: a form that owns its own <form> still opens as the phone drawer.
+describe("PortalFormPopup", () => {
+  function renderPopup(device: "mobile" | "desktop") {
+    render(
+      <Dialog open>
+        <PortalFormPopup device={device} title="Add a shift" size="lg">
+          <form aria-label="Shift" />
+        </PortalFormPopup>
+      </Dialog>,
+    );
+  }
+
+  test("a phone gets the bottom drawer", () => {
+    renderPopup("mobile");
+    expect(sheetContent()).toHaveAttribute("data-side", "bottom");
+    expect(dialogContent()).toBeNull();
+    expect(screen.getByRole("form", { name: "Shift" })).toBeInTheDocument();
+  });
+
+  test("a desk gets the dialog", () => {
+    renderPopup("desktop");
+    expect(dialogContent()?.className).toContain("sm:max-w-lg");
+    expect(sheetContent()).toBeNull();
+  });
 });
