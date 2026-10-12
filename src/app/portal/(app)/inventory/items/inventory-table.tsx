@@ -19,6 +19,7 @@ import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { buildHref } from "@/lib/pagination";
 import { IconLink } from "@/components/portal/icon-link";
 import { InventoryCard } from "./inventory-card";
+import { RetireTagCodesButton } from "./retire-tag-codes-button";
 import { useInventoryView } from "./inventory-view-context";
 import {
   CONDITIONS,
@@ -41,12 +42,15 @@ export function InventoryTable({
   dir,
   filterQueryString,
   hasActiveFilters,
+  canManage = false,
 }: {
   items: InventoryItem[];
   sort: SortColumn;
   dir: "asc" | "desc";
   filterQueryString: string;
   hasActiveFilters: boolean;
+  /** inventory:manage, for the selection's tag-code clean-up (#1544). */
+  canManage?: boolean;
 }) {
   const { view } = useInventoryView();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -127,6 +131,12 @@ export function InventoryTable({
                 >
                   <Printer /> Print labels
                 </Button>
+                {canManage && (
+                  <RetireTagCodesButton
+                    items={items.filter((item) => selectedIds.has(item.id))}
+                    onDone={() => setSelectedIds(new Set())}
+                  />
+                )}
                 <Button
                   type="button"
                   variant="ghost"

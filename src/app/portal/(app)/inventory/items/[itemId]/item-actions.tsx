@@ -52,7 +52,12 @@ export function ItemActions({
         <GenerateCodeButton itemId={item.id} />
       )}
       {canManage && inStock && (
-        <AssignNumberedCodeButton itemId={item.id} current={numbered} />
+        <AssignNumberedCodeButton
+          itemId={item.id}
+          current={numbered}
+          tagCode={code}
+          numberedOnly={numberedOnly}
+        />
       )}
       {canManage && numbered && (
         <UnassignNumberedCodeButton itemId={item.id} code={numbered} />
