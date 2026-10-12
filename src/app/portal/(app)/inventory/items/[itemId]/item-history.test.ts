@@ -226,4 +226,19 @@ describe("numbered-code entries (#1444)", () => {
       releaseReason: "The item was distributed",
     });
   });
+
+  test("a code retired off the item says so, not that the item was (#1544)", () => {
+    const [released] = toHistoryEntries([
+      row({
+        entry_kind: "tag_released",
+        entry_id: "binding-2",
+        reason: "AB12CD",
+        notes: "code_retired",
+      }),
+    ]);
+    expect(released).toMatchObject({
+      code: "AB12CD",
+      releaseReason: "The code was retired",
+    });
+  });
 });

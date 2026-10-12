@@ -2,7 +2,8 @@
 // local Supabase stack -- the list and its filters, recording printing and
 // NFC writes on inventory:view, retiring a damaged or lost code and it being
 // refused by assign, intake and the resolver, restoring it, one code's
-// history, RLS, and tenant isolation. Requires
+// history, retiring an item's tag code once it has a numbered code (#1544),
+// RLS, and tenant isolation. Requires
 // `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
@@ -334,7 +335,7 @@ describe("retiring a code (integration)", () => {
       .select("release_reason")
       .eq("tag_id", code.id)
       .single();
-    expect(assignment?.release_reason).toBe("retired");
+    expect(assignment?.release_reason).toBe("code_retired");
 
     const assign = await adminClient.rpc("assign_numbered_inventory_tag", {
       p_item_id: itemIds[2],
@@ -409,21 +410,6 @@ describe("retiring a code (integration)", () => {
     expect(await resolves(blank.value)).toBe("not_found");
   });
 
-  test("a random code on an item is reprinted, not retired", async () => {
-    const { data: onItem } = await adminClient
-      .from("inventory_item_tags")
-      .select("id")
-      .eq("kind", "asset_tag")
-      .eq("item_id", itemIds[1])
-      .single();
-    const { data } = await adminClient.rpc("retire_inventory_tags", {
-      p_tag_ids: [onItem!.id],
-      p_reason: "lost",
-    });
-    expect(data![0].outcome).toBe("on_item");
-    expect((await tag(onItem!.id)).retired_at).toBeNull();
-  });
-
   test("a direct update can't leave a retired code on an item", async () => {
     const [code] = await generate(1);
     await adminClient.rpc("retire_inventory_tags", {
@@ -435,6 +421,156 @@ describe("retiring a code (integration)", () => {
       .update({ item_id: itemIds[1] })
       .eq("id", code.id);
     expect(error?.message).toContain("inventory_item_tags_retired_unbound");
+  });
+});
+
+describe("retiring an item's tag code once it has a numbered code (integration, #1544)", () => {
+  let items: string[];
+  let cleanupItems: () => Promise<void>;
+
+  beforeAll(async () => {
+    const fixture = await createAvailableGearItems(3);
+    items = fixture.itemIds;
+    cleanupItems = fixture.cleanup;
+  });
+
+  afterAll(async () => {
+    await cleanupItems?.();
+  });
+
+  async function assetTagOn(itemId: string) {
+    const { data, error } = await adminClient
+      .from("inventory_item_tags")
+      .select("id, value")
+      .eq("kind", "asset_tag")
+      .eq("item_id", itemId)
+      .single();
+    if (error) throw error;
+    createdTagIds.push(data.id);
+    return data;
+  }
+
+  test("assign numbered, retire the tag code: the item is still found by its numbered code", async () => {
+    const [numbered] = await generate(1);
+    const asset = await assetTagOn(items[0]);
+    const assign = await adminClient.rpc("assign_numbered_inventory_tag", {
+      p_item_id: items[0],
+      p_code: numbered.value,
+    });
+    expect(assign.data![0].outcome).toBe("assigned");
+
+    const { data, error } = await adminClient.rpc(
+      "retire_item_asset_tag_codes",
+      { p_item_ids: [items[0]] },
+    );
+    expect(error).toBeNull();
+    expect(data).toEqual([
+      {
+        item_id: items[0],
+        description: expect.any(String),
+        code: asset.value,
+        outcome: "retired",
+      },
+    ]);
+
+    expect(await tag(asset.id)).toMatchObject({
+      item_id: null,
+      retired_reason: "replaced",
+    });
+    expect((await list({ p_ids: [asset.id] }))[0].state).toBe("retired");
+    expect(await resolves(asset.value)).toBe("not_found");
+    expect(await resolves(numbered.value)).toBe("found");
+
+    // Both histories still show the item carried the retired code.
+    const { data: codeHistory } = await adminClient.rpc(
+      "inventory_tag_history",
+      { p_tag_id: asset.id },
+    );
+    const released = (codeHistory as HistoryRow[]).find(
+      (entry) => entry.event === "released",
+    );
+    expect(released).toMatchObject({
+      item_id: items[0],
+      detail: "code_retired",
+    });
+    expect(
+      (codeHistory as HistoryRow[]).filter(
+        (entry) => entry.event === "assigned",
+      ),
+    ).toEqual([]);
+    const { data: itemHistory } = await adminClient.rpc(
+      "inventory_item_history",
+      { p_item_id: items[0] },
+    );
+    expect(itemHistory).toContainEqual(
+      expect.objectContaining({
+        entry_kind: "tag_released",
+        reason: asset.value,
+        notes: "code_retired",
+      }),
+    );
+  });
+
+  test("a mixed selection retires only where a numbered code stays", async () => {
+    const [numbered] = await generate(1);
+    const kept = await assetTagOn(items[1]);
+    const retired = await assetTagOn(items[2]);
+    await adminClient.rpc("assign_numbered_inventory_tag", {
+      p_item_id: items[2],
+      p_code: numbered.value,
+    });
+
+    const { data: result } = await adminClient.rpc(
+      "retire_item_asset_tag_codes",
+      { p_item_ids: [items[1], items[2], items[0], crypto.randomUUID()] },
+    );
+    const data = result as { item_id: string; outcome: string }[];
+    const outcomes = Object.fromEntries(
+      data.map((row) => [row.item_id, row.outcome]),
+    );
+    expect(outcomes[items[1]]).toBe("no_numbered");
+    expect(outcomes[items[2]]).toBe("retired");
+    // Its tag code was retired by the test above.
+    expect(outcomes[items[0]]).toBe("no_tag_code");
+    expect(data).toHaveLength(4);
+    expect(data.filter((row) => row.outcome === "unknown")).toHaveLength(1);
+
+    expect((await tag(kept.id)).retired_at).toBeNull();
+    expect((await tag(retired.id)).retired_at).not.toBeNull();
+  });
+
+  test("an item's last code is held back until the caller confirms", async () => {
+    // Skipped by the bulk action above: it has no numbered code.
+    const asset = await assetTagOn(items[1]);
+    const held = await adminClient.rpc("retire_inventory_tags", {
+      p_tag_ids: [asset.id],
+      p_reason: "damaged",
+    });
+    expect(held.data![0]).toMatchObject({
+      outcome: "last_tag",
+      item_id: items[1],
+    });
+    expect(await tag(asset.id)).toMatchObject({
+      item_id: items[1],
+      retired_at: null,
+    });
+
+    const { data } = await adminClient.rpc("retire_inventory_tags", {
+      p_tag_ids: [asset.id],
+      p_reason: "damaged",
+      p_allow_last: true,
+    });
+    expect(data![0].outcome).toBe("retired");
+    expect((await tag(asset.id)).item_id).toBeNull();
+  });
+
+  test("inventory:view can't retire an item's tag code", async () => {
+    await withInventoryViewer(async (viewer) => {
+      const { error } = await viewer.rpc("retire_item_asset_tag_codes", {
+        p_item_ids: [items[1]],
+      });
+      expect(error).not.toBeNull();
+    });
   });
 });
 

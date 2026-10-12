@@ -99,6 +99,7 @@ const RELEASE_REASONS = [
   { value: "moved", label: "Moved to another item" },
   { value: "replaced", label: "Replaced by another code" },
   { value: "unassigned", label: "Unassigned by hand" },
+  { value: "code_retired", label: "The code was retired" },
 ];
 
 function toTag(row: ItemHistoryRow): TagEntry {

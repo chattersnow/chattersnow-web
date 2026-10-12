@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import { Button } from "@/components/ui/button";
 import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
@@ -62,8 +66,12 @@ export default async function InventoryPage({
   searchParams,
 }: InventoryPageProps) {
   const supabase = await createSupabaseServerClient();
-  const lexicon = await getTenantLexicon(supabase);
-  const device = await deviceClass();
+  const [lexicon, device, permissions] = await Promise.all([
+    getTenantLexicon(supabase),
+    deviceClass(),
+    getCurrentUserPermissions(supabase),
+  ]);
+  const canManage = hasPermission(permissions, "inventory", "manage");
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -503,6 +511,7 @@ export default async function InventoryPage({
             dir={dir}
             filterQueryString={filterParams.toString()}
             hasActiveFilters={hasActiveFilters}
+            canManage={canManage}
           />
         </div>
       </InventoryViewProvider>

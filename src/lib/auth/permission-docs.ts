@@ -197,7 +197,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   inventory: {
     view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records, an item's history with who recorded each step (the donor is named only to a reader who can also read donations), print the labels of items that already have a tag code, and scan a tag to open its item. On Items → Codes: list, filter and reprint every tag code, mark a code written to an NFC tag, and read a code's history.",
     manage:
-      "Edit the item catalog and categories, give items their tag codes, create and assign numbered codes, retire a code whose tag is damaged or lost (and restore it), record, correct and delete donation intake and distribution movements, read the in-kind items donated at an event on its Donations card, and work an open gear request: move it through its statuses, add or remove the items it holds, and edit its notes; and on a fulfilled request, return an item that was not actually handed over to the shelf.",
+      "Edit the item catalog and categories, give items their tag codes, create and assign numbered codes, retire a code whose tag is damaged or lost, or an item's old tag code once it has a numbered code — for one item or a selection on the Items list — and restore a retired code, record, correct and delete donation intake and distribution movements, read the in-kind items donated at an event on its Donations card, and work an open gear request: move it through its statuses, add or remove the items it holds, and edit its notes; and on a fulfilled request, return an item that was not actually handed over to the shelf.",
     excludes: [
       { key: "inventory_reports", covers: "valuation and reporting" },
       {
