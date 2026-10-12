@@ -12452,6 +12452,42 @@ export type Database = {
         };
         Returns: undefined;
       };
+      submit_artwork: {
+        Args: {
+          p_code: string;
+          p_consent?: boolean;
+          p_credit_name?: string;
+          p_email: string;
+          p_honeypot?: string;
+          p_images: Json;
+          p_ip_address?: unknown;
+          p_medium: string;
+          p_name: string;
+          p_portfolio_url?: string;
+          p_statement: string;
+          p_title: string;
+        };
+        Returns: string;
+      };
+      submit_claim_from_gear_request: {
+        Args: { p_ip_address?: unknown; p_request_id: string };
+        Returns: undefined;
+      };
+      submit_claim_from_registration: {
+        Args: { p_ip_address?: unknown; p_registration_id: string };
+        Returns: undefined;
+      };
+      submit_contact_message: {
+        Args: {
+          p_email: string;
+          p_honeypot?: string;
+          p_ip_address?: unknown;
+          p_message: string;
+          p_name: string;
+          p_topic: string;
+        };
+        Returns: string;
+      };
       submit_event_report: {
         Args: { p_id: string };
         Returns: {
@@ -12499,42 +12535,6 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
-      };
-      submit_artwork: {
-        Args: {
-          p_code: string;
-          p_consent?: boolean;
-          p_credit_name?: string;
-          p_email: string;
-          p_honeypot?: string;
-          p_images: Json;
-          p_ip_address?: unknown;
-          p_medium: string;
-          p_name: string;
-          p_portfolio_url?: string;
-          p_statement: string;
-          p_title: string;
-        };
-        Returns: string;
-      };
-      submit_claim_from_gear_request: {
-        Args: { p_ip_address?: unknown; p_request_id: string };
-        Returns: undefined;
-      };
-      submit_claim_from_registration: {
-        Args: { p_ip_address?: unknown; p_registration_id: string };
-        Returns: undefined;
-      };
-      submit_contact_message: {
-        Args: {
-          p_email: string;
-          p_honeypot?: string;
-          p_ip_address?: unknown;
-          p_message: string;
-          p_name: string;
-          p_topic: string;
-        };
-        Returns: string;
       };
       submit_person_claim: {
         Args: {

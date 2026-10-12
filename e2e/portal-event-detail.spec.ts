@@ -418,7 +418,7 @@ test.describe("portal event detail", () => {
       const report = card(page, "Results");
       await report.getByRole("button", { name: "Submit report" }).click();
 
-      await expect(report.getByText("Submitted")).toBeVisible({
+      await expect(report.getByText("Submitted", { exact: true })).toBeVisible({
         timeout: 15_000,
       });
       await expect(
