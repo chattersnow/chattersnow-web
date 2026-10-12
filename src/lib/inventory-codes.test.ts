@@ -6,9 +6,12 @@ import {
   codesHref,
   codesPrintHref,
   hasCodeFilters,
+  isRetireReason,
+  itemTagRetireMessage,
   parseCodeFilters,
   parseCodeSearch,
   parseTagIds,
+  summarizeItemTagRetire,
 } from "./inventory-codes";
 import { parseNumberedTag } from "./inventory-tags";
 
@@ -147,6 +150,59 @@ describe("hrefs", () => {
       }),
     ).toBe(
       "/portal/inventory/items/codes?kind=numbered&state=free&print=filter",
+    );
+  });
+});
+
+describe("retiring items' tag codes (#1544)", () => {
+  test("a tag code is retired as replaced by a numbered code", () => {
+    expect(isRetireReason("replaced")).toBe(true);
+  });
+
+  test("summarizes retired codes and the items skipped", () => {
+    const summary = summarizeItemTagRetire([
+      {
+        item_id: ID_A,
+        description: "Helmet",
+        code: "AB12CD",
+        outcome: "retired",
+      },
+      {
+        item_id: ID_B,
+        description: "Gloves",
+        code: null,
+        outcome: "no_numbered",
+      },
+      {
+        item_id: ID_B,
+        description: "Boots",
+        code: null,
+        outcome: "no_tag_code",
+      },
+      { item_id: ID_B, description: null, code: null, outcome: "unknown" },
+    ]);
+    expect(summary).toEqual({
+      retired: [{ code: "AB12CD", description: "Helmet" }],
+      noNumbered: 1,
+      noTagCode: 1,
+    });
+    expect(itemTagRetireMessage(summary)).toBe(
+      "Retired AB12CD on Helmet. 1 item without a numbered code was skipped. 1 item had no tag code to retire.",
+    );
+  });
+
+  test("counts several codes", () => {
+    expect(
+      itemTagRetireMessage({
+        retired: [
+          { code: "A", description: "One" },
+          { code: "B", description: "Two" },
+        ],
+        noNumbered: 3,
+        noTagCode: 0,
+      }),
+    ).toBe(
+      "2 tag codes retired. 3 items without a numbered code were skipped.",
     );
   });
 });

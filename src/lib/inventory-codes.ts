@@ -28,6 +28,7 @@ export const CODE_STATES = [
 export const RETIRE_REASONS = [
   { value: "damaged", label: "Damaged" },
   { value: "lost", label: "Lost" },
+  { value: "replaced", label: "Replaced by a numbered code" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -228,4 +229,59 @@ export type CodeTarget = { ids: string[] } | { filter: string };
 
 export function formatCount(count: number, one: string, many = `${one}s`) {
   return `${count.toLocaleString("en-US")} ${count === 1 ? one : many}`;
+}
+
+/** One row of retire_item_asset_tag_codes(), per item or per code retired. */
+export type ItemTagRetireRow = {
+  item_id: string;
+  description: string | null;
+  code: string | null;
+  outcome: string;
+};
+
+/**
+ * What retiring the tag codes on a selection of items did (#1544): the codes
+ * retired, and how many items were skipped because they have no numbered
+ * code, or had no tag code to retire.
+ */
+export type ItemTagRetireSummary = {
+  retired: { code: string; description: string }[];
+  noNumbered: number;
+  noTagCode: number;
+};
+
+export function summarizeItemTagRetire(
+  rows: readonly ItemTagRetireRow[],
+): ItemTagRetireSummary {
+  return {
+    retired: rows.flatMap((row) =>
+      row.outcome === "retired" && row.code
+        ? [{ code: row.code, description: row.description ?? "" }]
+        : [],
+    ),
+    noNumbered: rows.filter((row) => row.outcome === "no_numbered").length,
+    noTagCode: rows.filter((row) => row.outcome === "no_tag_code").length,
+  };
+}
+
+/** The toast after retiring the tag codes on a selection of items. */
+export function itemTagRetireMessage(summary: ItemTagRetireSummary): string {
+  const parts = [
+    summary.retired.length === 1
+      ? `Retired ${summary.retired[0].code} on ${summary.retired[0].description}.`
+      : `${formatCount(summary.retired.length, "tag code")} retired.`,
+  ];
+  if (summary.noNumbered > 0) {
+    parts.push(
+      `${formatCount(summary.noNumbered, "item")} without a numbered code ${
+        summary.noNumbered === 1 ? "was" : "were"
+      } skipped.`,
+    );
+  }
+  if (summary.noTagCode > 0) {
+    parts.push(
+      `${formatCount(summary.noTagCode, "item")} had no tag code to retire.`,
+    );
+  }
+  return parts.join(" ");
 }
