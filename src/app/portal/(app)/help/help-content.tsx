@@ -1364,6 +1364,16 @@ export const helpContent: Record<string, HelpEntry> = {
               are archived on those events and never added in.
             </li>
             <li>
+              <strong className="text-foreground">
+                Discount value offered
+              </strong>{" "}
+              — what the event&apos;s shared and single-use codes were worth,
+              from the options each covers and the prices registrants chose them
+              at. Shown on its own and never added to assistance: the codes are
+              redeemed on the partner&apos;s site, so nothing says they were
+              used.
+            </li>
+            <li>
               <strong className="text-foreground">Equipment distributed</strong>{" "}
               — summed from inventory movements of type <code>distributed</code>{" "}
               tied to the program&apos;s events.
@@ -2496,13 +2506,29 @@ export const helpContent: Record<string, HelpEntry> = {
               <strong className="text-foreground">The Results card</strong>{" "}
               summarizes the event from its own records, so no figure is ever
               typed. Outcomes comes first: participation, people served,
-              assistance given and discount codes. Then money, goods, sponsors,
-              team and incidents, then the written parts — participant feedback,
-              photos, impact notes and the retro. Each figure links to the card
-              it comes from. You only see the sections your role can read: Money
-              needs access to financial reports, and its net is income less what
-              has been paid out, counted the same way as Finance → Reports.
+              assistance given and discount codes, including the discount value
+              the codes offered. Then money, goods, sponsors, team and
+              incidents, then the written parts — participant feedback, photos,
+              impact notes and the retro. Each figure links to the card it comes
+              from. You only see the sections your role can read: Money needs
+              access to financial reports, and its net is income less what has
+              been paid out, counted the same way as Finance → Reports.
               Submitting the report locks the whole card until it is reopened.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                The Discount codes card
+              </strong>{" "}
+              holds a partner&apos;s single-use codes, each given to one
+              registrant, and at most one shared code for everyone who
+              registers, which goes out in every registration confirmation
+              email. Paste single-use codes one per line, with the
+              partner&apos;s PIN after a comma where there is one; the PIN is
+              shown and emailed with its code. Say which registration options a
+              code covers and by what percentage, and with each option&apos;s
+              price from the Planning tab the Results card works out the
+              discount value it offered. That is what the codes were worth, not
+              whether anyone used them, so it never counts as assistance.
             </li>
             <li>
               <strong className="text-foreground">Cash donations</strong>, in

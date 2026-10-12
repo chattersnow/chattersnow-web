@@ -64,6 +64,12 @@ const derived: EventImpactDerived = {
   },
   autoAssignDiscountCodes: false,
   peopleServed: { distributed: 7, recipients: 5, value: 80 },
+  discountValueOffered: {
+    shared: 520,
+    singleUse: 65,
+    total: 585,
+    codes: [],
+  },
 };
 
 const emptyMoney = {
@@ -338,6 +344,14 @@ describe("ResultsTab", () => {
     });
     expect(assistance).toHaveTextContent("Rental subsidies");
     expect(assistance).toHaveTextContent("$430.00");
+    // #1589: offered value sits with the codes, split so it can be traced,
+    // and never in assistance.
+    const codes = screen.getByRole("region", { name: "Discount codes" });
+    expect(codes).toHaveTextContent("Discount value offered: shared code");
+    expect(codes).toHaveTextContent("$520.00");
+    expect(codes).toHaveTextContent("$65.00");
+    expect(codes).toHaveTextContent("$585.00");
+    expect(assistance).not.toHaveTextContent("Discount value offered");
     // The Report's old Guests section is gone: participation shows once.
     expect(await screen.findByRole("region", { name: "Money" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Guests" })).toBeNull();

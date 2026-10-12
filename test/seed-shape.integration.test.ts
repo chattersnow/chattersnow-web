@@ -69,7 +69,7 @@ const EXPECTED_COUNTS: Record<string, number> = {
   governance_meetings: 21,
   volunteer_applications: 47,
   reimbursements: 36,
-  discount_codes: 138,
+  discount_codes: 139,
   // Hand-authored rather than drawn (#907, #908), so these are exact by
   // construction: three products, six variants, and two sales (#908) -- one
   // completed with two lines, one voided with one.

@@ -796,11 +796,47 @@ begin
   )
   returning id into v_past_returning;
 
-  insert into public.discount_codes (event_id, code, description, source, kind, value, registration_id, assigned_at, created_by)
+  insert into public.discount_codes (event_id, code, pin, description, source, kind, value, registration_id, assigned_at, created_by)
   values
-    (v_event_past, 'TRAIL-RENT-1', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, v_past_first_timer, now() - interval '42 days', v_admin_id),
-    (v_event_past, 'TRAIL-LIFT-1', 'Half-day lift ticket', 'Bear Creek Resort', 'lift', 60.00, v_past_returning, now() - interval '42 days', v_admin_id),
-    (v_event_past, 'TRAIL-RENT-2', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, null, null, v_admin_id);
+    (v_event_past, 'TRAIL-RENT-1', '4821', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, v_past_first_timer, now() - interval '42 days', v_admin_id),
+    (v_event_past, 'TRAIL-LIFT-1', '9930', 'Half-day lift ticket', 'Bear Creek Resort', 'lift', 60.00, v_past_returning, now() - interval '42 days', v_admin_id),
+    (v_event_past, 'TRAIL-RENT-2', '1177', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, null, null, v_admin_id);
+
+  -- #1589: the past event asks Chatter Snow's question with priced options,
+  -- and the partner gave one shared code for everybody (50% off a ticket and
+  -- the ticket-and-gear bundle) with a PIN. Each registrant's answer copies
+  -- its price. Discount value offered: shared 50% of $130 + 50% of $80 =
+  -- $105; single-use TRAIL-LIFT-1 covers 100% of Jamie's $80 ticket, and
+  -- TRAIL-RENT-1 covers no option so falls back to its typed $45.
+  update public.events
+     set registration_options_prompt = 'What does each person need?'
+   where id = v_event_past;
+
+  insert into public.event_registration_options (event_id, label, sort_order, price)
+  values
+    (v_event_past, 'I''ll use my own', 0, null),
+    (v_event_past, 'I need a ticket', 1, 80.00),
+    (v_event_past, 'I need a ticket and gear', 2, 130.00);
+
+  insert into public.event_registration_option_counts (registration_id, option_id, label, sort_order, quantity, price)
+  select reg.id, o.id, o.label, o.sort_order, 1, o.price
+    from (values (v_past_first_timer, 'I need a ticket and gear'),
+                 (v_past_returning, 'I need a ticket')) as answer(registration_id, label)
+    join public.event_registrations reg on reg.id = answer.registration_id
+    join public.event_registration_options o
+      on o.event_id = v_event_past and o.label = answer.label;
+
+  insert into public.discount_codes (event_id, code, pin, shared, description, source, kind, created_by)
+  values (v_event_past, 'TRAIL-GROUP-50', '7731', true, 'Half off a lift ticket or ticket and gear', 'Bear Creek Resort', 'lift', v_admin_id);
+
+  insert into public.discount_code_options (code_id, option_id, percent_off)
+  select dc.id, o.id, cover.percent_off
+    from (values ('TRAIL-GROUP-50', 'I need a ticket', 50.00),
+                 ('TRAIL-GROUP-50', 'I need a ticket and gear', 50.00),
+                 ('TRAIL-LIFT-1', 'I need a ticket', 100.00)) as cover(code, label, percent_off)
+    join public.discount_codes dc on dc.event_id = v_event_past and dc.code = cover.code
+    join public.event_registration_options o
+      on o.event_id = v_event_past and o.label = cover.label;
 
   insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, status, participant_assistance, created_by, submitted_by)
   values (v_event_past, 'Ski rentals for two participants', current_date - 40, 90.00, 'USD', 'Paid at the rental counter.', 'paid', true, v_admin_id, v_admin_id);

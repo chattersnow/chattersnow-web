@@ -230,6 +230,34 @@ export function OutcomesSection({
             value={plural(derived.discountCodesAssigned, "code")}
             caption="Held by a registrant who did not cancel"
           />
+          {/* #1589: offered, not received -- redemption happens on the
+              partner's site -- so it is shown here and never in assistance.
+              Shared and single-use on their own lines so it can be traced. */}
+          {derived.discountValueOffered && (
+            <>
+              <Figure
+                eventId={eventId}
+                card="discount-codes"
+                label="Discount value offered: shared code"
+                value={formatCurrency(derived.discountValueOffered.shared)}
+                caption="Every registration that did not cancel"
+              />
+              <Figure
+                eventId={eventId}
+                card="discount-codes"
+                label="Discount value offered: single-use codes"
+                value={formatCurrency(derived.discountValueOffered.singleUse)}
+                caption="Each code for the registrant holding it"
+              />
+              <Figure
+                eventId={eventId}
+                card="discount-codes"
+                label="Discount value offered"
+                value={formatCurrency(derived.discountValueOffered.total)}
+                caption="What the codes were worth, not whether they were used"
+              />
+            </>
+          )}
         </Section>
       )}
     </div>

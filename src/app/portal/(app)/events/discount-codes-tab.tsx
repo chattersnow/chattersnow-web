@@ -41,6 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EditDiscountCodeDialog } from "./edit-discount-code-dialog";
+import { AddSharedDiscountCodeDialog } from "./add-shared-discount-code-dialog";
 import { EmptyState } from "@/components/portal/empty-state";
 
 // Base UI's Select doesn't accept an empty-string item value, so "no
@@ -54,6 +55,104 @@ function kindAndValue(code: DiscountCode) {
   )?.label;
   const value = code.value === null ? null : formatCurrency(code.value);
   return [kind, value].filter(Boolean).join(" · ") || "—";
+}
+
+/** The code, with the partner's PIN under it where there is one (#1589). */
+function CodeWithPin({ code }: { code: DiscountCode }) {
+  return (
+    <span className="block min-w-0">
+      <span className="block truncate font-medium">{code.code}</span>
+      {code.pin && (
+        <span className="app-muted block truncate text-xs">PIN {code.pin}</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * The event's one shared code (#1589), on its own above the single-use list:
+ * it goes to everyone who registers, in their confirmation email, and is
+ * never assigned.
+ */
+function SharedCodePanel({
+  eventId,
+  code,
+  mode,
+  pending,
+  onEdit,
+  onDelete,
+  onSaved,
+}: {
+  eventId: string;
+  code: DiscountCode | null;
+  mode: "view" | "edit";
+  pending: boolean;
+  onEdit: (code: DiscountCode) => void;
+  onDelete: (id: string) => void;
+  onSaved: () => void;
+}) {
+  if (!code && mode !== "edit") return null;
+  return (
+    <section
+      aria-labelledby="shared-discount-code-heading"
+      className="flex flex-col gap-2 rounded-lg border p-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id="shared-discount-code-heading" className="text-sm font-semibold">
+          Shared code
+        </h3>
+        {mode === "edit" &&
+          (code ? (
+            <div className="flex shrink-0 items-center">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Edit shared code ${code.code}`}
+                      onClick={() => onEdit(code)}
+                    />
+                  }
+                >
+                  <Pencil />
+                </TooltipTrigger>
+                <TooltipContent>Edit shared code</TooltipContent>
+              </Tooltip>
+              <ConfirmDeleteButton
+                label="Remove shared code"
+                title={`Remove shared code ${code.code}?`}
+                description="Registration confirmation emails stop including it. Emails already sent keep it. It can't be undone."
+                confirmLabel="Remove"
+                pending={pending}
+                onConfirm={() => onDelete(code.id)}
+              />
+            </div>
+          ) : (
+            <AddSharedDiscountCodeDialog eventId={eventId} onSaved={onSaved} />
+          ))}
+      </div>
+      {code ? (
+        <div className="flex flex-col gap-1 text-sm">
+          <CodeWithPin code={code} />
+          {(code.description || code.source) && (
+            <span className="app-muted min-w-0 break-words">
+              {[code.description, code.source].filter(Boolean).join(" · ")}
+            </span>
+          )}
+          <span className="app-muted text-xs">
+            Sent to everyone who registers, in their confirmation email.
+          </span>
+        </div>
+      ) : (
+        <p className="app-muted text-sm">
+          None. Add one when a partner gives a single code for everyone who
+          registers.
+        </p>
+      )}
+    </section>
+  );
 }
 
 export function DiscountCodesTab({
@@ -135,7 +234,14 @@ export function DiscountCodesTab({
     [refreshAll],
   );
 
-  const list = useMemo(() => codes ?? [], [codes]);
+  const sharedCode = useMemo(
+    () => (codes ?? []).find((code) => code.shared) ?? null,
+    [codes],
+  );
+  const list = useMemo(
+    () => (codes ?? []).filter((code) => !code.shared),
+    [codes],
+  );
 
   const availableRegistrants = useMemo(() => {
     const assignedRegistrationIds = new Set(
@@ -154,6 +260,7 @@ export function DiscountCodesTab({
     return list.filter((code) =>
       [
         code.code,
+        code.pin,
         code.description,
         code.source,
         code.registration?.name,
@@ -170,8 +277,8 @@ export function DiscountCodesTab({
         key: "code",
         label: "Code",
         sortValue: (code) => code.code,
-        cellClassName: "max-w-xs truncate font-medium",
-        render: (code) => code.code,
+        cellClassName: "max-w-xs",
+        render: (code) => <CodeWithPin code={code} />,
       },
       {
         key: "description",
@@ -355,11 +462,23 @@ export function DiscountCodesTab({
         </Alert>
       )}
 
+      {codes !== undefined && (
+        <SharedCodePanel
+          eventId={eventId}
+          code={sharedCode}
+          mode={mode}
+          pending={isPending}
+          onEdit={setEditing}
+          onDelete={handleDelete}
+          onSaved={refreshAll}
+        />
+      )}
+
       {codes === undefined ? (
         <TabLoadingSkeleton />
       ) : list.length === 0 ? (
         <EmptyState
-          title="No discount codes recorded for this event yet"
+          title="No single-use codes recorded for this event yet"
           description="Add the first ones with + Add codes above."
         />
       ) : (

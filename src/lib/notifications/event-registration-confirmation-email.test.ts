@@ -140,6 +140,39 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     expect(text).not.toContain("Your choices");
   });
 
+  test("carries the event's shared code and its PIN (#1589)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      sharedCode: { code: "GROUP<50>", pin: "7731" },
+    });
+    expect(text).toContain("  Discount code: GROUP<50> · PIN 7731");
+    expect(html).toContain(
+      "<strong>Discount code:</strong> GROUP&lt;50&gt; · PIN 7731",
+    );
+  });
+
+  test("a shared code with no PIN is the code alone (#1589)", () => {
+    const { text } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      sharedCode: { code: "GROUP50", pin: null },
+    });
+    expect(text).toContain("  Discount code: GROUP50\n");
+    expect(text).not.toContain("PIN");
+  });
+
+  test("an event with no shared code renders exactly as before (#1589)", () => {
+    const before = renderEventRegistrationConfirmationEmail(base);
+    for (const sharedCode of [undefined, null]) {
+      const after = renderEventRegistrationConfirmationEmail({
+        ...base,
+        sharedCode,
+      });
+      expect(after.text).toBe(before.text);
+      expect(after.html).toBe(before.html);
+      expect(after.text).not.toContain("Discount code");
+    }
+  });
+
   test("lists the registration answers in their own section, in order (#1501)", () => {
     const { text, html } = renderEventRegistrationConfirmationEmail({
       ...base,

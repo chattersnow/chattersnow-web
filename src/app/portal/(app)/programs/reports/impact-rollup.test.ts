@@ -275,6 +275,8 @@ const EMPTY = {
   firstTimeAttendees: [],
   profiledAttendees: [],
   assistanceExpenses: [],
+  offeredCodes: [],
+  optionCounts: [],
 };
 
 describe("computeProgramImpactRollup", () => {
@@ -333,6 +335,25 @@ describe("computeProgramImpactRollup", () => {
       { event_id: "e2", person_id: "p1" },
       { event_id: "e1", person_id: "p2" },
     ];
+    // e2's shared code takes 50% off the $80 option p1's party of two chose.
+    const offeredCodes = [
+      {
+        event_id: "e2",
+        code_id: "shared-e2",
+        shared: true,
+        registration_id: null,
+        options: [{ option_id: "o1", percent_off: "50", price: "80" }],
+      },
+    ];
+    const optionCounts = [
+      {
+        event_id: "e2",
+        registration_id: "r-p1",
+        option_id: "o1",
+        quantity: 2,
+        price: "80.00",
+      },
+    ];
 
     expect(
       computeProgramImpactRollup({
@@ -349,6 +370,8 @@ describe("computeProgramImpactRollup", () => {
         firstTimeAttendees,
         profiledAttendees,
         assistanceExpenses,
+        offeredCodes,
+        optionCounts,
       }),
     ).toEqual({
       eventCount: 2,
@@ -371,6 +394,15 @@ describe("computeProgramImpactRollup", () => {
         distributions: 50,
         expenses: 100,
         total: 195,
+      },
+      // Offered, never added to assistance above.
+      discountValueOffered: {
+        shared: 80,
+        singleUse: 0,
+        total: 80,
+        codes: [
+          { codeId: "shared-e2", shared: true, value: 80, derived: true },
+        ],
       },
       repeatParticipants: 1,
     });

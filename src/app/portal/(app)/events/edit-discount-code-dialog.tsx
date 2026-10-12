@@ -18,6 +18,8 @@ import {
 } from "@/components/portal/portal-form-surface";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { useCoverableOptions } from "./use-coverable-options";
+import { DiscountCodePinField } from "./discount-code-pin-field";
 
 function detailsFor(code: DiscountCode): DiscountCodeDetailsState {
   return {
@@ -25,12 +27,19 @@ function detailsFor(code: DiscountCode): DiscountCodeDetailsState {
     source: code.source ?? "",
     kind: code.kind ?? "",
     value: code.value === null ? "" : String(code.value),
+    coverage: Object.fromEntries(
+      (code.coverage ?? []).map((row) => [
+        row.option_id,
+        String(Number(row.percent_off)),
+      ]),
+    ),
   };
 }
 
 /**
- * One code's description, source, kind and value (#1588). Mounted only while
- * open, so it always starts from the row it was opened on.
+ * One code's description, source, kind and value (#1588), and its PIN and the
+ * options it covers (#1589). Mounted only while open, so it always starts from
+ * the row it was opened on.
  */
 export function EditDiscountCodeDialog({
   code,
@@ -42,6 +51,8 @@ export function EditDiscountCodeDialog({
   onSaved: () => void;
 }) {
   const [details, setDetails] = useState(() => detailsFor(code));
+  const [pin, setPin] = useState(code.pin ?? "");
+  const options = useCoverableOptions(code.event_id, true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -50,6 +61,7 @@ export function EditDiscountCodeDialog({
     setError(null);
     const formData = new FormData();
     setDiscountCodeDetails(formData, details);
+    formData.set("pin", pin);
     startTransition(async () => {
       const result = await updateDiscountCodeAction(code.id, formData);
       if ("error" in result) {
@@ -67,7 +79,11 @@ export function EditDiscountCodeDialog({
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
-      title={`Edit discount code ${code.code}`}
+      title={
+        code.shared
+          ? `Edit shared code ${code.code}`
+          : `Edit discount code ${code.code}`
+      }
       description="What this code is, where it came from, and what it is worth."
       onSubmit={handleSubmit}
       footer={
@@ -90,10 +106,16 @@ export function EditDiscountCodeDialog({
       }
     >
       <FieldGroup>
+        <DiscountCodePinField
+          id="edit-discount-code-pin"
+          value={pin}
+          onChange={setPin}
+        />
         <DiscountCodeDetailFields
           idPrefix="edit-discount-code"
           details={details}
           onChange={setDetails}
+          options={options}
         />
         {error && (
           <Alert variant="destructive">

@@ -2171,6 +2171,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      discount_code_options: {
+        Row: {
+          code_id: string;
+          created_at: string;
+          option_id: string;
+          percent_off: number;
+          tenant_id: string;
+        };
+        Insert: {
+          code_id: string;
+          created_at?: string;
+          option_id: string;
+          percent_off: number;
+          tenant_id?: string;
+        };
+        Update: {
+          code_id?: string;
+          created_at?: string;
+          option_id?: string;
+          percent_off?: number;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_options_code_fkey";
+            columns: ["tenant_id", "code_id"];
+            isOneToOne: false;
+            referencedRelation: "discount_codes";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "discount_code_options_option_fkey";
+            columns: ["tenant_id", "option_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registration_options";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "discount_code_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "discount_code_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       discount_codes: {
         Row: {
           assigned_at: string | null;
@@ -2182,10 +2235,12 @@ export type Database = {
           id: string;
           kind: string | null;
           notes: string | null;
+          pin: string | null;
           registration_id: string | null;
           sent_at: string | null;
           sent_to_email: string | null;
           sent_to_name: string | null;
+          shared: boolean;
           source: string | null;
           tenant_id: string;
           updated_at: string;
@@ -2202,10 +2257,12 @@ export type Database = {
           id?: string;
           kind?: string | null;
           notes?: string | null;
+          pin?: string | null;
           registration_id?: string | null;
           sent_at?: string | null;
           sent_to_email?: string | null;
           sent_to_name?: string | null;
+          shared?: boolean;
           source?: string | null;
           tenant_id?: string;
           updated_at?: string;
@@ -2222,10 +2279,12 @@ export type Database = {
           id?: string;
           kind?: string | null;
           notes?: string | null;
+          pin?: string | null;
           registration_id?: string | null;
           sent_at?: string | null;
           sent_to_email?: string | null;
           sent_to_name?: string | null;
+          shared?: boolean;
           source?: string | null;
           tenant_id?: string;
           updated_at?: string;
@@ -3106,6 +3165,7 @@ export type Database = {
           id: string;
           label: string;
           option_id: string | null;
+          price: number | null;
           quantity: number;
           registration_id: string;
           sort_order: number;
@@ -3115,6 +3175,7 @@ export type Database = {
           id?: string;
           label: string;
           option_id?: string | null;
+          price?: number | null;
           quantity: number;
           registration_id: string;
           sort_order?: number;
@@ -3124,6 +3185,7 @@ export type Database = {
           id?: string;
           label?: string;
           option_id?: string | null;
+          price?: number | null;
           quantity?: number;
           registration_id?: string;
           sort_order?: number;
@@ -3167,6 +3229,7 @@ export type Database = {
           event_id: string;
           id: string;
           label: string;
+          price: number | null;
           sort_order: number;
           tenant_id: string;
         };
@@ -3176,6 +3239,7 @@ export type Database = {
           event_id: string;
           id?: string;
           label: string;
+          price?: number | null;
           sort_order?: number;
           tenant_id?: string;
         };
@@ -3185,6 +3249,7 @@ export type Database = {
           event_id?: string;
           id?: string;
           label?: string;
+          price?: number | null;
           sort_order?: number;
           tenant_id?: string;
         };

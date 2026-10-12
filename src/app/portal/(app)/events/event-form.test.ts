@@ -368,10 +368,37 @@ describe("parseEventRegistrationOptionsField (#1407)", () => {
       data: {
         prompt: "What do you need?",
         options: [
-          { id: "opt-1", label: "Own gear", cap: null },
-          { id: null, label: "Need a ticket", cap: 10 },
+          { id: "opt-1", label: "Own gear", cap: null, price: null },
+          { id: null, label: "Need a ticket", cap: 10, price: null },
         ],
       },
+    });
+  });
+
+  test("reads a price to the cent; blank is no price (#1589)", () => {
+    expect(
+      field({
+        prompt: "What do you need?",
+        options: [
+          { id: "t", label: "Ticket", cap: "", price: "80" },
+          { id: "b", label: "Ticket and gear", cap: "", price: "129.999" },
+          { id: "o", label: "Own gear", cap: "", price: " " },
+        ],
+      }),
+    ).toEqual({
+      data: {
+        prompt: "What do you need?",
+        options: [
+          { id: "t", label: "Ticket", cap: null, price: 80 },
+          { id: "b", label: "Ticket and gear", cap: null, price: 130 },
+          { id: "o", label: "Own gear", cap: null, price: null },
+        ],
+      },
+    });
+    expect(
+      field({ prompt: "Q", options: [{ label: "A", price: "-5" }] }),
+    ).toEqual({
+      error: REGISTRATION_OPTIONS_SAVE_ERRORS.EVENT_OPTIONS_INVALID,
     });
   });
 
