@@ -4039,6 +4039,7 @@ export type Database = {
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
+          report_snapshot: Json | null;
           report_status: string;
           report_submitted_at: string | null;
           report_submitted_by: string | null;
@@ -4077,6 +4078,7 @@ export type Database = {
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
+          report_snapshot?: Json | null;
           report_status?: string;
           report_submitted_at?: string | null;
           report_submitted_by?: string | null;
@@ -4115,6 +4117,7 @@ export type Database = {
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
+          report_snapshot?: Json | null;
           report_status?: string;
           report_submitted_at?: string | null;
           report_submitted_by?: string | null;
@@ -10764,6 +10767,15 @@ export type Database = {
       };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
+      event_report_rows: {
+        Args: {
+          p_event_id: string;
+          p_events: boolean;
+          p_goods: boolean;
+          p_money: boolean;
+        };
+        Returns: Json;
+      };
       export_current_tenant_data: { Args: never; Returns: Json };
       export_tenant_data: { Args: { p_tenant_id: string }; Returns: Json };
       find_duplicate_people: {
@@ -11914,6 +11926,7 @@ export type Database = {
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
+          report_snapshot: Json | null;
           report_status: string;
           report_submitted_at: string | null;
           report_submitted_by: string | null;
@@ -12438,6 +12451,54 @@ export type Database = {
           p_typed_name: string;
         };
         Returns: undefined;
+      };
+      submit_event_report: {
+        Args: { p_id: string };
+        Returns: {
+          adults_only: boolean;
+          attendance_count: number | null;
+          attendance_notes: string | null;
+          auto_assign_discount_codes: boolean;
+          budget_amount: number | null;
+          capacity: number | null;
+          confirmation_note: string | null;
+          content_notes: string | null;
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          ends_at: string | null;
+          event_lead_id: string | null;
+          feedback_notes: string | null;
+          flier_url: string | null;
+          id: string;
+          lessons_learned: string | null;
+          location: string | null;
+          name: string;
+          registration_deadline: string | null;
+          registration_enabled: boolean;
+          registration_options_prompt: string | null;
+          report_reopen_reason: string | null;
+          report_reopened_at: string | null;
+          report_reopened_by: string | null;
+          report_snapshot: Json | null;
+          report_status: string;
+          report_submitted_at: string | null;
+          report_submitted_by: string | null;
+          report_summary: string | null;
+          starts_at: string;
+          status: string;
+          tenant_id: string;
+          timezone: string;
+          updated_at: string;
+          updated_by: string | null;
+          visibility: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "events";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       submit_artwork: {
         Args: {

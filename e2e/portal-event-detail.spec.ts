@@ -424,6 +424,8 @@ test.describe("portal event detail", () => {
       await expect(
         report.getByRole("button", { name: "Submit report" }),
       ).toHaveCount(0);
+      // Submitting froze the figures (#1579).
+      await expect(report.getByText(/Figures as submitted on/)).toBeVisible();
       // The Results row's badge is gone: with every impact figure derived,
       // there is no separate "Impact not recorded" task left (#1588).
       await showRail(page);

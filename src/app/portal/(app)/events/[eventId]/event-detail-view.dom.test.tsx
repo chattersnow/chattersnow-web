@@ -122,11 +122,14 @@ mock.module("../impact-actions", () => ({
 mock.module("../report-data-actions", () => ({
   getEventReportAction: mock(async () => ({
     data: {
-      money: null,
-      goods: null,
-      sponsors: null,
-      team: null,
-      operations: null,
+      live: {
+        money: null,
+        goods: null,
+        sponsors: null,
+        team: null,
+        operations: null,
+      },
+      snapshot: null,
     },
   })),
 }));

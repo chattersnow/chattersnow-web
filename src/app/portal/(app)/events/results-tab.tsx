@@ -91,7 +91,10 @@ function Figures({
     <div className="flex flex-col gap-6">
       {derived && <OutcomesSection eventId={event.id} derived={derived} />}
       <ArchivedImpactFigures eventId={event.id} note={impact?.note ?? null} />
-      <EventReportSummary eventId={event.id} />
+      <EventReportSummary
+        eventId={event.id}
+        reportStatus={event.report_status}
+      />
       <ArchivedSummary event={event} />
     </div>
   );
