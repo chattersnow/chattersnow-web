@@ -304,7 +304,7 @@ export function EditDonationSheet({
               <FieldGroup>
                 <RequiredFieldsNote />
                 <ReadOnlyField label="Donor" htmlFor="donation-donor-edit">
-                  {donorLabel(donation.donor)}
+                  {donorLabel(donation)}
                 </ReadOnlyField>
                 <Field>
                   <FieldLabel htmlFor="donation-donatedAt" required>

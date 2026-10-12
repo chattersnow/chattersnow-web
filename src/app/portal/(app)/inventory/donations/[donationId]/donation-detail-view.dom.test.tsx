@@ -9,6 +9,7 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
     donated_at: "2026-05-01T00:00:00.000Z",
     notes: "Dropped off at HQ",
     event_id: null,
+    donor_id: "donor-1",
     donor: {
       id: "donor-1",
       name: "Jane Donor",
@@ -65,6 +66,19 @@ describe("DonationDetailView", () => {
             source_type: "individual",
           },
         })}
+        events={[]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Anonymous" }),
+    ).toBeInTheDocument();
+  });
+
+  test("a donation with no donor is Anonymous, with no source (#1592)", () => {
+    render(
+      <DonationDetailView
+        donation={makeDonation({ donor_id: null, donor: null })}
         events={[]}
       />,
     );

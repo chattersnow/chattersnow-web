@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { donorDisplayName } from "@/lib/donor-label";
 import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import {
   listEventDonationsAction,
@@ -118,9 +119,7 @@ export function DonationsTab({
         donation.inventory_items.map((item) => ({
           ...item,
           donatedAt: donation.donated_at,
-          donorLabel: donation.donor?.is_anonymous
-            ? "Anonymous"
-            : donation.donor?.name || "—",
+          donorLabel: donorDisplayName(donation.donor_id, donation.donor),
         })),
       ),
     [donations],

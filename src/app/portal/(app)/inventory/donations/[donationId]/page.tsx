@@ -17,16 +17,18 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { donationId } = await params;
   // Titled by donor, which is a joined relation rather than a plain column,
-  // so this can't use the shared detailTitle helper.
+  // so this can't use the shared detailTitle helper. A left join: an
+  // anonymous donation has no donor (#1592) and is titled "Anonymous".
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("donations")
-    .select("donor:people!inner(name, is_anonymous)")
+    .select("donor_id, donor:people(id, name, is_anonymous, source_type)")
     .eq("id", donationId)
-    .maybeSingle<{ donor: { name: string | null; is_anonymous: boolean } }>();
-  const donor = data?.donor;
-  const name = donor && (donor.is_anonymous ? "Anonymous" : donor.name?.trim());
-  return { title: name ? `Donation from ${name}` : "Gear Donation" };
+    .maybeSingle<Pick<DonationRow, "donor_id" | "donor">>();
+  const name = data && donorLabel(data);
+  return {
+    title: name && name !== "—" ? `Donation from ${name}` : "Gear Donation",
+  };
 }
 
 export default async function DonationDetailPage({
@@ -41,7 +43,7 @@ export default async function DonationDetailPage({
     supabase
       .from("donations")
       .select(
-        "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
+        "id, donated_at, notes, event_id, donor_id, donor:people(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
       )
       .eq("id", donationId)
       .order("id", { referencedTable: "inventory_items", ascending: true })
@@ -70,7 +72,7 @@ export default async function DonationDetailPage({
   return (
     <>
       <PortalBreadcrumbs
-        current={donorLabel(row.donor)}
+        current={donorLabel(row)}
         // A donation taken at an event sits under that event's donations,
         // so the trail leads back to the list filtered to it.
         parents={

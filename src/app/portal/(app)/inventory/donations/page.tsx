@@ -74,10 +74,15 @@ export default async function InventoryDonationsPage({
   ]);
   const eventOptions = events ?? [];
 
+  // The donor is a left join: an anonymous donation has none (#1592) and
+  // still belongs on the list. Filtering on the donor makes it an inner
+  // join, since a donor filter has to drop the donations it does not match.
+  const donorJoin =
+    search || sourceTypeFilter !== "all" ? "people!inner" : "people";
   let query = supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, event_id, donor:people!inner(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))",
+      `id, donated_at, notes, event_id, donor_id, donor:${donorJoin}(id, name, is_anonymous, source_type), event:events(id, name), inventory_items(id, description, type, category_id, size, gender, condition, face_value, status, intended_use, photo_url, notes, inventory_categories(key, label))`,
       { count: "exact" },
     )
     // `created_at` is load-bearing, not noise: since #1053 `donated_at` is a

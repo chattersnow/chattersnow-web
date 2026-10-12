@@ -103,6 +103,24 @@ mock.module("../inventory/categories/actions", () => ({
   }),
 }));
 
+// The donor is picked from People (#1592). createPersonAction backs the
+// picker's "+ Create new person".
+const JANE = {
+  id: "person-jane",
+  name: "Jane Donor",
+  preferred_name: null,
+  email: "jane@example.com",
+  phone: null,
+  person_type: "individual",
+  auth_user_id: null,
+  has_portal_access: false,
+};
+
+mock.module("../people/actions", () => ({
+  listPeopleAction: async () => ({ data: [JANE] }),
+  createPersonAction: async () => ({ success: true, person: JANE }),
+}));
+
 const { AddDonationModal } = await import("./add-donation-modal");
 
 async function openModal(user: ReturnType<typeof userEvent.setup>) {
@@ -119,21 +137,25 @@ async function selectItemCategory(
   await user.click(within(listbox).getByRole("option", { name: label }));
 }
 
-async function selectSourceType(
+async function pickDonor(
   user: ReturnType<typeof userEvent.setup>,
-  label: string,
+  name: string,
 ) {
-  await user.click(screen.getByLabelText("Donor source"));
-  const listbox = await screen.findByRole("listbox");
-  await user.click(within(listbox).getByText(label));
+  await user.type(
+    screen.getByRole("combobox", { name: labelText("Donor") }),
+    name.split(" ")[0],
+  );
+  // An option reads as the name followed by the email.
+  await user.click(
+    await screen.findByRole("option", { name: new RegExp(`^${name}`) }),
+  );
 }
 
 async function fillDonorAndContinue(
   user: ReturnType<typeof userEvent.setup>,
   name: string,
 ) {
-  await user.type(screen.getByLabelText(labelText("Donor name")), name);
-  await selectSourceType(user, "Individual");
+  await pickDonor(user, name);
   await user.click(screen.getByRole("button", { name: "Continue" }));
 }
 
@@ -151,46 +173,54 @@ describe("AddDonationModal", () => {
     }));
   });
 
-  test("blocks continuing without a donor name", async () => {
+  test("blocks continuing without a donor", async () => {
     const user = userEvent.setup();
     await openModal(user);
 
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
-      screen.getByText(
-        "Donor name is required unless the donation is anonymous.",
-      ),
+      screen.getByText("Pick a donor, or mark the donation anonymous."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Step 2 of 2/)).not.toBeInTheDocument();
   });
 
-  test("allows an empty donor name when anonymous", async () => {
+  test("an anonymous donation drops the picked donor and sends none (#1592)", async () => {
     const user = userEvent.setup();
     await openModal(user);
 
+    await pickDonor(user, "Jane Donor");
     await user.click(screen.getByRole("checkbox", { name: "Anonymous donor" }));
-    await user.click(screen.getByRole("button", { name: "Continue" }));
-
     expect(
-      screen.queryByText(
-        "Donor name is required unless the donation is anonymous.",
-      ),
+      screen.queryByRole("combobox", { name: labelText("Donor") }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Select a donor source.")).toBeInTheDocument();
+    expect(screen.queryByText("Jane Donor")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.type(
+      screen.getByLabelText(labelText("Item description")),
+      "Winter jacket",
+    );
+    await selectItemCategory(user, "Jacket");
+    await user.click(screen.getByRole("button", { name: "Save donation" }));
+
+    await screen.findByText("Donation recorded");
+    const payload = createDonationActionMock.mock.calls[0][0];
+    expect(payload.isAnonymous).toBe(true);
+    expect(payload.donorId).toBeUndefined();
   });
 
-  test("blocks continuing without a donor source", async () => {
+  test("unticking anonymous brings the picker back empty", async () => {
     const user = userEvent.setup();
     await openModal(user);
 
-    await user.type(
-      screen.getByLabelText(labelText("Donor name")),
-      "Jane Donor",
-    );
-    await user.click(screen.getByRole("button", { name: "Continue" }));
+    const anonymous = screen.getByRole("checkbox", { name: "Anonymous donor" });
+    await user.click(anonymous);
+    await user.click(anonymous);
 
-    expect(screen.getByText("Select a donor source.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: labelText("Donor") }),
+    ).toHaveValue("");
   });
 
   test("advances to the items step once donor details are valid", async () => {
@@ -238,8 +268,8 @@ describe("AddDonationModal", () => {
     expect(createDonationActionMock).toHaveBeenCalledTimes(1);
 
     const payload = createDonationActionMock.mock.calls[0][0];
-    expect(payload.donorName).toBe("Jane Donor");
-    expect(payload.sourceType).toBe("individual");
+    expect(payload.isAnonymous).toBe(false);
+    expect(payload.donorId).toBe("person-jane");
     expect(payload.items).toEqual([
       {
         description: "Winter jacket",

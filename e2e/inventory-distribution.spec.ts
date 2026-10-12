@@ -54,19 +54,14 @@ test.describe("portal inventory distribution, recorded", () => {
     page,
   }) => {
     const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
-    const donorName = `E2E Dist Donor ${suffix}`;
     const itemDescription = `E2E Dist Jacket ${suffix}`;
 
     // Seed a fresh available inventory item via a donation.
     await page.goto("/portal/inventory/donations");
     await page.getByRole("button", { name: "Add donation" }).click();
     const addSheet = modal(page);
-    await addSheet.getByLabel(exactLabel("Donor name")).fill(donorName);
-    await addSheet.getByLabel("Donor source").click();
-    await page
-      .getByRole("listbox")
-      .getByText("Individual", { exact: true })
-      .click();
+    // Only the item matters here, so the donation is anonymous (#1592).
+    await addSheet.getByRole("checkbox", { name: "Anonymous donor" }).click();
     await addSheet.getByRole("button", { name: "Continue" }).click();
     await addSheet
       .getByLabel(exactLabel("Item description"))

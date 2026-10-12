@@ -2456,7 +2456,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           donated_at: string;
-          donor_id: string;
+          donor_id: string | null;
           event_id: string | null;
           id: string;
           notes: string | null;
@@ -2468,7 +2468,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           donated_at?: string;
-          donor_id: string;
+          donor_id?: string | null;
           event_id?: string | null;
           id?: string;
           notes?: string | null;
@@ -2480,7 +2480,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           donated_at?: string;
-          donor_id?: string;
+          donor_id?: string | null;
           event_id?: string | null;
           id?: string;
           notes?: string | null;
@@ -10627,6 +10627,7 @@ export type Database = {
         Args: {
           p_donated_at?: string;
           p_donor_email: string;
+          p_donor_id?: string;
           p_donor_is_anonymous: boolean;
           p_donor_name: string;
           p_donor_notes: string;
@@ -10634,6 +10635,7 @@ export type Database = {
           p_donor_source_type: string;
           p_event_id?: string;
           p_items: Json;
+          p_notes?: string;
         };
         Returns: {
           asset_tags: string[];
