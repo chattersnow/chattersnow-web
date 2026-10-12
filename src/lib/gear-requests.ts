@@ -85,6 +85,39 @@ export function isOpenGearRequest(status: string): boolean {
   return status !== "fulfilled" && status !== "cancelled";
 }
 
+/** A movement carrying a request's id, as the request detail reads it. */
+export type RequestMovement = {
+  movement_type: string;
+  occurred_at: string;
+  created_at: string;
+  item_id: string | null;
+};
+
+/**
+ * The type of the latest of a request's own movements for one item. On a
+ * fulfilled request `distributed` is the handover and `other` a return to the
+ * shelf afterwards (#1567) -- unlike the item's current status, neither
+ * changes when the item later moves on through someone else's request.
+ */
+export function latestRequestMovementType(
+  movements: readonly RequestMovement[],
+  itemId: string,
+): string | null {
+  let latest: RequestMovement | null = null;
+  for (const movement of movements) {
+    if (movement.item_id !== itemId) continue;
+    if (
+      !latest ||
+      movement.occurred_at > latest.occurred_at ||
+      (movement.occurred_at === latest.occurred_at &&
+        movement.created_at > latest.created_at)
+    ) {
+      latest = movement;
+    }
+  }
+  return latest?.movement_type ?? null;
+}
+
 /**
  * One way a tenant accepts postage payment, as stored in
  * `gear_requests.payment_methods`. `key` is what a request records and what

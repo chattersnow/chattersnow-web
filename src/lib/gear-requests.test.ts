@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  latestRequestMovementType,
   parseGearRequestSettings,
   parsePaymentMethods,
   paymentMethodKeyFor,
@@ -172,5 +173,48 @@ describe("shippingAddressLines", () => {
         country: null,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("latestRequestMovementType", () => {
+  const at = (minute: number) =>
+    `2026-10-12T10:${String(minute).padStart(2, "0")}:00+00:00`;
+  const move = (
+    item_id: string,
+    movement_type: string,
+    occurred: number,
+    created = occurred,
+  ) => ({
+    item_id,
+    movement_type,
+    occurred_at: at(occurred),
+    created_at: at(created),
+  });
+
+  test("reads the latest of this request's movements for the item", () => {
+    const movements = [
+      move("a", "reserved", 1),
+      move("a", "distributed", 5),
+      move("a", "other", 9),
+      move("b", "reserved", 1),
+      move("b", "distributed", 5),
+    ];
+    expect(latestRequestMovementType(movements, "a")).toBe("other");
+    expect(latestRequestMovementType(movements, "b")).toBe("distributed");
+  });
+
+  test("breaks a tie on occurred_at by created_at", () => {
+    expect(
+      latestRequestMovementType(
+        [move("a", "other", 5, 7), move("a", "distributed", 5, 6)],
+        "a",
+      ),
+    ).toBe("other");
+  });
+
+  test("is null for an item with no movement on the request", () => {
+    expect(latestRequestMovementType([move("a", "reserved", 1)], "z")).toBe(
+      null,
+    );
   });
 });
