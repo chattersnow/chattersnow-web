@@ -76,25 +76,6 @@ const EXEMPT: Record<string, string> = {
   "welcome/step-dialog.tsx":
     "The onboarding and release-note carousel. Steps and a dismissal, no " +
     "input at all.",
-
-  // Forms, but ones whose <form> and footer live in a child component. The
-  // surface takes slots, so the form has to be lifted into the call site
-  // before any of these can move. Tracked on #1115.
-  "events/add-sponsor-dialog.tsx":
-    "Delegates its form and footer to SponsorForm, which is shared with the " +
-    "sponsor edit sheet. Lift the form first (#1115).",
-  "events/add-staff-dialog.tsx":
-    "Delegates its form and footer to the shared staff form. Lift the form " +
-    "first (#1115).",
-  "events/volunteers/add-shift-dialog.tsx":
-    "Delegates its form and footer to the shared shift form. Lift the form " +
-    "first (#1115).",
-  "events/volunteers/add-volunteer-dialog.tsx":
-    "Delegates its form and footer to the shared volunteer form. Lift the " +
-    "form first (#1115).",
-  "events/volunteers/log-hours-dialog.tsx":
-    "Delegates its form and footer to the shared hours form. Lift the form " +
-    "first (#1115).",
 };
 
 /**

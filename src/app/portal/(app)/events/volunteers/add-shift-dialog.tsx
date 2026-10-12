@@ -8,14 +8,8 @@ import {
   type RoleType,
 } from "../../volunteers/roles/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { PortalFormPopup } from "@/components/portal/portal-form-surface";
 
 export function AddShiftDialog({
   eventId,
@@ -53,14 +47,11 @@ export function AddShiftDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add a shift</DialogTitle>
-          <DialogDescription>
-            Define a shift volunteers can sign up for.
-          </DialogDescription>
-        </DialogHeader>
-
+      <PortalFormPopup
+        size="lg"
+        title="Add a shift"
+        description="Define a shift volunteers can sign up for."
+      >
         <ShiftForm
           roleTypes={roleTypes}
           onSubmit={(formData) => createEventShiftAction(eventId, formData)}
@@ -69,7 +60,7 @@ export function AddShiftDialog({
             onSaved?.();
           }}
         />
-      </DialogContent>
+      </PortalFormPopup>
     </Dialog>
   );
 }

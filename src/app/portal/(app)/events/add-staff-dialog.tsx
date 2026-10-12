@@ -6,14 +6,8 @@ import { createEventStaffAction } from "./staff-actions";
 import { type PickedPerson } from "../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../people/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { PortalFormPopup } from "@/components/portal/portal-form-surface";
 
 export function AddStaffDialog({
   eventId,
@@ -51,15 +45,11 @@ export function AddStaffDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add staff</DialogTitle>
-          <DialogDescription>
-            Assign someone to work this event in a paid or formally-scheduled
-            capacity.
-          </DialogDescription>
-        </DialogHeader>
-
+      <PortalFormPopup
+        size="lg"
+        title="Add staff"
+        description="Assign someone to work this event in a paid or formally-scheduled capacity."
+      >
         <AddStaffForm
           people={people}
           onPersonCreated={handlePersonCreated}
@@ -71,7 +61,7 @@ export function AddStaffDialog({
             onSaved?.();
           }}
         />
-      </DialogContent>
+      </PortalFormPopup>
     </Dialog>
   );
 }

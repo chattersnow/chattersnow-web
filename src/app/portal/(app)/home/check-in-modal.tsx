@@ -64,13 +64,13 @@ export function CheckInModal({
         {triggerLabel}
       </SheetTrigger>
       {mobile ? (
-        // Full width: the sheet's own default leaves a quarter of a phone
-        // showing the dimmed dashboard behind it.
+        // The door's own header and close; `SheetContent` makes it the
+        // bottom drawer every phone sheet is (#1561).
         <SheetContent
           side="right"
           size="lg"
           showCloseButton={false}
-          className="gap-0 data-[side=right]:w-full"
+          className="gap-0"
         >
           <DoorCheckIn
             eventId={eventId}

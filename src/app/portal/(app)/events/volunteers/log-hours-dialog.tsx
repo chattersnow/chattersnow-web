@@ -13,14 +13,8 @@ import {
   type RoleType,
 } from "../../volunteers/roles/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { PortalFormPopup } from "@/components/portal/portal-form-surface";
 import { Spinner } from "@/components/ui/spinner";
 
 export function LogHoursDialog({
@@ -89,14 +83,11 @@ export function LogHoursDialog({
       >
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Log volunteer hours</DialogTitle>
-          <DialogDescription>
-            Log hours for a volunteer signed up at this event.
-          </DialogDescription>
-        </DialogHeader>
-
+      <PortalFormPopup
+        size="lg"
+        title="Log volunteer hours"
+        description="Log hours for a volunteer signed up at this event."
+      >
         {/* The form seeds its hours, date and role from the volunteer's signup
             on its first render, so it must not mount before they arrive. */}
         {loaded ? (
@@ -119,7 +110,7 @@ export function LogHoursDialog({
             <Spinner /> Loading volunteers...
           </p>
         )}
-      </DialogContent>
+      </PortalFormPopup>
     </Dialog>
   );
 }

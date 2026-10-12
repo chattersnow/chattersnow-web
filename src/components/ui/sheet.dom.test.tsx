@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
+import { PortalDeviceProvider } from "@/lib/portal/device-context";
 import { Sheet, SheetContent, SheetFooter, SheetTitle } from "./sheet";
 
 function footer(className?: string) {
@@ -45,5 +46,99 @@ describe("SheetFooter", () => {
     const className = footer("justify-between").className;
     expect(className).toContain("justify-between");
     expect(className).not.toContain("justify-end");
+  });
+});
+
+function sheet(side?: "left" | "right" | "bottom", className?: string) {
+  render(
+    <Sheet open>
+      <SheetContent side={side} className={className}>
+        <SheetTitle>Edit donation</SheetTitle>
+      </SheetContent>
+    </Sheet>,
+  );
+  return document.querySelector("[data-slot=sheet-content]")!;
+}
+
+// #1561: on a phone there are no side sheets. The primitive decides it, so no
+// call site -- form, detail, filter or nav -- can ship one by forgetting.
+describe("SheetContent on a phone", () => {
+  for (const side of ["left", "right"] as const) {
+    test(`a ${side} sheet opens from the bottom in the portal`, () => {
+      render(
+        <PortalDeviceProvider device="mobile">
+          <Sheet open>
+            <SheetContent side={side} className="w-[85%] sm:max-w-xl">
+              <SheetTitle>Menu</SheetTitle>
+            </SheetContent>
+          </Sheet>
+        </PortalDeviceProvider>,
+      );
+      const content = document.querySelector("[data-slot=sheet-content]")!;
+      expect(content).toHaveAttribute("data-side", "bottom");
+      // A desktop width the call site set must not anchor the drawer left.
+      expect(content.className).toContain("w-full");
+      expect(content.className).not.toContain("w-[85%]");
+      expect(content.className).not.toContain("sm:max-w-xl");
+      expect(content.className).toContain("data-[side=bottom]:h-[92dvh]");
+    });
+  }
+
+  test("the portal's desktop answer keeps the side, whatever the viewport", () => {
+    const width = window.innerWidth;
+    window.innerWidth = 390;
+    try {
+      render(
+        <PortalDeviceProvider device="desktop">
+          <Sheet open>
+            <SheetContent side="right">
+              <SheetTitle>Edit</SheetTitle>
+            </SheetContent>
+          </Sheet>
+        </PortalDeviceProvider>,
+      );
+      expect(
+        document.querySelector("[data-slot=sheet-content]"),
+      ).toHaveAttribute("data-side", "right");
+    } finally {
+      window.innerWidth = width;
+    }
+  });
+
+  // The public site has no device class (its pages are cached per host), so
+  // the viewport decides there.
+  test("outside the portal a narrow viewport opens from the bottom", () => {
+    const width = window.innerWidth;
+    window.innerWidth = 390;
+    try {
+      expect(sheet("right")).toHaveAttribute("data-side", "bottom");
+    } finally {
+      window.innerWidth = width;
+    }
+  });
+
+  test("outside the portal a wide viewport keeps the side", () => {
+    expect(sheet("right")).toHaveAttribute("data-side", "right");
+  });
+
+  test("a sheet already at the bottom keeps its own classes", () => {
+    render(
+      <PortalDeviceProvider device="mobile">
+        <Sheet open>
+          <SheetContent side="bottom" className="h-[60dvh]">
+            <SheetTitle>Door</SheetTitle>
+          </SheetContent>
+        </Sheet>
+      </PortalDeviceProvider>,
+    );
+    const content = document.querySelector("[data-slot=sheet-content]")!;
+    expect(content.className).toContain("h-[60dvh]");
+    expect(content.className).not.toContain("rounded-t-xl");
+  });
+
+  test("its footer clears the home indicator", () => {
+    expect(footer().className).toContain(
+      "group-data-[side=bottom]/sheet:pb-[max(env(safe-area-inset-bottom),1rem)]",
+    );
   });
 });
