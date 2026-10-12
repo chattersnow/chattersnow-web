@@ -1,3 +1,5 @@
+import { ANONYMOUS_DONOR_LABEL, donorDisplayName } from "@/lib/donor-label";
+
 export type PaymentMethod =
   "cash" | "check" | "card" | "bank_transfer" | "online" | "other";
 
@@ -93,9 +95,8 @@ export type EventOption = { id: string; name: string };
 export const DONATION_COLUMNS =
   "id, donor_id, event_id, amount, method, received_date, notes, source, external_reference, processor_label, gross_amount, fee_amount, people(name), events(name)";
 
-export const ANONYMOUS_DONOR_LABEL = "Anonymous";
+export { ANONYMOUS_DONOR_LABEL };
 
 export function donorLabel(row: MonetaryDonationRow): string {
-  if (!row.donor_id) return ANONYMOUS_DONOR_LABEL;
-  return row.people?.name?.trim() || "—";
+  return donorDisplayName(row.donor_id, row.people);
 }

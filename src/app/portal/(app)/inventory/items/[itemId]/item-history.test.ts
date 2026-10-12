@@ -103,10 +103,32 @@ describe("toHistoryEntries", () => {
     expect(entry.occurredAt).toBe(donated.occurred_at);
   });
 
-  test("a readable donation whose donor is hidden is not linked", () => {
-    // The donation page needs the donor too; a link would be a 404.
+  test("a donation with no donor is linked as Anonymous (#1592)", () => {
     const [entry] = toHistoryEntries([
       { ...donated, donor_id: null, donor_name: null },
+    ]);
+    expect(entry.kind === "donated" && entry.donor).toMatchObject({
+      label: "Anonymous",
+      href: "/portal/inventory/donations/donation-1",
+    });
+  });
+
+  test("a donor the reader cannot see is linked, but not as Anonymous", () => {
+    // The donation page left-joins its donor, so it opens without one.
+    const [entry] = toHistoryEntries([
+      {
+        ...donated,
+        donor_name: null,
+        donor_is_anonymous: null,
+        donor_source_type: null,
+      },
+    ]);
+    expect(entry.kind === "donated" && entry.donor?.label).toBe("—");
+  });
+
+  test("an unreadable donation is not linked", () => {
+    const [entry] = toHistoryEntries([
+      { ...donated, donation_id: null, donor_id: null, donor_name: null },
     ]);
     expect(entry.kind === "donated" && entry.donor).toBeNull();
   });

@@ -64,6 +64,7 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
     donated_at: "2026-05-01",
     notes: "Dropped off at HQ",
     event_id: null,
+    donor_id: "donor-1",
     donor: {
       id: "donor-1",
       name: "Jane Donor",

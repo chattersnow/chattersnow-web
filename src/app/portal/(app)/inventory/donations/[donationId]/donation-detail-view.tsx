@@ -29,7 +29,7 @@ export function DonationDetailView({
       <div>
         <div className="w-fit">
           <h1 className="brand-display text-4xl font-semibold tracking-brand sm:text-5xl">
-            {donorLabel(donation.donor)}
+            {donorLabel(donation)}
           </h1>
           <div className="rainbow-accent mt-3 w-full" />
         </div>
@@ -52,11 +52,14 @@ export function DonationDetailView({
           <CardContent>
             <FieldGroup>
               <ReadOnlyField label="Donor" htmlFor="donation-donor">
-                {donorLabel(donation.donor)}
+                {donorLabel(donation)}
               </ReadOnlyField>
               <Field orientation="responsive">
                 <ReadOnlyField label="Donor source" htmlFor="donation-source">
-                  {labelFor(SOURCE_TYPES, donation.donor.source_type) || "—"}
+                  {labelFor(
+                    SOURCE_TYPES,
+                    donation.donor?.source_type ?? null,
+                  ) || "—"}
                 </ReadOnlyField>
                 <ReadOnlyField label="Source event" htmlFor="donation-event">
                   {donation.event?.name ?? "—"}

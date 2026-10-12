@@ -28,12 +28,21 @@ export type DonationItemInput = {
 };
 
 export type CreateDonationInput = {
+  /** An anonymous donation has no donor (#1592): no person is recorded, and
+   *  readers label it "Anonymous". */
   isAnonymous: boolean;
-  donorName: string;
+  /** The donor, picked from People. The form always sends one for a named
+   *  donor; the name/email fields below are the path for a caller that types
+   *  a donor in instead, and create (or match by email) a person. */
+  donorId?: string;
+  donorName?: string;
   donorEmail?: string;
   donorPhone?: string;
-  sourceType: string;
+  /** Describes a person created from donorName. Defaults to "individual". */
+  sourceType?: string;
   donorNotes?: string;
+  /** Notes on the donation itself. */
+  notes?: string;
   items: DonationItemInput[];
   eventId?: string;
   /** The day the gear arrived, "YYYY-MM-DD", read in the browser's timezone
@@ -80,21 +89,23 @@ export type DonationRpcArgs = {
   }[];
   p_event_id: string | null;
   p_donated_at: string | null;
+  p_donor_id: string | null;
+  p_notes: string | null;
 };
 
 export function parseDonationInput(
   input: CreateDonationInput,
 ): ParseResult<DonationRpcArgs> {
-  const donorName = input.donorName.trim();
-  if (!input.isAnonymous && !donorName) {
+  const donorId = input.isAnonymous ? "" : input.donorId?.trim() || "";
+  const donorName = input.donorName?.trim() ?? "";
+  if (!input.isAnonymous && !donorId && !donorName) {
     return {
-      error: "Donor name is required unless the donation is anonymous.",
-      field: "donorName",
+      error: "Pick a donor, or mark the donation anonymous.",
+      field: "donorId",
     };
   }
-  if (
-    !SOURCE_TYPES.includes(input.sourceType as (typeof SOURCE_TYPES)[number])
-  ) {
+  const sourceType = input.sourceType || "individual";
+  if (!SOURCE_TYPES.includes(sourceType as (typeof SOURCE_TYPES)[number])) {
     return { error: "Select a valid donor source.", field: "sourceType" };
   }
   if (!input.items.length) {
@@ -193,12 +204,17 @@ export function parseDonationInput(
 
   return {
     data: {
-      p_donor_name: input.isAnonymous ? null : donorName,
+      // A picked donor is the whole answer; the typed-in fields only describe
+      // a person the RPC would otherwise create.
+      p_donor_name: input.isAnonymous || donorId ? null : donorName,
       p_donor_is_anonymous: input.isAnonymous,
-      p_donor_source_type: input.sourceType,
-      p_donor_email: input.donorEmail?.trim() || null,
-      p_donor_phone: input.donorPhone?.trim() || null,
-      p_donor_notes: input.donorNotes?.trim() || null,
+      p_donor_source_type: sourceType,
+      p_donor_email:
+        input.isAnonymous || donorId ? null : input.donorEmail?.trim() || null,
+      p_donor_phone:
+        input.isAnonymous || donorId ? null : input.donorPhone?.trim() || null,
+      p_donor_notes:
+        input.isAnonymous || donorId ? null : input.donorNotes?.trim() || null,
       p_items: input.items.map((item) => ({
         description: item.description.trim(),
         size: item.size?.trim() || null,
@@ -216,6 +232,8 @@ export function parseDonationInput(
       })),
       p_event_id: input.eventId ?? null,
       p_donated_at: input.donatedOn?.trim() || null,
+      p_donor_id: donorId || null,
+      p_notes: input.notes?.trim() || null,
     },
   };
 }
