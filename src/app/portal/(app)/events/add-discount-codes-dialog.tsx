@@ -5,7 +5,12 @@ import { createDiscountCodesAction } from "./discount-codes-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PortalFormSurface } from "@/components/portal/portal-form-surface";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -13,6 +18,7 @@ import {
   emptyDiscountCodeDetails,
   setDiscountCodeDetails,
 } from "./discount-code-detail-fields";
+import { useCoverableOptions } from "./use-coverable-options";
 
 export function AddDiscountCodesDialog({
   eventId,
@@ -28,6 +34,7 @@ export function AddDiscountCodesDialog({
   const [details, setDetails] = useState(emptyDiscountCodeDetails);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const options = useCoverableOptions(eventId, open);
 
   function reset() {
     setCodes("");
@@ -73,7 +80,7 @@ export function AddDiscountCodesDialog({
         </Button>
       }
       title="Add discount codes"
-      description="Add a batch of discount codes for this event."
+      description="Add a batch of single-use discount codes for this event. Each one goes to one registrant."
       onSubmit={handleSubmit}
       footer={
         <>
@@ -103,17 +110,22 @@ export function AddDiscountCodesDialog({
           </FieldLabel>
           <Textarea
             id="discount-codes-batch"
-            placeholder={"SPRING10\nSPRING11\nSPRING12"}
+            placeholder={"SPRING10\nSPRING11, 4821\nSPRING12, 9930"}
             value={codes}
             onChange={(event) => setCodes(event.target.value)}
             rows={6}
           />
+          <FieldDescription>
+            Where the partner gives a PIN, put it after the code with a comma or
+            a tab, so a partner&apos;s CSV can be pasted in.
+          </FieldDescription>
         </Field>
 
         <DiscountCodeDetailFields
           idPrefix="discount-codes"
           details={details}
           onChange={setDetails}
+          options={options}
         />
 
         {error && (

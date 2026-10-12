@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  computeDiscountValueOffered,
   computeEventImpactDerived,
   computeParticipantAssistance,
   computePeopleServed,
@@ -118,6 +119,8 @@ describe("computeEventImpactDerived", () => {
       { event_id: "e1", person_id: "p2" },
     ],
     autoAssignDiscountCodes: false,
+    offeredCodes: [],
+    optionCounts: [],
     distributions: [
       {
         event_id: "e1",
@@ -376,5 +379,230 @@ describe("computePeopleServed", () => {
       recipients: 0,
       value: 0,
     });
+  });
+});
+
+describe("computeDiscountValueOffered", () => {
+  // Chatter Snow's options: a ticket ($80), a ticket and gear ($130), and
+  // their own gear (no price). Counts arrive only for registrations that did
+  // not cancel -- the RPCs filter them -- so a cancelled party is simply absent.
+  const TICKET = { option_id: "ticket", percent_off: "50", price: "80.00" };
+  const BUNDLE = { option_id: "bundle", percent_off: 50, price: 130 };
+  const counts = [
+    {
+      event_id: "e1",
+      registration_id: "r1",
+      option_id: "ticket",
+      quantity: 2,
+      price: "80.00",
+    },
+    {
+      event_id: "e1",
+      registration_id: "r1",
+      option_id: "own",
+      quantity: 1,
+      price: null,
+    },
+    {
+      event_id: "e1",
+      registration_id: "r2",
+      option_id: "bundle",
+      quantity: 1,
+      price: "130.00",
+    },
+  ];
+  const registrations = [
+    { person_id: "p1", event_id: "e1", checked_in_at: null },
+    { person_id: "p2", event_id: "e1", checked_in_at: null },
+  ];
+
+  test("a shared code is summed over every registration's covered options", () => {
+    const result = computeDiscountValueOffered(
+      [
+        {
+          event_id: "e1",
+          code_id: "c1",
+          shared: true,
+          registration_id: null,
+          options: [TICKET, BUNDLE],
+        },
+      ],
+      counts,
+      registrations,
+    );
+    // 2 × $80 × 50% + 1 × $130 × 50%; "own gear" is not covered.
+    expect(result).toEqual({
+      shared: 145,
+      singleUse: 0,
+      total: 145,
+      codes: [{ codeId: "c1", shared: true, value: 145, derived: true }],
+    });
+  });
+
+  test("a single-use code counts only the registration holding it", () => {
+    const result = computeDiscountValueOffered(
+      [
+        {
+          event_id: "e1",
+          code_id: "c2",
+          shared: false,
+          registration_id: "r2",
+          options: [TICKET, BUNDLE],
+        },
+      ],
+      counts,
+      registrations,
+    );
+    expect(result.singleUse).toBe(65);
+    expect(result.shared).toBe(0);
+  });
+
+  test("a bundled option is discounted on its whole copied price", () => {
+    const result = computeDiscountValueOffered(
+      [
+        {
+          event_id: "e1",
+          code_id: "c3",
+          shared: false,
+          registration_id: "r2",
+          // Today's price is $150; r2 copied $130 when it registered.
+          options: [{ option_id: "bundle", percent_off: 100, price: 150 }],
+        },
+      ],
+      counts,
+      registrations,
+    );
+    expect(result.codes[0]).toEqual({
+      codeId: "c3",
+      shared: false,
+      value: 130,
+      derived: true,
+    });
+  });
+
+  test("with no priced option a code falls back to its typed value, or none", () => {
+    const own = { option_id: "own", percent_off: 50, price: null };
+    const result = computeDiscountValueOffered(
+      [
+        {
+          event_id: "e1",
+          code_id: "typed-single",
+          shared: false,
+          registration_id: "r1",
+          value: "25",
+          options: [own],
+        },
+        {
+          event_id: "e1",
+          code_id: "typed-shared",
+          shared: true,
+          registration_id: null,
+          value: 10,
+          options: [],
+        },
+        {
+          event_id: "e1",
+          code_id: "nothing",
+          shared: false,
+          registration_id: "r2",
+          value: null,
+          options: [],
+        },
+      ],
+      counts,
+      registrations,
+    );
+    expect(result.codes).toEqual([
+      { codeId: "typed-single", shared: false, value: 25, derived: false },
+      // Once per registration that did not cancel.
+      { codeId: "typed-shared", shared: true, value: 20, derived: false },
+      { codeId: "nothing", shared: false, value: null, derived: false },
+    ]);
+    expect(result.total).toBe(45);
+  });
+
+  test("a cancelled registration's answer is not in the counts, so it adds nothing", () => {
+    const result = computeDiscountValueOffered(
+      [
+        {
+          event_id: "e1",
+          code_id: "c4",
+          shared: true,
+          registration_id: null,
+          options: [TICKET],
+        },
+      ],
+      // r1 cancelled: only r2's bundle answer remains, which c4 doesn't cover.
+      counts.filter((row) => row.registration_id !== "r1"),
+      registrations.slice(1),
+    );
+    expect(result.shared).toBe(0);
+    expect(result.codes[0].derived).toBe(true);
+  });
+
+  test("never adds to participant assistance", () => {
+    const withoutOffer = computeEventImpactDerived({
+      events: [{ event_id: "e1", attendance_count: null }],
+      registrations,
+      checkinCounts: [],
+      eventVolunteers: [],
+      volunteerHourPeople: [],
+      discountCodes: [],
+      beginnerAttendees: null,
+      firstTimeAttendees: null,
+      profiledAttendees: null,
+      autoAssignDiscountCodes: false,
+      distributions: [],
+      assistanceExpenses: [],
+      offeredCodes: [],
+      optionCounts: counts,
+    });
+    const withOffer = computeEventImpactDerived({
+      events: [{ event_id: "e1", attendance_count: null }],
+      registrations,
+      checkinCounts: [],
+      eventVolunteers: [],
+      volunteerHourPeople: [],
+      discountCodes: [],
+      beginnerAttendees: null,
+      firstTimeAttendees: null,
+      profiledAttendees: null,
+      autoAssignDiscountCodes: false,
+      distributions: [],
+      assistanceExpenses: [],
+      offeredCodes: [
+        {
+          event_id: "e1",
+          code_id: "c1",
+          shared: true,
+          registration_id: null,
+          options: [TICKET, BUNDLE],
+        },
+      ],
+      optionCounts: counts,
+    });
+    expect(withOffer.discountValueOffered?.total).toBe(145);
+    expect(withOffer.assistance).toEqual(withoutOffer.assistance);
+    expect(withOffer.assistance?.total).toBe(0);
+  });
+
+  test("is null for a viewer who may not see discount data", () => {
+    const result = computeEventImpactDerived({
+      events: [],
+      registrations: [],
+      checkinCounts: [],
+      eventVolunteers: [],
+      volunteerHourPeople: [],
+      discountCodes: null,
+      beginnerAttendees: null,
+      firstTimeAttendees: null,
+      profiledAttendees: null,
+      autoAssignDiscountCodes: false,
+      distributions: [],
+      assistanceExpenses: null,
+      offeredCodes: null,
+      optionCounts: null,
+    });
+    expect(result.discountValueOffered).toBeNull();
   });
 });

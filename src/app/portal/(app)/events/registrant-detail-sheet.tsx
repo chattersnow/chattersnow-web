@@ -33,6 +33,7 @@ import {
 import { REGISTRANT_MESSAGE_ERRORS } from "./registrant-messaging";
 import { attendedBeforeLabel } from "@/lib/attended-before";
 import { formatOptionCounts } from "@/lib/registration-options";
+import { formatCodeWithPin } from "@/lib/discount-codes";
 import {
   experienceLevelLabel,
   ridingDisciplineLabel,
@@ -282,6 +283,19 @@ export function RegistrantDetailSheet({
                 {registrant.option_counts.length > 0
                   ? formatOptionCounts(registrant.option_counts)
                   : "Not answered"}
+              </ReadOnlyField>
+            )}
+            {/* #1589: only where one is held, with the PIN beside it. */}
+            {(registrant.discount_codes ?? []).length > 0 && (
+              <ReadOnlyField
+                label="Discount code"
+                htmlFor="registrant-discount-code"
+              >
+                {registrant.discount_codes?.map((held) => (
+                  <span key={held.code} className="block">
+                    {formatCodeWithPin(held)}
+                  </span>
+                ))}
               </ReadOnlyField>
             )}
             <ReadOnlyField label="Been before" htmlFor="registrant-been-before">

@@ -256,12 +256,18 @@ export function parseEventAttendanceForm(
  */
 export type EventRegistrationOptionsFormData = {
   prompt: string | null;
-  options: { id: string | null; label: string; cap: number | null }[];
+  options: {
+    id: string | null;
+    label: string;
+    cap: number | null;
+    /** Dollars, to the cent; null is no price (#1589). */
+    price: number | null;
+  }[];
 };
 
 export const REGISTRATION_OPTIONS_SAVE_ERRORS: Record<string, string> = {
   EVENT_OPTIONS_INVALID:
-    "Each option needs a name, and a cap must be a whole number of 0 or more.",
+    "Each option needs a name, a cap must be a whole number of 0 or more, and a price an amount of 0 or more.",
   EVENT_OPTIONS_TOO_MANY: "An event can offer at most 10 options.",
   EVENT_OPTIONS_PROMPT_REQUIRED: "Write the question the options answer.",
   EVENT_OPTIONS_DUPLICATE: "Two options have the same name.",
@@ -287,7 +293,12 @@ export function parseEventRegistrationOptionsField(
   }
   const draft = value as {
     prompt?: unknown;
-    options?: { id?: unknown; label?: unknown; cap?: unknown }[];
+    options?: {
+      id?: unknown;
+      label?: unknown;
+      cap?: unknown;
+      price?: unknown;
+    }[];
   };
   if (!draft || !Array.isArray(draft.options)) return invalid;
 
@@ -298,8 +309,18 @@ export function parseEventRegistrationOptionsField(
     const capRaw = String(option?.cap ?? "").trim();
     const cap = capRaw === "" ? null : Number(capRaw);
     if (cap !== null && (!Number.isInteger(cap) || cap < 0)) return invalid;
+    const priceRaw = String(option?.price ?? "").trim();
+    const price = priceRaw === "" ? null : Number(priceRaw);
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      return invalid;
+    }
     const id = typeof option?.id === "string" && option.id ? option.id : null;
-    options.push({ id, label, cap });
+    options.push({
+      id,
+      label,
+      cap,
+      price: price === null ? null : Math.round(price * 100) / 100,
+    });
   }
 
   if (options.length > 10) {

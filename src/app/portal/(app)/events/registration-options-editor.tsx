@@ -27,6 +27,8 @@ export type RegistrationOptionDraft = {
   label: string;
   /** As typed; blank is uncapped. */
   cap: string;
+  /** As typed, in dollars; blank is no price (#1589). */
+  price: string;
 };
 
 export type RegistrationOptionsDraft = {
@@ -76,7 +78,9 @@ export function RegistrationOptionsEditor({
       <FieldDescription>
         Optional. Registrants say how many people in their party pick each
         option, and the numbers must add up to the party size. A cap closes an
-        option once that many have picked it.
+        option once that many have picked it. A price is not shown on the public
+        form; it is what the discount codes covering an option are valued
+        against.
       </FieldDescription>
 
       {options.length > 0 && (
@@ -136,6 +140,27 @@ export function RegistrationOptionsEditor({
                 value={option.cap}
                 disabled={disabled}
                 onChange={(event) => update(index, { cap: event.target.value })}
+              />
+            </Field>
+            <Field className="w-28 shrink-0">
+              <FieldLabel
+                htmlFor={`planning-option-price-${option.key}`}
+                className={index === 0 ? undefined : "sr-only"}
+              >
+                {index === 0 ? "Price ($)" : `Price for option ${index + 1}`}
+              </FieldLabel>
+              <Input
+                id={`planning-option-price-${option.key}`}
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                placeholder="None"
+                value={option.price}
+                disabled={disabled}
+                onChange={(event) =>
+                  update(index, { price: event.target.value })
+                }
               />
             </Field>
             <div className="flex shrink-0">
@@ -205,7 +230,13 @@ export function RegistrationOptionsEditor({
           onClick={() =>
             setOptions([
               ...options,
-              { key: crypto.randomUUID(), id: null, label: "", cap: "" },
+              {
+                key: crypto.randomUUID(),
+                id: null,
+                label: "",
+                cap: "",
+                price: "",
+              },
             ])
           }
         >
@@ -219,7 +250,14 @@ export function RegistrationOptionsEditor({
 /** What a saved question looks like as a draft. */
 export function registrationOptionsDraft(
   prompt: string | null | undefined,
-  options: { id: string; label: string; cap: number | null }[] | undefined,
+  options:
+    | {
+        id: string;
+        label: string;
+        cap: number | null;
+        price?: number | string | null;
+      }[]
+    | undefined,
 ): RegistrationOptionsDraft {
   return {
     prompt: prompt ?? "",
@@ -228,6 +266,10 @@ export function registrationOptionsDraft(
       id: option.id,
       label: option.label,
       cap: option.cap === null ? "" : String(option.cap),
+      price:
+        option.price === null || option.price === undefined
+          ? ""
+          : String(option.price),
     })),
   };
 }
@@ -240,10 +282,11 @@ export function sameRegistrationOptions(
   const shape = (draft: RegistrationOptionsDraft) =>
     JSON.stringify({
       prompt: draft.options.length > 0 ? draft.prompt.trim() : "",
-      options: draft.options.map(({ id, label, cap }) => [
+      options: draft.options.map(({ id, label, cap, price }) => [
         id,
         label.trim(),
         cap.trim(),
+        price.trim() === "" ? "" : String(Number(price)),
       ]),
     });
   return shape(a) === shape(b);

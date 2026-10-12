@@ -13,7 +13,9 @@ import {
   type DistributedMovementRow,
   type EventImpactDerived,
   type EventRow,
+  type OfferedCodeRow,
   type PersonEventRow,
+  type PricedOptionCountRow,
   type RegistrationRow,
 } from "@/lib/portal/impact-metrics";
 
@@ -30,6 +32,8 @@ type DerivedData = {
   profiled_attendees: PersonEventRow[] | null;
   distributions: DistributedMovementRow[];
   assistance_expenses: AssistanceExpenseRow[] | null;
+  offered_codes: OfferedCodeRow[] | null;
+  option_counts: PricedOptionCountRow[] | null;
 };
 
 /**
@@ -85,6 +89,8 @@ export async function getEventImpactDerivedAction(
       autoAssignDiscountCodes: result.auto_assign_discount_codes ?? false,
       distributions: result.distributions ?? [],
       assistanceExpenses: result.assistance_expenses ?? null,
+      offeredCodes: result.offered_codes ?? null,
+      optionCounts: result.option_counts ?? null,
     }),
   };
 }

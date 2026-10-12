@@ -17,6 +17,7 @@ export {
   countFirstTimeOnSnow,
   countRentalSubsidies,
   computeParticipantAssistance,
+  computeDiscountValueOffered,
   computeProgramImpactRollup,
 } from "@/lib/portal/impact-metrics";
 
@@ -28,7 +29,9 @@ export type {
   EventRow,
   CheckinCountRow,
   DiscountCodeRow,
+  OfferedCodeRow,
   PersonEventRow,
+  PricedOptionCountRow,
   ProgramImpactRollup,
   ProgramImpactRollupInput,
 } from "@/lib/portal/impact-metrics";

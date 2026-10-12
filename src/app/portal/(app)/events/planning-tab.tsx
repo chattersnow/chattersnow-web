@@ -185,7 +185,7 @@ export function PlanningTab({
         JSON.stringify({
           prompt: form.registrationOptions.prompt,
           options: form.registrationOptions.options.map(
-            ({ id, label, cap }) => ({ id, label, cap }),
+            ({ id, label, cap, price }) => ({ id, label, cap, price }),
           ),
         }),
       );
@@ -296,6 +296,7 @@ export function PlanningTab({
                 <span key={option.key} className="app-muted block text-xs">
                   {option.label}
                   {option.cap ? ` (cap ${option.cap})` : ""}
+                  {option.price ? ` · ${formatCurrency(option.price)}` : ""}
                 </span>
               ))}
             </>
@@ -426,7 +427,8 @@ export function PlanningTab({
           <FieldDescription>
             Added to the confirmation email everyone who registers for this
             event receives, under the event details. Use it for anything
-            everyone needs, like a shared discount code or what to bring. Not
+            everyone needs, like what to bring. A shared discount code goes on
+            the Discount codes card instead, which adds it to the email. Not
             shown on the public event page.
           </FieldDescription>
         </Field>

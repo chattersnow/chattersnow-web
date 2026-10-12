@@ -18,6 +18,7 @@ import { renderEventIcs } from "@/lib/notifications/event-ics";
 import { EVENT_REGISTRATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
+import { formatCodeWithPin } from "@/lib/discount-codes";
 
 /**
  * The confirmation a registrant gets after signing up for a public event
@@ -85,11 +86,16 @@ export type EventRegistrationConfirmation = {
   answers?: { prompt: string; answer: string }[];
   /**
    * events.confirmation_note: the organizer's paragraph for everyone who
-   * registers for this one event -- a shared discount code, what to bring.
+   * registers for this one event -- what to bring, where to park.
    * Blank or omitted renders nothing. Unlike the slots it has no tokens and
    * no platform default; it is the event's, not the tenant's.
    */
   note?: string | null;
+  /**
+   * The event's shared discount code and its PIN (#1589), the same for every
+   * registrant. Omitted or null renders no row.
+   */
+  sharedCode?: { code: string; pin: string | null } | null;
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -238,6 +244,9 @@ function detailRows(
         .map((option) => `${option.quantity} × ${option.label}`)
         .join(", "),
     ]);
+  }
+  if (confirmation.sharedCode) {
+    rows.push(["Discount code", formatCodeWithPin(confirmation.sharedCode)]);
   }
   return rows;
 }

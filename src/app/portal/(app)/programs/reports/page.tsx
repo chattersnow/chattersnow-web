@@ -22,7 +22,9 @@ import {
   type DiscountCodeRow,
   type DistributedMovementRow,
   type EventRow,
+  type OfferedCodeRow,
   type PersonEventRow,
+  type PricedOptionCountRow,
   type ProgramImpactRollup,
   type RegistrationRow,
   type VolunteerHoursRow,
@@ -43,6 +45,8 @@ type RollupData = {
   first_time_attendees: PersonEventRow[];
   profiled_attendees: PersonEventRow[];
   assistance_expenses: AssistanceExpenseRow[];
+  offered_codes: OfferedCodeRow[];
+  option_counts: PricedOptionCountRow[];
 };
 
 type ProgramImpactReportPageProps = {
@@ -107,6 +111,8 @@ export default async function ProgramImpactReportPage({
         firstTimeAttendees: result.first_time_attendees ?? [],
         profiledAttendees: result.profiled_attendees ?? [],
         assistanceExpenses: result.assistance_expenses ?? [],
+        offeredCodes: result.offered_codes ?? [],
+        optionCounts: result.option_counts ?? [],
       });
     }
   }
@@ -192,6 +198,19 @@ export default async function ProgramImpactReportPage({
           label: "Assistance: expenses paid for participants ($)",
           value: formatCurrency(rollup.participantAssistance.expenses),
         },
+        // #1589: offered, not received, and never part of assistance.
+        {
+          label: "Discount value offered ($)",
+          value: formatCurrency(rollup.discountValueOffered.total),
+        },
+        {
+          label: "Discount value offered: shared codes ($)",
+          value: formatCurrency(rollup.discountValueOffered.shared),
+        },
+        {
+          label: "Discount value offered: single-use codes ($)",
+          value: formatCurrency(rollup.discountValueOffered.singleUse),
+        },
         {
           label: "Repeat participants",
           value: formatNumber(rollup.repeatParticipants),
@@ -215,8 +234,10 @@ export default async function ProgramImpactReportPage({
         older events are archived on those events and never added in. A few
         caveats worth knowing when quoting these numbers: codes on an event that
         gives one to every registrant don&apos;t count as assistance;
-        internally-granted scholarships and fee waivers aren&apos;t modelled
-        anywhere, so assistance undercounts; and &ldquo;Volunteers on
+        &ldquo;Discount value offered&rdquo; is what partner codes were worth to
+        the people who got them, not what was redeemed, and is never part of
+        assistance; internally-granted scholarships and fee waivers aren&apos;t
+        modelled anywhere, so assistance undercounts; and &ldquo;Volunteers on
         site&rdquo; counts each person once per event, so someone who
         volunteered three times counts three times. &ldquo;People who received
         items&rdquo; counts the same way, once per event.

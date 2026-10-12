@@ -60,6 +60,8 @@ export type EventRow = {
     id: string;
     label: string;
     cap: number | null;
+    /** What the option costs (#1589); null where it has no price. */
+    price?: number | null;
     sort_order: number;
   }[];
   /**

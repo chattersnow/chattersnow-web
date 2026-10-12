@@ -52,6 +52,35 @@ export type DiscountCodeRow = {
   value?: number | string | null;
 };
 
+/**
+ * A code that offers a discount (#1589): the event's shared code, or a
+ * single-use code held by a registrant who did not cancel. `options` are the
+ * registration options it covers, each with the option's current price, which
+ * only decides whether the code's value can be derived at all.
+ */
+export type OfferedCodeRow = {
+  event_id: string;
+  code_id: string;
+  shared: boolean;
+  registration_id: string | null;
+  /** The typed value (#1588), the fallback when nothing can be derived. */
+  value?: number | string | null;
+  options: {
+    option_id: string;
+    percent_off: number | string;
+    price: number | string | null;
+  }[];
+};
+
+/** One registration's answer to one option, at the price it copied (#1589). */
+export type PricedOptionCountRow = {
+  event_id: string;
+  registration_id: string;
+  option_id: string | null;
+  quantity: number | string;
+  price: number | string | null;
+};
+
 /** A paid expense flagged as participant assistance (#1588). */
 export type AssistanceExpenseRow = {
   event_id: string | null;
@@ -275,6 +304,133 @@ export function computeParticipantAssistance(
   };
 }
 
+export type CodeValueOffered = {
+  codeId: string;
+  shared: boolean;
+  /** Null when nothing can be derived and no value was typed: shown as "—". */
+  value: number | null;
+  /** True when computed from covered options and copied prices. */
+  derived: boolean;
+};
+
+export type DiscountValueOffered = {
+  /** The shared codes, summed over the registrations that did not cancel. */
+  shared: number;
+  /** Single-use codes, each for the one registration holding it. */
+  singleUse: number;
+  total: number;
+  codes: CodeValueOffered[];
+};
+
+function roundCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Discount value offered (#1589): per covered option, count × copied price ×
+ * percent off. A shared code is summed over the event's registrations that did
+ * not cancel; a single-use code over the one registration holding it. A
+ * bundled option is discounted on its whole price.
+ *
+ * A code covering no option, or only options with no price, has no derived
+ * value. It falls back to the typed value (#1588): once for a single-use code,
+ * once per registration for a shared one. With neither it is null.
+ *
+ * Offered, not received: redemption happens on the partner's site, so nothing
+ * here says anyone used a code. It never feeds participant assistance.
+ */
+export function computeDiscountValueOffered(
+  codes: OfferedCodeRow[],
+  optionCounts: PricedOptionCountRow[],
+  registrations: RegistrationRow[],
+): DiscountValueOffered {
+  const countsByRegistration = new Map<string, PricedOptionCountRow[]>();
+  const registrationsByEvent = new Map<string, Set<string>>();
+  for (const row of optionCounts) {
+    const rows = countsByRegistration.get(row.registration_id) ?? [];
+    rows.push(row);
+    countsByRegistration.set(row.registration_id, rows);
+    const ids = registrationsByEvent.get(row.event_id) ?? new Set<string>();
+    ids.add(row.registration_id);
+    registrationsByEvent.set(row.event_id, ids);
+  }
+  const registrationCountByEvent = new Map<string, number>();
+  for (const registration of registrations) {
+    registrationCountByEvent.set(
+      registration.event_id,
+      (registrationCountByEvent.get(registration.event_id) ?? 0) + 1,
+    );
+  }
+
+  const result: CodeValueOffered[] = codes.map((code) => {
+    const percentByOption = new Map(
+      code.options.map((option) => [
+        option.option_id,
+        toNumber(option.percent_off),
+      ]),
+    );
+    const derivable = code.options.some((option) => option.price !== null);
+
+    if (derivable) {
+      const registrationIds = code.shared
+        ? [...(registrationsByEvent.get(code.event_id) ?? [])]
+        : code.registration_id
+          ? [code.registration_id]
+          : [];
+      let value = 0;
+      for (const registrationId of registrationIds) {
+        for (const row of countsByRegistration.get(registrationId) ?? []) {
+          const percent = row.option_id
+            ? percentByOption.get(row.option_id)
+            : undefined;
+          if (percent === undefined) continue;
+          value +=
+            (toNumber(row.quantity) * toNumber(row.price) * percent) / 100;
+        }
+      }
+      return {
+        codeId: code.code_id,
+        shared: code.shared,
+        value: roundCents(value),
+        derived: true,
+      };
+    }
+
+    if (code.value === null || code.value === undefined) {
+      return {
+        codeId: code.code_id,
+        shared: code.shared,
+        value: null,
+        derived: false,
+      };
+    }
+    const times = code.shared
+      ? (registrationCountByEvent.get(code.event_id) ?? 0)
+      : 1;
+    return {
+      codeId: code.code_id,
+      shared: code.shared,
+      value: roundCents(toNumber(code.value) * times),
+      derived: false,
+    };
+  });
+
+  const sum = (shared: boolean) =>
+    roundCents(
+      result
+        .filter((code) => code.shared === shared)
+        .reduce((total, code) => total + (code.value ?? 0), 0),
+    );
+  const shared = sum(true);
+  const singleUse = sum(false);
+  return {
+    shared,
+    singleUse,
+    total: roundCents(shared + singleUse),
+    codes: result,
+  };
+}
+
 /**
  * Distinct people per event, summed across events.
  *
@@ -364,6 +520,9 @@ export type EventImpactDerivedInput = {
   distributions: DistributedMovementRow[];
   /** null when the caller lacks event_impact:view. */
   assistanceExpenses: AssistanceExpenseRow[] | null;
+  /** null when the caller lacks event_impact:view (#1589). */
+  offeredCodes: OfferedCodeRow[] | null;
+  optionCounts: PricedOptionCountRow[] | null;
 };
 
 export type EventImpactDerived = {
@@ -388,6 +547,8 @@ export type EventImpactDerived = {
   /** True when every registrant is auto-assigned a code, so it isn't a subsidy signal. */
   autoAssignDiscountCodes: boolean;
   peopleServed: PeopleServed;
+  /** Never part of assistance; null when the viewer may not see discount data. */
+  discountValueOffered: DiscountValueOffered | null;
 };
 
 export function computeEventImpactDerived(
@@ -440,6 +601,14 @@ export function computeEventImpactDerived(
         : null,
     autoAssignDiscountCodes: input.autoAssignDiscountCodes,
     peopleServed,
+    discountValueOffered:
+      input.offeredCodes && input.optionCounts
+        ? computeDiscountValueOffered(
+            input.offeredCodes,
+            input.optionCounts,
+            input.registrations,
+          )
+        : null,
   };
 }
 
@@ -467,6 +636,8 @@ export type ProgramImpactRollup = {
   distributedValue: number;
   volunteerHours: number;
   participantAssistance: ParticipantAssistance;
+  /** Shown beside assistance, never added to it (#1589). */
+  discountValueOffered: DiscountValueOffered;
   repeatParticipants: number;
 };
 
@@ -484,6 +655,8 @@ export type ProgramImpactRollupInput = {
   firstTimeAttendees: PersonEventRow[];
   profiledAttendees: PersonEventRow[];
   assistanceExpenses: AssistanceExpenseRow[];
+  offeredCodes: OfferedCodeRow[];
+  optionCounts: PricedOptionCountRow[];
 };
 
 export function computeProgramImpactRollup(
@@ -522,6 +695,11 @@ export function computeProgramImpactRollup(
       input.events,
       peopleServed.value,
       input.assistanceExpenses,
+    ),
+    discountValueOffered: computeDiscountValueOffered(
+      input.offeredCodes,
+      input.optionCounts,
+      input.registrations,
     ),
     repeatParticipants: countRepeatParticipants(input.registrations),
   };

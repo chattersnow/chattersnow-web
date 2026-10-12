@@ -99,6 +99,8 @@ describe("get_program_impact_rollup_data (integration)", () => {
       beginnerAttendees: after.data.beginner_attendees,
       firstTimeAttendees: after.data.first_time_attendees,
       assistanceExpenses: after.data.assistance_expenses,
+      offeredCodes: after.data.offered_codes,
+      optionCounts: after.data.option_counts,
       profiledAttendees: after.data.profiled_attendees,
     });
     expect(rollup.volunteerHours).toBe(4.5);
@@ -172,6 +174,8 @@ describe("get_program_impact_rollup_data with shared events (integration)", () =
         beginnerAttendees: result.data.beginner_attendees,
         firstTimeAttendees: result.data.first_time_attendees,
         assistanceExpenses: result.data.assistance_expenses,
+        offeredCodes: result.data.offered_codes,
+        optionCounts: result.data.option_counts,
         profiledAttendees: result.data.profiled_attendees,
       });
       // The full figure for each program, not a split: both genuinely ran it.
