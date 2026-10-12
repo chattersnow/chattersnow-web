@@ -148,7 +148,12 @@ export type AssignNumberedCodeResult =
       code: string;
       holder: { id: string; description: string };
     }
-  | { error: string };
+  | {
+      error: string;
+      /** Why the code didn't go on, where it isn't simply a failure: the
+       *  Items list's bulk assign (#1542) sorts its skips by it. */
+      reason?: "item_gone" | "retired" | "unknown";
+    };
 
 /**
  * Puts the numbered code in hand on an item. A code another item holds comes
@@ -174,6 +179,12 @@ export async function assignNumberedCodeAction(
     { p_item_id: itemId, p_code: scanned.numbered ?? typed, p_move: move },
   );
   const row = Array.isArray(data) ? data[0] : data;
+  if (error?.message === "Inventory item not found") {
+    return {
+      error: "This item is no longer in inventory.",
+      reason: "item_gone",
+    };
+  }
   if (error || !row) {
     return { error: "Could not assign the code. Please try again." };
   }
@@ -195,14 +206,42 @@ export async function assignNumberedCodeAction(
     case "item_gone":
       return {
         error: `This item has left inventory, so it can't take ${row.code}.`,
+        reason: "item_gone",
       };
     case "retired":
       return {
         error: `${row.code} was retired because its tag was damaged or lost. Restore it on the Codes page if you found it.`,
+        reason: "retired",
       };
     default:
-      return { error: `No numbered code matches “${typed}”.` };
+      return {
+        error: `No numbered code matches “${typed}”.`,
+        reason: "unknown",
+      };
   }
+}
+
+/**
+ * The lowest free numbered codes, for the bulk assign dialog (#1542) to
+ * suggest. Only a suggestion: the code bound is always the one the person
+ * scans or types from the tag in hand.
+ */
+export async function freeNumberedCodesAction(
+  limit: number,
+): Promise<{ codes: string[] } | { error: string }> {
+  const guard = await manageGuard("You must be signed in to assign a code.");
+  if ("error" in guard) return guard;
+
+  const { data, error } = await guard.supabase
+    .from("inventory_item_tags")
+    .select("value")
+    .eq("kind", "numbered")
+    .is("item_id", null)
+    .is("retired_at", null)
+    .order("number")
+    .limit(Math.min(Math.max(Math.trunc(limit), 1), MAX_LABEL_ITEMS));
+  if (error) return { error: "Could not read the free codes." };
+  return { codes: (data ?? []).map((row) => row.value) };
 }
 
 export async function unassignNumberedCodeAction(

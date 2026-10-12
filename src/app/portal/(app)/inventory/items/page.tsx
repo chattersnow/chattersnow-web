@@ -3,6 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
+import {
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { ActiveFilters, type ActiveFilter } from "@/components/active-filters";
 import { FiltersSheet } from "@/components/filters-sheet";
@@ -64,6 +68,11 @@ export default async function InventoryPage({
   const supabase = await createSupabaseServerClient();
   const lexicon = await getTenantLexicon(supabase);
   const device = await deviceClass();
+  const canManage = hasPermission(
+    await getCurrentUserPermissions(supabase),
+    "inventory",
+    "manage",
+  );
 
   const params = await searchParams;
   const raw = (key: string) => {
@@ -503,6 +512,7 @@ export default async function InventoryPage({
             dir={dir}
             filterQueryString={filterParams.toString()}
             hasActiveFilters={hasActiveFilters}
+            canManage={canManage}
           />
         </div>
       </InventoryViewProvider>

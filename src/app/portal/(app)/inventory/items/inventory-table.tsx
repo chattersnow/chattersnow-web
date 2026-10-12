@@ -34,6 +34,7 @@ import {
   type SortColumn,
 } from "./inventory-shared";
 import { EmptyState } from "@/components/portal/empty-state";
+import { BulkAssignCodesButton } from "./bulk-assign-codes";
 
 export function InventoryTable({
   items,
@@ -41,12 +42,15 @@ export function InventoryTable({
   dir,
   filterQueryString,
   hasActiveFilters,
+  canManage = false,
 }: {
   items: InventoryItem[];
   sort: SortColumn;
   dir: "asc" | "desc";
   filterQueryString: string;
   hasActiveFilters: boolean;
+  /** inventory:manage: the selection can be given numbered codes (#1542). */
+  canManage?: boolean;
 }) {
   const { view } = useInventoryView();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -127,6 +131,12 @@ export function InventoryTable({
                 >
                   <Printer /> Print labels
                 </Button>
+                {canManage && (
+                  <BulkAssignCodesButton
+                    items={items.filter((item) => selectedIds.has(item.id))}
+                    onDone={() => setSelectedIds(new Set())}
+                  />
+                )}
                 <Button
                   type="button"
                   variant="ghost"
