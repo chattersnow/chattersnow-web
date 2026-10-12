@@ -12161,6 +12161,10 @@ export type Database = {
           outcome: string;
         }[];
       };
+      return_gear_request_item: {
+        Args: { p_inventory_item_id: string; p_request_id: string };
+        Returns: undefined;
+      };
       review_person_claim: {
         Args: {
           p_approve: boolean;
