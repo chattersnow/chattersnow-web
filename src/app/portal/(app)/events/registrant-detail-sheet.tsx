@@ -484,6 +484,7 @@ export function RegistrantDetailSheet({
             answers={registrant.answers}
             canManage={canManage}
             onSaved={onAnswersSaved}
+            changedAt={registrant.answers_changed_at}
           />
 
           {canManage ? (

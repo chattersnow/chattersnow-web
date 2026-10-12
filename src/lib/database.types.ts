@@ -3045,6 +3045,7 @@ export type Database = {
           registration_id: string;
           requested_at: string;
           requested_by: string | null;
+          source: string;
           tenant_id: string;
           token_hash: string;
         };
@@ -3055,6 +3056,7 @@ export type Database = {
           registration_id: string;
           requested_at?: string;
           requested_by?: string | null;
+          source?: string;
           tenant_id?: string;
           token_hash: string;
         };
@@ -3065,6 +3067,7 @@ export type Database = {
           registration_id?: string;
           requested_at?: string;
           requested_by?: string | null;
+          source?: string;
           tenant_id?: string;
           token_hash?: string;
         };
@@ -3364,6 +3367,7 @@ export type Database = {
           accompanying_adult_name: string | null;
           accompanying_adult_phone: string | null;
           adults_only_confirmed_at: string | null;
+          answers_changed_at: string | null;
           attended_before: boolean | null;
           cancellation_note: string | null;
           cancellation_reason: string | null;
@@ -3398,6 +3402,7 @@ export type Database = {
           accompanying_adult_name?: string | null;
           accompanying_adult_phone?: string | null;
           adults_only_confirmed_at?: string | null;
+          answers_changed_at?: string | null;
           attended_before?: boolean | null;
           cancellation_note?: string | null;
           cancellation_reason?: string | null;
@@ -3432,6 +3437,7 @@ export type Database = {
           accompanying_adult_name?: string | null;
           accompanying_adult_phone?: string | null;
           adults_only_confirmed_at?: string | null;
+          answers_changed_at?: string | null;
           attended_before?: boolean | null;
           cancellation_note?: string | null;
           cancellation_reason?: string | null;
@@ -11014,6 +11020,30 @@ export type Database = {
       issue_distribution_acknowledgement_token: {
         Args: { p_event_id: string; p_token_hash: string };
         Returns: string;
+      };
+      issue_registration_answer_link: {
+        Args: {
+          p_registration_id: string;
+          p_source: string;
+          p_token_hash: string;
+        };
+        Returns: string;
+      };
+      issue_registration_answer_link_for_email: {
+        Args: {
+          p_email: string;
+          p_event_id: string;
+          p_ip_address: unknown;
+          p_tenant_id: string;
+          p_token_hash: string;
+        };
+        Returns: {
+          email: string;
+          expires_at: string;
+          name: string;
+          person_id: string;
+          registration_id: string;
+        }[];
       };
       link_person_to_auth_user: {
         Args: { p_person_id: string; p_user_id: string };

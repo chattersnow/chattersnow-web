@@ -9,11 +9,11 @@ mock.module("server-only", () => ({}));
 
 type RegisterForEventResult =
   | { error: string; step: "about" | "event" | "review" }
-  | { success: true; registrationId: string };
+  | { success: true; registrationId: string; answersPath: string | null };
 
 const registerForEventActionMock = mock<
   (eventId: string, formData: FormData) => Promise<RegisterForEventResult>
->(async () => ({ success: true, registrationId: "reg-1" }));
+>(async () => ({ success: true, registrationId: "reg-1", answersPath: null }));
 
 mock.module("./event-registration-actions", () => ({
   registerForEventAction: registerForEventActionMock,
@@ -102,6 +102,37 @@ describe("EventRegistrationForm", () => {
     const submission = lastSubmission();
     expect(submission.waiverAccepted).toBeUndefined();
     expect(submission.waiverVersion).toBeUndefined();
+  });
+
+  // #1591. The success screen hands over the same link the email carries.
+  test("offers the registrant's own answers link once registered", async () => {
+    registerForEventActionMock.mockImplementationOnce(async () => ({
+      success: true,
+      registrationId: "reg-1",
+      answersPath: "/events/e/event-1/answers?t=abc",
+    }));
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou(user);
+    await sayNoMinors(user);
+    await submit(user);
+
+    expect(
+      await screen.findByRole("link", { name: "Change your answers" }),
+    ).toHaveAttribute("href", "/events/e/event-1/answers?t=abc");
+  });
+
+  test("offers no answers link for an event without one", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" />);
+    await fillAboutYou(user);
+    await sayNoMinors(user);
+    await submit(user);
+
+    expect(await screen.findByText(/You're registered!/)).toBeVisible();
+    expect(
+      screen.queryByRole("link", { name: "Change your answers" }),
+    ).toBeNull();
   });
 
   test("the agreement's box starts unticked", async () => {

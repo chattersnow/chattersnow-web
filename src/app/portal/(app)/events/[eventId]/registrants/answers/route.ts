@@ -29,7 +29,7 @@ import {
  * Rides column -- and, through it, the rider_profile module.
  */
 const REGISTRATION_COLUMNS =
-  "name, email, phone, instagram_handle, party_size, answers:event_registration_answers(question_id, answer_text, value)";
+  "name, email, phone, instagram_handle, party_size, answers_changed_at, answers:event_registration_answers(question_id, answer_text, value)";
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level)";
 

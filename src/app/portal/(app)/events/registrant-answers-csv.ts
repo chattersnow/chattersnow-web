@@ -38,6 +38,11 @@ export type AnswersCsvRegistration = {
   email: string | null;
   phone: string | null;
   instagram_handle: string | null;
+  /**
+   * When the registrant last changed their own answers after registering
+   * (#1591), or null where they never have.
+   */
+  answers_changed_at?: string | null;
   /** Only read when the file is built with `riders`. */
   rider?: RiderAnswers | null;
   answers: {
@@ -87,7 +92,9 @@ export function csvField(value: string | number | null): string {
 
 /**
  * Name, party size, one column per current question in the event's order
- * (each its answer in words, blank where unanswered), then Rides, Ski level
+ * (each its answer in words, blank where unanswered), then Answers changed --
+ * the instant the registrant last changed them after registering, in UTC
+ * (ISO 8601), blank where they never have (#1591) -- then Rides, Ski level
  * and Snowboard level with `riders`, then Instagram on every row, then Email
  * and Phone only where the event has a `shares_contact` question -- filled
  * only on the rows that agreed. CRLF line endings, as RFC 4180 and Excel
@@ -103,6 +110,7 @@ export function registrantAnswersCsv(
     "Name",
     "Party size",
     ...questions.map((question) => question.prompt),
+    "Answers changed",
     ...(riders ? ["Rides", "Ski level", "Snowboard level"] : []),
     "Instagram",
     ...(withContact ? ["Email", "Phone"] : []),
@@ -122,6 +130,7 @@ export function registrantAnswersCsv(
       registration.name,
       registration.party_size,
       ...questions.map((question) => byQuestion.get(question.id) ?? null),
+      registration.answers_changed_at ?? null,
       ...(riders
         ? [
             ridingDisciplineLabel(rider?.discipline ?? null),

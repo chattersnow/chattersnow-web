@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getClientIp } from "@/lib/get-client-ip";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendEventRegistrationConfirmation } from "@/lib/notifications/submission-notifications";
+import { issueConfirmationAnswersLink } from "@/lib/notifications/registration-answer-self-links";
 import {
   ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE,
   ADULTS_ONLY_CONFIRMATION_REQUIRED_ERROR,
@@ -200,9 +201,19 @@ export async function registerMyselfForEventAction(
   const siteUrl = await getRequestOrigin();
 
   after(async () => {
-    await sendEventRegistrationConfirmation(createSupabaseAdminClient(), {
+    const admin = createSupabaseAdminClient();
+    // #1591. The same link the anonymous confirmation carries, with no special
+    // case: it works for somebody with an account too, and `/my` remains the
+    // other way in. Issued here rather than before the response because this
+    // success screen links to `/my` instead.
+    const answersLink = await issueConfirmationAnswersLink(
+      admin,
+      registrationId,
+    );
+    await sendEventRegistrationConfirmation(admin, {
       registrationId,
       siteUrl,
+      answersLink,
     });
   });
 

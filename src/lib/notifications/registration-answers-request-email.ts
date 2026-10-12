@@ -16,7 +16,8 @@ import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 /**
  * A registrant's own link to fill in an event's registration questions
  * (#1502), sent by staff to people who registered before the questions
- * existed.
+ * existed -- and, since #1591, to somebody who tried to register again with
+ * an address already registered, with the platform's own intro.
  *
  * The intro is the staffer's, edited in the dialog; everything around it is
  * fixed, because the link and when it stops working are what the email is
@@ -46,6 +47,8 @@ export type RegistrationAnswersRequest = {
   branding?: EmailBranding;
   /** The subject line; see answersRequestSubject(). */
   subject: string;
+  /** The link's words. Defaults to "Answer the questions". */
+  linkLabel?: string;
 };
 
 export function renderRegistrationAnswersRequestEmail(
@@ -64,11 +67,12 @@ export function renderRegistrationAnswersRequestEmail(
   );
   const note = `This link is just for you: it opens your answers for ${request.eventName.trim() || "this event"} without signing in, so please don't forward it. You can use it again to change an answer until ${expires}.`;
   const signoff = `— ${request.orgName}`;
+  const linkLabel = request.linkLabel ?? "Answer the questions";
 
   const text = joinTextBlocks([
     greeting,
     intro,
-    `Answer the questions: ${request.url}`,
+    `${linkLabel}: ${request.url}`,
     note,
     signoff,
   ]);
@@ -80,7 +84,7 @@ export function renderRegistrationAnswersRequestEmail(
     bodyHtml: joinHtmlLines([
       copyParagraphHtml(greeting, "margin: 0 0 16px;"),
       copyParagraphHtml(intro, "margin: 0 0 16px;"),
-      `  <p style="margin: 0 0 16px;"><a href="${escapeHtml(request.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">Answer the questions</a></p>`,
+      `  <p style="margin: 0 0 16px;"><a href="${escapeHtml(request.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(linkLabel)}</a></p>`,
       copyParagraphHtml(
         note,
         `color: ${palette.muted}; font-size: 14px; margin: 0 0 12px;`,

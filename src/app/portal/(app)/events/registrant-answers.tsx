@@ -23,6 +23,7 @@ import {
   type RegistrationQuestion,
 } from "@/lib/registration-questions";
 import { answerColumns } from "@/lib/registration-answer-columns";
+import { formatDateTime } from "@/lib/format";
 
 /**
  * A registration's answers to its event's registration questions (#1501), in
@@ -43,12 +44,18 @@ export function RegistrantAnswers({
   answers,
   canManage,
   onSaved,
+  changedAt = null,
 }: {
   registrationId: string;
   questions: readonly RegistrationQuestion[];
   answers: readonly RegistrantAnswerRow[];
   canManage: boolean;
   onSaved?: () => void;
+  /**
+   * When the registrant last changed these themselves after registering
+   * (#1591), so whoever planned off the first answers knows they moved.
+   */
+  changedAt?: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<AnswerDraft>({});
@@ -123,6 +130,12 @@ export function RegistrantAnswers({
           </Button>
         )}
       </div>
+
+      {changedAt && (
+        <p className="app-muted text-sm">
+          Changed by the registrant on {formatDateTime(changedAt)}.
+        </p>
+      )}
 
       {editing ? (
         <FieldGroup>

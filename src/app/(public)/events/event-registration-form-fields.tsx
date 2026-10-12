@@ -13,6 +13,9 @@ import {
   type RidingValues,
 } from "./riding-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { CHANGE_ANSWERS_LINK_LABEL } from "@/lib/registration-answer-requests";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -201,6 +204,9 @@ export function EventRegistrationForm({
   // Holds the new registration's id once saved -- both the "did it work?"
   // flag and the record the account offer carries through sign-up.
   const [registrationId, setRegistrationId] = useState<string | null>(null);
+  // #1591. The registrant's own answers link, the one their confirmation
+  // carries, so they have it without opening the email.
+  const [answersPath, setAnswersPath] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
@@ -258,6 +264,7 @@ export function EventRegistrationForm({
         setError({ message: result.error, step: result.step });
         return;
       }
+      setAnswersPath(result.answersPath);
       setRegistrationId(result.registrationId);
     });
   }
@@ -275,6 +282,22 @@ export function EventRegistrationForm({
             <span className="mt-1 block">
               We&apos;ve emailed a copy to {email}.
             </span>
+            {answersPath && (
+              <span className="mt-3 block">
+                {/* A plain anchor, not next/link: the URL carries the token,
+                    and a prefetch would spend the page's rate limit. */}
+                <a
+                  href={answersPath}
+                  className={cn(buttonVariants({ variant: "secondary" }))}
+                >
+                  {CHANGE_ANSWERS_LINK_LABEL}
+                </a>
+                <span className="app-muted mt-2 block text-sm">
+                  Plans changed? You can change your answers until the event
+                  ends — the link is in your email too.
+                </span>
+              </span>
+            )}
           </AlertDescription>
         </Alert>
         {accountOffer && (

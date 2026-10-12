@@ -34,11 +34,26 @@ export const MAX_ANSWER_REQUEST_RECIPIENTS = MAX_ANNOUNCEMENT_RECIPIENTS;
  */
 export const RECENTLY_ASKED_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Who issued a registration's current link (#1591): staff asking, the
+ * registration confirmation and its resends, or a second registration
+ * attempt with the same address.
+ */
+export type AnswerRequestSource =
+  "staff" | "confirmation" | "already_registered";
+
 /** The part of a registration's request the portal reads. */
 export type AnswerRequestStatus = {
   requested_at: string;
   answered_at: string | null;
+  /** Absent reads as "staff", the column's default. */
+  source?: AnswerRequestSource | string | null;
 };
+
+/** Whether staff issued the current link, rather than the registrant being handed one. */
+function isStaffAsk(request: AnswerRequestStatus): boolean {
+  return (request.source ?? "staff") === "staff";
+}
 
 /** What the registrants tab says beside a name, or null for nothing. */
 export type AnswerRequestState =
@@ -48,11 +63,15 @@ export type AnswerRequestState =
  * "Answered" once answers have been saved through a link since it was last
  * sent; "Asked" while the latest link is still waiting. A link sent again
  * after an answer reads as asked, because that is what it is.
+ *
+ * Only a staff ask has either state (#1591). A link the registrant was handed
+ * in their confirmation was asked by nobody, and their saving through it is
+ * shown as "Answers changed" off the registration instead.
  */
 export function answerRequestState(
   request: AnswerRequestStatus | null,
 ): AnswerRequestState | null {
-  if (!request) return null;
+  if (!request || !isStaffAsk(request)) return null;
   if (
     request.answered_at &&
     Date.parse(request.answered_at) >= Date.parse(request.requested_at)
@@ -66,7 +85,7 @@ export function wasAskedRecently(
   request: AnswerRequestStatus | null,
   now: number = Date.now(),
 ): boolean {
-  if (!request) return false;
+  if (!request || !isStaffAsk(request)) return false;
   return now - Date.parse(request.requested_at) < RECENTLY_ASKED_MS;
 }
 
@@ -223,9 +242,36 @@ export const ANSWER_REQUEST_ERRORS = {
   FAILED: "The request could not be sent. Please try again.",
 } as const;
 
-/** The one message every dead link shows, whichever way it died. */
+/**
+ * The one message every dead link shows, whichever way it died. Each new link
+ * supersedes the last (#1591), so the likeliest cause is an older email.
+ */
 export const ANSWER_LINK_INVALID =
-  "This link no longer works. It may have expired or been replaced by a newer one. Please contact us if you still need to answer.";
+  "This link no longer works. It may have expired or been replaced by a newer one — please use the most recent email from us, or contact us if you still need to change your answers.";
+
+/** The link's words wherever the registrant is handed it (#1591). */
+export const CHANGE_ANSWERS_LINK_LABEL = "Change your answers";
+
+/**
+ * What a second registration attempt with an address already registered is
+ * told when a link was issued to that address (#1591). The refusal it
+ * replaces already said the address is registered, and this says nothing
+ * more: the link goes to the mailbox, never the screen.
+ */
+export const ALREADY_REGISTERED_LINK_SENT =
+  "You're already registered — we've emailed you a link to change your answers.";
+
+export function alreadyRegisteredAnswersSubject(eventName: string): string {
+  const name = eventName.trim();
+  return name
+    ? `Change your answers for ${name}`
+    : "Change your registration answers";
+}
+
+export function alreadyRegisteredAnswersIntro(eventName: string): string {
+  const name = eventName.trim() || "this event";
+  return `Someone tried to register for ${name} again with this email address. You're already registered, so there's nothing more to do — but if you meant to change your answers, use the link below. If this wasn't you, you can ignore this email.`;
+}
 
 /**
  * The form field the token travels in on the answers page. The page renders it

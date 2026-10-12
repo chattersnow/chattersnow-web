@@ -54,6 +54,7 @@ function registrant(
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: null,

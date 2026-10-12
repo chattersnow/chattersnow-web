@@ -25,6 +25,8 @@ import {
 } from "@/lib/notifications/submission-emails";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
+import type { IssuedAnswersLink } from "@/lib/notifications/registration-answer-self-links";
+import { publicEventAnswersPath } from "@/app/(public)/events/event-path";
 import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
 import { renderContactMessageConfirmationEmail } from "@/lib/notifications/contact-message-confirmation-email";
 import { renderArtworkSubmissionConfirmationEmail } from "@/lib/notifications/artwork-submission-confirmation-email";
@@ -1030,6 +1032,12 @@ export async function sendEventRegistrationConfirmation(
      * resolves one of its own, so the caller already knows who it reached.
      */
     onRendered?: (email: RenderedEmail) => void;
+    /**
+     * The registrant's own answers link (#1591), issued by the caller --
+     * issueConfirmationAnswersLink() -- so the success screen can show the
+     * same one. Absent or null renders no link.
+     */
+    answersLink?: IssuedAnswersLink | null;
   },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
@@ -1154,6 +1162,12 @@ export async function sendEventRegistrationConfirmation(
           ),
           note: registered.confirmation_note,
           sharedCode: sharedCode.data ?? null,
+          answersLink: options.answersLink
+            ? {
+                url: `${mail.origin.replace(/\/+$/, "")}${publicEventAnswersPath(data.event_id, options.answersLink.token)}`,
+                expiresAt: options.answersLink.expiresAt,
+              }
+            : null,
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,
