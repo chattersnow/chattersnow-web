@@ -51,6 +51,7 @@ import {
   formatCount,
   retireReasonLabel,
   type CodeTarget,
+  type RetireReason,
 } from "@/lib/inventory-codes";
 import { TAG_PATH_PREFIX } from "@/lib/inventory-tags";
 import { itemHref } from "../inventory-shared";
@@ -61,6 +62,7 @@ import {
   unassignNumberedCodeAction,
   unretireCodeAction,
   type CodeHistoryEntry,
+  type RetireResult,
 } from "./actions";
 import { CopyTagUrlButton } from "./copy-tag-url-button";
 import type { CodeRow } from "./codes-table";
@@ -70,11 +72,14 @@ export function isLabelCode(row: CodeRow): boolean {
   return row.kind !== "nfc" && row.state !== "retired";
 }
 
-/** Retiring is for a code on no item, or a numbered code it will free. */
+/**
+ * Any code we print can be retired: one on an item comes off it (#1544), and
+ * an item's last code only after the person confirms.
+ */
 export function isRetirable(row: CodeRow): boolean {
   return (
     row.state !== "retired" &&
-    (row.kind === "numbered" || (row.kind === "asset_tag" && !row.itemId))
+    (row.kind === "numbered" || row.kind === "asset_tag")
   );
 }
 
@@ -218,8 +223,11 @@ export function CodeActions({
         <RetireCodesDialog
           target={{ ids: [row.id] }}
           count={1}
-          heldBy={row.kind === "numbered" ? row.itemDescription : null}
+          heldBy={row.itemId ? row.itemDescription : null}
           code={row.value}
+          defaultReason={
+            row.kind === "asset_tag" && row.itemId ? "replaced" : "damaged"
+          }
           open={retiring}
           onOpenChange={setRetiring}
         />
@@ -228,16 +236,28 @@ export function CodeActions({
   );
 }
 
+/** The toast after a retirement: how many, and what came off which item. */
+export function retiredMessage(result: RetireResult): string {
+  const parts = [`${formatCount(result.retired, "code")} retired.`];
+  for (const released of result.released) {
+    parts.push(`${released.code} came off ${released.description}.`);
+  }
+  return parts.join(" ");
+}
+
 /**
- * Why a code is retired, and a note. A numbered code on an item comes off
- * it; the number is never given out again, since printed copies may still be
- * out there. Used for one row, and for a selection.
+ * Why a code is retired, and a note. A code on an item comes off it; a
+ * numbered code's number is never given out again, since printed copies may
+ * still be out there. An item's last code is held back and asked about
+ * again (#1544), so nothing is left untagged by accident. Used for one row,
+ * and for a selection.
  */
 export function RetireCodesDialog({
   target,
   count,
   code,
   heldBy = null,
+  defaultReason = "damaged",
   trigger,
   open,
   onOpenChange,
@@ -247,49 +267,59 @@ export function RetireCodesDialog({
   count: number;
   /** The one code, when there is one. */
   code?: string;
-  /** The item a single numbered code is on now. */
+  /** The item a single code is on now. */
   heldBy?: string | null;
+  defaultReason?: RetireReason;
   trigger?: ReactElement;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onDone?: () => void;
 }) {
   const router = useRouter();
-  const [reason, setReason] = useState<string>("damaged");
+  const [reason, setReason] = useState<string>(defaultReason);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Codes held back because each is its item's last: retired only once the
+  // person confirms, with the same reason and note.
+  const [lastTags, setLastTags] = useState<RetireResult["lastTag"]>([]);
   const [isPending, startTransition] = useTransition();
   const [innerOpen, setInnerOpen] = useState(false);
   const isOpen = open ?? innerOpen;
+  const confirming = lastTags.length > 0;
 
   function setOpen(next: boolean) {
     setInnerOpen(next);
     onOpenChange?.(next);
-    if (!next) setError(null);
+    if (!next) {
+      setError(null);
+      setLastTags([]);
+    }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await retireCodesAction(target, reason, note);
+      const result = confirming
+        ? await retireCodesAction(
+            { ids: lastTags.map((tag) => tag.tagId) },
+            reason,
+            note,
+            true,
+          )
+        : await retireCodesAction(target, reason, note);
       if ("error" in result) {
         setError(result.error);
         return;
       }
-      const parts = [`${formatCount(result.retired, "code")} retired.`];
-      for (const released of result.released) {
-        parts.push(`${released.code} came off ${released.description}.`);
+      if (result.retired > 0) toast.success(retiredMessage(result));
+      router.refresh();
+      if (result.lastTag.length > 0) {
+        setLastTags(result.lastTag);
+        return;
       }
-      if (result.onItem > 0) {
-        parts.push(
-          `${formatCount(result.onItem, "code")} on items left as they are: reprint their labels instead.`,
-        );
-      }
-      toast.success(parts.join(" "));
       setOpen(false);
       onDone?.();
-      router.refresh();
     });
   }
 
@@ -298,7 +328,7 @@ export function RetireCodesDialog({
   return (
     <PortalFormSurface
       title={`Retire ${name}`}
-      description="For a tag that is damaged or lost. A retired code can't be put on an item, and scanning it finds nothing. Restore it if the tag turns up."
+      description="For a tag that is damaged or lost, or a tag code replaced by a numbered code. A retired code can't be put on an item, and scanning it finds nothing. Restore it if the tag turns up."
       trigger={trigger}
       withTrigger={!!trigger}
       open={isOpen}
@@ -313,24 +343,40 @@ export function RetireCodesDialog({
             Cancel
           </PortalFormSurfaceClose>
           <Button type="submit" variant="destructive" disabled={isPending}>
-            {isPending && <Spinner />} Retire
+            {isPending && <Spinner />} {confirming ? "Retire anyway" : "Retire"}
           </Button>
         </>
       }
     >
       <FieldGroup>
-        {heldBy && (
-          <Alert>
+        {confirming ? (
+          <Alert variant="destructive" aria-live="polite">
             <AlertDescription>
-              {code} is on {heldBy}. Retiring it takes it off.
+              {lastTags.length === 1
+                ? `${lastTags[0].code} is the only code on ${lastTags[0].description}.`
+                : `These are the only code on their items: ${lastTags
+                    .map((tag) => `${tag.code} on ${tag.description}`)
+                    .join(", ")}.`}{" "}
+              Retiring leaves {lastTags.length === 1 ? "it" : "them"} with no
+              code to scan. To replace a damaged label, reprint it instead.
             </AlertDescription>
           </Alert>
-        )}
-        {!code && (
-          <p className="text-sm">
-            Numbered codes on an item come off it. A code that is on an item for
-            good is left as it is: reprint its label instead.
-          </p>
+        ) : (
+          <>
+            {heldBy && (
+              <Alert>
+                <AlertDescription>
+                  {code} is on {heldBy}. Retiring it takes it off.
+                </AlertDescription>
+              </Alert>
+            )}
+            {!code && (
+              <p className="text-sm">
+                A code on an item comes off it. If it is the item&apos;s only
+                code, you&apos;re asked again first.
+              </p>
+            )}
+          </>
         )}
         <Field>
           <FieldLabel htmlFor="retire-reason">Reason</FieldLabel>
@@ -375,6 +421,7 @@ const RELEASE_REASONS: Record<string, string> = {
   moved: "moved to another item",
   replaced: "the item was given another code",
   unassigned: "unassigned by hand",
+  code_retired: "the code was retired",
 };
 
 function describe(entry: CodeHistoryEntry) {

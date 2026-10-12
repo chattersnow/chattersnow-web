@@ -72,6 +72,7 @@ describe("bulk assign numbered codes (integration)", () => {
     expect(await assignNumberedCodeAction(held, codeB.value)).toEqual({
       outcome: "assigned",
       code: codeB.value,
+      retiredTagCodes: [],
     });
     // One selected item leaves inventory after the list was loaded.
     const { error } = await adminClient
@@ -91,7 +92,11 @@ describe("bulk assign numbered codes (integration)", () => {
       await assignNumberedCodeAction(gone, codeC.value),
     ];
 
-    expect(results[0]).toEqual({ outcome: "assigned", code: codeA.value });
+    expect(results[0]).toEqual({
+      outcome: "assigned",
+      code: codeA.value,
+      retiredTagCodes: [],
+    });
     expect(results[1]).toMatchObject({
       outcome: "held",
       code: codeB.value,

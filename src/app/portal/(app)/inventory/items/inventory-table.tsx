@@ -19,6 +19,7 @@ import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { buildHref } from "@/lib/pagination";
 import { IconLink } from "@/components/portal/icon-link";
 import { InventoryCard } from "./inventory-card";
+import { RetireTagCodesButton } from "./retire-tag-codes-button";
 import { useInventoryView } from "./inventory-view-context";
 import {
   CONDITIONS,
@@ -49,7 +50,10 @@ export function InventoryTable({
   dir: "asc" | "desc";
   filterQueryString: string;
   hasActiveFilters: boolean;
-  /** inventory:manage: the selection can be given numbered codes (#1542). */
+  /**
+   * inventory:manage: the selection can be given numbered codes (#1542) and
+   * have its tag codes cleaned up (#1544).
+   */
   canManage?: boolean;
 }) {
   const { view } = useInventoryView();
@@ -132,10 +136,16 @@ export function InventoryTable({
                   <Printer /> Print labels
                 </Button>
                 {canManage && (
-                  <BulkAssignCodesButton
-                    items={items.filter((item) => selectedIds.has(item.id))}
-                    onDone={() => setSelectedIds(new Set())}
-                  />
+                  <>
+                    <BulkAssignCodesButton
+                      items={items.filter((item) => selectedIds.has(item.id))}
+                      onDone={() => setSelectedIds(new Set())}
+                    />
+                    <RetireTagCodesButton
+                      items={items.filter((item) => selectedIds.has(item.id))}
+                      onDone={() => setSelectedIds(new Set())}
+                    />
+                  </>
                 )}
                 <Button
                   type="button"

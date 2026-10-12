@@ -12108,12 +12108,27 @@ export type Database = {
         }[];
       };
       retire_inventory_tags: {
-        Args: { p_note?: string; p_reason: string; p_tag_ids: string[] };
+        Args: {
+          p_allow_last?: boolean;
+          p_note?: string;
+          p_reason: string;
+          p_tag_ids: string[];
+        };
         Returns: {
           code: string;
+          item_id: string;
           outcome: string;
           released_from: string;
           tag_id: string;
+        }[];
+      };
+      retire_item_asset_tag_codes: {
+        Args: { p_item_ids: string[]; p_note?: string; p_reason?: string };
+        Returns: {
+          code: string;
+          description: string;
+          item_id: string;
+          outcome: string;
         }[];
       };
       review_person_claim: {
