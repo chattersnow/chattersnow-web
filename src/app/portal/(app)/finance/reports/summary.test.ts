@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   computeFinanceSummary,
+  GIVEAWAY_TICKETS_SOURCE,
   NO_EVENT_LABEL,
   summarizeByEvent,
   summarizeRevenueBySource,
@@ -257,6 +258,7 @@ describe("computeFinanceSummary", () => {
         event_name: "Jam",
       },
     ],
+    giveaway_ticket_sales: [],
   };
 
   test("nets cash income and monetary donations against paid spend", () => {
@@ -332,12 +334,15 @@ describe("computeFinanceSummary", () => {
         in_kind_items: [],
         monetary_donations: [],
         sales: [],
+        giveaway_ticket_sales: [],
       }),
     ).toEqual({
       income: 0,
       salesTotal: 0,
       salesCount: 0,
       salesTaxTotal: 0,
+      giveawayTicketTotal: 0,
+      giveawayTicketSaleCount: 0,
       cashDonations: 0,
       cashDonationCount: 0,
       paidSpend: 0,
@@ -347,5 +352,42 @@ describe("computeFinanceSummary", () => {
       inKindValue: 0,
       inKindItemCount: 0,
     });
+  });
+});
+
+// #1576: raffle ticket money joins income everywhere the rollup is read, so an
+// event's net on its Report card and on this page agree.
+describe("giveaway ticket sales", () => {
+  const tickets = [
+    { amount: 30, event_id: "e1", event_name: "Jam" },
+    { amount: "20", event_id: "e1", event_name: "Jam" },
+  ];
+
+  test("count as income and are reported on their own", () => {
+    const summary = computeFinanceSummary({
+      revenue: [],
+      expenses: [],
+      reimbursements: [],
+      in_kind_items: [],
+      monetary_donations: [],
+      sales: [],
+      giveaway_ticket_sales: tickets,
+    });
+    expect(summary.giveawayTicketTotal).toBe(50);
+    expect(summary.giveawayTicketSaleCount).toBe(2);
+    expect(summary.income).toBe(50);
+    expect(summary.net).toBe(50);
+  });
+
+  test("get a source row of their own", () => {
+    expect(summarizeRevenueBySource([], [], tickets)).toEqual([
+      { source: GIVEAWAY_TICKETS_SOURCE, count: 2, total: 50 },
+    ]);
+  });
+
+  test("reach the event's income in the per-event rollup", () => {
+    expect(summarizeByEvent([], [], [], [], tickets)).toEqual([
+      { eventId: "e1", eventName: "Jam", income: 50, paidSpend: 0, net: 50 },
+    ]);
   });
 });

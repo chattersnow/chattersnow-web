@@ -45,6 +45,15 @@ describe("DistributionDetailView", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
+  test("links the item to its own page for editing its details", () => {
+    render(<DistributionDetailView movement={makeMovement()} canManage />);
+
+    expect(screen.getByRole("link", { name: "Winter jacket" })).toHaveAttribute(
+      "href",
+      "/portal/inventory/items/item-1",
+    );
+  });
+
   test("shows dashes for a general distribution with no event or recipient", () => {
     render(
       <DistributionDetailView
@@ -54,6 +63,54 @@ describe("DistributionDetailView", () => {
     );
 
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("shows the recipient's as-is acknowledgement and typed name", () => {
+    render(
+      <DistributionDetailView
+        movement={makeMovement()}
+        acknowledgement={{
+          acknowledgedAt: "2026-05-01T17:25:00.000Z",
+          typedName: "Riley Recipient",
+          method: "own_device",
+          skippedReason: null,
+          skippedNote: null,
+        }}
+        canManage
+      />,
+    );
+
+    expect(screen.getByText("Given as-is")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Acknowledged on their own phone on/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Name typed: Riley Recipient")).toBeInTheDocument();
+  });
+
+  test("shows why a handout was recorded without an acknowledgement", () => {
+    render(
+      <DistributionDetailView
+        movement={makeMovement()}
+        acknowledgement={{
+          acknowledgedAt: null,
+          typedName: null,
+          method: null,
+          skippedReason: "other",
+          skippedNote: "Had to catch a bus",
+        }}
+        canManage
+      />,
+    );
+
+    expect(
+      screen.getByText("Not acknowledged: Other — Had to catch a bus"),
+    ).toBeInTheDocument();
+  });
+
+  test("says the acknowledgement was not recorded when there is none", () => {
+    render(<DistributionDetailView movement={makeMovement()} canManage />);
+
+    expect(screen.getByText("Not recorded")).toBeInTheDocument();
   });
 
   test("offers edit and delete to inventory managers", () => {

@@ -31,13 +31,12 @@ afterEach(() => {
   revalidatePathMock.mockClear();
 });
 
-function impactForm(overrides: { firstTimeRiders?: string } = {}) {
+// Since #1588 only the notes are written; the typed figures are archived.
+function impactForm(notes = "Strong beginner turnout") {
   const fd = new FormData();
-  fd.set("firstTimeRiders", overrides.firstTimeRiders ?? "48");
-  fd.set("rentalSubsidiesCount", "12");
-  fd.set("assistanceTotal", "1500.50");
-  fd.set("beginnerPairingsCount", "9");
-  fd.set("notes", "Strong beginner turnout");
+  fd.set("notes", notes);
+  // A stale client still posting a typed figure must not reach the row.
+  fd.set("firstTimeRiders", "99");
   return fd;
 }
 
@@ -48,6 +47,14 @@ async function seedImpact(eventId: string) {
   const result = await upsertEventImpactAction(eventId, impactForm());
   if ("error" in result) throw new Error(result.error);
 }
+
+async function loadNote() {
+  const loaded = await getEventImpactAction(currentEventId);
+  if (!("data" in loaded)) throw new Error(loaded.error);
+  return loaded.data;
+}
+
+let currentEventId = "";
 
 describe("event impact actions (integration)", () => {
   test("requires a signed-in user to save impact notes", async () => {
@@ -65,26 +72,69 @@ describe("event impact actions (integration)", () => {
     const event = await createPublishedEvent();
     currentSupabase = await signInAs(SEEDED_USERS.admin);
 
+    currentEventId = event.id;
+
     expect(await upsertEventImpactAction(event.id, impactForm())).toEqual({
       success: true,
     });
 
-    const loaded = await getEventImpactAction(event.id);
-    if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.first_time_riders).toBe(48);
+    const loaded = await loadNote();
+    expect(loaded.note?.notes).toBe("Strong beginner turnout");
+    expect(loaded.note?.first_time_riders).toBeNull();
+    expect(loaded.canManage).toBe(true);
 
     // Second call takes the on-conflict update path, a separate RLS policy
     // from the insert one.
     expect(
-      await upsertEventImpactAction(
-        event.id,
-        impactForm({ firstTimeRiders: "51" }),
-      ),
+      await upsertEventImpactAction(event.id, impactForm("Revised")),
+    ).toEqual({ success: true });
+    expect((await loadNote()).note?.notes).toBe("Revised");
+
+    await event.cleanup();
+  });
+
+  // #1588: archive, don't drop.
+  test("saving notes leaves an event's archived typed figures in place", async () => {
+    const event = await createPublishedEvent();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    currentEventId = event.id;
+    const { error } = await currentSupabase.from("event_impact_notes").insert({
+      event_id: event.id,
+      first_time_riders: 48,
+      rental_subsidies_count: 12,
+      assistance_total: 1500.5,
+      beginner_pairings_count: 9,
+    });
+    expect(error).toBeNull();
+
+    expect(
+      await upsertEventImpactAction(event.id, impactForm("New notes")),
     ).toEqual({ success: true });
 
-    const updated = await getEventImpactAction(event.id);
-    if (!("data" in updated) || !updated.data) throw new Error("expected data");
-    expect(updated.data.first_time_riders).toBe(51);
+    const loaded = await loadNote();
+    expect(loaded.note).toMatchObject({
+      notes: "New notes",
+      first_time_riders: 48,
+      rental_subsidies_count: 12,
+      beginner_pairings_count: 9,
+    });
+    expect(Number(loaded.note?.assistance_total)).toBe(1500.5);
+
+    await event.cleanup();
+  });
+
+  test("a submitted report locks the notes until it is reopened", async () => {
+    const event = await createPublishedEvent();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    await currentSupabase
+      .from("events")
+      .update({ report_status: "submitted" })
+      .eq("id", event.id);
+
+    expect(await upsertEventImpactAction(event.id, impactForm())).toEqual({
+      error:
+        "This event's report has been submitted. Reopen it to change the notes.",
+    });
 
     await event.cleanup();
   });
@@ -93,7 +143,9 @@ describe("event impact actions (integration)", () => {
     const event = await createPublishedEvent();
     currentSupabase = await signInAs(SEEDED_USERS.admin);
 
-    expect(await getEventImpactAction(event.id)).toEqual({ data: null });
+    expect(await getEventImpactAction(event.id)).toEqual({
+      data: { note: null, canView: true, canManage: true },
+    });
 
     await event.cleanup();
   });
@@ -113,10 +165,11 @@ describe("event impact actions (integration)", () => {
     const event = await createPublishedEvent();
     await seedImpact(event.id);
     currentSupabase = await signInAs(SEEDED_USERS.finance);
+    currentEventId = event.id;
 
-    const loaded = await getEventImpactAction(event.id);
-    if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.first_time_riders).toBe(48);
+    const loaded = await loadNote();
+    expect(loaded.note?.notes).toBe("Strong beginner turnout");
+    expect(loaded.canManage).toBe(false);
 
     expect(await upsertEventImpactAction(event.id, impactForm())).toEqual(
       DENIED,
@@ -129,10 +182,11 @@ describe("event impact actions (integration)", () => {
     const event = await createPublishedEvent();
     await seedImpact(event.id);
     currentSupabase = await signInAs(SEEDED_USERS.board);
+    currentEventId = event.id;
 
-    const loaded = await getEventImpactAction(event.id);
-    if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.first_time_riders).toBe(48);
+    const loaded = await loadNote();
+    expect(loaded.note?.notes).toBe("Strong beginner turnout");
+    expect(loaded.canManage).toBe(false);
 
     expect(await upsertEventImpactAction(event.id, impactForm())).toEqual(
       DENIED,
@@ -146,7 +200,10 @@ describe("event impact actions (integration)", () => {
     await seedImpact(event.id);
     currentSupabase = await signInAs(SEEDED_USERS.volunteer);
 
-    expect(await getEventImpactAction(event.id)).toEqual(DENIED);
+    // The Results card is still theirs; it just has no notes for them.
+    expect(await getEventImpactAction(event.id)).toEqual({
+      data: { note: null, canView: false, canManage: false },
+    });
     expect(await upsertEventImpactAction(event.id, impactForm())).toEqual(
       DENIED,
     );

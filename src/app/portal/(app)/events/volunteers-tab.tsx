@@ -24,6 +24,7 @@ import type { TabValue } from "./event-tabs-config";
 import { ShiftsSection } from "./volunteers/shifts";
 import { buildRoster, RosterSection } from "./volunteers/roster";
 import { runAction } from "@/components/portal/action-toast";
+import { VolunteersSummary } from "./card-summaries";
 
 type VolunteersTabData = {
   volunteers: EventVolunteer[];
@@ -142,6 +143,14 @@ export function VolunteersTab({
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
+      )}
+
+      {tabData && (
+        <VolunteersSummary
+          volunteers={volunteers}
+          shifts={shifts}
+          hours={hours}
+        />
       )}
 
       <ShiftsSection

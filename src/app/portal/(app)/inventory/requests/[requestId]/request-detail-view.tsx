@@ -15,6 +15,7 @@ import { formatCurrency, personDisplayName } from "@/lib/format";
 import {
   deliveryMethodLabel,
   isOpenGearRequest,
+  latestRequestMovementType,
   shippingAddressLines,
   type PaymentMethod,
 } from "@/lib/gear-requests";
@@ -37,6 +38,7 @@ import { ViewerTime } from "@/components/viewer-time";
 import { instagramUrl } from "@/components/instagram-link";
 import { RequestItemThumb } from "./request-item-thumb";
 import { RemoveRequestItemButton } from "./remove-request-item-button";
+import { ReturnRequestItemButton } from "./return-request-item-button";
 import {
   AddRequestItemDialog,
   type AddableItem,
@@ -79,6 +81,8 @@ export type GearRequestDetailRow = {
   movements: {
     id: string;
     movement_type: string;
+    occurred_at: string;
+    created_at: string;
     inventory_item: {
       id: string;
       description: string;
@@ -95,7 +99,11 @@ export type GearRequestDetailRow = {
  * request does not track per-item progress; the item does, through the
  * ordinary distribution flow.
  */
-function itemProgress(status: string): string {
+function itemProgress(status: string, onRequest: string | null): string {
+  // Once a request is fulfilled its own movements say what happened to the
+  // item on it; the item's status may since belong to someone else's request.
+  if (onRequest === "distributed") return "Handed over";
+  if (onRequest === "other") return "Returned to shelf";
   switch (status) {
     case "reserved":
       return "On hold";
@@ -149,14 +157,32 @@ export function GearRequestDetailView({
   const paymentMethod =
     paymentMethods.find((method) => method.key === request.payment_method) ??
     null;
+  const fulfilled = request.status === "fulfilled";
+  const requestMovements = request.movements.map((movement) => ({
+    ...movement,
+    item_id: movement.inventory_item?.id ?? null,
+  }));
   const items = request.movements
     .filter((movement) => movement.movement_type === "reserved")
     .map((movement) => movement.inventory_item)
-    .filter((item): item is NonNullable<typeof item> => item !== null);
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .map((item) => ({
+      ...item,
+      onRequest: fulfilled
+        ? latestRequestMovementType(requestMovements, item.id)
+        : null,
+    }));
   const heldCount = items.filter((item) => item.status === "reserved").length;
   // Staff edits (#1527) are for an open request only, like the status moves.
   const canEdit = canManage && isOpenGearRequest(request.status);
-  const columnCount = canEdit ? 5 : 4;
+  // A fulfilled request's correction (#1567): an item handed over on it, and
+  // not moved on since, can go back on the shelf.
+  const canReturn = (item: (typeof items)[number]) =>
+    canManage &&
+    item.onRequest === "distributed" &&
+    item.status === "distributed";
+  const hasActions = canEdit || items.some(canReturn);
+  const columnCount = hasActions ? 5 : 4;
 
   return (
     <>
@@ -409,7 +435,7 @@ export function GearRequestDetailView({
                 <TableHead hideBelow="sm">Category</TableHead>
                 <TableHead hideBelow="sm">Size</TableHead>
                 <TableHead>Progress</TableHead>
-                {canEdit && (
+                {hasActions && (
                   <TableHead>
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -446,10 +472,19 @@ export function GearRequestDetailView({
                     <TableCell hideBelow="sm" className="app-muted">
                       {item.size ?? "—"}
                     </TableCell>
-                    <TableCell>{itemProgress(item.status)}</TableCell>
-                    {canEdit && (
+                    <TableCell>
+                      {itemProgress(item.status, item.onRequest)}
+                    </TableCell>
+                    {hasActions && (
                       <TableCell className="text-right">
-                        {item.status === "reserved" && (
+                        {canReturn(item) && (
+                          <ReturnRequestItemButton
+                            requestId={request.id}
+                            itemId={item.id}
+                            itemLabel={item.description}
+                          />
+                        )}
+                        {canEdit && item.status === "reserved" && (
                           <RemoveRequestItemButton
                             requestId={request.id}
                             itemId={item.id}
@@ -470,6 +505,9 @@ export function GearRequestDetailView({
         Handing an item over is recorded through Distribution, as for any other
         item; it shows here as &ldquo;Handed over&rdquo;. Mark the request
         fulfilled once everything in it is out.
+        {fulfilled &&
+          canManage &&
+          " If something was not actually handed over, return it to the shelf; an extra item given is recorded through Distribution with the requester as recipient."}
       </p>
 
       {canManage && (

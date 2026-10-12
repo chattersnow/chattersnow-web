@@ -1,3 +1,4 @@
+import { donorDisplayName } from "@/lib/donor-label";
 import { labelFor } from "@/lib/inventory";
 import { describeAcknowledgement } from "@/lib/distribution-acknowledgement";
 import { SOURCE_TYPES } from "../../donations/donation-shared";
@@ -98,6 +99,7 @@ const RELEASE_REASONS = [
   { value: "moved", label: "Moved to another item" },
   { value: "replaced", label: "Replaced by another code" },
   { value: "unassigned", label: "Unassigned by hand" },
+  { value: "code_retired", label: "The code was retired" },
 ];
 
 function toTag(row: ItemHistoryRow): TagEntry {
@@ -139,18 +141,19 @@ function eventLink(row: ItemHistoryRow): Link | null {
 }
 
 function toDonated(row: ItemHistoryRow): DonatedEntry {
-  // The donation page joins `donor:people!inner`, so it opens only for a
-  // reader who can see the donor too. Linking without one would be a 404.
-  const donor =
-    row.donation_id && row.donor_id
-      ? {
-          label: row.donor_is_anonymous
-            ? "Anonymous"
-            : row.donor_name?.trim() || "—",
-          href: `/portal/inventory/donations/${row.donation_id}`,
-          kind: labelFor(SOURCE_TYPES, row.donor_source_type) || null,
-        }
-      : null;
+  // donation_id is set only for a reader who can read the donation. donor_id
+  // is the donation's own, null for an anonymous one (#1592); a donor_id with
+  // no name is a person this reader cannot see, which is not anonymous.
+  const donor = row.donation_id
+    ? {
+        label: donorDisplayName(row.donor_id, {
+          name: row.donor_name,
+          is_anonymous: row.donor_is_anonymous,
+        }),
+        href: `/portal/inventory/donations/${row.donation_id}`,
+        kind: labelFor(SOURCE_TYPES, row.donor_source_type) || null,
+      }
+    : null;
   return {
     kind: "donated",
     key: `donated-${row.entry_id ?? "item"}`,

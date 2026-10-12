@@ -110,6 +110,8 @@ export type EventDonationRow = {
   id: string;
   donated_at: string;
   notes: string | null;
+  /** Null for an anonymous donation (#1592). */
+  donor_id: string | null;
   donor: { name: string | null; is_anonymous: boolean } | null;
   inventory_items: {
     id: string;
@@ -123,17 +125,29 @@ export type EventDonationRow = {
   }[];
 };
 
+/** An event card's donation, with what its summary needs (#1586). */
+export type EventCardDonationRow = EventDonationRow & {
+  /** Set when the donation is a sponsorship's in-kind mirror. */
+  event_sponsors: { id: string }[];
+};
+
 export async function listEventDonationsAction(
   eventId: string,
-): Promise<{ data: EventDonationRow[] } | { error: string }> {
+): Promise<{ data: EventCardDonationRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "finance", "view");
+  // In-kind donations are inventory as much as finance (#1572): the same
+  // inventory checks as the event's Distributions card, alongside finance.
+  const permissionError = await checkAnyPermission(supabase, [
+    { resource: "finance", level: "view" },
+    { resource: "inventory", level: "manage" },
+    { resource: "inventory_reports", level: "view" },
+  ]);
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
+      "id, donated_at, notes, donor_id, donor:people(name, is_anonymous), event_sponsors(id), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     .eq("event_id", eventId)
     // See the donations list page: `donated_at` is a day, so it ties.
@@ -147,7 +161,7 @@ export async function listEventDonationsAction(
       error: "Could not load donations for this event. Please try again.",
     };
   }
-  return { data: (data ?? []) as unknown as EventDonationRow[] };
+  return { data: (data ?? []) as unknown as EventCardDonationRow[] };
 }
 
 export async function listRecentDonationsAction(
@@ -160,7 +174,7 @@ export async function listRecentDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
+      "id, donated_at, notes, donor_id, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     // The tiebreaker matters most here: `donated_at` ties per day and this
     // query takes only `limit` rows, so without it a donation entered seconds

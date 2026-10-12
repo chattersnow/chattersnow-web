@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseDiscountCodesForm } from "./discount-codes-form";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  parseDiscountCodeDetails,
+  parseDiscountCodePin,
+  parseDiscountCodesForm,
+  parseSharedDiscountCodeForm,
+  type DiscountCodeCoverage,
+} from "./discount-codes-form";
 import { checkPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 
@@ -18,6 +25,14 @@ export type DiscountCode = {
   code: string;
   description: string | null;
   source: string | null;
+  kind: string | null;
+  value: number | string | null;
+  /** The event's one group code (#1589); never assigned. */
+  shared: boolean;
+  /** The partner's redemption PIN, shown wherever the code is (#1589). */
+  pin: string | null;
+  /** The registration options it covers, and by what percentage (#1589). */
+  coverage: { option_id: string; percent_off: number | string }[];
   registration_id: string | null;
   assigned_at: string | null;
   sent_at: string | null;
@@ -40,7 +55,7 @@ export async function listDiscountCodesAction(
   const { data, error } = await supabase
     .from("discount_codes")
     .select(
-      "id, event_id, code, description, source, registration_id, assigned_at, sent_at, sent_to_name, sent_to_email, notes, created_at, registration:event_registrations(id, name, email)",
+      "id, event_id, code, description, source, kind, value, shared, pin, registration_id, assigned_at, sent_at, sent_to_name, sent_to_email, notes, created_at, registration:event_registrations(id, name, email), coverage:discount_code_options(option_id, percent_off)",
     )
     .eq("event_id", eventId)
     .order("created_at", { ascending: true })
@@ -51,6 +66,37 @@ export async function listDiscountCodesAction(
   }
   return { data: (data ?? []) as unknown as DiscountCode[] };
 }
+
+/**
+ * Replaces the options a code covers (#1589). RLS holds the same
+ * events:manage the code itself does, and a trigger refuses an option from
+ * another event.
+ */
+async function saveCoverage(
+  supabase: SupabaseClient,
+  codeIds: string[],
+  coverage: DiscountCodeCoverage[],
+): Promise<boolean> {
+  const { error: deleteError } = await supabase
+    .from("discount_code_options")
+    .delete()
+    .in("code_id", codeIds);
+  if (deleteError) return false;
+  if (coverage.length === 0) return true;
+  const { error } = await supabase.from("discount_code_options").insert(
+    codeIds.flatMap((codeId) =>
+      coverage.map(({ optionId, percentOff }) => ({
+        code_id: codeId,
+        option_id: optionId,
+        percent_off: percentOff,
+      })),
+    ),
+  );
+  return !error;
+}
+
+const COVERAGE_SAVE_ERROR =
+  "The code was saved, but not the options it covers. Edit it to try again.";
 
 export async function createDiscountCodesAction(
   eventId: string,
@@ -68,14 +114,20 @@ export async function createDiscountCodesAction(
   const parsed = parseDiscountCodesForm(formData);
   if ("error" in parsed) return parsed;
 
-  const { error } = await supabase.from("discount_codes").insert(
-    parsed.data.codes.map((code) => ({
-      event_id: eventId,
-      code,
-      description: parsed.data.description,
-      source: parsed.data.source,
-    })),
-  );
+  const { data: created, error } = await supabase
+    .from("discount_codes")
+    .insert(
+      parsed.data.codes.map(({ code, pin }) => ({
+        event_id: eventId,
+        code,
+        pin,
+        description: parsed.data.description,
+        source: parsed.data.source,
+        kind: parsed.data.kind,
+        value: parsed.data.value,
+      })),
+    )
+    .select("id");
 
   if (error) {
     if (error.code === "23505") {
@@ -85,6 +137,117 @@ export async function createDiscountCodesAction(
       };
     }
     return { error: "Could not save these codes. Please try again." };
+  }
+
+  if (
+    parsed.data.coverage.length > 0 &&
+    !(await saveCoverage(
+      supabase,
+      (created ?? []).map((row) => row.id),
+      parsed.data.coverage,
+    ))
+  ) {
+    revalidatePath("/portal/events");
+    return { error: COVERAGE_SAVE_ERROR };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * The event's one shared code (#1589): given to everyone who registers, and
+ * carried by the confirmation email rather than assigned.
+ */
+export async function createSharedDiscountCodeAction(
+  eventId: string,
+  formData: FormData,
+): Promise<DiscountCodeActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to add a shared code.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const parsed = parseSharedDiscountCodeForm(formData);
+  if ("error" in parsed) return parsed;
+
+  const { data: created, error } = await supabase
+    .from("discount_codes")
+    .insert({
+      event_id: eventId,
+      shared: true,
+      code: parsed.data.code,
+      pin: parsed.data.pin,
+      description: parsed.data.description,
+      source: parsed.data.source,
+      kind: parsed.data.kind,
+      value: parsed.data.value,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        error: error.message.includes("discount_codes_one_shared_per_event")
+          ? "This event already has a shared code. Edit that one instead."
+          : "This code is already recorded for this event.",
+      };
+    }
+    return { error: "Could not save the shared code. Please try again." };
+  }
+
+  if (
+    parsed.data.coverage.length > 0 &&
+    !(await saveCoverage(supabase, [created.id], parsed.data.coverage))
+  ) {
+    revalidatePath("/portal/events");
+    return { error: COVERAGE_SAVE_ERROR };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * A code's description, source, kind, value, PIN and the options it covers --
+ * never the code itself.
+ */
+export async function updateDiscountCodeAction(
+  id: string,
+  formData: FormData,
+): Promise<DiscountCodeActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to edit a discount code.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const parsed = parseDiscountCodeDetails(formData);
+  if ("error" in parsed) return parsed;
+  const pin = parseDiscountCodePin(formData);
+  if ("error" in pin) return pin;
+
+  const { coverage, ...details } = parsed.data;
+  const { error } = await supabase
+    .from("discount_codes")
+    .update({ ...details, pin: pin.data })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not save this code. Please try again." };
+  }
+
+  if (!(await saveCoverage(supabase, [id], coverage))) {
+    revalidatePath("/portal/events");
+    return { error: COVERAGE_SAVE_ERROR };
   }
 
   revalidatePath("/portal/events");
@@ -106,11 +269,17 @@ export async function assignDiscountCodeAction(
 
   const { data: existing, error: fetchError } = await supabase
     .from("discount_codes")
-    .select("sent_at")
+    .select("sent_at, shared")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !existing) {
     return { error: "Could not find this code. Please try again." };
+  }
+  if (existing.shared) {
+    return {
+      error:
+        "The shared code goes to everyone who registers, so it can't be assigned.",
+    };
   }
   if (existing.sent_at) {
     return {

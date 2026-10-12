@@ -351,8 +351,9 @@ export async function updateEventReportAction(
 
   const parsed = parseEventReportForm(formData);
   if ("error" in parsed) return parsed;
-  const { feedbackNotes, contentNotes, lessonsLearned, reportSummary } =
-    parsed.data;
+  // `report_summary` is no longer written (#1576): the card computes the
+  // summary from the event's records, and old text stays read-only.
+  const { feedbackNotes, contentNotes } = parsed.data;
 
   const { data: current } = await supabase
     .from("events")
@@ -360,13 +361,19 @@ export async function updateEventReportAction(
     .eq("id", id)
     .single();
 
+  // Submitting locks the whole Results card (#1588); reopen to edit.
+  if (current?.report_status === "submitted") {
+    return {
+      error:
+        "This event's report has been submitted. Reopen it to change the report.",
+    };
+  }
+
   const { error } = await supabase
     .from("events")
     .update({
       feedback_notes: feedbackNotes,
       content_notes: contentNotes,
-      lessons_learned: lessonsLearned,
-      report_summary: reportSummary,
       report_status:
         current?.report_status === "not_started"
           ? "in_progress"
@@ -392,18 +399,12 @@ export async function submitEventReportAction(
     "You must be signed in to submit the event report.",
   );
   if ("error" in userResult) return userResult;
-  const { user } = userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const { error } = await supabase
-    .from("events")
-    .update({
-      report_status: "submitted",
-      report_submitted_at: new Date().toISOString(),
-      report_submitted_by: user.id,
-    })
-    .eq("id", id);
+  // The RPC freezes the report's figures in report_snapshot as it submits
+  // (#1579), reading every section whatever the submitter may see.
+  const { error } = await supabase.rpc("submit_event_report", { p_id: id });
 
   if (error) {
     return { error: "Could not submit the event report. Please try again." };

@@ -113,6 +113,7 @@ async function loadFinanceReportData(
     in_kind_items: result.in_kind_items ?? [],
     monetary_donations: result.monetary_donations ?? [],
     sales: result.sales ?? [],
+    giveaway_ticket_sales: result.giveaway_ticket_sales ?? [],
   };
 }
 

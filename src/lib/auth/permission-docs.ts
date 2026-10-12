@@ -57,9 +57,9 @@ export type PermissionDoc = {
 export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   // ---------------------------------------------------------------- Events
   events: {
-    view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18, each registration's answers to the event's registration questions, and whether it has been asked for or has given answers by emailed link. Also what the Calendar reads to show events alongside calendar items.",
+    view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18, each registration's answers to the event's registration questions, and whether it has been asked for or has given answers by emailed link. Also the event's retro on its Results card, and the open action items carried forward from earlier events in the same program on its Checklist card. Someone at this level who is also on the event's staff roster adds to its retro, edits and removes their own items, and marks their own action items done. Also what the Calendar reads to show events alongside calendar items.",
     manage:
-      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, the questions registration asks (including copying them from another event), discount codes, sponsors, giveaway tiers and logistics. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page. Also an event's registration questions, editing a registration's answers to them, and the registrants tab's Download answers (CSV), which carries a registrant's email and phone only where they ticked the event's consent question for sharing them, and their Instagram handle on every row. Also emailing registrants a link to fill in missing answers (Ask for missing answers, and Ask for answers on one registrant), which works without an account for that one registration's answers until the event ends. Also uploading an event's flier to the site's photos.",
+      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, the questions registration asks (including copying them from another event), discount codes, sponsors, giveaway tiers and logistics. That includes an event's shared discount code and the partner PINs that go with codes — readable, like the codes themselves, at Events view — and the percentage off each registration option a code covers, and the options' prices on the Planning tab. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page. Also an event's registration questions, editing a registration's answers to them, and the registrants tab's Download answers (CSV), which carries a registrant's email and phone only where they ticked the event's consent question for sharing them, and their Instagram handle on every row. Also emailing registrants a link to fill in missing answers (Ask for missing answers, and Ask for answers on one registrant), which works without an account for that one registration's answers until the event ends. Also uploading an event's flier to the site's photos. Also adding to any event's retro without being on its staff roster, and editing, removing or closing anyone's retro item. Also submitting an event's report, which freezes the Money, Goods, Sponsors, Team and Operations figures on its Results card as they stand -- all of them, including sections the submitter cannot read, which stay hidden from them.",
     notes: [
       "A registrant cancels their own registration from their account or the event page with no grant at all, until the event starts. That path reaches only their own registration and records the reason as can't attend; staff cancel, with a reason, and undo from the Registrants tab at Manage.",
     ],
@@ -75,7 +75,8 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
       },
       {
         key: "event_impact",
-        covers: "participation, assistance and outcome-survey capture",
+        covers:
+          "the assistance and discount-code figures on an event's Results card, and its impact notes",
       },
       {
         key: "event_volunteer_hours",
@@ -139,8 +140,9 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   event_impact: {
-    view: "Read an event's participation counts, financial-assistance records and outcome-survey responses.",
-    manage: "Record and edit that impact data on an event.",
+    view: "Read the Outcomes on an event's Results card that go beyond attendance: rental subsidies, participant assistance and its parts (assigned code values, value given out, paid expenses marked participant assistance), assigned discount codes, the discount value the event's shared and single-use codes offered (never part of assistance) and, with the Rider Profile module, beginners and first time on snow. Also the event's impact notes, and any figures typed by hand before they were derived, shown read-only as archived. Every figure is computed from records; nothing at this level is typed. Without Events access the Results card cannot be opened, so this reaches the same figures through the program impact report.",
+    manage:
+      "Write an event's impact notes on its Results card, until its report is submitted.",
     excludes: [
       {
         key: "programs_reports",
@@ -149,7 +151,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   rider_profiles: {
-    view: "See how a person skis or snowboards, their experience level and home mountain, wherever the surrounding screen is already open to you: the Rides column and rider block on an event's registrants (which also need Events at Manage), the person record, and the Beginner participants figure on an event's Impact card and the program impact report.",
+    view: "See how a person skis or snowboards, their experience level and home mountain, wherever the surrounding screen is already open to you: the Rides column and rider block on an event's registrants (which also need Events at Manage), the person record, and the Beginners and First time on snow figures in the Outcomes on an event's Results card and in the program impact report.",
     manage:
       "Edit those answers — at the door from an event's registrants, and on the person form — and edit the list of mountains the rider profile offers, from the Mountains button on the Events page.",
     excludes: [
@@ -195,7 +197,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   inventory: {
     view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records, an item's history with who recorded each step (the donor is named only to a reader who can also read donations), print the labels of items that already have a tag code, and scan a tag to open its item. On Items → Codes: list, filter and reprint every tag code, mark a code written to an NFC tag, and read a code's history.",
     manage:
-      "Edit the item catalog and categories, give items their tag codes, create and assign numbered codes, retire a code whose tag is damaged or lost (and restore it), record, correct and delete donation intake and distribution movements, and work an open gear request: move it through its statuses, add or remove the items it holds, and edit its notes.",
+      "Edit the item catalog and categories, give items their tag codes, create and assign numbered codes, retire a code whose tag is damaged or lost, or an item's old tag code once it has a numbered code — for one item or a selection on the Items list — and restore a retired code, record, correct and delete donation intake and distribution movements, read the in-kind items donated at an event on its Donations card, and work an open gear request: move it through its statuses, add or remove the items it holds, and edit its notes; and on a fulfilled request, return an item that was not actually handed over to the shelf.",
     excludes: [
       { key: "inventory_reports", covers: "valuation and reporting" },
       {
@@ -206,7 +208,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   inventory_reports: {
-    view: "Open Inventory → Reports, and see the inventory valuation figures on the dashboard and on an event.",
+    view: "Open Inventory → Reports, see the inventory valuation figures on the dashboard and on an event, and read an event's Distributions and Donations cards -- the stock that went out and the in-kind items that came in, with no monetary gifts.",
     manage: null,
     notes: [
       "A reporting resource, so there is nothing to manage. Granting Manage is the same as granting View.",
@@ -230,7 +232,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
 
   // --------------------------------------------------------------- Finance
   finance: {
-    view: "Open the Finance section and see its landing figures. Enough to reach the section, not to read a ledger.",
+    view: "Open the Finance section and see its landing figures, read the in-kind items donated at an event on its Donations card, and read the cash gifts linked to an event on its Cash donations card. Enough to reach the section, not to work the ledger: Finance → Donations itself takes Manage.",
     manage:
       "Work the donation ledger, the expense ledger and event revenue: record, edit and delete entries, record a donation from the dashboard's quick actions (tagging its items as intake does), import a giving provider's CSV export into the donation ledger, and set the giving path the public site points at — which giving page it opens, and the amounts it offers.",
     excludes: [
@@ -259,10 +261,11 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     ],
   },
   finance_reports: {
-    view: "Open Finance → Reports, and read the financial figures a board member is shown on the dashboard and in a meeting's context pack.",
+    view: "Open Finance → Reports, and read the financial figures a board member is shown on the dashboard and in a meeting's context pack, and the Money section of an event's Results card.",
     manage: null,
     notes: [
       "The board's resource: it reads the reports without reaching a ledger. A reporting resource, so Manage is the same as View.",
+      "The event Results card's Money section (income by stream, paid and committed spend, net, budget) is computed from the same definitions as Finance → Reports, so the two agree; without this grant the section is hidden rather than shown as zeros.",
     ],
   },
   finance_approvals: {

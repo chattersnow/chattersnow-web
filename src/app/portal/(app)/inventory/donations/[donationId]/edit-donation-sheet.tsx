@@ -11,6 +11,7 @@ import { OTHER_CATEGORY_KEY, type InventoryCategory } from "@/lib/inventory";
 import {
   CONDITIONS,
   GENDERS,
+  INTENDED_USES,
   donorLabel,
   labelFor,
   type DonationItemRow,
@@ -29,7 +30,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
 import {
@@ -78,6 +84,7 @@ function itemFormStateFor(item: DonationItemRow) {
     size: item.size ?? "",
     gender: item.gender ?? "",
     condition: item.condition,
+    intendedUse: item.intended_use,
     faceValue: item.face_value === null ? "" : String(item.face_value),
     notes: item.notes ?? "",
   };
@@ -232,6 +239,7 @@ export function EditDonationSheet({
         itemFormData.set("gender", form.gender);
         itemFormData.set("condition", form.condition);
         itemFormData.set("status", item.status);
+        itemFormData.set("intendedUse", form.intendedUse);
         itemFormData.set("faceValue", form.faceValue);
         itemFormData.set("photoUrl", item.photo_url ?? "");
         itemFormData.set("notes", form.notes);
@@ -296,7 +304,7 @@ export function EditDonationSheet({
               <FieldGroup>
                 <RequiredFieldsNote />
                 <ReadOnlyField label="Donor" htmlFor="donation-donor-edit">
-                  {donorLabel(donation.donor)}
+                  {donorLabel(donation)}
                 </ReadOnlyField>
                 <Field>
                   <FieldLabel htmlFor="donation-donatedAt" required>
@@ -513,6 +521,45 @@ export function EditDonationSheet({
                             )
                           }
                         />
+                      </Field>
+                      <Field>
+                        <FieldLabel
+                          htmlFor={`edit-item-intendedUse-${item.id}`}
+                        >
+                          Intended use
+                        </FieldLabel>
+                        <Select
+                          value={form.intendedUse || null}
+                          onValueChange={(value) =>
+                            updateItemField(item.id, "intendedUse", value ?? "")
+                          }
+                        >
+                          <SelectTrigger
+                            id={`edit-item-intendedUse-${item.id}`}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Select an intended use">
+                              {(value: string) =>
+                                labelFor(INTENDED_USES, value) ??
+                                "Select an intended use"
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {INTENDED_USES.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription>
+                          Only gear library items appear on the public gear
+                          library and can be requested or distributed to riders.
+                        </FieldDescription>
                       </Field>
                       <Field>
                         <FieldLabel htmlFor={`edit-item-notes-${item.id}`}>

@@ -20,9 +20,9 @@ import { pickPerson } from "./helpers/people";
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 /**
- * An event that has already started, with no attendance, report or impact
- * recorded -- the state the rail counts as three outstanding sections
- * (Attendance, Report and Impact) and the state every test here starts from.
+ * An event that has already started, with no attendance or report recorded --
+ * the state the rail counts as two outstanding sections (Attendance and
+ * Results) and the state every test here starts from.
  */
 async function seedEventFixture(admin: AdminClient) {
   const suffix = crypto.randomUUID().slice(0, 8);
@@ -259,9 +259,9 @@ test.describe("portal event detail", () => {
       // One click, from the first group to the last, without selecting a
       // phase on the way -- which is the whole reason the rail replaced the
       // two tab strips (#1008).
-      await openSection(page, "Impact");
-      await expect(page).toHaveURL(/[?&]tab=impact/);
-      await expect(card(page, "Impact")).toBeVisible();
+      await openSection(page, "Results");
+      await expect(page).toHaveURL(/[?&]tab=results/);
+      await expect(card(page, "Results")).toBeVisible();
       await expect(card(page, "Event details")).toHaveCount(0);
 
       // And straight back to a Planning section afterwards: the lifecycle is
@@ -273,13 +273,20 @@ test.describe("portal event detail", () => {
       // History, not component state -- Back returns to the previous section
       // rather than leaving the event.
       await page.goBack();
-      await expect(page).toHaveURL(/[?&]tab=impact/);
-      await expect(card(page, "Impact")).toBeVisible();
+      await expect(page).toHaveURL(/[?&]tab=results/);
+      await expect(card(page, "Results")).toBeVisible();
 
       // And it survives a refresh, which is what makes the URL shareable.
       await page.reload();
-      await expect(page).toHaveURL(/[?&]tab=impact/);
-      await expect(card(page, "Impact")).toBeVisible();
+      await expect(page).toHaveURL(/[?&]tab=results/);
+      await expect(card(page, "Results")).toBeVisible();
+
+      // Report and Impact merged into Results (#1588); links to either
+      // still land on it.
+      for (const legacy of ["report", "impact"]) {
+        await page.goto(`/portal/events/${fixture.eventId}?tab=${legacy}`);
+        await expect(card(page, "Results")).toBeVisible();
+      }
 
       // #958's two parameters still open the right section, so bookmarks
       // from before the rail keep working -- and the first thing the reader
@@ -330,7 +337,7 @@ test.describe("portal event detail", () => {
     }
   });
 
-  test("recording attendance feeds the Impact card and clears the During task", async ({
+  test("recording attendance feeds the Results card and clears the During task", async ({
     page,
   }) => {
     const admin = createAdminClient();
@@ -371,17 +378,15 @@ test.describe("portal event detail", () => {
         railRow(page, "Attendance").getByLabel(/outstanding/),
       ).toHaveCount(0);
 
-      // The Impact card's participation figures come from an RPC over the
+      // The Results card's participation figures come from an RPC over the
       // same definitions the program rollup uses, not from anything the page
       // just typed -- the derivation #649 shipped a bug in because no test
       // ever called it. Participants is the typed headcount when there is one.
-      await openSection(page, "Impact");
-      const impact = card(page, "Impact");
-      const participants = impact
-        .locator('[data-slot="card"]')
-        .filter({ hasText: "Participants" })
-        .first();
-      await expect(participants).toContainText("42");
+      await openSection(page, "Results");
+      const participation = card(page, "Results").getByRole("region", {
+        name: "Participation",
+      });
+      await expect(participation).toContainText("42");
     } finally {
       await fixture.cleanup();
     }
@@ -409,25 +414,24 @@ test.describe("portal event detail", () => {
         }),
       ).toBeVisible();
 
-      await openSection(page, "Report");
-      const report = card(page, "Report");
+      await openSection(page, "Results");
+      const report = card(page, "Results");
       await report.getByRole("button", { name: "Submit report" }).click();
 
-      await expect(report.getByText("Submitted")).toBeVisible({
+      await expect(report.getByText("Submitted", { exact: true })).toBeVisible({
         timeout: 15_000,
       });
       await expect(
         report.getByRole("button", { name: "Submit report" }),
       ).toHaveCount(0);
-      // The Report row's badge is gone; the impact note's is still there, on
-      // its own row.
+      // Submitting froze the figures (#1579).
+      await expect(report.getByText(/Figures as submitted on/)).toBeVisible();
+      // The Results row's badge is gone: with every impact figure derived,
+      // there is no separate "Impact not recorded" task left (#1588).
       await showRail(page);
       await expect(
-        railRow(page, "Report").getByLabel(/outstanding/),
+        railRow(page, "Results").getByLabel(/outstanding/),
       ).toHaveCount(0);
-      await expect(
-        railRow(page, "Impact").getByLabel("1 outstanding"),
-      ).toBeVisible();
       await hideRail(page);
 
       // Submitted report data must not shift underneath it, so the cards it
@@ -478,7 +482,7 @@ test.describe("portal event detail", () => {
       });
 
       // The walk-in arrives already checked in, so the Attendance card's
-      // check-in reference -- the same derived figures the Impact card reads
+      // check-in reference -- the same derived figures the Results card reads
       // -- has to agree with the door.
       await openSection(page, "Attendance");
       const attendance = card(page, "Attendance");

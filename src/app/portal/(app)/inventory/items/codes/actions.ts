@@ -17,7 +17,9 @@ import {
   isRetireReason,
   parseCodeFilters,
   parseTagIds,
+  summarizeItemTagRetire,
   type CodeTarget,
+  type ItemTagRetireSummary,
 } from "@/lib/inventory-codes";
 
 /**
@@ -142,23 +144,38 @@ export async function generateNumberedCodesAction(
 }
 
 export type AssignNumberedCodeResult =
-  | { outcome: "assigned" | "already"; code: string }
+  | {
+      outcome: "assigned" | "already";
+      code: string;
+      /** The item's random codes retired with it (#1544), when asked. */
+      retiredTagCodes: string[];
+      /** Set when the code went on but its tag code could not be retired. */
+      retireError?: string;
+    }
   | {
       outcome: "held";
       code: string;
       holder: { id: string; description: string };
     }
-  | { error: string };
+  | {
+      error: string;
+      /** Why the code didn't go on, where it isn't simply a failure: the
+       *  Items list's bulk assign (#1542) sorts its skips by it. */
+      reason?: "item_gone" | "retired" | "unknown";
+    };
 
 /**
  * Puts the numbered code in hand on an item. A code another item holds comes
  * back as `held`, with that item, and nothing changes until the caller asks
- * again with `move`.
+ * again with `move`. With `retireTagCode`, the item's random asset-tag code
+ * is retired once the numbered code is on it (#1544), so the item is left
+ * with one identity.
  */
 export async function assignNumberedCodeAction(
   itemId: string,
   code: string,
   move = false,
+  retireTagCode = false,
 ): Promise<AssignNumberedCodeResult> {
   const guard = await manageGuard("You must be signed in to assign a code.");
   if ("error" in guard) return guard;
@@ -174,15 +191,35 @@ export async function assignNumberedCodeAction(
     { p_item_id: itemId, p_code: scanned.numbered ?? typed, p_move: move },
   );
   const row = Array.isArray(data) ? data[0] : data;
+  if (error?.message === "Inventory item not found") {
+    return {
+      error: "This item is no longer in inventory.",
+      reason: "item_gone",
+    };
+  }
   if (error || !row) {
     return { error: "Could not assign the code. Please try again." };
   }
 
   switch (row.outcome) {
     case "assigned":
-    case "already":
+    case "already": {
+      const retired = retireTagCode
+        ? await retireItemTagCodes(guard.supabase, [itemId])
+        : null;
       revalidateItem(itemId);
-      return { outcome: row.outcome, code: row.code };
+      return {
+        outcome: row.outcome,
+        code: row.code,
+        retiredTagCodes:
+          retired && !("error" in retired)
+            ? retired.retired.map((tag) => tag.code)
+            : [],
+        ...(retired && "error" in retired
+          ? { retireError: retired.error }
+          : {}),
+      };
+    }
     case "held":
       return {
         outcome: "held",
@@ -195,14 +232,42 @@ export async function assignNumberedCodeAction(
     case "item_gone":
       return {
         error: `This item has left inventory, so it can't take ${row.code}.`,
+        reason: "item_gone",
       };
     case "retired":
       return {
         error: `${row.code} was retired because its tag was damaged or lost. Restore it on the Codes page if you found it.`,
+        reason: "retired",
       };
     default:
-      return { error: `No numbered code matches “${typed}”.` };
+      return {
+        error: `No numbered code matches “${typed}”.`,
+        reason: "unknown",
+      };
   }
+}
+
+/**
+ * The lowest free numbered codes, for the bulk assign dialog (#1542) to
+ * suggest. Only a suggestion: the code bound is always the one the person
+ * scans or types from the tag in hand.
+ */
+export async function freeNumberedCodesAction(
+  limit: number,
+): Promise<{ codes: string[] } | { error: string }> {
+  const guard = await manageGuard("You must be signed in to assign a code.");
+  if ("error" in guard) return guard;
+
+  const { data, error } = await guard.supabase
+    .from("inventory_item_tags")
+    .select("value")
+    .eq("kind", "numbered")
+    .is("item_id", null)
+    .is("retired_at", null)
+    .order("number")
+    .limit(Math.min(Math.max(Math.trunc(limit), 1), MAX_LABEL_ITEMS));
+  if (error) return { error: "Could not read the free codes." };
+  return { codes: (data ?? []).map((row) => row.value) };
 }
 
 export async function unassignNumberedCodeAction(
@@ -352,21 +417,26 @@ export async function recordNfcWrittenAction(
 
 export type RetireResult = {
   retired: number;
-  /** Numbered codes taken off an item as they were retired. */
+  /** Codes taken off an item as they were retired. */
   released: { code: string; description: string }[];
-  /** Random codes on an item: reprinted, never retired. */
-  onItem: number;
+  /**
+   * Codes left as they are because each is the only code on its item
+   * (#1544). Retired only when the caller asks again with `allowLast`.
+   */
+  lastTag: { tagId: string; code: string; description: string }[];
 };
 
 /**
- * Retires codes whose physical tag is damaged or lost (#1450). A numbered
- * code on an item comes off it; a random code on an item is left alone and
- * counted, since its label is reprinted instead.
+ * Retires codes whose physical tag is damaged or lost (#1450), or an item's
+ * random code replaced by a numbered one (#1544). A code on an item comes off
+ * it -- unless it is the item's last code, which is left alone and returned
+ * in `lastTag` until the caller confirms with `allowLast`.
  */
 export async function retireCodesAction(
   target: CodeTarget,
   reason: string,
   note: string,
+  allowLast = false,
 ): Promise<RetireResult | { error: string }> {
   const guard = await manageGuard("You must be signed in to retire codes.");
   if ("error" in guard) return guard;
@@ -381,6 +451,7 @@ export async function retireCodesAction(
     p_tag_ids: resolved.ids,
     p_reason: reason,
     p_note: note.trim() || null,
+    p_allow_last: allowLast,
   });
   if (error) return { error: "Could not retire the codes. Please try again." };
 
@@ -393,8 +464,53 @@ export async function retireCodesAction(
         ? [{ code: row.code, description: row.released_from }]
         : [],
     ),
-    onItem: rows.filter((row) => row.outcome === "on_item").length,
+    lastTag: rows.flatMap((row) =>
+      row.outcome === "last_tag"
+        ? [
+            {
+              tagId: row.tag_id,
+              code: row.code,
+              description: row.released_from ?? "",
+            },
+          ]
+        : [],
+    ),
   };
+}
+
+async function retireItemTagCodes(
+  supabase: ServerClient,
+  itemIds: string[],
+): Promise<ItemTagRetireSummary | { error: string }> {
+  const { data, error } = await supabase.rpc("retire_item_asset_tag_codes", {
+    p_item_ids: itemIds,
+    p_reason: "replaced",
+  });
+  if (error) {
+    return { error: "Could not retire the tag codes. Please try again." };
+  }
+  return summarizeItemTagRetire(data ?? []);
+}
+
+/**
+ * The Items list's bulk action (#1544): retires the random asset-tag code on
+ * each selected item that has a numbered code. An item without one is
+ * skipped, so nothing is left untagged; the database decides, not the
+ * selection the browser sent.
+ */
+export async function retireItemTagCodesAction(
+  itemIds: string[],
+): Promise<ItemTagRetireSummary | { error: string }> {
+  const guard = await manageGuard("You must be signed in to retire codes.");
+  if ("error" in guard) return guard;
+  // Item ids are uuids too, and a selection is capped like a print run.
+  const ids = parseTagIds(itemIds);
+  if (ids.length === 0) return { error: "Choose at least one item." };
+
+  const result = await retireItemTagCodes(guard.supabase, ids);
+  if ("error" in result) return result;
+  revalidateItem();
+  return result;
 }
 
 /** "Found it", or a mistake: the code is free (or blank) again. */

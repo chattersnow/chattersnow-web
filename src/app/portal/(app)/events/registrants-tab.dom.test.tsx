@@ -48,6 +48,7 @@ const registrants: EventRegistrant[] = [
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -96,6 +97,7 @@ const registrants: EventRegistrant[] = [
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",
@@ -116,9 +118,14 @@ const derivedFigures: EventImpactDerived = {
   recurringParticipants: 0,
   volunteerParticipants: 0,
   beginnerParticipants: null,
+  firstTimeOnSnow: null,
   profiledAttendees: null,
   discountCodesAssigned: null,
+  rentalSubsidies: null,
+  assistance: null,
   autoAssignDiscountCodes: false,
+  peopleServed: { distributed: 0, recipients: 0, value: 0 },
+  discountValueOffered: null,
 };
 
 // The detail sheet's messaging island imports its Server Actions, and through

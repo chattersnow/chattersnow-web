@@ -25,6 +25,20 @@ function AnswerRequestBadge({ registrant }: { registrant: EventRegistrant }) {
 }
 
 /**
+ * "Answers changed {date}" (#1591): the registrant changed their own answers
+ * after registering, through their link or `/my`. Whoever planned carpools off
+ * the first answers needs to know they moved.
+ */
+function AnswersChangedBadge({ registrant }: { registrant: EventRegistrant }) {
+  if (!registrant.answers_changed_at) return null;
+  return (
+    <StatusBadge tone="info" className="mt-1 font-normal">
+      {`Answers changed ${formatInstantDate(registrant.answers_changed_at)}`}
+    </StatusBadge>
+  );
+}
+
+/**
  * What the door has to know about a party before it is through the door,
  * rendered under the name on the event card, the registrants page and its
  * phone cards alike (#1511 moved it here so the three cannot drift).
@@ -69,6 +83,7 @@ export function RegistrantBadges({
         </StatusBadge>
       )}
       <AnswerRequestBadge registrant={registrant} />
+      <AnswersChangedBadge registrant={registrant} />
     </>
   );
 }

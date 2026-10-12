@@ -1,7 +1,13 @@
 "use client";
 
 import { CURRENCIES, type EventOption } from "./expenses-shared";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field";
 import { DocumentField } from "@/components/portal/document-field";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +28,7 @@ export type ExpenseFormState = {
   receiptUrl: string;
   receiptPath: string;
   notes: string;
+  participantAssistance: boolean;
 };
 
 /**
@@ -42,6 +49,7 @@ export function emptyExpenseForm(
     receiptUrl: "",
     receiptPath: "",
     notes: "",
+    participantAssistance: false,
   };
 }
 
@@ -169,6 +177,31 @@ export function ExpenseFormFields({
         description="Take a photo of a paper receipt, pick a PDF or image up to 10 MB, or paste a link."
       />
 
+      {form.eventId && (
+        <Field orientation="horizontal">
+          <Checkbox
+            id={`${idPrefix}-participantAssistance`}
+            checked={form.participantAssistance}
+            onCheckedChange={(checked) =>
+              update("participantAssistance", checked === true)
+            }
+          />
+          <FieldContent>
+            <FieldLabel
+              htmlFor={`${idPrefix}-participantAssistance`}
+              className="font-normal"
+            >
+              Participant assistance
+            </FieldLabel>
+            <FieldDescription>
+              Spent directly on participants, such as rentals or lift tickets
+              paid for them. Once paid, it counts toward the event&apos;s
+              participant assistance.
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+      )}
+
       <Field>
         <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>
         <Textarea
@@ -195,5 +228,6 @@ export function packExpenseFormData(
   formData.set("receiptPath", form.receiptPath);
   formData.set("notes", form.notes);
   formData.set("paidByPersonId", paidByPersonId ?? "");
+  if (form.participantAssistance) formData.set("participantAssistance", "on");
   return formData;
 }

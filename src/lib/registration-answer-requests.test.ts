@@ -229,6 +229,48 @@ test("wasAskedRecently is false for a registration never asked", () => {
   expect(wasAskedRecently(null, NOW)).toBe(false);
 });
 
+describe("links the registrant was handed (#1591)", () => {
+  const requestedAt = new Date(NOW - 60 * 1000).toISOString();
+
+  test("are neither asked nor answered", () => {
+    for (const source of ["confirmation", "already_registered"]) {
+      expect(
+        answerRequestState({
+          requested_at: requestedAt,
+          answered_at: null,
+          source,
+        }),
+      ).toBeNull();
+      expect(
+        answerRequestState({
+          requested_at: requestedAt,
+          answered_at: new Date(NOW).toISOString(),
+          source,
+        }),
+      ).toBeNull();
+    }
+  });
+
+  test("do not count as a recent ask", () => {
+    expect(
+      wasAskedRecently(
+        {
+          requested_at: requestedAt,
+          answered_at: null,
+          source: "confirmation",
+        },
+        NOW,
+      ),
+    ).toBe(false);
+    expect(
+      wasAskedRecently(
+        { requested_at: requestedAt, answered_at: null, source: "staff" },
+        NOW,
+      ),
+    ).toBe(true);
+  });
+});
+
 test("the dedupe key names the kind, the registration and the send", () => {
   expect(registrationAnswersRequestDedupeKey("reg-1", "batch-1")).toBe(
     `${REGISTRATION_ANSWERS_REQUEST_KIND}:reg-1:batch-1`,

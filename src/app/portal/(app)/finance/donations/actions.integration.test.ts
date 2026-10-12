@@ -17,8 +17,10 @@ import {
   anonClient,
   createMonetaryDonation,
   createPerson,
+  createPublishedEvent,
   signIn,
 } from "../../../../../../test/integration-setup";
+import { SEEDED_EVENT_IDS } from "../../../../../../test/seed-fixtures";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -28,8 +30,12 @@ mock.module("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => currentSupabase,
 }));
 
-const { createDonationAction, updateDonationAction, deleteDonationAction } =
-  await import("./actions");
+const {
+  createDonationAction,
+  updateDonationAction,
+  deleteDonationAction,
+  listEventMonetaryDonationsAction,
+} = await import("./actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -241,5 +247,52 @@ describe("monetary_donations RLS (integration)", () => {
     expect(error).toBeNull();
     expect(data).toEqual([{ id: donation.id }]);
     await donation.cleanup();
+  });
+
+  // #1577: the event page's Cash donations card.
+  test("finance lists only the event's cash donations, newest first", async () => {
+    const event = await createPublishedEvent();
+    const older = await createMonetaryDonation({
+      eventId: event.id,
+      amount: 40,
+      receivedDate: "2026-01-02",
+    });
+    const newer = await createMonetaryDonation({
+      eventId: event.id,
+      amount: 60,
+      receivedDate: "2026-01-05",
+    });
+    const unrelated = await createMonetaryDonation({ amount: 70 });
+
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    const result = await listEventMonetaryDonationsAction(event.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.rows.map((row) => row.id)).toEqual([newer.id, older.id]);
+    expect(
+      result.data.rows.every((row) => row.event_sponsors.length === 0),
+    ).toBe(true);
+    expect(result.data.canOpenLedger).toBe(true);
+
+    for (const gift of [older, newer, unrelated]) await gift.cleanup();
+    await event.cleanup();
+  });
+
+  test("a sponsorship's cash mirror is flagged as one", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+    const result = await listEventMonetaryDonationsAction(
+      SEEDED_EVENT_IDS.past,
+    );
+    if ("error" in result) throw new Error(result.error);
+    const sponsored = result.data.rows.filter(
+      (row) => row.event_sponsors.length,
+    );
+    expect(sponsored.map((row) => Number(row.amount))).toEqual([250]);
+  });
+
+  test("event_coordinator (no finance access) cannot list an event's cash donations", async () => {
+    currentSupabase = await signIn(SEEDED_USERS.coordinator);
+    expect(
+      await listEventMonetaryDonationsAction(SEEDED_EVENT_IDS.past),
+    ).toEqual(DENIED);
   });
 });

@@ -87,7 +87,7 @@ export function DonationsTable({
                 .join(", ");
               return (
                 <TableRow key={donation.id}>
-                  <TableCell>{donorLabel(donation.donor)}</TableCell>
+                  <TableCell>{donorLabel(donation)}</TableCell>
                   <TableCell
                     className="max-w-xs whitespace-normal"
                     title={itemSummary}

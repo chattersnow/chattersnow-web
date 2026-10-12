@@ -17,8 +17,11 @@ import {
   adminClient,
   createPerson,
   createPublishedEvent,
+  seededTenantId,
+  serviceRoleClient,
   signInAs,
 } from "../../../../../test/integration-setup";
+import { SEEDED_EVENT_IDS } from "../../../../../test/seed-fixtures";
 
 let currentSupabase: SupabaseClient;
 mock.module("@/lib/supabase/server", () => ({
@@ -28,7 +31,14 @@ mock.module("@/lib/supabase/server", () => ({
 const { getEventImpactDerivedAction } =
   await import("./impact-derived-actions");
 
-/** An event with one checked-in registrant, one volunteer and one assigned code. */
+// Expenses go straight in as paid: the approval workflow is not under test.
+const service = serviceRoleClient();
+
+/**
+ * An event with one checked-in registrant, one volunteer, one assigned $45
+ * rental code and two expenses: a paid one flagged as participant assistance
+ * and an unflagged one (#1588).
+ */
 async function seedEvent() {
   const event = await createPublishedEvent();
   const person = await createPerson();
@@ -57,14 +67,53 @@ async function seedEvent() {
     code: `TEST-${event.id.slice(0, 8)}`,
     registration_id: registration.data.id,
     assigned_at: new Date().toISOString(),
+    kind: "rental",
+    value: 45,
   });
   if (code.error) throw code.error;
+
+  const { data: user } = await adminClient.auth.getUser();
+  const actor = {
+    tenant_id: await seededTenantId(),
+    created_by: user.user!.id,
+    submitted_by: user.user!.id,
+  };
+  const expenses = await service.from("event_expenses").insert([
+    {
+      ...actor,
+      event_id: event.id,
+      description: "Rentals for riders",
+      amount: 100,
+      status: "paid",
+      participant_assistance: true,
+    },
+    {
+      ...actor,
+      event_id: event.id,
+      description: "Rentals awaiting payment",
+      amount: 70,
+      status: "approved",
+      participant_assistance: true,
+    },
+    {
+      ...actor,
+      event_id: event.id,
+      description: "Hot chocolate",
+      amount: 30,
+      status: "paid",
+      // A bulk insert sends every key, so the default would arrive as null.
+      participant_assistance: false,
+    },
+  ]);
+  if (expenses.error) throw expenses.error;
 
   return {
     event,
     person,
     volunteer,
+    registrationId: registration.data.id,
     cleanup: async () => {
+      await service.from("event_expenses").delete().eq("event_id", event.id);
       await adminClient
         .from("discount_codes")
         .delete()
@@ -137,6 +186,33 @@ describe("get_event_impact_derived_data (integration)", () => {
     await seeded.cleanup();
   });
 
+  // #1577: the seeded past event hands out one $15 pullover to one person.
+  test("people served reads the event's distributions, for board as for admin", async () => {
+    for (const user of [SEEDED_USERS.admin, SEEDED_USERS.board]) {
+      currentSupabase = await signInAs(user);
+      const result = await getEventImpactDerivedAction(SEEDED_EVENT_IDS.past);
+      if ("error" in result) throw new Error(result.error);
+      expect(result.data.peopleServed).toEqual({
+        distributed: 1,
+        recipients: 1,
+        value: 15,
+      });
+    }
+  });
+
+  test("an event with nothing distributed serves nobody", async () => {
+    const seeded = await seedEvent();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.peopleServed).toEqual({
+      distributed: 0,
+      recipients: 0,
+      value: 0,
+    });
+    await seeded.cleanup();
+  });
+
   // Issue #653: the beginner figure reads the level frozen at check-in, and
   // only falls back to the live person row where no snapshot was taken.
   test("beginner participants follow the check-in snapshot, not later profile edits", async () => {
@@ -194,6 +270,86 @@ describe("get_event_impact_derived_data (integration)", () => {
     expect(after.data.beginnerParticipants).toBe(1);
     expect(after.data.profiledAttendees).toBe(1);
 
+    await seeded.cleanup();
+  });
+
+  // #1588: the last typed impact figures, derived.
+  test("derives rental subsidies and assistance from codes and paid expenses", async () => {
+    const seeded = await seedEvent();
+    for (const user of [SEEDED_USERS.admin, SEEDED_USERS.board]) {
+      currentSupabase = await signInAs(user);
+      const result = await getEventImpactDerivedAction(seeded.event.id);
+      if ("error" in result) throw new Error(result.error);
+      expect(result.data.rentalSubsidies).toBe(1);
+      // $45 code + $0 given out + $100 paid assistance; the approved and
+      // unflagged expenses are not counted.
+      expect(result.data.assistance).toEqual({
+        discountCodes: 45,
+        distributions: 0,
+        expenses: 100,
+        total: 145,
+      });
+    }
+    await seeded.cleanup();
+  });
+
+  test("a cancelled registrant's code is not counted", async () => {
+    const seeded = await seedEvent();
+    const cancelled = await adminClient
+      .from("event_registrations")
+      .update({
+        // A cancelled registration can't also be checked in.
+        checked_in_at: null,
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: "not_attending",
+      })
+      .eq("id", seeded.registrationId);
+    if (cancelled.error) throw cancelled.error;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.discountCodesAssigned).toBe(0);
+    expect(result.data.rentalSubsidies).toBe(0);
+    expect(result.data.assistance?.discountCodes).toBe(0);
+    await seeded.cleanup();
+  });
+
+  test("an auto-assign event's codes are not subsidy or assistance", async () => {
+    const seeded = await seedEvent();
+    const autoAssign = await adminClient
+      .from("events")
+      .update({ auto_assign_discount_codes: true })
+      .eq("id", seeded.event.id);
+    if (autoAssign.error) throw autoAssign.error;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.discountCodesAssigned).toBe(1);
+    expect(result.data.rentalSubsidies).toBe(0);
+    expect(result.data.assistance?.total).toBe(100);
+    await seeded.cleanup();
+  });
+
+  test("first time on snow reads the first_time level at check-in", async () => {
+    const seeded = await seedEvent();
+    const setSnapshot = await adminClient
+      .from("event_registrations")
+      .update({
+        riding_discipline_at_event: "ski",
+        ski_experience_level_at_event: "first_time",
+      })
+      .eq("event_id", seeded.event.id);
+    if (setSnapshot.error) throw setSnapshot.error;
+
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    const result = await getEventImpactDerivedAction(seeded.event.id);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.data.firstTimeOnSnow).toBe(1);
+    // The levels are exclusive: a first-timer is not also a beginner.
+    expect(result.data.beginnerParticipants).toBe(0);
+    expect(result.data.profiledAttendees).toBe(1);
     await seeded.cleanup();
   });
 

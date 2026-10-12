@@ -1347,17 +1347,36 @@ export const helpContent: Record<string, HelpEntry> = {
           <ul className="list-disc space-y-2 pl-4">
             <li>
               <strong className="text-foreground">
-                Participants, first-time, beginner, and assistance figures
+                Participants, first-time and beginner figures
               </strong>{" "}
-              — summed from each event&apos;s impact note. An event with no
-              impact note recorded contributes zero to all of them.
+              — computed from each event&apos;s attendance headcount, check-ins
+              and the rider levels recorded at check-in. Nothing is typed.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Rental subsidies and participant assistance
+              </strong>{" "}
+              — rental subsidies are rental discount codes given to registrants
+              who didn&apos;t cancel; assistance adds up the value of assigned
+              codes, the value of items given out, and paid expenses marked
+              participant assistance. Codes on an event that gives one to every
+              registrant don&apos;t count. Figures typed by hand on older events
+              are archived on those events and never added in.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                Discount value offered
+              </strong>{" "}
+              — what the event&apos;s shared and single-use codes were worth,
+              from the options each covers and the prices registrants chose them
+              at. Shown on its own and never added to assistance: the codes are
+              redeemed on the partner&apos;s site, so nothing says they were
+              used.
             </li>
             <li>
               <strong className="text-foreground">Equipment distributed</strong>{" "}
               — summed from inventory movements of type <code>distributed</code>{" "}
-              tied to the program&apos;s events; this is separate from{" "}
-              <strong className="text-foreground">Equipment loans</strong>,
-              which is self-reported on the impact note instead.
+              tied to the program&apos;s events.
             </li>
             <li>
               <strong className="text-foreground">Volunteer hours</strong> —
@@ -1403,9 +1422,9 @@ export const helpContent: Record<string, HelpEntry> = {
               those hours won&apos;t reach this rollup.
             </li>
             <li>
-              Expecting an event to count just because it&apos;s scheduled — the
-              participant and assistance figures only show up once someone
-              records that event&apos;s impact note.
+              Leaving a discount code&apos;s kind and value blank, or an expense
+              for participants unmarked — the help was given, but nothing says
+              so, so it can&apos;t reach the assistance figures.
             </li>
           </ul>
         </HowToSection>
@@ -2477,12 +2496,49 @@ export const helpContent: Record<string, HelpEntry> = {
                   for a headcount once the start time has passed.
                 </li>
                 <li>
-                  <strong className="text-foreground">Report</strong> and{" "}
-                  <strong className="text-foreground">Impact</strong> ask for
-                  the after-report and the impact figures, until the report is
-                  submitted and an impact record exists.
+                  <strong className="text-foreground">Results</strong> asks for
+                  the after-report and the retro, until the report is submitted,
+                  and counts open retro action items.
                 </li>
               </ul>
+            </li>
+            <li>
+              <strong className="text-foreground">The Results card</strong>{" "}
+              summarizes the event from its own records, so no figure is ever
+              typed. Outcomes comes first: participation, people served,
+              assistance given and discount codes, including the discount value
+              the codes offered. Then money, goods, sponsors, team and
+              incidents, then the written parts — participant feedback, photos,
+              impact notes and the retro. Each figure links to the card it comes
+              from. You only see the sections your role can read: Money needs
+              access to financial reports, and its net is income less what has
+              been paid out, counted the same way as Finance → Reports.
+              Submitting the report locks the whole card until it is reopened,
+              and freezes its money, goods, sponsors, team and incident figures
+              as they stood. A late expense or a voided sale after that
+              doesn&apos;t move the submitted figures: each one that has changed
+              since says what it is now. Reopening drops the frozen figures.
+            </li>
+            <li>
+              <strong className="text-foreground">
+                The Discount codes card
+              </strong>{" "}
+              holds a partner&apos;s single-use codes, each given to one
+              registrant, and at most one shared code for everyone who
+              registers, which goes out in every registration confirmation
+              email. Paste single-use codes one per line, with the
+              partner&apos;s PIN after a comma where there is one; the PIN is
+              shown and emailed with its code. Say which registration options a
+              code covers and by what percentage, and with each option&apos;s
+              price from the Planning tab the Results card works out the
+              discount value it offered. That is what the codes were worth, not
+              whether anyone used them, so it never counts as assistance.
+            </li>
+            <li>
+              <strong className="text-foreground">Cash donations</strong>, in
+              the Money group, lists the cash gifts linked to the event, for
+              anyone who can read Finance. They are recorded and edited in
+              Finance → Donations by choosing the event on the gift.
             </li>
           </ol>
         </HowToSection>
@@ -2524,11 +2580,13 @@ export const helpContent: Record<string, HelpEntry> = {
               keep computing from its own data.
             </li>
             <li>
-              Retyping figures in the Impact section that the system already
-              has. Participants, first-time participants, beginners, volunteers
-              on site and assigned discount codes are computed from attendance,
-              check-ins, volunteer records and rider profiles — only the figures
-              under &ldquo;Staff-entered&rdquo; need typing.
+              Looking for a box to type a result into. Every figure is counted
+              from where the work was recorded: first time on snow from the
+              rider level, rental subsidies from rental discount codes,
+              assistance from code values, items given out and expenses marked
+              participant assistance. If a figure looks low, fix the record it
+              comes from. The same goes for a giveaway: tickets sold and revenue
+              are counted from the sales recorded under Ticket packages.
             </li>
           </ul>
         </HowToSection>

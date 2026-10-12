@@ -25,6 +25,18 @@ describe("parseDistributionEditForm", () => {
     expect(result.data.recipient_person_id).toBeNull();
   });
 
+  test("links an event when one is chosen and clears it when blank", () => {
+    const linked = parseDistributionEditForm(
+      makeFormData({ eventId: "event-1" }),
+    );
+    if ("error" in linked) throw new Error(linked.error);
+    expect(linked.data.event_id).toBe("event-1");
+
+    const cleared = parseDistributionEditForm(makeFormData({ eventId: "" }));
+    if ("error" in cleared) throw new Error(cleared.error);
+    expect(cleared.data.event_id).toBeNull();
+  });
+
   test("keeps a selected recipient and blanks out an empty reason", () => {
     const result = parseDistributionEditForm(
       makeFormData({ reason: "  ", recipientPersonId: "person-1" }),

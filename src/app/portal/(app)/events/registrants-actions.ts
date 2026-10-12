@@ -52,6 +52,7 @@ import {
   type RegistrationAnswersRequestBatch,
 } from "@/lib/notifications/registration-answers-request";
 import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
+import { issueConfirmationAnswersLink } from "@/lib/notifications/registration-answer-self-links";
 import {
   ANSWER_REQUEST_ERRORS,
   answersRequestSubject,
@@ -242,6 +243,18 @@ export type EventRegistrant = {
    */
   answer_request: AnswerRequestStatus | null;
   /**
+   * When the registrant last changed their own answers after registering --
+   * through their link or `/my` (#1591). Null where they never have. Staff
+   * edits do not set it, so it is the "these moved since you planned" flag.
+   */
+  answers_changed_at: string | null;
+  /**
+   * The single-use codes this registration holds, each with the partner's
+   * PIN (#1589). Read at `events: view`, like the codes table. Absent on
+   * rows built elsewhere, such as the door's.
+   */
+  discount_codes?: HeldDiscountCode[];
+  /**
    * When and why this registration was cancelled (#1418). Null on every row
    * of `registrants`; only `cancelled` carries them.
    */
@@ -330,9 +343,18 @@ export type EventRegistrantsData = {
  * option with its cap and how many registrants have taken it, so the tab can
  * say "7 of 10" before the organizer orders tickets.
  */
+export type HeldDiscountCode = { code: string; pin: string | null };
+
 export type PortalRegistrationOptions = {
   prompt: string;
-  options: { id: string; label: string; cap: number | null; taken: number }[];
+  options: {
+    id: string;
+    label: string;
+    cap: number | null;
+    /** What the option costs (#1589); null where it has no price. */
+    price: number | null;
+    taken: number;
+  }[];
 };
 
 /**
@@ -362,7 +384,7 @@ async function loadRegistrationOptions(
       .maybeSingle(),
     supabase
       .from("event_registration_options")
-      .select("id, label, cap")
+      .select("id, label, cap, price")
       .eq("event_id", eventId)
       .order("sort_order", { ascending: true }),
   ]);
@@ -383,6 +405,7 @@ async function loadRegistrationOptions(
       id: option.id,
       label: option.label,
       cap: option.cap,
+      price: option.price === null ? null : Number(option.price),
       taken: taken.get(option.id) ?? 0,
     })),
   };
@@ -562,18 +585,21 @@ export async function listEventRegistrantsAction(
 // allow-list so the minor contacts could be carved out of it, and a column
 // missing from the list simply disappears from the portal.
 //
-// `option_counts` and `answers` are embeds, not columns of this table (#1407,
-// #1501).
+// `option_counts`, `answers` and `discount_codes` are embeds, not columns of
+// this table (#1407, #1501, #1589).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, instagram_handle, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at)";
+  "id, event_id, name, email, phone, instagram_handle, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
 
 type RegistrantRow = Omit<
   EventRegistrant,
-  "rider" | "minorContacts" | "answer_request"
+  "rider" | "minorContacts" | "answer_request" | "discount_codes"
 > & {
+  // A registration holds at most one code (discount_codes_unique_registration),
+  // so PostgREST embeds an object; read either shape as a list.
+  discount_codes?: HeldDiscountCode | HeldDiscountCode[] | null;
   // One-to-one, so PostgREST embeds an object; an array is tolerated in case
   // it ever reads the relationship as one-to-many.
   answer_request?: AnswerRequestStatus | AnswerRequestStatus[] | null;
@@ -597,12 +623,18 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
     option_counts,
     answers,
     answer_request,
+    discount_codes,
     ...fields
   } = row as RegistrantRow;
   const rest = {
     ...fields,
     option_counts: option_counts ?? [],
     answers: answers ?? [],
+    discount_codes: Array.isArray(discount_codes)
+      ? discount_codes
+      : discount_codes
+        ? [discount_codes]
+        : [],
     answer_request:
       (Array.isArray(answer_request) ? answer_request[0] : answer_request) ??
       null,
@@ -1139,10 +1171,15 @@ export async function resendEventRegistrationConfirmationAction(
   // assigns to its initial type, and this is only ever read afterwards.
   const sent: { subject?: string } = {};
 
+  // #1591. A fresh answers link with every resend, superseding the old one:
+  // the newest email from the organization is the one that works.
+  const answersLink = await issueConfirmationAnswersLink(admin, registrationId);
+
   const outcome = await sendEventRegistrationConfirmation(admin, {
     registrationId,
     siteUrl: await getRequestOrigin(),
     dedupeSuffix,
+    answersLink,
     onRendered: (email) => {
       sent.subject = email.subject;
     },
@@ -1293,7 +1330,7 @@ export async function askForMissingAnswersAction(input: {
     guard.supabase
       .from("event_registrations")
       .select(
-        "id, name, email, person_id, answers:event_registration_answers(question_id, value), answer_request:event_registration_answer_requests(requested_at, answered_at)",
+        "id, name, email, person_id, answers:event_registration_answers(question_id, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source)",
       )
       .eq("event_id", input.eventId)
       .is("cancelled_at", null)

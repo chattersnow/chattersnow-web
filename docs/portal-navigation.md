@@ -57,7 +57,7 @@ were two sidebar entries because they look like two topics; they are one object
    (a scroll, a focus) is passed to `close(after)` rather than run beside it,
    because a modal sheet holds the page's scroll until it has finished closing.
 
-3. **A lifecycle is something to group by, not a level to navigate through.**
+3. **A lifecycle is not a level to navigate through — and rarely the best grouping.**
    Events tried the second level first: 19 cards behind four phase tabs — basic,
    planning, during, after — each with its own strip of cards (#958). It read
    well on paper and cost two things in use (#1008). Nothing on screen said
@@ -65,7 +65,11 @@ were two sidebar entries because they look like two topics; they are one object
    used lately meant opening phases until it turned up; and the lifecycle is not
    one-way, so a coordinator correcting a budget or a venue a week after the
    event was working against a control that models the job as a sequence. The
-   rail keeps the phases as **headings** and stops making the reader select one.
+   rail kept the phases as **headings** and stopped making the reader select
+   one. Then the headings went too (#1571): most cards are used across phases
+   — donations and sales arrive during and after, registrants matter before —
+   so the rail now groups by **subject** (Guests, Team, Goods, Money, …). Group
+   by a lifecycle only where every part really belongs to one moment.
 
 The thresholds are soft. The first is not.
 
@@ -80,7 +84,7 @@ Two existing surfaces are the reference implementations. Both render
 `PortalRail`; what is worth copying is how each fills it.
 
 **Event detail** (`events/[eventId]/event-detail-view.tsx`) — one sidebar entry,
-19 cards under four phase headings in a rail, one card on screen at a time and
+19 cards under seven subject headings in a rail, one card on screen at a time and
 one URL parameter naming it. Copy it for the permission handling above all: the
 rail's contents are resolved against the reader's permissions on the server
 _before_ the URL value is validated, so a deep link to a card the reader cannot
@@ -108,7 +112,7 @@ right-hand side is something to read rather than something to edit.
 
 | Surface                  | Parts                                         | Answer                                       |
 | ------------------------ | --------------------------------------------- | -------------------------------------------- |
-| Event detail             | 19 cards over 4 phases                        | left rail, phases as headings — the model    |
+| Event detail             | 19 cards over 7 subject groups                | left rail, subjects as headings — the model  |
 | Site Content             | 15 pages, 121 slots                           | left rail + search — the model               |
 | Organization Settings    | 5 configuration panels                        | tabs, via `useUrlTabState`                   |
 | Website site settings    | Layout, visibility, legal documents           | sidebar entries, grouped                     |

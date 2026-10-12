@@ -19,7 +19,12 @@ import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { REGISTRATION_OPTION_ERROR_MESSAGES } from "@/lib/registration-options";
 import { REGISTRATION_ANSWER_ERROR_MESSAGES } from "@/lib/registration-questions";
 import { parseEventRegistrationForm } from "./event-registration-form";
-import { publicEventPath } from "./event-path";
+import { publicEventAnswersPath, publicEventPath } from "./event-path";
+import {
+  issueAlreadyRegisteredAnswersLink,
+  issueConfirmationAnswersLink,
+} from "@/lib/notifications/registration-answer-self-links";
+import { ALREADY_REGISTERED_LINK_SENT } from "@/lib/registration-answer-requests";
 import {
   registrationErrorStep,
   registrationFieldStep,
@@ -32,7 +37,16 @@ import {
  */
 export type RegisterForEventResult =
   | { error: string; step: RegistrationStep }
-  | { success: true; registrationId: string };
+  | {
+      success: true;
+      registrationId: string;
+      /**
+       * The registrant's own answers link (#1591), relative and token
+       * included, for the success screen. Null where the event asks no
+       * questions or none could be issued.
+       */
+      answersPath: string | null;
+    };
 
 const ERROR_MESSAGES: Record<string, string> = {
   EVENT_NOT_FOUND: "This event could not be found.",
@@ -151,6 +165,9 @@ export async function registerForEventAction(
   if (error) {
     return {
       error:
+        (error.message === "ALREADY_REGISTERED"
+          ? await alreadyRegisteredMessage(supabase, eventId, parsed.data.email)
+          : null) ??
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
       step: registrationErrorStep(error.message),
@@ -176,13 +193,58 @@ export async function registerForEventAction(
   // minted; for a filled honeypot that is a uuid with no row behind it, which
   // the sender treats as nothing to do.
   const siteUrl = await getRequestOrigin();
+  const admin = createSupabaseAdminClient();
+
+  // #1591. Before the response, because the success screen shows the same
+  // link the email carries. Null for an event with no questions and for a
+  // honeypot's id alike.
+  const answersLink = await issueConfirmationAnswersLink(admin, registrationId);
 
   after(async () => {
-    await sendEventRegistrationConfirmation(createSupabaseAdminClient(), {
+    await sendEventRegistrationConfirmation(admin, {
       registrationId,
       siteUrl,
+      answersLink,
     });
   });
 
-  return { success: true, registrationId };
+  return {
+    success: true,
+    registrationId,
+    answersPath: answersLink
+      ? publicEventAnswersPath(eventId, answersLink.token)
+      : null,
+  };
+}
+
+/**
+ * "Already registered" as a way forward (#1591): mail the registration's own
+ * address a link to change its answers, and say so -- never showing the link,
+ * so typing somebody else's address reveals nothing the refusal did not
+ * already. Null leaves the plain refusal: an event with no questions, one
+ * that has ended, or a failure to issue.
+ */
+async function alreadyRegisteredMessage(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  eventId: string,
+  email: string,
+): Promise<string | null> {
+  // The public site's tenant, off this request's host: the service-role
+  // client below carries no host to resolve it from.
+  const { data: tenantId } = await supabase.rpc("public_tenant_id");
+  if (!tenantId) return null;
+
+  const outcome = await issueAlreadyRegisteredAnswersLink(
+    createSupabaseAdminClient(),
+    {
+      tenantId,
+      eventId,
+      email,
+      ipAddress: await getClientIp(),
+      fallbackOrigin: await getRequestOrigin(),
+    },
+    after,
+  );
+  if (outcome === "rate_limited") return ERROR_MESSAGES.RATE_LIMITED;
+  return outcome === "issued" ? ALREADY_REGISTERED_LINK_SENT : null;
 }

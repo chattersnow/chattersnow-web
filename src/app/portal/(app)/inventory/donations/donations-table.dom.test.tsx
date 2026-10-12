@@ -9,6 +9,7 @@ function makeDonation(overrides: Partial<DonationRow> = {}): DonationRow {
     donated_at: "2026-05-01T00:00:00.000Z",
     notes: null,
     event_id: null,
+    donor_id: "donor-1",
     donor: {
       id: "donor-1",
       name: "Jane Donor",
@@ -100,5 +101,29 @@ describe("DonationsTable", () => {
 
     expect(screen.getByText("Anonymous")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  test("a donation with no donor is Anonymous (#1592)", () => {
+    render(
+      <DonationsTable
+        donations={[makeDonation({ donor_id: null, donor: null })]}
+        hasActiveFilters={false}
+        {...SORT}
+      />,
+    );
+
+    expect(screen.getByText("Anonymous")).toBeInTheDocument();
+  });
+
+  test("a donor the reader cannot see is not Anonymous", () => {
+    render(
+      <DonationsTable
+        donations={[makeDonation({ donor: null })]}
+        hasActiveFilters={false}
+        {...SORT}
+      />,
+    );
+
+    expect(screen.queryByText("Anonymous")).not.toBeInTheDocument();
   });
 });

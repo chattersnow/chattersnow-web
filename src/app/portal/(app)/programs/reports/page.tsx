@@ -17,12 +17,14 @@ import {
 import { listProgramsAction } from "../actions";
 import {
   computeProgramImpactRollup,
+  type AssistanceExpenseRow,
   type CheckinCountRow,
   type DiscountCodeRow,
   type DistributedMovementRow,
   type EventRow,
-  type ImpactNoteRow,
+  type OfferedCodeRow,
   type PersonEventRow,
+  type PricedOptionCountRow,
   type ProgramImpactRollup,
   type RegistrationRow,
   type VolunteerHoursRow,
@@ -32,7 +34,6 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 type RollupData = {
   event_ids: string[];
   events: EventRow[];
-  impact_notes: ImpactNoteRow[];
   distributed_movements: DistributedMovementRow[];
   volunteer_hours: VolunteerHoursRow[];
   registrations: RegistrationRow[];
@@ -41,7 +42,11 @@ type RollupData = {
   event_volunteers: PersonEventRow[];
   volunteer_hour_people: PersonEventRow[];
   beginner_attendees: PersonEventRow[];
+  first_time_attendees: PersonEventRow[];
   profiled_attendees: PersonEventRow[];
+  assistance_expenses: AssistanceExpenseRow[];
+  offered_codes: OfferedCodeRow[];
+  option_counts: PricedOptionCountRow[];
 };
 
 type ProgramImpactReportPageProps = {
@@ -95,7 +100,6 @@ export default async function ProgramImpactReportPage({
       rollup = computeProgramImpactRollup({
         eventCount: eventIds.length,
         events: result.events ?? [],
-        notes: result.impact_notes ?? [],
         distributedMovements: result.distributed_movements ?? [],
         volunteerHours: result.volunteer_hours ?? [],
         registrations: result.registrations ?? [],
@@ -104,7 +108,11 @@ export default async function ProgramImpactReportPage({
         eventVolunteers: result.event_volunteers ?? [],
         volunteerHourPeople: result.volunteer_hour_people ?? [],
         beginnerAttendees: result.beginner_attendees ?? [],
+        firstTimeAttendees: result.first_time_attendees ?? [],
         profiledAttendees: result.profiled_attendees ?? [],
+        assistanceExpenses: result.assistance_expenses ?? [],
+        offeredCodes: result.offered_codes ?? [],
+        optionCounts: result.option_counts ?? [],
       });
     }
   }
@@ -140,15 +148,31 @@ export default async function ProgramImpactReportPage({
                       )} with a rider profile`
                     : formatNumber(rollup.beginnerParticipants),
               },
+              {
+                label: "First time on snow",
+                value: formatNumber(rollup.firstTimeOnSnow),
+              },
             ]
           : []),
         {
-          label: "Participants with a discount code or rental subsidy",
+          label: "Participants given a discount code",
           value: formatNumber(rollup.assistedParticipants),
+        },
+        {
+          label: "Rental subsidies",
+          value: formatNumber(rollup.rentalSubsidies),
         },
         {
           label: "Equipment distributed",
           value: formatNumber(rollup.equipmentDistributed),
+        },
+        {
+          label: "People who received items",
+          value: formatNumber(rollup.distributionRecipients),
+        },
+        {
+          label: "Value of items distributed ($)",
+          value: formatCurrency(rollup.distributedValue),
         },
         {
           label: "Volunteers on site",
@@ -160,7 +184,32 @@ export default async function ProgramImpactReportPage({
         },
         {
           label: "Participant assistance ($)",
-          value: formatCurrency(rollup.participantAssistanceTotal),
+          value: formatCurrency(rollup.participantAssistance.total),
+        },
+        {
+          label: "Assistance: discount code value ($)",
+          value: formatCurrency(rollup.participantAssistance.discountCodes),
+        },
+        {
+          label: "Assistance: items given out ($)",
+          value: formatCurrency(rollup.participantAssistance.distributions),
+        },
+        {
+          label: "Assistance: expenses paid for participants ($)",
+          value: formatCurrency(rollup.participantAssistance.expenses),
+        },
+        // #1589: offered, not received, and never part of assistance.
+        {
+          label: "Discount value offered ($)",
+          value: formatCurrency(rollup.discountValueOffered.total),
+        },
+        {
+          label: "Discount value offered: shared codes ($)",
+          value: formatCurrency(rollup.discountValueOffered.shared),
+        },
+        {
+          label: "Discount value offered: single-use codes ($)",
+          value: formatCurrency(rollup.discountValueOffered.singleUse),
         },
         {
           label: "Repeat participants",
@@ -180,14 +229,18 @@ export default async function ProgramImpactReportPage({
       <p className="app-muted mt-2 max-w-2xl text-sm">
         Season/program rollup across every event tagged to the selected program.
         Every figure here is computed live from attendance, check-ins, discount
-        codes, {canSeeRider ? "rider profiles, " : ""}inventory and volunteer
-        records — only rental subsidies and assistance dollars are still
-        staff-entered per event, because nothing in the system records them. Two
-        caveats worth knowing when quoting these numbers: internally-granted
-        scholarships and fee waivers aren&apos;t modelled anywhere, so
-        assistance undercounts; and &ldquo;Volunteers on site&rdquo; counts each
-        person once per event, so someone who volunteered three times counts
-        three times.
+        codes, {canSeeRider ? "rider profiles, " : ""}distributions, expenses
+        and volunteer records — nothing is typed. Figures entered by hand on
+        older events are archived on those events and never added in. A few
+        caveats worth knowing when quoting these numbers: codes on an event that
+        gives one to every registrant don&apos;t count as assistance;
+        &ldquo;Discount value offered&rdquo; is what partner codes were worth to
+        the people who got them, not what was redeemed, and is never part of
+        assistance; internally-granted scholarships and fee waivers aren&apos;t
+        modelled anywhere, so assistance undercounts; and &ldquo;Volunteers on
+        site&rdquo; counts each person once per event, so someone who
+        volunteered three times counts three times. &ldquo;People who received
+        items&rdquo; counts the same way, once per event.
       </p>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-end justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
@@ -284,7 +337,7 @@ export default async function ProgramImpactReportPage({
               </CardHeader>
               <CardContent>
                 <p className="brand-display text-4xl font-semibold tracking-brand">
-                  {formatCurrency(rollup.participantAssistanceTotal)}
+                  {formatCurrency(rollup.participantAssistance.total)}
                 </p>
               </CardContent>
             </Card>

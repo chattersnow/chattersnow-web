@@ -140,6 +140,39 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     expect(text).not.toContain("Your choices");
   });
 
+  test("carries the event's shared code and its PIN (#1589)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      sharedCode: { code: "GROUP<50>", pin: "7731" },
+    });
+    expect(text).toContain("  Discount code: GROUP<50> · PIN 7731");
+    expect(html).toContain(
+      "<strong>Discount code:</strong> GROUP&lt;50&gt; · PIN 7731",
+    );
+  });
+
+  test("a shared code with no PIN is the code alone (#1589)", () => {
+    const { text } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      sharedCode: { code: "GROUP50", pin: null },
+    });
+    expect(text).toContain("  Discount code: GROUP50\n");
+    expect(text).not.toContain("PIN");
+  });
+
+  test("an event with no shared code renders exactly as before (#1589)", () => {
+    const before = renderEventRegistrationConfirmationEmail(base);
+    for (const sharedCode of [undefined, null]) {
+      const after = renderEventRegistrationConfirmationEmail({
+        ...base,
+        sharedCode,
+      });
+      expect(after.text).toBe(before.text);
+      expect(after.html).toBe(before.html);
+      expect(after.text).not.toContain("Discount code");
+    }
+  });
+
   test("lists the registration answers in their own section, in order (#1501)", () => {
     const { text, html } = renderEventRegistrationConfirmationEmail({
       ...base,
@@ -395,5 +428,30 @@ describe("the tenant's shell (#1238)", () => {
     const { html } = renderEventRegistrationConfirmationEmail(base);
     expect(html).not.toContain("<img");
     expect(html).toContain("Chatter Snow");
+  });
+
+  test("carries the registrant's own answers link where there is one (#1591)", () => {
+    const url = "https://chattersnow.example/events/e/abc123/answers?t=tok";
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      answersLink: { url, expiresAt: "2026-03-16T00:00:00.000Z" },
+    });
+
+    expect(text).toContain(`Change your answers: ${url}`);
+    expect(html).toContain(
+      `href="https://chattersnow.example/events/e/abc123/answers?t=tok"`,
+    );
+    for (const part of [text, html]) {
+      expect(part).toContain("Change your answers");
+      // Until when, in the event's own zone.
+      expect(part).toContain("Mar 15, 2026");
+      expect(part).toContain("MDT");
+    }
+  });
+
+  test("renders no answers link without one", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail(base);
+    expect(text).not.toContain("Change your answers");
+    expect(html).not.toContain("Change your answers");
   });
 });

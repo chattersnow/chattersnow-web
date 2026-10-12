@@ -53,6 +53,11 @@ const EXEMPT: Record<string, string> = {
     "Assign numbered code (#1444): the same scanner as Scan a tag. Each scan " +
     "or typed code is tried at once, and a code another item holds is a " +
     "yes/no question; there is nothing to fill in and no submit.",
+  "inventory/items/bulk-assign-codes.tsx":
+    "Assign numbered codes to a selection (#1542): the same scanner, one " +
+    "item at a time. Each scan or typed code is tried at once, a code " +
+    "another item holds is a yes/no question, and Skip moves on; there is " +
+    "nothing to fill in and no submit.",
   "inventory/requests/[requestId]/add-request-item-dialog.tsx":
     "Add an item to a gear request (#1527): a search-and-pick list. Each " +
     "row's Add applies at once; there is nothing to fill in and no submit.",

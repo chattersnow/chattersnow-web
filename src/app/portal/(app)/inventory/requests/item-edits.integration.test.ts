@@ -2,7 +2,8 @@
 // an item, removing one, and editing the notes -- the RPCs' refusals, the
 // sentences the actions answer with, and that a removed item no longer reads
 // as part of the request anywhere that keys on its `reserved` movements --
-// including fulfilment, which distributes only what the request still holds.
+// including fulfilment, which distributes only what the request still holds --
+// and returning an item from a fulfilled request to the shelf (#1567).
 //
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
@@ -12,11 +13,13 @@ import {
   SEEDED_USERS,
   anonClient,
   createAvailableGearItems,
+  seededTenantId,
   serviceRoleClient,
   signIn,
   signInAs,
   uniqueEmail,
   uniqueIp,
+  withModule,
 } from "../../../../../../test/integration-setup";
 
 mock.module("next/cache", () => ({ revalidatePath: mock(() => {}) }));
@@ -30,6 +33,7 @@ mock.module("@/lib/supabase/server", () => ({
 const {
   addGearRequestItemAction,
   removeGearRequestItemAction,
+  returnGearRequestItemAction,
   setGearRequestNotesAction,
   setGearRequestStatusAction,
 } = await import("./actions");
@@ -261,5 +265,131 @@ describe("gear request item edits", () => {
     expect(await setGearRequestNotesAction(request.id, "Late")).toEqual({
       error: "This request is already fulfilled or cancelled.",
     });
+  });
+
+  test("a fulfilled item that was not handed over goes back on the shelf", async () => {
+    const request = await newGearRequest(2);
+    const [returned, kept] = request.itemIds;
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+
+    // Not while the request is open: removal is the edit for that.
+    expect(await returnGearRequestItemAction(request.id, returned)).toEqual({
+      error: "Only a fulfilled request can have items returned.",
+    });
+
+    await setGearRequestStatusAction(request.id, "fulfilled");
+    expect(await returnGearRequestItemAction(request.id, returned)).toEqual({
+      success: true,
+    });
+    expect(await itemStatus(returned)).toBe("available");
+    expect(await itemStatus(kept)).toBe("distributed");
+
+    const { data: header } = await service
+      .from("gear_requests")
+      .select("status")
+      .eq("id", request.id)
+      .single();
+    expect(header?.status).toBe("fulfilled");
+
+    const { data: movement } = await service
+      .from("inventory_movements")
+      .select("reason")
+      .eq("gear_request_id", request.id)
+      .eq("inventory_item_id", returned)
+      .eq("movement_type", "other")
+      .single();
+    expect(movement?.reason).toBe("Returned after gear request fulfilled");
+
+    // Already back, so a second return is refused.
+    expect(await returnGearRequestItemAction(request.id, returned)).toEqual({
+      error:
+        "That item was not handed over on this request, or has moved on since.",
+    });
+  });
+
+  test("an item that moved on after the handover is not the request's to return", async () => {
+    const request = await newGearRequest(1);
+    const [item] = request.itemIds;
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    await setGearRequestStatusAction(request.id, "fulfilled");
+
+    // Something recorded against the item since -- here a correction.
+    const { data: tenant } = await service
+      .from("inventory_items")
+      .select("tenant_id")
+      .eq("id", item)
+      .single();
+    const { error } = await service.from("inventory_movements").insert({
+      tenant_id: tenant?.tenant_id,
+      inventory_item_id: item,
+      movement_type: "corrected",
+      quantity: 1,
+      reason: "Later correction",
+    });
+    if (error) throw error;
+
+    expect(await returnGearRequestItemAction(request.id, item)).toEqual({
+      error:
+        "That item was not handed over on this request, or has moved on since.",
+    });
+    expect(await itemStatus(item)).toBe("distributed");
+  });
+
+  test("the requester stops seeing a returned item as received", async () => {
+    const request = await newGearRequest(2);
+    const [returned, kept] = request.itemIds;
+    currentSupabase = await signIn(SEEDED_USERS.admin);
+    await setGearRequestStatusAction(request.id, "fulfilled");
+    await returnGearRequestItemAction(request.id, returned);
+
+    // Give the requester an account, as an approved claim would.
+    const { data: header } = await service
+      .from("gear_requests")
+      .select("person:people(id, email)")
+      .eq("id", request.id)
+      .single();
+    const person = header?.person as unknown as { id: string; email: string };
+    const { data: user, error: userError } =
+      await service.auth.admin.createUser({
+        email: person.email,
+        password: "password123",
+        email_confirm: true,
+      });
+    if (userError) throw userError;
+    cleanups.unshift(async () => {
+      await service
+        .from("people")
+        .update({ auth_user_id: null })
+        .eq("id", person.id);
+      await service.auth.admin.deleteUser(user.user!.id);
+    });
+    await service
+      .from("people")
+      .update({ auth_user_id: user.user!.id })
+      .eq("id", person.id);
+    const requester = await signIn(person.email);
+
+    const descriptions = async (id: string) =>
+      (
+        await service
+          .from("inventory_items")
+          .select("description")
+          .eq("id", id)
+          .single()
+      ).data?.description as string;
+
+    await withModule(
+      await seededTenantId(),
+      "constituent_accounts",
+      true,
+      async () => {
+        const { data, error } = await requester.rpc("my_gear_history");
+        if (error) throw error;
+        const received = (data ?? [])
+          .filter((row: { kind: string }) => row.kind === "received")
+          .flatMap((row: { items: string[] }) => row.items);
+        expect(received).toEqual([await descriptions(kept)]);
+      },
+    );
   });
 });

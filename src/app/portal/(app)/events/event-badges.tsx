@@ -33,7 +33,6 @@ export type EventRow = {
   event_lead: EventLeadPerson | null;
   report_status: string;
   report_summary: string | null;
-  lessons_learned: string | null;
   feedback_notes: string | null;
   content_notes: string | null;
   report_submitted_at: string | null;
@@ -61,6 +60,8 @@ export type EventRow = {
     id: string;
     label: string;
     cap: number | null;
+    /** What the option costs (#1589); null where it has no price. */
+    price?: number | null;
     sort_order: number;
   }[];
   /**

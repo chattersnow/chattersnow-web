@@ -10,7 +10,15 @@
 // could not work. This file is the guard on that.
 import { describe, expect, test } from "bun:test";
 import type { PermissionLevel, PermissionMap } from "@/lib/auth/permissions";
-import { TAB_CONFIG, eventPhases, type TabValue } from "./event-tabs-config";
+import {
+  EVENT_GROUPS,
+  LEGACY_PHASE_CARDS,
+  LEGACY_TAB_VALUES,
+  LOCKED_ON_REPORT_SUBMIT_TABS,
+  TAB_CONFIG,
+  eventGroups,
+  type TabValue,
+} from "./event-tabs-config";
 
 /** Everything the catalog knows about, at `manage`. */
 const FULL_ACCESS: PermissionMap = Object.fromEntries(
@@ -32,23 +40,23 @@ function without(...resources: string[]): PermissionMap {
 }
 
 function cards(permissions: PermissionMap): TabValue[] {
-  return eventPhases(permissions).flatMap((phase) =>
-    phase.tabs.map((tab) => tab.value),
+  return eventGroups(permissions).flatMap((group) =>
+    group.tabs.map((tab) => tab.value),
   );
 }
 
 function titles(permissions: PermissionMap): string[] {
-  return eventPhases(permissions).flatMap((phase) =>
-    phase.tabs.map((tab) => tab.label),
+  return eventGroups(permissions).flatMap((group) =>
+    group.tabs.map((tab) => tab.label),
   );
 }
 
-describe("eventPhases", () => {
+describe("eventGroups", () => {
   test("an admin holding everything gets every card in the catalog", () => {
     expect(cards(FULL_ACCESS)).toEqual(TAB_CONFIG.map((entry) => entry.value));
   });
 
-  test("Finance off takes the Expenses, Revenue, Sales and Donations cards", () => {
+  test("Finance off takes the Expenses, Revenue and Sales cards", () => {
     // The four resources a tenant loses when the Finance module is disabled --
     // `sales` joined them in #907: my_permissions() reports `none` for each,
     // whatever the matrix says.
@@ -59,20 +67,27 @@ describe("eventPhases", () => {
     expect(visible).not.toContain("expenses");
     expect(visible).not.toContain("revenue");
     expect(visible).not.toContain("sales");
-    expect(visible).not.toContain("donations");
 
-    // And nothing else moves -- the event's own cards are untouched.
+    // And nothing else moves -- the event's own cards are untouched. In-kind
+    // donations are inventory too, so their card stays (#1572).
+    expect(visible).toContain("donations");
     expect(visible).toContain("overview");
-    expect(visible).toContain("report");
-    expect(visible).toContain("impact");
+    expect(visible).toContain("results");
     expect(visible).toContain("distributions");
   });
 
   test("Inventory off takes the Distributions card and leaves the rest", () => {
     const visible = cards(without("inventory", "inventory_reports"));
     expect(visible).not.toContain("distributions");
+    // Finance alone still reads the Donations card.
+    expect(visible).toContain("donations");
     expect(visible).toContain("giveaway");
     expect(visible).toContain("expenses");
+  });
+
+  test("without Finance or Inventory there is no Donations card", () => {
+    const visible = cards(without("finance", "inventory", "inventory_reports"));
+    expect(visible).not.toContain("donations");
   });
 
   test("either half of a two-resource gate is enough", () => {
@@ -82,26 +97,56 @@ describe("eventPhases", () => {
     expect(cards(without("inventory"))).toContain("distributions");
   });
 
-  test("every phase in the strip has at least one card in it", () => {
+  test("every group the rail lists has at least one card in it", () => {
     // A reader with nothing but the events access the route layout requires.
     const eventsOnly: PermissionMap = { events: "view" };
-    for (const phase of eventPhases(eventsOnly)) {
-      expect(phase.tabs.length).toBeGreaterThan(0);
+    for (const group of eventGroups(eventsOnly)) {
+      expect(group.tabs.length).toBeGreaterThan(0);
     }
-    // All four phases survive, which is what lets the deep-link fallback in
-    // event-detail-view.tsx keep `basic` as its default.
-    expect(eventPhases(eventsOnly).map((phase) => phase.key)).toEqual([
-      "basic",
-      "planning",
-      "during",
-      "after",
+    // Money holds only Finance cards, so it drops out rather than standing
+    // empty; every other group keeps an ungated card.
+    expect(eventGroups(eventsOnly).map((group) => group.key)).toEqual([
+      "overview",
+      "guests",
+      "team",
+      "goods",
+      "operations",
+      "results",
     ]);
+  });
+
+  test("lists the catalog in group order", () => {
+    // eventGroups() walks EVENT_GROUPS, so a card listed out of its group's
+    // place in TAB_CONFIG would still render in order -- but `visible[0]` and
+    // FORM_TAB_VALUES read the catalog's own order, so keep the two aligned.
+    const order = EVENT_GROUPS.map((group) => group.key);
+    const positions = TAB_CONFIG.map((entry) => order.indexOf(entry.group));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  test("lands each legacy ?phase= link on a card every reader can see", () => {
+    const visible = cards({ events: "view" });
+    for (const card of Object.values(LEGACY_PHASE_CARDS)) {
+      expect(visible).toContain(card);
+    }
+  });
+
+  test("Report and Impact are one Results card, and old links land on it", () => {
+    // #1588: one card, with both old values pointing at it.
+    const visible = cards({ events: "view" });
+    expect(visible).toContain("results");
+    expect(visible).not.toContain("report" as TabValue);
+    expect(visible).not.toContain("impact" as TabValue);
+    expect(LEGACY_TAB_VALUES.report).toBe("results");
+    expect(LEGACY_TAB_VALUES.impact).toBe("results");
+    // Submitting the report locks all of it, Outcomes included.
+    expect(LOCKED_ON_REPORT_SUBMIT_TABS.has("results")).toBe(true);
   });
 
   test("carries each card's display title, not its bare catalog label", () => {
     // The rail row and the card heading it opens have to read the same, and
     // two of them differ from the label: "Overview" is also the group heading
-    // above it, and "Planning" is the group as well as the card.
+    // above it, and "Planning" alone would not say it carries registration.
     const shown = titles(FULL_ACCESS);
     expect(shown).toContain("Event details");
     expect(shown).toContain("Registration & planning");

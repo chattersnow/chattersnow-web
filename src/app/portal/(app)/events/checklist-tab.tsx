@@ -20,6 +20,7 @@ import {
   ListPreviewSheet,
 } from "@/components/portal/list-preview-sheet";
 import { EmptyState } from "@/components/portal/empty-state";
+import { CarriedForwardActions } from "./carried-forward-actions";
 
 export function ChecklistTab({
   eventId,
@@ -142,6 +143,8 @@ export function ChecklistTab({
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       )}
+
+      <CarriedForwardActions eventId={eventId} />
 
       {items === null ? (
         <TabLoadingSkeleton />

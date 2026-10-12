@@ -16,12 +16,13 @@ import * as RevenueActions from "../../finance/revenue/actions";
 import * as SalesActions from "../../finance/sales/actions";
 import * as ImpactActions from "../impact-actions";
 import * as ImpactDerivedActions from "../impact-derived-actions";
+import * as RetroActions from "../retro-actions";
 import * as HomeActions from "../../home/actions";
 import * as LogisticsActions from "../logistics-actions";
 import * as RoleTypesActions from "../../volunteers/roles/actions";
 import * as EventsActions from "../actions";
 import type { EventRow } from "../event-badges";
-import { eventPhases } from "../event-tabs-config";
+import { eventGroups } from "../event-tabs-config";
 import { mockUrlTabState } from "@/../test/url-tab-state-mock";
 
 mockUrlTabState();
@@ -41,6 +42,7 @@ const getEventImpactDerivedActionMock = mock(async () => ({
     profiledAttendees: 0,
     discountCodesAssigned: 0,
     autoAssignDiscountCodes: false,
+    peopleServed: { distributed: 0, recipients: 0, value: 0 },
   },
 }));
 
@@ -112,7 +114,37 @@ mock.module("../../finance/sales/actions", () => ({
 }));
 mock.module("../impact-actions", () => ({
   ...ImpactActions,
-  getEventImpactAction: mock(async () => ({ data: null })),
+  getEventImpactAction: mock(async () => ({
+    data: { note: null, canView: false, canManage: false },
+  })),
+}));
+// The Results card reads these on open (#1588).
+mock.module("../report-data-actions", () => ({
+  getEventReportAction: mock(async () => ({
+    data: {
+      live: {
+        money: null,
+        goods: null,
+        sponsors: null,
+        team: null,
+        operations: null,
+      },
+      snapshot: null,
+    },
+  })),
+}));
+mock.module("../retro-actions", () => ({
+  ...RetroActions,
+  getEventRetroAction: mock(async () => ({
+    data: {
+      items: [],
+      canWrite: false,
+      canManage: false,
+      userId: "user-1",
+      locked: false,
+      owners: [],
+    },
+  })),
 }));
 mock.module("../impact-derived-actions", () => ({
   ...ImpactDerivedActions,
@@ -161,7 +193,6 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     event_lead: null,
     report_status: "not_started",
     report_summary: null,
-    lessons_learned: null,
     feedback_notes: null,
     content_notes: null,
     report_submitted_at: null,
@@ -175,9 +206,9 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
 // Every card, as an admin holding the lot gets them. #903 made the rail's
 // groups a function of the permission map -- the Finance and Inventory cards
 // drop out for a reader (or a tenant) without those sections -- and these tests
-// are about the rail's behaviour, not about who sees what. eventPhases() is
+// are about the rail's behaviour, not about who sees what. eventGroups() is
 // covered on its own in event-tabs-config.test.tsx.
-const ALL_PHASES = eventPhases(
+const ALL_GROUPS = eventGroups(
   Object.fromEntries(
     [
       "events",
@@ -219,7 +250,7 @@ function renderView(
       programs={[]}
       canManage={true}
       deleteBlockers={[]}
-      phases={ALL_PHASES}
+      groups={ALL_GROUPS}
       initialCard="overview"
       {...props}
     />,
@@ -227,14 +258,23 @@ function renderView(
 }
 
 describe("EventDetailView", () => {
-  test("lists every section at once, under its phase heading", () => {
+  test("lists every section at once, under its group heading", () => {
     renderView();
 
-    // The whole point of the rail (#1008): all 19 sections are readable
+    // The whole point of the rail (#1008): all 20 sections are readable
     // without opening anything, so finding one is not a memory test.
     expect(rail().getAllByRole("button")).toHaveLength(19);
-    for (const heading of ["Overview", "Planning", "During", "After"]) {
-      expect(rail().getByText(heading)).toBeInTheDocument();
+    for (const heading of [
+      "Overview",
+      "Guests",
+      "Team",
+      "Goods",
+      "Operations",
+      "Money",
+      "Results",
+    ]) {
+      // getAll: the Results heading holds a card of the same name (#1588).
+      expect(rail().getAllByText(heading)[0]).toBeInTheDocument();
     }
     for (const section of [
       "Event details",
@@ -242,7 +282,7 @@ describe("EventDetailView", () => {
       "Registration & planning",
       "Sponsors",
       "Registrants",
-      "Impact",
+      "Results",
     ]) {
       expect(railRow(section)).toBeVisible();
     }
@@ -269,8 +309,8 @@ describe("EventDetailView", () => {
 
     // And back across the lifecycle in one click, which is the other half of
     // it: Planning is still edited after the event has happened.
-    fireEvent.click(railRow("Impact"));
-    expect(cardTitled("Impact")).not.toBeNull();
+    fireEvent.click(railRow("Results"));
+    expect(cardTitled("Results")).not.toBeNull();
     fireEvent.click(railRow("Registration & planning"));
     expect(cardTitled("Registration & planning")).not.toBeNull();
   });
@@ -392,7 +432,7 @@ describe("EventDetailView", () => {
       cardTasks: {
         checklist: ["Bring the folding tables", "Confirm the DJ"],
         planning: ["Planning incomplete"],
-        report: ["After-report not started"],
+        results: ["After-report not started"],
       },
     });
 
@@ -407,7 +447,7 @@ describe("EventDetailView", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      within(railRow("Report")).getByLabelText("1 outstanding"),
+      within(railRow("Results")).getByLabelText("1 outstanding"),
     ).toBeInTheDocument();
     expect(screen.getAllByLabelText(/outstanding/)).toHaveLength(3);
   });

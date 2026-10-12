@@ -2171,6 +2171,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      discount_code_options: {
+        Row: {
+          code_id: string;
+          created_at: string;
+          option_id: string;
+          percent_off: number;
+          tenant_id: string;
+        };
+        Insert: {
+          code_id: string;
+          created_at?: string;
+          option_id: string;
+          percent_off: number;
+          tenant_id?: string;
+        };
+        Update: {
+          code_id?: string;
+          created_at?: string;
+          option_id?: string;
+          percent_off?: number;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_options_code_fkey";
+            columns: ["tenant_id", "code_id"];
+            isOneToOne: false;
+            referencedRelation: "discount_codes";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "discount_code_options_option_fkey";
+            columns: ["tenant_id", "option_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registration_options";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "discount_code_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "discount_code_options_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       discount_codes: {
         Row: {
           assigned_at: string | null;
@@ -2180,15 +2233,19 @@ export type Database = {
           description: string | null;
           event_id: string;
           id: string;
+          kind: string | null;
           notes: string | null;
+          pin: string | null;
           registration_id: string | null;
           sent_at: string | null;
           sent_to_email: string | null;
           sent_to_name: string | null;
+          shared: boolean;
           source: string | null;
           tenant_id: string;
           updated_at: string;
           updated_by: string | null;
+          value: number | null;
         };
         Insert: {
           assigned_at?: string | null;
@@ -2198,15 +2255,19 @@ export type Database = {
           description?: string | null;
           event_id: string;
           id?: string;
+          kind?: string | null;
           notes?: string | null;
+          pin?: string | null;
           registration_id?: string | null;
           sent_at?: string | null;
           sent_to_email?: string | null;
           sent_to_name?: string | null;
+          shared?: boolean;
           source?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
+          value?: number | null;
         };
         Update: {
           assigned_at?: string | null;
@@ -2216,15 +2277,19 @@ export type Database = {
           description?: string | null;
           event_id?: string;
           id?: string;
+          kind?: string | null;
           notes?: string | null;
+          pin?: string | null;
           registration_id?: string | null;
           sent_at?: string | null;
           sent_to_email?: string | null;
           sent_to_name?: string | null;
+          shared?: boolean;
           source?: string | null;
           tenant_id?: string;
           updated_at?: string;
           updated_by?: string | null;
+          value?: number | null;
         };
         Relationships: [
           {
@@ -2391,7 +2456,7 @@ export type Database = {
           created_at: string;
           created_by: string;
           donated_at: string;
-          donor_id: string;
+          donor_id: string | null;
           event_id: string | null;
           id: string;
           notes: string | null;
@@ -2403,7 +2468,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           donated_at?: string;
-          donor_id: string;
+          donor_id?: string | null;
           event_id?: string | null;
           id?: string;
           notes?: string | null;
@@ -2415,7 +2480,7 @@ export type Database = {
           created_at?: string;
           created_by?: string;
           donated_at?: string;
-          donor_id?: string;
+          donor_id?: string | null;
           event_id?: string | null;
           id?: string;
           notes?: string | null;
@@ -2617,6 +2682,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -2643,6 +2709,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           paid_by_person_id?: string | null;
+          participant_assistance?: boolean;
           receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
@@ -2669,6 +2736,7 @@ export type Database = {
           paid_at?: string | null;
           paid_by?: string | null;
           paid_by_person_id?: string | null;
+          participant_assistance?: boolean;
           receipt_path?: string | null;
           receipt_url?: string | null;
           rejected_at?: string | null;
@@ -2977,6 +3045,7 @@ export type Database = {
           registration_id: string;
           requested_at: string;
           requested_by: string | null;
+          source: string;
           tenant_id: string;
           token_hash: string;
         };
@@ -2987,6 +3056,7 @@ export type Database = {
           registration_id: string;
           requested_at?: string;
           requested_by?: string | null;
+          source?: string;
           tenant_id?: string;
           token_hash: string;
         };
@@ -2997,6 +3067,7 @@ export type Database = {
           registration_id?: string;
           requested_at?: string;
           requested_by?: string | null;
+          source?: string;
           tenant_id?: string;
           token_hash?: string;
         };
@@ -3097,6 +3168,7 @@ export type Database = {
           id: string;
           label: string;
           option_id: string | null;
+          price: number | null;
           quantity: number;
           registration_id: string;
           sort_order: number;
@@ -3106,6 +3178,7 @@ export type Database = {
           id?: string;
           label: string;
           option_id?: string | null;
+          price?: number | null;
           quantity: number;
           registration_id: string;
           sort_order?: number;
@@ -3115,6 +3188,7 @@ export type Database = {
           id?: string;
           label?: string;
           option_id?: string | null;
+          price?: number | null;
           quantity?: number;
           registration_id?: string;
           sort_order?: number;
@@ -3158,6 +3232,7 @@ export type Database = {
           event_id: string;
           id: string;
           label: string;
+          price: number | null;
           sort_order: number;
           tenant_id: string;
         };
@@ -3167,6 +3242,7 @@ export type Database = {
           event_id: string;
           id?: string;
           label: string;
+          price?: number | null;
           sort_order?: number;
           tenant_id?: string;
         };
@@ -3176,6 +3252,7 @@ export type Database = {
           event_id?: string;
           id?: string;
           label?: string;
+          price?: number | null;
           sort_order?: number;
           tenant_id?: string;
         };
@@ -3290,6 +3367,7 @@ export type Database = {
           accompanying_adult_name: string | null;
           accompanying_adult_phone: string | null;
           adults_only_confirmed_at: string | null;
+          answers_changed_at: string | null;
           attended_before: boolean | null;
           cancellation_note: string | null;
           cancellation_reason: string | null;
@@ -3324,6 +3402,7 @@ export type Database = {
           accompanying_adult_name?: string | null;
           accompanying_adult_phone?: string | null;
           adults_only_confirmed_at?: string | null;
+          answers_changed_at?: string | null;
           attended_before?: boolean | null;
           cancellation_note?: string | null;
           cancellation_reason?: string | null;
@@ -3358,6 +3437,7 @@ export type Database = {
           accompanying_adult_name?: string | null;
           accompanying_adult_phone?: string | null;
           adults_only_confirmed_at?: string | null;
+          answers_changed_at?: string | null;
           attended_before?: boolean | null;
           cancellation_note?: string | null;
           cancellation_reason?: string | null;
@@ -3419,6 +3499,91 @@ export type Database = {
           },
           {
             foreignKeyName: "event_registrations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_retro_items: {
+        Row: {
+          area: string | null;
+          author_id: string | null;
+          body: string;
+          completed_at: string | null;
+          created_at: string;
+          event_id: string;
+          id: string;
+          kind: string;
+          owner_person_id: string | null;
+          status: string | null;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+          author_name: string | null;
+        };
+        Insert: {
+          area?: string | null;
+          author_id?: string | null;
+          body: string;
+          completed_at?: string | null;
+          created_at?: string;
+          event_id: string;
+          id?: string;
+          kind: string;
+          owner_person_id?: string | null;
+          status?: string | null;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          area?: string | null;
+          author_id?: string | null;
+          body?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          event_id?: string;
+          id?: string;
+          kind?: string;
+          owner_person_id?: string | null;
+          status?: string | null;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_retro_items_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_owner_in_tenant";
+            columns: ["tenant_id", "owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_owner_in_tenant";
+            columns: ["tenant_id", "owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_retro_items_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -3874,6 +4039,7 @@ export type Database = {
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
+          report_snapshot: Json | null;
           report_status: string;
           report_submitted_at: string | null;
           report_submitted_by: string | null;
@@ -3912,6 +4078,7 @@ export type Database = {
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
+          report_snapshot?: Json | null;
           report_status?: string;
           report_submitted_at?: string | null;
           report_submitted_by?: string | null;
@@ -3950,6 +4117,7 @@ export type Database = {
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
+          report_snapshot?: Json | null;
           report_status?: string;
           report_submitted_at?: string | null;
           report_submitted_by?: string | null;
@@ -10300,6 +10468,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -10361,6 +10530,12 @@ export type Database = {
           outcome: string;
         }[];
       };
+      author_name: {
+        Args: { "": Database["public"]["Tables"]["event_retro_items"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.author_name with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
+      };
       available_content_packs: {
         Args: never;
         Returns: {
@@ -10381,6 +10556,7 @@ export type Database = {
         Args: { p_report_id: string };
         Returns: boolean;
       };
+      can_write_event_retro: { Args: { p_event_id: string }; Returns: boolean };
       cancel_event_registration: {
         Args: { p_note?: string; p_reason: string; p_registration_id: string };
         Returns: undefined;
@@ -10454,6 +10630,7 @@ export type Database = {
         Args: {
           p_donated_at?: string;
           p_donor_email: string;
+          p_donor_id?: string;
           p_donor_is_anonymous: boolean;
           p_donor_name: string;
           p_donor_notes: string;
@@ -10461,6 +10638,7 @@ export type Database = {
           p_donor_source_type: string;
           p_event_id?: string;
           p_items: Json;
+          p_notes?: string;
         };
         Returns: {
           asset_tags: string[];
@@ -10589,6 +10767,15 @@ export type Database = {
       };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
+      event_report_rows: {
+        Args: {
+          p_event_id: string;
+          p_events: boolean;
+          p_goods: boolean;
+          p_money: boolean;
+        };
+        Returns: Json;
+      };
       export_current_tenant_data: { Args: never; Returns: Json };
       export_tenant_data: { Args: { p_tenant_id: string }; Returns: Json };
       find_duplicate_people: {
@@ -10676,6 +10863,7 @@ export type Database = {
         Args: { p_event_id: string };
         Returns: Json;
       };
+      get_event_report_data: { Args: { p_event_id: string }; Returns: Json };
       get_finance_report_data: {
         Args: { p_from: string; p_to: string };
         Returns: Json;
@@ -10841,10 +11029,35 @@ export type Database = {
         }[];
       };
       is_admin: { Args: never; Returns: boolean };
+      is_on_event_staff: { Args: { p_event_id: string }; Returns: boolean };
       is_platform_operator: { Args: never; Returns: boolean };
       issue_distribution_acknowledgement_token: {
         Args: { p_event_id: string; p_token_hash: string };
         Returns: string;
+      };
+      issue_registration_answer_link: {
+        Args: {
+          p_registration_id: string;
+          p_source: string;
+          p_token_hash: string;
+        };
+        Returns: string;
+      };
+      issue_registration_answer_link_for_email: {
+        Args: {
+          p_email: string;
+          p_event_id: string;
+          p_ip_address: unknown;
+          p_tenant_id: string;
+          p_token_hash: string;
+        };
+        Returns: {
+          email: string;
+          expires_at: string;
+          name: string;
+          person_id: string;
+          registration_id: string;
+        }[];
       };
       link_person_to_auth_user: {
         Args: { p_person_id: string; p_user_id: string };
@@ -10982,6 +11195,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -11614,6 +11828,7 @@ export type Database = {
           paid_at: string | null;
           paid_by: string | null;
           paid_by_person_id: string | null;
+          participant_assistance: boolean;
           receipt_path: string | null;
           receipt_url: string | null;
           rejected_at: string | null;
@@ -11711,6 +11926,7 @@ export type Database = {
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
+          report_snapshot: Json | null;
           report_status: string;
           report_submitted_at: string | null;
           report_submitted_by: string | null;
@@ -11935,13 +12151,32 @@ export type Database = {
         }[];
       };
       retire_inventory_tags: {
-        Args: { p_note?: string; p_reason: string; p_tag_ids: string[] };
+        Args: {
+          p_allow_last?: boolean;
+          p_note?: string;
+          p_reason: string;
+          p_tag_ids: string[];
+        };
         Returns: {
           code: string;
+          item_id: string;
           outcome: string;
           released_from: string;
           tag_id: string;
         }[];
+      };
+      retire_item_asset_tag_codes: {
+        Args: { p_item_ids: string[]; p_note?: string; p_reason?: string };
+        Returns: {
+          code: string;
+          description: string;
+          item_id: string;
+          outcome: string;
+        }[];
+      };
+      return_gear_request_item: {
+        Args: { p_inventory_item_id: string; p_request_id: string };
+        Returns: undefined;
       };
       review_person_claim: {
         Args: {
@@ -12256,6 +12491,54 @@ export type Database = {
           p_topic: string;
         };
         Returns: string;
+      };
+      submit_event_report: {
+        Args: { p_id: string };
+        Returns: {
+          adults_only: boolean;
+          attendance_count: number | null;
+          attendance_notes: string | null;
+          auto_assign_discount_codes: boolean;
+          budget_amount: number | null;
+          capacity: number | null;
+          confirmation_note: string | null;
+          content_notes: string | null;
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          ends_at: string | null;
+          event_lead_id: string | null;
+          feedback_notes: string | null;
+          flier_url: string | null;
+          id: string;
+          lessons_learned: string | null;
+          location: string | null;
+          name: string;
+          registration_deadline: string | null;
+          registration_enabled: boolean;
+          registration_options_prompt: string | null;
+          report_reopen_reason: string | null;
+          report_reopened_at: string | null;
+          report_reopened_by: string | null;
+          report_snapshot: Json | null;
+          report_status: string;
+          report_submitted_at: string | null;
+          report_submitted_by: string | null;
+          report_summary: string | null;
+          starts_at: string;
+          status: string;
+          tenant_id: string;
+          timezone: string;
+          updated_at: string;
+          updated_by: string | null;
+          visibility: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "events";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       submit_person_claim: {
         Args: {

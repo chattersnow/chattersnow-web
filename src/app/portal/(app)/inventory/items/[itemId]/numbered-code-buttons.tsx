@@ -7,6 +7,7 @@ import { TagScanner } from "@/components/portal/tag-scanner";
 import { TooltipIconButton } from "@/components/portal/tooltip-icon-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import {
@@ -23,34 +25,64 @@ import {
 
 type Held = { code: string; scanned: string; holder: string };
 
+/** The toast once a numbered code is on the item. */
+export function assignedMessage(result: {
+  outcome: "assigned" | "already";
+  code: string;
+  retiredTagCodes: string[];
+}): string {
+  const assigned =
+    result.outcome === "already"
+      ? `${result.code} is already on this item.`
+      : `${result.code} is on this item now.`;
+  if (result.retiredTagCodes.length === 0) return assigned;
+  return `${assigned} ${result.retiredTagCodes.join(", ")} ${
+    result.retiredTagCodes.length === 1 ? "is" : "are"
+  } retired: take the old label off.`;
+}
+
 /**
  * Puts the numbered code in hand on this item (#1444): type it, or scan its
  * label or tag. A code another item holds is moved only after the person
- * says so. The item's current code, if any, comes off.
+ * says so. The item's current code, if any, comes off. An item that also has
+ * a random tag code is offered to retire it at the same time (#1544), on by
+ * default when the organization uses numbered codes only.
  */
 export function AssignNumberedCodeButton({
   itemId,
   current,
+  tagCode = null,
+  numberedOnly = false,
 }: {
   itemId: string;
   current: string | null;
+  /** The item's random asset-tag code, if it has one. */
+  tagCode?: string | null;
+  numberedOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [held, setHeld] = useState<Held | null>(null);
+  const [retireTagCode, setRetireTagCode] = useState(numberedOnly);
   const [isPending, startTransition] = useTransition();
 
   function reset(next: boolean) {
     setOpen(next);
     setMessage(null);
     setHeld(null);
+    setRetireTagCode(numberedOnly);
   }
 
   function assign(scanned: string, move = false) {
     setMessage(null);
     startTransition(async () => {
-      const result = await assignNumberedCodeAction(itemId, scanned, move);
+      const result = await assignNumberedCodeAction(
+        itemId,
+        scanned,
+        move,
+        !!tagCode && retireTagCode,
+      );
       if ("error" in result) {
         setMessage(result.error);
         return;
@@ -63,11 +95,8 @@ export function AssignNumberedCodeButton({
         });
         return;
       }
-      toast.success(
-        result.outcome === "already"
-          ? `${result.code} is already on this item.`
-          : `${result.code} is on this item now.`,
-      );
+      toast.success(assignedMessage(result));
+      if (result.retireError) toast.error(result.retireError);
       reset(false);
       router.refresh();
     });
@@ -123,6 +152,26 @@ export function AssignNumberedCodeButton({
                 idPrefix="assign-code"
               />
             )
+          )}
+          {tagCode && (
+            <Field orientation="horizontal">
+              <Checkbox
+                id="assign-code-retire-tag"
+                checked={retireTagCode}
+                onCheckedChange={(checked) =>
+                  setRetireTagCode(checked === true)
+                }
+              />
+              <div className="flex flex-col gap-1">
+                <FieldLabel htmlFor="assign-code-retire-tag">
+                  Retire its tag code too
+                </FieldLabel>
+                <FieldDescription>
+                  {tagCode} stops working, so the item has one code. Take its
+                  old label off.
+                </FieldDescription>
+              </div>
+            </Field>
           )}
           <div aria-live="polite">
             {message && (

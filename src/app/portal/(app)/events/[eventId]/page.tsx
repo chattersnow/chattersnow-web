@@ -10,7 +10,13 @@ import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
 import { toEventRegistrationQuestion } from "../registration-questions-draft";
-import { eventPhases, isTabValue, type TabValue } from "../event-tabs-config";
+import {
+  LEGACY_PHASE_CARDS,
+  LEGACY_TAB_VALUES,
+  eventGroups,
+  isTabValue,
+  type TabValue,
+} from "../event-tabs-config";
 import { eventCardTaskLabels, isPhaseKey } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { deviceClass } from "@/lib/portal/device";
@@ -65,15 +71,17 @@ export default async function EventDetailPage({
   // Resolved here rather than in the client view, so a card whose section this
   // reader has no access to -- or whose module this tenant was never sold
   // (#903) -- is absent from the payload rather than hidden in it.
-  const phases = eventPhases(permissions);
+  const groups = eventGroups(permissions);
 
   // Which section the rail opens on, resolved here so a card this reader has
   // no access to is never the answer. `?tab=` is the parameter the rail keeps
   // and every deep link already writes; `?card=` and `?phase=` are #958's two
   // tab levels, read so a bookmark from before the rail still lands where it
   // meant to (#1008).
-  const visible = phases.flatMap((phase) => phase.tabs);
-  const named = (value: string | undefined): TabValue | undefined => {
+  const visible = groups.flatMap((group) => group.tabs);
+  const named = (raw: string | undefined): TabValue | undefined => {
+    // A card merged into another (#1588) lands on the one it became.
+    const value = raw ? (LEGACY_TAB_VALUES[raw] ?? raw) : raw;
     if (!value || !isTabValue(value)) return undefined;
     return visible.some((section) => section.value === value)
       ? value
@@ -84,7 +92,7 @@ export default async function EventDetailPage({
     named(one(query.tab)) ??
     named(one(query.card)) ??
     (legacyPhase && isPhaseKey(legacyPhase)
-      ? phases.find((phase) => phase.key === legacyPhase)?.tabs[0]?.value
+      ? named(LEGACY_PHASE_CARDS[legacyPhase])
       : undefined) ??
     visible[0]?.value ??
     "overview";
@@ -92,7 +100,7 @@ export default async function EventDetailPage({
   const { data: eventRow, error } = await supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, confirmation_note, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, lessons_learned, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, column_label, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, confirmation_note, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, price, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, column_label, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
     )
     .eq("id", eventId)
     .maybeSingle<RawEventRow>();
@@ -134,7 +142,7 @@ export default async function EventDetailPage({
     programsResult,
     { data: deleteBlockers },
     { data: openChecklistItems },
-    { data: impactNote },
+    { data: retroItems },
   ] = await Promise.all([
     listProgramsAction(),
     // What, if anything, stops this event from being deleted -- so the delete
@@ -151,11 +159,12 @@ export default async function EventDetailPage({
       .select("title")
       .eq("event_id", eventId)
       .eq("is_done", false),
+    // The retro's two phase tasks (#1578): none written yet, and how many of
+    // its action items are still open.
     supabase
-      .from("event_impact_notes")
-      .select("event_id")
-      .eq("event_id", eventId)
-      .maybeSingle(),
+      .from("event_retro_items")
+      .select("kind, status")
+      .eq("event_id", eventId),
   ]);
 
   // Which shape the section rail takes, decided here rather than measured in
@@ -164,7 +173,10 @@ export default async function EventDetailPage({
   const device = await deviceClass();
   const programs = "data" in programsResult ? programsResult.data : [];
   const cardTasks = eventCardTaskLabels(event, {
-    hasImpactNote: Boolean(impactNote),
+    retroItemCount: retroItems?.length ?? 0,
+    openActionItemCount: (retroItems ?? []).filter(
+      (item) => item.kind === "action" && item.status === "open",
+    ).length,
     openChecklistTitles: (openChecklistItems ?? []).map((row) => row.title),
   });
 
@@ -178,7 +190,7 @@ export default async function EventDetailPage({
         programs={programs}
         canManage={canManage}
         deleteBlockers={deleteBlockers ?? []}
-        phases={phases}
+        groups={groups}
         initialCard={initialCard}
         cardTasks={cardTasks}
       />

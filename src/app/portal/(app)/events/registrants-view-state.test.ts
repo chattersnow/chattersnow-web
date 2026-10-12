@@ -37,6 +37,7 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: null,
     rider: null,
     ...overrides,

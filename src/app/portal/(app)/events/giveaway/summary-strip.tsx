@@ -1,5 +1,6 @@
 import type { Giveaway } from "../giveaway-actions";
 import type { GiveawayTierConfig } from "../giveaway-tier-actions";
+import { legacyGiveawayFigures } from "./ticket-sales";
 import { formatCurrency, formatCalendarDate } from "@/lib/format";
 
 /**
@@ -8,6 +9,9 @@ import { formatCurrency, formatCalendarDate } from "@/lib/format";
  * separate ticket-pool card, which between them spent most of a screen on six
  * values. Per-colour counts only appear once tickets have actually been
  * issued -- before that they are six zeroes saying nothing.
+ *
+ * Tickets sold and revenue are counted from the recorded ticket sales (#1577),
+ * not typed. A figure hand-entered before that is shown beneath, read-only.
  */
 export function GiveawaySummaryStrip({
   giveaway,
@@ -18,11 +22,17 @@ export function GiveawaySummaryStrip({
 }) {
   const issued = config?.totals ?? [];
   const hasTickets = issued.some((total) => total.quantity > 0);
+  const legacy = legacyGiveawayFigures(giveaway);
 
   const stats: { label: string; value: string }[] = [
-    { label: "Tickets sold", value: String(giveaway.tickets_sold) },
-    { label: "Ticket price", value: formatCurrency(giveaway.ticket_price) },
-    { label: "Revenue", value: formatCurrency(giveaway.revenue_amount) },
+    {
+      label: "Tickets sold",
+      value: config ? String(config.sales.ticketsSold) : "—",
+    },
+    {
+      label: "Revenue",
+      value: config ? formatCurrency(config.sales.revenue) : "—",
+    },
     { label: "Drawing date", value: formatCalendarDate(giveaway.drawing_date) },
     ...(hasTickets
       ? issued.map((total) => ({
@@ -48,6 +58,13 @@ export function GiveawaySummaryStrip({
           </div>
         ))}
       </dl>
+
+      {legacy && (
+        <p className="app-muted mt-3 text-xs">
+          Entered by hand before ticket sales were recorded:{" "}
+          {legacy.ticketsSold} tickets, {formatCurrency(legacy.revenue)}.
+        </p>
+      )}
 
       {giveaway.notes && (
         <p className="app-muted mt-4 border-t border-[var(--line)] pt-3 text-sm">

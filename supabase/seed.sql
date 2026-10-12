@@ -193,9 +193,16 @@ declare
   v_giveaway_id constant uuid := 'babababa-0000-4000-8000-000000000002';
   v_prize1 uuid;
   v_prize2 uuid;
+  v_giveaway_tier uuid;
+  v_giveaway_tier_silver uuid;
+  v_giveaway_tier_bronze uuid;
+  v_giveaway_package uuid;
+  v_sponsor_cash uuid;
   v_program_id constant uuid := 'babababa-0000-4000-8000-000000000001';
   v_shift_id uuid;
   v_registration_id uuid;
+  v_past_first_timer uuid;
+  v_past_returning uuid;
   v_calendar_promo_id constant uuid := 'ffffffff-0000-4000-8000-000000000001';
   v_calendar_recurring_id constant uuid := 'ffffffff-0000-4000-8000-000000000002';
   -- The series the "generate next year's instance" flow keys on.
@@ -388,8 +395,9 @@ begin
 
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item3, 'received', 1, 'Donation intake', v_admin_id);
-  insert into public.inventory_movements (id, inventory_item_id, movement_type, quantity, reason, event_id, created_by)
-  values (v_movement_distributed, v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_admin_id);
+  -- With a recipient, so the past event's Impact card has someone served (#1577).
+  insert into public.inventory_movements (id, inventory_item_id, movement_type, quantity, reason, event_id, recipient_person_id, created_by)
+  values (v_movement_distributed, v_item3, 'distributed', 1, 'Given out at trailhead cleanup', v_event_past, v_person_volunteer, v_admin_id);
   insert into public.inventory_movements (inventory_item_id, movement_type, quantity, reason, created_by)
   values (v_item4, 'received', 1, 'Donation intake', v_admin_id);
 
@@ -409,8 +417,10 @@ begin
   values (v_item5, 'reserved', 1, 'Public gear library request', v_person_volunteer, v_gear_request, v_admin_id);
 
   -- Giveaway for the past event: two prizes, one claimed winner.
-  insert into public.giveaways (id, event_id, name, tickets_sold, ticket_price, revenue_amount, drawing_date, created_by)
-  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', 142, 5.00, 710.00, (now() - interval '40 days')::date, v_admin_id);
+  -- Tickets sold and revenue come from the ticket sales below (#1577); the
+  -- retired hand-entered columns are left at their defaults.
+  insert into public.giveaways (id, event_id, name, drawing_date, created_by)
+  values (v_giveaway_id, v_event_past, 'Trailhead Cleanup Giveaway', (now() - interval '40 days')::date, v_admin_id);
 
   insert into public.giveaway_prizes (giveaway_id, prize_name, donor_person_id, estimated_value, created_by)
   values (v_giveaway_id, 'Weekend cabin stay', v_person_sponsor, 400.00, v_admin_id)
@@ -425,6 +435,83 @@ begin
 
   insert into public.giveaway_winners (giveaway_prize_id, winner_name, distribution_status, created_by)
   values (v_prize2, 'T. Nguyen', 'pending', v_admin_id);
+
+  -- The past event's Report card (#1576) computes every section from rows like
+  -- these, so the event carries one of each: raffle tickets sold through a
+  -- package, a paid expense beside the submitted one, a cash sponsorship whose
+  -- mirrored gift must count once (as sponsorship, not also as a donation), and
+  -- an incident.
+  -- The tiers, grants and rules are seed_giveaway_tiers' defaults, written
+  -- directly since the seed has no signed-in user to call it as. Tests that
+  -- call it on this giveaway rely on finding them (it is a no-op once tiers
+  -- exist), and the tenant-isolation suite needs a row in each table.
+  insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
+  values (v_giveaway_id, 'gold', 'Gold', 1, v_admin_id)
+  returning id into v_giveaway_tier;
+  insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
+  values (v_giveaway_id, 'silver', 'Silver', 2, v_admin_id)
+  returning id into v_giveaway_tier_silver;
+  insert into public.giveaway_tiers (giveaway_id, key, label, rank, created_by)
+  values (v_giveaway_id, 'bronze', 'Bronze', 3, v_admin_id)
+  returning id into v_giveaway_tier_bronze;
+
+  insert into public.giveaway_tier_grants (giveaway_id, source_tier_id, ticket_tier_id, quantity, created_by)
+  values
+    (v_giveaway_id, v_giveaway_tier, v_giveaway_tier, 3, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier, v_giveaway_tier_silver, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier, v_giveaway_tier_bronze, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_silver, v_giveaway_tier, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_silver, v_giveaway_tier_silver, 3, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_silver, v_giveaway_tier_bronze, 2, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier, 0, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier_silver, 1, v_admin_id),
+    (v_giveaway_id, v_giveaway_tier_bronze, v_giveaway_tier_bronze, 3, v_admin_id);
+
+  insert into public.giveaway_tier_rules (giveaway_id, tier_id, match_text, created_by)
+  select v_giveaway_id, v_giveaway_tier, unnest(array['ski', 'snowboard', 'splitboard']), v_admin_id
+  union all
+  select v_giveaway_id, v_giveaway_tier_silver, unnest(array['jacket', 'pant', 'bib', 'outerwear', 'shell']), v_admin_id
+  union all
+  select v_giveaway_id, v_giveaway_tier_bronze, unnest(array['beanie', 'thermal', 'helmet cover', 'base layer']), v_admin_id;
+
+  insert into public.giveaway_ticket_packages (giveaway_id, name, price, tier_id, bundle_quantity, created_by)
+  values (v_giveaway_id, '5 gold tickets', 20.00, v_giveaway_tier, 5, v_admin_id)
+  returning id into v_giveaway_package;
+
+  insert into public.giveaway_ticket_sales (giveaway_id, package_id, quantity, unit_price, amount, sold_at, created_by)
+  values
+    (v_giveaway_id, v_giveaway_package, 3, 20.00, 60.00, now() - interval '40 days', v_admin_id),
+    (v_giveaway_id, v_giveaway_package, 1, 20.00, 20.00, now() - interval '40 days', v_admin_id);
+
+  -- The tickets those sales issued, expanded through the tier matrix the way
+  -- record_giveaway_ticket_sale does, so the Giveaway card's "Tickets sold"
+  -- has grants to count (#1577).
+  insert into public.giveaway_ticket_grants (giveaway_id, ticket_tier_id, source_tier_id, quantity, sale_id, created_by)
+  select v_giveaway_id, g.ticket_tier_id, g.source_tier_id, g.quantity * pkg.bundle_quantity * sale.quantity, sale.id, v_admin_id
+  from public.giveaway_ticket_sales sale
+  join public.giveaway_ticket_packages pkg on pkg.id = sale.package_id
+  join public.giveaway_tier_grants g
+    on g.giveaway_id = sale.giveaway_id and g.source_tier_id = pkg.tier_id
+  where sale.giveaway_id = v_giveaway_id and g.quantity > 0;
+
+  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, status, created_by, submitted_by)
+  values (v_event_past, 'Dumpster rental', current_date - 40, 150.00, 'USD', 'Paid on the day.', 'paid', v_admin_id, v_admin_id);
+
+  insert into public.monetary_donations (donor_id, event_id, amount, method, received_date, notes, created_by)
+  values (v_person_sponsor, v_event_past, 250.00, 'other', current_date - 40, 'Cleanup sponsorship.', v_admin_id)
+  returning id into v_sponsor_cash;
+
+  insert into public.event_sponsors (
+    event_id, person_id, support_type, contribution_value, is_public, notes,
+    monetary_donation_id, follow_up_status, created_by
+  )
+  values (
+    v_event_past, v_person_sponsor, 'cash', 250.00, false,
+    'Cleanup sponsorship.', v_sponsor_cash, 'not_started', v_admin_id
+  );
+
+  insert into public.event_incidents (event_id, occurred_at, description, severity, reported_by)
+  values (v_event_past, now() - interval '40 days', 'Volunteer slipped on an icy step; first aid given on site.', 'minor', v_admin_id);
 
   -- Programs, event planning, volunteers, and attendance.
   insert into public.programs (id, name, description, status, created_by)
@@ -672,14 +759,96 @@ begin
   insert into public.discount_codes (event_id, code, description, source, registration_id, assigned_at, created_by)
   values (v_event_upcoming, 'SUMMIT-20', 'Twenty percent off partner gear', 'Summit Outdoor Co.', v_registration_id, now(), v_admin_id);
 
-  -- Only the figures with no system source are stored here now; participants,
-  -- first-time, beginner, volunteer and discount-code counts are derived
-  -- (20260904020000).
+  -- The four typed figures were archived by #1588: nothing writes them, and
+  -- the Results card shows these read-only as "Entered by hand (archived)",
+  -- beside the derived ones and never added to them. Only `notes` is still
+  -- written.
   insert into public.event_impact_notes (
     event_id, first_time_riders, rental_subsidies_count, assistance_total,
     beginner_pairings_count, notes, created_by
   )
   values (v_event_past, 14, 7, 480.00, 9, 'Participants especially valued loaner gear and peer support.', v_admin_id);
+
+  -- #1588: what the past event's Outcomes derive from, so the Results card
+  -- has every figure to show out of the box. Two checked-in riders whose level
+  -- was snapshotted at the door -- one first time on snow, one beginner --
+  -- each holding a code with a kind and value, plus a paid expense marked
+  -- participant assistance.
+  insert into public.event_registrations (
+    event_id, name, email, party_size, person_id, checked_in_at,
+    riding_discipline_at_event, ski_experience_level_at_event,
+    snowboard_experience_level_at_event
+  )
+  values (
+    v_event_past, 'Alex Chen', 'alex.chen@example.test', 1, v_person_donor2,
+    now() - interval '40 days', 'snowboard', null, 'first_time'
+  )
+  returning id into v_past_first_timer;
+
+  insert into public.event_registrations (
+    event_id, name, email, party_size, person_id, checked_in_at,
+    riding_discipline_at_event, ski_experience_level_at_event,
+    snowboard_experience_level_at_event
+  )
+  values (
+    v_event_past, 'Jamie Rivera', 'jamie.rivera@example.test', 1, v_person_donor1,
+    now() - interval '40 days', 'ski', 'beginner', null
+  )
+  returning id into v_past_returning;
+
+  insert into public.discount_codes (event_id, code, pin, description, source, kind, value, registration_id, assigned_at, created_by)
+  values
+    (v_event_past, 'TRAIL-RENT-1', '4821', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, v_past_first_timer, now() - interval '42 days', v_admin_id),
+    (v_event_past, 'TRAIL-LIFT-1', '9930', 'Half-day lift ticket', 'Bear Creek Resort', 'lift', 60.00, v_past_returning, now() - interval '42 days', v_admin_id),
+    (v_event_past, 'TRAIL-RENT-2', '1177', 'Free board and boot rental', 'Bear Creek Rentals', 'rental', 45.00, null, null, v_admin_id);
+
+  -- #1589: the past event asks Chatter Snow's question with priced options,
+  -- and the partner gave one shared code for everybody (50% off a ticket and
+  -- the ticket-and-gear bundle) with a PIN. Each registrant's answer copies
+  -- its price. Discount value offered: shared 50% of $130 + 50% of $80 =
+  -- $105; single-use TRAIL-LIFT-1 covers 100% of Jamie's $80 ticket, and
+  -- TRAIL-RENT-1 covers no option so falls back to its typed $45.
+  update public.events
+     set registration_options_prompt = 'What does each person need?'
+   where id = v_event_past;
+
+  insert into public.event_registration_options (event_id, label, sort_order, price)
+  values
+    (v_event_past, 'I''ll use my own', 0, null),
+    (v_event_past, 'I need a ticket', 1, 80.00),
+    (v_event_past, 'I need a ticket and gear', 2, 130.00);
+
+  insert into public.event_registration_option_counts (registration_id, option_id, label, sort_order, quantity, price)
+  select reg.id, o.id, o.label, o.sort_order, 1, o.price
+    from (values (v_past_first_timer, 'I need a ticket and gear'),
+                 (v_past_returning, 'I need a ticket')) as answer(registration_id, label)
+    join public.event_registrations reg on reg.id = answer.registration_id
+    join public.event_registration_options o
+      on o.event_id = v_event_past and o.label = answer.label;
+
+  insert into public.discount_codes (event_id, code, pin, shared, description, source, kind, created_by)
+  values (v_event_past, 'TRAIL-GROUP-50', '7731', true, 'Half off a lift ticket or ticket and gear', 'Bear Creek Resort', 'lift', v_admin_id);
+
+  insert into public.discount_code_options (code_id, option_id, percent_off)
+  select dc.id, o.id, cover.percent_off
+    from (values ('TRAIL-GROUP-50', 'I need a ticket', 50.00),
+                 ('TRAIL-GROUP-50', 'I need a ticket and gear', 50.00),
+                 ('TRAIL-LIFT-1', 'I need a ticket', 100.00)) as cover(code, label, percent_off)
+    join public.discount_codes dc on dc.event_id = v_event_past and dc.code = cover.code
+    join public.event_registration_options o
+      on o.event_id = v_event_past and o.label = cover.label;
+
+  insert into public.event_expenses (event_id, description, expense_date, amount, currency, notes, status, participant_assistance, created_by, submitted_by)
+  values (v_event_past, 'Ski rentals for two participants', current_date - 40, 90.00, 'USD', 'Paid at the rental counter.', 'paid', true, v_admin_id, v_admin_id);
+
+  -- The past event's retro (#1578): one of each kind, plus an action already
+  -- done, owned by the guide on its staff roster.
+  insert into public.event_retro_items (event_id, kind, body, area, author_id, owner_person_id, status, completed_at, created_at)
+  values
+    (v_event_past, 'went_well', 'Ability groups kept everyone moving; nobody waited long at the trailhead.', 'guests', v_admin_id, null, null, null, now() - interval '39 days'),
+    (v_event_past, 'improve', 'The sign-in table backed up at the start. Two greeters next time.', 'operations', v_admin_id, null, null, null, now() - interval '39 days'),
+    (v_event_past, 'action', 'Print the roster the night before rather than the morning of.', 'operations', v_admin_id, v_person_volunteer, 'open', null, now() - interval '39 days'),
+    (v_event_past, 'action', 'Send thank-you notes to the giveaway prize donors.', 'sponsors', v_admin_id, v_person_volunteer, 'done', now() - interval '35 days', now() - interval '39 days');
 
   -- Content and community calendar.
   insert into public.calendar_items (

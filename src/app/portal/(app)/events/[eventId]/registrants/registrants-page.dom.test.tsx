@@ -83,6 +83,7 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: null,
     rider: null,
     ...overrides,
@@ -131,8 +132,20 @@ function payload(
     registrationOptions: {
       prompt: "Do you need a ticket?",
       options: [
-        { id: "gear", label: "Need ticket and gear", cap: 10, taken: 1 },
-        { id: "none", label: "Don't need anything", cap: null, taken: 0 },
+        {
+          id: "gear",
+          label: "Need ticket and gear",
+          cap: 10,
+          price: null,
+          taken: 1,
+        },
+        {
+          id: "none",
+          label: "Don't need anything",
+          cap: null,
+          price: null,
+          taken: 0,
+        },
       ],
     },
     registrationQuestions: [],

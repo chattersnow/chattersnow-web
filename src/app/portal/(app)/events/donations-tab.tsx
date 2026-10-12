@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { donorDisplayName } from "@/lib/donor-label";
 import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
 import {
   listEventDonationsAction,
+  type EventCardDonationRow,
   type EventDonationRow,
 } from "../home/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,6 +24,7 @@ import {
 } from "@/components/portal/list-preview-sheet";
 import { formatCurrency, formatInstantDate } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import { InKindDonationsSummary } from "./card-summaries";
 
 /**
  * One donated item, carrying the two fields that live on the donation it
@@ -101,7 +104,7 @@ export function DonationsTab({
     data: donations,
     loadError,
     refresh,
-  } = useTabData<EventDonationRow[]>(
+  } = useTabData<EventCardDonationRow[]>(
     () => listEventDonationsAction(eventId),
     [eventId],
   );
@@ -116,9 +119,7 @@ export function DonationsTab({
         donation.inventory_items.map((item) => ({
           ...item,
           donatedAt: donation.donated_at,
-          donorLabel: donation.donor?.is_anonymous
-            ? "Anonymous"
-            : donation.donor?.name || "—",
+          donorLabel: donorDisplayName(donation.donor_id, donation.donor),
         })),
       ),
     [donations],
@@ -157,6 +158,15 @@ export function DonationsTab({
         />
       ) : (
         <>
+          <InKindDonationsSummary
+            items={(donations ?? []).flatMap((donation) =>
+              donation.inventory_items.map((item) => ({
+                face_value: item.face_value,
+                sponsor_id: donation.event_sponsors[0]?.id ?? null,
+                donor_id: donation.donor_id,
+              })),
+            )}
+          />
           <PortalDataTable
             columns={previewIsWholeList ? COLUMNS : PREVIEW_COLUMNS}
             rows={capped}

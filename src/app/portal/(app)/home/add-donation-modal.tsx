@@ -17,6 +17,8 @@ import type { ReceivedItemCode } from "./donation-core";
 import { GiveawayTicketSummary } from "./giveaway-ticket-summary";
 import { TagScanner } from "@/components/portal/tag-scanner";
 import { listEventOptionsAction } from "../events/actions";
+import { listPeopleAction, type PersonListItem } from "../people/actions";
+import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -62,14 +64,6 @@ import {
 } from "@/components/portal/portal-form-surface";
 import { usePortalDevice } from "@/lib/portal/device-context";
 
-const SOURCE_TYPES = [
-  { value: "individual", label: "Individual" },
-  { value: "brand", label: "Brand" },
-  { value: "organization", label: "Organization" },
-  { value: "event", label: "Event" },
-  { value: "other", label: "Other" },
-];
-
 const GENDERS = [
   { value: "unisex", label: "Unisex" },
   { value: "men", label: "Men" },
@@ -96,13 +90,12 @@ type SavedDonation = {
   labelsHref: string | null;
 };
 
+// A named donor is picked from People, not retyped (#1592), and an anonymous
+// donation has no donor at all -- so nothing here describes a person.
 const initialDonorState = {
   isAnonymous: false,
-  donorName: "",
-  donorEmail: "",
-  donorPhone: "",
-  sourceType: "",
-  donorNotes: "",
+  donor: null as PickedPerson | null,
+  notes: "",
 };
 
 type DonorState = typeof initialDonorState;
@@ -186,6 +179,7 @@ export function AddDonationModal({
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [grant, setGrant] = useState<DonationGiveawayGrant | null>(null);
   const [numberedOnly, setNumberedOnly] = useState(false);
+  const [people, setPeople] = useState<PersonListItem[]>([]);
   // Callers on a page that already queried events pass them in; the sidebar
   // quick action has none, so load them on open instead of silently dropping
   // the event picker.
@@ -211,6 +205,15 @@ export function AddDonationModal({
     if (!open) return;
     listInventoryCategoriesAction().then((result) => {
       if (!("error" in result)) setCategories(result.data);
+    });
+  }, [open]);
+
+  // The donor picker's directory. A reader who cannot list People still sees
+  // the picker, and can create the donor from it if they may create people.
+  useEffect(() => {
+    if (!open) return;
+    listPeopleAction().then((result) => {
+      if (!("error" in result)) setPeople(result.data);
     });
   }, [open]);
 
@@ -332,12 +335,8 @@ export function AddDonationModal({
   }
 
   function handleContinue() {
-    if (!donor.isAnonymous && !donor.donorName.trim()) {
-      setError("Donor name is required unless the donation is anonymous.");
-      return;
-    }
-    if (!donor.sourceType) {
-      setError("Select a donor source.");
+    if (!donor.isAnonymous && !donor.donor) {
+      setError("Pick a donor, or mark the donation anonymous.");
       return;
     }
     setError(null);
@@ -350,11 +349,8 @@ export function AddDonationModal({
 
     const payload: CreateDonationInput = {
       isAnonymous: donor.isAnonymous,
-      donorName: donor.donorName,
-      donorEmail: donor.donorEmail,
-      donorPhone: donor.donorPhone,
-      sourceType: donor.sourceType,
-      donorNotes: donor.donorNotes,
+      donorId: donor.isAnonymous ? undefined : donor.donor?.id,
+      notes: donor.notes,
       items: items.map((item) => ({
         description: item.description,
         size: item.size || undefined,
@@ -508,80 +504,35 @@ export function AddDonationModal({
                   <Checkbox
                     id="isAnonymous"
                     checked={donor.isAnonymous}
-                    onCheckedChange={(checked) =>
-                      updateDonor("isAnonymous", Boolean(checked))
-                    }
+                    onCheckedChange={(checked) => {
+                      // Anonymous means no donor, so a picked one is dropped
+                      // rather than kept out of sight and sent anyway.
+                      updateDonor("isAnonymous", Boolean(checked));
+                      if (checked) updateDonor("donor", null);
+                    }}
                   />
                   <FieldLabel htmlFor="isAnonymous">Anonymous donor</FieldLabel>
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="donorName" required={!donor.isAnonymous}>
-                    Donor name
-                  </FieldLabel>
-                  <Input
-                    id="donorName"
-                    required={!donor.isAnonymous}
-                    disabled={donor.isAnonymous}
-                    value={donor.donorName}
-                    onChange={(event) =>
-                      updateDonor("donorName", event.target.value)
-                    }
-                  />
-                </Field>
-
-                <Field orientation="responsive">
+                {!donor.isAnonymous && (
                   <Field>
-                    <FieldLabel htmlFor="donorEmail">Donor email</FieldLabel>
-                    <Input
-                      id="donorEmail"
-                      type="email"
-                      disabled={donor.isAnonymous}
-                      value={donor.donorEmail}
-                      onChange={(event) =>
-                        updateDonor("donorEmail", event.target.value)
+                    <FieldLabel htmlFor="donor" required>
+                      Donor
+                    </FieldLabel>
+                    <PersonPicker
+                      id="donor"
+                      required
+                      people={people}
+                      selected={donor.donor}
+                      onSelect={(person) => updateDonor("donor", person)}
+                      onPersonCreated={(person) =>
+                        setPeople((prev) => [...prev, person])
                       }
+                      newPersonRole="is_donor"
+                      placeholder="Search donors by name or email..."
                     />
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="donorPhone">Donor phone</FieldLabel>
-                    <Input
-                      id="donorPhone"
-                      type="tel"
-                      disabled={donor.isAnonymous}
-                      value={donor.donorPhone}
-                      onChange={(event) =>
-                        updateDonor("donorPhone", event.target.value)
-                      }
-                    />
-                  </Field>
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="sourceType">Donor source</FieldLabel>
-                  <Select
-                    value={donor.sourceType || null}
-                    onValueChange={(value) =>
-                      updateDonor("sourceType", value ?? "")
-                    }
-                  >
-                    <SelectTrigger id="sourceType" className="w-full">
-                      <SelectValue placeholder="Select a source">
-                        {(value: string) =>
-                          SOURCE_TYPES.find((option) => option.value === value)
-                            ?.label ?? "Select a source"
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SOURCE_TYPES.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                )}
 
                 {showEventPicker && (
                   <Field>
@@ -618,12 +569,12 @@ export function AddDonationModal({
                 )}
 
                 <Field>
-                  <FieldLabel htmlFor="donorNotes">Donor notes</FieldLabel>
+                  <FieldLabel htmlFor="donationNotes">Notes</FieldLabel>
                   <Textarea
-                    id="donorNotes"
-                    value={donor.donorNotes}
+                    id="donationNotes"
+                    value={donor.notes}
                     onChange={(event) =>
-                      updateDonor("donorNotes", event.target.value)
+                      updateDonor("notes", event.target.value)
                     }
                   />
                 </Field>

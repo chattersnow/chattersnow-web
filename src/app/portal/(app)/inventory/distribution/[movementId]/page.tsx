@@ -7,6 +7,8 @@ import {
 } from "@/lib/auth/permissions";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ItemHistoryRow } from "../../items/[itemId]/item-history";
+import { acknowledgementFromHistory } from "./acknowledgement";
 import {
   DistributionDetailView,
   type DistributionDetailRow,
@@ -43,14 +45,25 @@ export default async function DistributionDetailPage({
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
-  const { data: movement, error } = await supabase
-    .from("inventory_movements")
-    .select(
-      "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name, email, phone)",
-    )
-    .eq("id", movementId)
-    .eq("movement_type", "distributed")
-    .maybeSingle();
+  const [{ data: movement, error }, { data: events }] = await Promise.all([
+    supabase
+      .from("inventory_movements")
+      .select(
+        "id, quantity, occurred_at, reason, inventory_item:inventory_items(id, description, type, size, inventory_categories(key, label)), event:events(id, name), recipient:people(id, name, email, phone)",
+      )
+      .eq("id", movementId)
+      .eq("movement_type", "distributed")
+      .maybeSingle(),
+    // A capped, newest-first list for the edit sheet's event picker, the
+    // same one the donation detail page uses.
+    canManage
+      ? supabase
+          .from("events")
+          .select("id, name")
+          .order("starts_at", { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   if (error) {
     return (
@@ -63,6 +76,16 @@ export default async function DistributionDetailPage({
   }
   if (!movement) notFound();
 
+  const itemId = (movement as unknown as DistributionDetailRow).inventory_item
+    ?.id;
+  // The item's history resolves the as-is acknowledgement (#1519), including
+  // one carried by the gear request the handout fulfilled.
+  const { data: history } = itemId
+    ? await supabase
+        .rpc("inventory_item_history", { p_item_id: itemId })
+        .overrideTypes<ItemHistoryRow[], { merge: false }>()
+    : { data: null };
+
   return (
     <>
       <PortalBreadcrumbs
@@ -74,7 +97,9 @@ export default async function DistributionDetailPage({
 
       <DistributionDetailView
         movement={movement as unknown as DistributionDetailRow}
+        acknowledgement={acknowledgementFromHistory(history, movementId)}
         canManage={canManage}
+        events={events ?? []}
       />
     </>
   );

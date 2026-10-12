@@ -41,7 +41,12 @@ export function afterStatus(event: EventRow): PhaseStatus {
 }
 
 export type EventTaskKind =
-  "planning" | "attendance" | "report" | "impact" | "checklist";
+  | "planning"
+  | "attendance"
+  | "report"
+  | "retro"
+  | "retro_actions"
+  | "checklist";
 
 export type EventPhaseTask = {
   kind: Exclude<EventTaskKind, "checklist">;
@@ -50,9 +55,13 @@ export type EventPhaseTask = {
   tab: TabValue;
 };
 
+// "Impact not recorded" folded into the report task (#1588): every impact
+// figure is derived, so "recorded" can only mean the report.
 export type EventPhaseSignals = {
-  /** Whether an event_impact_notes row exists for this event. */
-  hasImpactNote: boolean;
+  /** How many event_retro_items this event has (#1578). */
+  retroItemCount?: number;
+  /** This event's own action items still open (#1578). */
+  openActionItemCount?: number;
 };
 
 /**
@@ -62,15 +71,15 @@ export type EventPhaseSignals = {
  * Shared by the dashboard's Outstanding tasks list and the event detail page's
  * section rail so the two can't disagree about what's left to do.
  *
- * `includeImpact` is off by default: the rule is useful on the event page, but
- * switching it on for the dashboard would add an outstanding task to every past
- * event at once the day it ships.
+ * `includeRetro` is off by default: the rule is useful on the event page, but
+ * switching it on for the dashboard would add an outstanding task to every
+ * past event at once the day it shipped.
  */
 export function deriveEventPhaseTasks(
   event: EventRow,
   signals: EventPhaseSignals,
   now: Date = new Date(),
-  options: { includeImpact?: boolean } = {},
+  options: { includeRetro?: boolean } = {},
 ): EventPhaseTask[] {
   const tasks: EventPhaseTask[] = [];
   const hasStarted = new Date(event.starts_at) <= now;
@@ -95,15 +104,31 @@ export function deriveEventPhaseTasks(
     tasks.push({
       kind: "report",
       taskLabel: "After-report not started",
-      tab: "report",
+      tab: "results",
     });
   }
 
-  if (options.includeImpact && hasStarted && !signals.hasImpactNote) {
+  // A submitted report freezes the retro, so an empty one stops being work
+  // anyone can do; open action items can still be closed, so they stay.
+  if (
+    options.includeRetro &&
+    hasStarted &&
+    afterStatus(event) !== "done" &&
+    signals.retroItemCount === 0
+  ) {
     tasks.push({
-      kind: "impact",
-      taskLabel: "Impact not recorded",
-      tab: "impact",
+      kind: "retro",
+      taskLabel: "Retro not started",
+      tab: "results",
+    });
+  }
+
+  const openActions = signals.openActionItemCount ?? 0;
+  if (options.includeRetro && openActions > 0) {
+    tasks.push({
+      kind: "retro_actions",
+      taskLabel: `${openActions} open action item${openActions === 1 ? "" : "s"}`,
+      tab: "results",
     });
   }
 
@@ -132,7 +157,7 @@ export function eventCardTaskLabels(
   };
 
   for (const task of deriveEventPhaseTasks(event, signals, now, {
-    includeImpact: true,
+    includeRetro: true,
   })) {
     push(task.tab, task.taskLabel);
   }

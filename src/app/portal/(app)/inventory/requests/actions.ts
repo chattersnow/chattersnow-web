@@ -139,6 +139,9 @@ const EDIT_ERROR_MESSAGES: Record<string, string> = {
   ITEM_NOT_HELD: "This request is not holding that item.",
   LAST_ITEM:
     "This is the last item on the request. Cancel the request instead.",
+  REQUEST_NOT_FULFILLED: "Only a fulfilled request can have items returned.",
+  ITEM_NOT_HANDED_OVER:
+    "That item was not handed over on this request, or has moved on since.",
 };
 
 /** Signed in and holding inventory:manage, or the sentence saying why not. */
@@ -211,6 +214,25 @@ export async function removeGearRequestItemAction(
     requestId,
     (supabase) =>
       supabase.rpc("remove_gear_request_item", {
+        p_request_id: requestId,
+        p_inventory_item_id: itemId,
+      }),
+    true,
+  );
+}
+
+/**
+ * Put an item from a fulfilled request back on the shelf when it was not
+ * actually handed over (#1567). The request stays fulfilled.
+ */
+export async function returnGearRequestItemAction(
+  requestId: string,
+  itemId: string,
+): Promise<GearRequestActionResult> {
+  return editGearRequest(
+    requestId,
+    (supabase) =>
+      supabase.rpc("return_gear_request_item", {
         p_request_id: requestId,
         p_inventory_item_id: itemId,
       }),

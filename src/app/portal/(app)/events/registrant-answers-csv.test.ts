@@ -91,9 +91,9 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,Leaving from,Instagram",
-      'Jamie Rivera,2,Need a ride,"Burlington, VT",jamie.rides',
-      "Sam Lee,1,,,jamie.rides",
+      "Name,Party size,Getting there,Leaving from,Answers changed,Instagram",
+      'Jamie Rivera,2,Need a ride,"Burlington, VT",,jamie.rides',
+      "Sam Lee,1,,,,jamie.rides",
     ]);
     expect(csv).not.toContain("jamie@example.test");
     expect(csv).not.toContain("555-0100");
@@ -122,10 +122,24 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,OK to share my contact details with our partner,Instagram,Email,Phone",
-      "Jamie Rivera,2,,Yes,jamie.rides,jamie@example.test,555-0100",
-      "Declined,2,,No,declined.ig,,",
-      "Never asked,2,,,jamie.rides,,",
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Answers changed,Instagram,Email,Phone",
+      "Jamie Rivera,2,,Yes,,jamie.rides,jamie@example.test,555-0100",
+      "Declined,2,,No,,declined.ig,,",
+      "Never asked,2,,,,jamie.rides,,",
+    ]);
+  });
+
+  test("when the registrant last changed their answers, blank where they never have (#1591)", () => {
+    const csv = registrantAnswersCsv(
+      [GETTING_THERE],
+      [
+        registration({ answers_changed_at: "2026-10-12T15:04:05.000Z" }),
+        registration({ name: "Sam Lee", answers_changed_at: null }),
+      ],
+    );
+    expect(lines(csv).slice(1)).toEqual([
+      "Jamie Rivera,2,,2026-10-12T15:04:05.000Z,jamie.rides",
+      "Sam Lee,2,,,jamie.rides",
     ]);
   });
 
@@ -210,9 +224,9 @@ describe("registrantAnswersCsv rider columns", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,OK to share my contact details with our partner,Rides,Ski level,Snowboard level,Instagram,Email,Phone",
-      "Jamie Rivera,2,,Yes,Both,Advanced,Beginner,jamie.rides,jamie@example.test,555-0100",
-      "Sam Lee,1,,,,,,jamie.rides,,",
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Answers changed,Rides,Ski level,Snowboard level,Instagram,Email,Phone",
+      "Jamie Rivera,2,,Yes,,Both,Advanced,Beginner,jamie.rides,jamie@example.test,555-0100",
+      "Sam Lee,1,,,,,,,jamie.rides,,",
     ]);
   });
 
@@ -221,7 +235,9 @@ describe("registrantAnswersCsv rider columns", () => {
       [GETTING_THERE],
       [registration({ rider: RIDER })],
     );
-    expect(lines(csv)[0]).toBe("Name,Party size,Getting there,Instagram");
+    expect(lines(csv)[0]).toBe(
+      "Name,Party size,Getting there,Answers changed,Instagram",
+    );
     expect(csv).not.toContain("Advanced");
   });
 });

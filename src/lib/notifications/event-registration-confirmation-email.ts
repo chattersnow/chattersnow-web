@@ -18,6 +18,8 @@ import { renderEventIcs } from "@/lib/notifications/event-ics";
 import { EVENT_REGISTRATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
 import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
+import { formatCodeWithPin } from "@/lib/discount-codes";
+import { CHANGE_ANSWERS_LINK_LABEL } from "@/lib/registration-answer-requests";
 
 /**
  * The confirmation a registrant gets after signing up for a public event
@@ -33,8 +35,12 @@ import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
  * before the slots existed.
  *
  * Modelled on gear-request-confirmation-email.ts. Like that one it is addressed
- * to the person the row is about rather than to staff, and like that one it
- * carries no "change what you get" link: there is no account to change it in.
+ * to the person the row is about rather than to staff. Unlike it, it carries a
+ * "Change your answers" link where the event asks registration questions
+ * (#1591): #1502's capability link, minted when the registration was taken,
+ * so a registrant with no account can correct an answer without registering
+ * a second time. There is still no "change what you get" link for anything
+ * else: there is no account to change it in.
  *
  * It deliberately echoes back neither the phone number nor the notes, for the
  * reason the gear confirmation omits the postal address: they typed both a
@@ -85,11 +91,22 @@ export type EventRegistrationConfirmation = {
   answers?: { prompt: string; answer: string }[];
   /**
    * events.confirmation_note: the organizer's paragraph for everyone who
-   * registers for this one event -- a shared discount code, what to bring.
+   * registers for this one event -- what to bring, where to park.
    * Blank or omitted renders nothing. Unlike the slots it has no tokens and
    * no platform default; it is the event's, not the tenant's.
    */
   note?: string | null;
+  /**
+   * The event's shared discount code and its PIN (#1589), the same for every
+   * registrant. Omitted or null renders no row.
+   */
+  sharedCode?: { code: string; pin: string | null } | null;
+  /**
+   * The registrant's own answers link (#1591), absolute and token included,
+   * and when it stops working. Omitted or null -- an event with no questions,
+   * or a link that could not be issued -- renders nothing.
+   */
+  answersLink?: { url: string; expiresAt: string } | null;
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -123,6 +140,10 @@ export function renderEventRegistrationConfirmationEmail(
   const note = confirmation.note?.trim() ?? "";
   const calendarNote =
     "A calendar file is attached, so you can add it to your own calendar.";
+  const answersLink = confirmation.answersLink ?? null;
+  const answersLinkNote = answersLink
+    ? `Plans changed? You can change your answers until ${inEventZone(answersLink.expiresAt, confirmation.timeZone)}. The link is just for you, so please don't forward it.`
+    : "";
 
   // The rows sit against the intro with no blank line between them, so the
   // two are one block.
@@ -147,6 +168,9 @@ export function renderEventRegistrationConfirmationEmail(
     words.greeting,
     details,
     answersText,
+    answersLink
+      ? `${CHANGE_ANSWERS_LINK_LABEL}: ${answersLink.url}\n${answersLinkNote}`
+      : "",
     note,
     `Event details: ${url}`,
     calendarNote,
@@ -179,6 +203,12 @@ export function renderEventRegistrationConfirmationEmail(
     copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
     `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${rowsHtml}\n  </ul>`,
     answersHtml,
+    answersLink
+      ? [
+          `  <p style="margin: 0 0 4px;"><a href="${escapeHtml(answersLink.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(CHANGE_ANSWERS_LINK_LABEL)}</a></p>`,
+          `  <p style="color: ${palette.muted}; font-size: 14px; margin: 0 0 20px;">${escapeHtml(answersLinkNote)}</p>`,
+        ].join("\n")
+      : "",
     copyParagraphHtml(note, "margin: 0 0 20px;"),
     `  <p style="margin: 0 0 12px;"><a href="${escapeHtml(url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">See the event page</a></p>`,
     `  <p style="margin: 0 0 12px;">${escapeHtml(calendarNote)}</p>`,
@@ -238,6 +268,9 @@ function detailRows(
         .map((option) => `${option.quantity} × ${option.label}`)
         .join(", "),
     ]);
+  }
+  if (confirmation.sharedCode) {
+    rows.push(["Discount code", formatCodeWithPin(confirmation.sharedCode)]);
   }
   return rows;
 }

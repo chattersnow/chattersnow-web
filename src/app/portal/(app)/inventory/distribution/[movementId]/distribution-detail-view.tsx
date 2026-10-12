@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { categoryLabelFor, flattenCategory } from "@/lib/inventory";
+import { itemHref } from "../../items/inventory-shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup } from "@/components/ui/field";
 import { ReadOnlyField } from "@/components/ui/read-only-field";
@@ -6,6 +8,56 @@ import { EditDistributionSheet } from "./edit-distribution-sheet";
 import { DeleteDistributionButton } from "./delete-distribution-button";
 import { personDisplayName } from "@/lib/format";
 import { ViewerTime } from "@/components/viewer-time";
+import {
+  acknowledgementMethodPhrase,
+  isSkippedReason,
+  SKIPPED_REASON_LABELS,
+} from "@/lib/distribution-acknowledgement";
+import type { DistributionAcknowledgement } from "./acknowledgement";
+
+/** "No phone", or "Other — had to catch a bus". */
+function skippedReasonText(acknowledgement: DistributionAcknowledgement) {
+  const reason = acknowledgement.skippedReason;
+  if (!reason) return null;
+  const label = isSkippedReason(reason)
+    ? SKIPPED_REASON_LABELS[reason]
+    : reason;
+  return acknowledgement.skippedNote
+    ? `${label} — ${acknowledgement.skippedNote}`
+    : label;
+}
+
+/** Whether the recipient acknowledged the gear as-is, by what name and how --
+ *  or the reason staff recorded the handout without it (#1519). */
+function AcknowledgementValue({
+  acknowledgement,
+}: {
+  acknowledgement: DistributionAcknowledgement | null;
+}) {
+  if (!acknowledgement) return <>Not recorded</>;
+  const skipped = skippedReasonText(acknowledgement);
+  if (!acknowledgement.acknowledgedAt) {
+    return <>{`Not acknowledged: ${skipped}`}</>;
+  }
+  const how = acknowledgementMethodPhrase(acknowledgement.method);
+  return (
+    <>
+      {"Acknowledged "}
+      {how && `${how} `}
+      {"on "}
+      <ViewerTime iso={acknowledgement.acknowledgedAt} fallbackZone="UTC" />
+      <span className="block">
+        {`Name typed: ${acknowledgement.typedName ?? "—"}`}
+      </span>
+      {skipped && (
+        // Recorded with a reason, then acknowledged afterwards by emailed link.
+        <span className="app-muted block text-sm">
+          {`At the handout: ${skipped}`}
+        </span>
+      )}
+    </>
+  );
+}
 
 export type DistributionDetailRow = {
   id: string;
@@ -28,12 +80,21 @@ export type DistributionDetailRow = {
   } | null;
 };
 
+export type DistributionEventOption = NonNullable<
+  DistributionDetailRow["event"]
+>;
+
 export function DistributionDetailView({
   movement,
+  acknowledgement = null,
   canManage,
+  events = [],
 }: {
   movement: DistributionDetailRow;
+  acknowledgement?: DistributionAcknowledgement | null;
   canManage: boolean;
+  /** Events the distribution can be linked to, newest first. */
+  events?: DistributionEventOption[];
 }) {
   return (
     <>
@@ -52,7 +113,7 @@ export function DistributionDetailView({
 
       {canManage && (
         <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-[var(--line)] p-4 shadow-md">
-          <EditDistributionSheet movement={movement} />
+          <EditDistributionSheet movement={movement} events={events} />
           <DeleteDistributionButton
             movementId={movement.id}
             itemDescription={
@@ -72,7 +133,18 @@ export function DistributionDetailView({
           <CardContent>
             <FieldGroup>
               <ReadOnlyField label="Item" htmlFor="distribution-item-view">
-                {movement.inventory_item?.description ?? "—"}
+                {movement.inventory_item ? (
+                  // The item's own page is where its details (face value,
+                  // condition, photo) are edited.
+                  <Link
+                    href={itemHref(movement.inventory_item.id)}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {movement.inventory_item.description}
+                  </Link>
+                ) : (
+                  "—"
+                )}
               </ReadOnlyField>
               <ReadOnlyField
                 label="Item category"
@@ -117,6 +189,12 @@ export function DistributionDetailView({
                 htmlFor="distribution-recipient-view"
               >
                 {personDisplayName(movement.recipient)}
+              </ReadOnlyField>
+              <ReadOnlyField
+                label="Given as-is"
+                htmlFor="distribution-as-is-view"
+              >
+                <AcknowledgementValue acknowledgement={acknowledgement} />
               </ReadOnlyField>
               <ReadOnlyField
                 label="Reason / notes"

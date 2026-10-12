@@ -71,6 +71,7 @@ describe("parseExpenseForm", () => {
         receipt_path: null,
         notes: "Reimbursed",
         paid_by_person_id: "person-1",
+        participant_assistance: false,
       },
     });
   });
@@ -104,5 +105,28 @@ describe("parseRejectReason", () => {
     expect(parseRejectReason("  Missing receipt  ")).toEqual({
       data: "Missing receipt",
     });
+  });
+});
+
+// #1588: paid assistance expenses count toward an event's assistance.
+describe("participant assistance", () => {
+  const base = {
+    description: "Rentals for three riders",
+    expenseDate: "2026-01-01",
+    amount: "90",
+  };
+
+  test("is read from the checkbox on an event's expense", () => {
+    const result = parseExpenseForm(
+      formData({ ...base, eventId: "event-1", participantAssistance: "on" }),
+    );
+    expect("data" in result && result.data.participant_assistance).toBe(true);
+  });
+
+  test("is never set on an expense with no event", () => {
+    const result = parseExpenseForm(
+      formData({ ...base, participantAssistance: "on" }),
+    );
+    expect("data" in result && result.data.participant_assistance).toBe(false);
   });
 });

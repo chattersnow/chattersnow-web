@@ -261,19 +261,45 @@ describe("countSubsidizedTickets", () => {
   });
 });
 
+const EMPTY = {
+  eventCount: 0,
+  events: [],
+  distributedMovements: [],
+  volunteerHours: [],
+  registrations: [],
+  checkinCounts: [],
+  discountCodes: [],
+  eventVolunteers: [],
+  volunteerHourPeople: [],
+  beginnerAttendees: [],
+  firstTimeAttendees: [],
+  profiledAttendees: [],
+  assistanceExpenses: [],
+  offeredCodes: [],
+  optionCounts: [],
+};
+
 describe("computeProgramImpactRollup", () => {
   test("aggregates all metrics from fixture rows", () => {
     const events = [
       { event_id: "e1", attendance_count: 12 },
       { event_id: "e2", attendance_count: null },
     ];
-    const notes = [
-      { event_id: "e1", rental_subsidies_count: 2, assistance_total: "150.00" },
-      { event_id: "e2", rental_subsidies_count: 0, assistance_total: 50 },
-    ];
     const distributedMovements = [
-      { quantity: 6, event_id: "e1" },
-      { quantity: 4, event_id: "e2" },
+      {
+        quantity: 6,
+        event_id: "e1",
+        recipient_person_id: "p1",
+        inventory_item_id: "i1",
+        face_value: "30.00",
+      },
+      {
+        quantity: 4,
+        event_id: "e2",
+        recipient_person_id: "p1",
+        inventory_item_id: "i2",
+        face_value: 20,
+      },
     ];
     const volunteerHours = [
       { event_id: "e1", hours: 10 },
@@ -290,9 +316,11 @@ describe("computeProgramImpactRollup", () => {
     ];
     const checkinCounts = [{ person_id: "p1", checked_in_event_count: 1 }];
     const discountCodes = [
-      { event_id: "e1", registration_id: "r1" },
+      { event_id: "e1", registration_id: "r1", kind: "rental", value: "45" },
       { event_id: "e2", registration_id: null },
     ];
+    const assistanceExpenses = [{ event_id: "e2", amount: "100" }];
+    const firstTimeAttendees = [{ event_id: "e2", person_id: "p1" }];
     // p3 both signed up and logged hours on e1, so he counts once there.
     const eventVolunteers = [
       { event_id: "e1", person_id: "p3" },
@@ -307,12 +335,30 @@ describe("computeProgramImpactRollup", () => {
       { event_id: "e2", person_id: "p1" },
       { event_id: "e1", person_id: "p2" },
     ];
+    // e2's shared code takes 50% off the $80 option p1's party of two chose.
+    const offeredCodes = [
+      {
+        event_id: "e2",
+        code_id: "shared-e2",
+        shared: true,
+        registration_id: null,
+        options: [{ option_id: "o1", percent_off: "50", price: "80" }],
+      },
+    ];
+    const optionCounts = [
+      {
+        event_id: "e2",
+        registration_id: "r-p1",
+        option_id: "o1",
+        quantity: 2,
+        price: "80.00",
+      },
+    ];
 
     expect(
       computeProgramImpactRollup({
         eventCount: 2,
         events,
-        notes,
         distributedMovements,
         volunteerHours,
         registrations,
@@ -321,7 +367,11 @@ describe("computeProgramImpactRollup", () => {
         eventVolunteers,
         volunteerHourPeople,
         beginnerAttendees,
+        firstTimeAttendees,
         profiledAttendees,
+        assistanceExpenses,
+        offeredCodes,
+        optionCounts,
       }),
     ).toEqual({
       eventCount: 2,
@@ -329,59 +379,62 @@ describe("computeProgramImpactRollup", () => {
       checkedIn: 1, // only p1 on e2 is marked in at the door
       firstTimeParticipants: 1, // p1's only checked-in event ever
       beginnerParticipants: 1,
+      firstTimeOnSnow: 1,
       profiledAttendees: 2,
       volunteerParticipants: 3, // e1: p3 + p5 (p3 deduped across both sources), e2: p4
-      assistedParticipants: 3, // 1 assigned discount code + 2 rental_subsidies_count
+      assistedParticipants: 1, // the one assigned code; typed notes are archived (#1588)
+      rentalSubsidies: 1,
       equipmentDistributed: 10,
+      distributionRecipients: 2, // p1 at e1 and again at e2
+      distributedValue: 50,
       volunteerHours: 15.5,
-      participantAssistanceTotal: 200,
+      // $45 code + $50 given out + $100 paid for participants.
+      participantAssistance: {
+        discountCodes: 45,
+        distributions: 50,
+        expenses: 100,
+        total: 195,
+      },
+      // Offered, never added to assistance above.
+      discountValueOffered: {
+        shared: 80,
+        singleUse: 0,
+        total: 80,
+        codes: [
+          { codeId: "shared-e2", shared: true, value: 80, derived: true },
+        ],
+      },
       repeatParticipants: 1,
     });
   });
 
-  test("treats a null column on an impact note as 0, not NaN", () => {
-    const events = [{ event_id: "e1", attendance_count: null }];
-    const notes = [
-      {
-        event_id: "e1",
-        rental_subsidies_count: null,
-        assistance_total: null,
-      },
-    ];
+  test("never counts codes on an event that auto-assigns them", () => {
     const result = computeProgramImpactRollup({
-      eventCount: 1,
-      events,
-      notes,
-      distributedMovements: [],
-      volunteerHours: [],
-      registrations: [],
-      checkinCounts: [],
-      discountCodes: [],
-      eventVolunteers: [],
-      volunteerHourPeople: [],
-      beginnerAttendees: [],
-      profiledAttendees: [],
+      ...EMPTY,
+      eventCount: 2,
+      events: [
+        { event_id: "e1", attendance_count: null },
+        {
+          event_id: "e2",
+          attendance_count: null,
+          auto_assign_discount_codes: true,
+        },
+      ],
+      discountCodes: [
+        { event_id: "e1", registration_id: "r1", kind: "rental", value: 10 },
+        { event_id: "e2", registration_id: "r2", kind: "rental", value: 10 },
+      ],
     });
-    expect(result.participants).toBe(0);
-    expect(result.participantAssistanceTotal).toBe(0);
-    expect(Number.isNaN(result.assistedParticipants)).toBe(false);
+    expect(result.assistedParticipants).toBe(1);
+    expect(result.rentalSubsidies).toBe(1);
+    expect(result.participantAssistance.discountCodes).toBe(10);
   });
 
-  test("an event with no impact_notes row yet contributes 0 across the board", () => {
-    const events = [{ event_id: "e1", attendance_count: null }];
+  test("an event with nothing recorded yet contributes 0 across the board", () => {
     const result = computeProgramImpactRollup({
+      ...EMPTY,
       eventCount: 1,
-      events,
-      notes: [],
-      distributedMovements: [],
-      volunteerHours: [],
-      registrations: [],
-      checkinCounts: [],
-      discountCodes: [],
-      eventVolunteers: [],
-      volunteerHourPeople: [],
-      beginnerAttendees: [],
-      profiledAttendees: [],
+      events: [{ event_id: "e1", attendance_count: null }],
     });
     expect(result.eventCount).toBe(1);
     expect(result.participants).toBe(0);

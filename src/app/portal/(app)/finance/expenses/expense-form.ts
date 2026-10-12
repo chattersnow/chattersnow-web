@@ -11,6 +11,7 @@ export type ExpenseFormData = {
   receipt_path: string | null;
   notes: string | null;
   paid_by_person_id: string | null;
+  participant_assistance: boolean;
 };
 
 export function parseExpenseForm(
@@ -23,6 +24,7 @@ export function parseExpenseForm(
   const currency = String(formData.get("currency") ?? "USD").trim() || "USD";
   const notes = String(formData.get("notes") ?? "").trim();
   const paidByPersonId = String(formData.get("paidByPersonId") ?? "").trim();
+  const participantAssistance = formData.get("participantAssistance") === "on";
 
   if (!description) return { error: "Description is required." };
   if (!expenseDate) return { error: "Expense date is required." };
@@ -45,6 +47,8 @@ export function parseExpenseForm(
       ...receipt.data,
       notes: notes || null,
       paid_by_person_id: paidByPersonId || null,
+      // Assistance is help given at an event, so it needs one (#1588).
+      participant_assistance: Boolean(eventId) && participantAssistance,
     },
   };
 }

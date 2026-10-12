@@ -44,8 +44,8 @@ afterEach(() => {
 function giveawayForm() {
   const fd = new FormData();
   fd.set("name", "Season pass giveaway");
+  // Retired hand-entered figures (#1577): sent anyway, to show they are ignored.
   fd.set("ticketsSold", "42");
-  fd.set("ticketPrice", "5");
   fd.set("revenueAmount", "210");
   return fd;
 }
@@ -127,7 +127,9 @@ describe("giveaway actions (integration)", () => {
 
     const loaded = await getEventGiveawayAction(event.id);
     if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
-    expect(loaded.data.tickets_sold).toBe(42);
+    expect(loaded.data.name).toBe("Season pass giveaway");
+    expect(loaded.data.tickets_sold).toBe(0);
+    expect(Number(loaded.data.revenue_amount)).toBe(0);
 
     expect(
       await createGiveawayPrizeAction(loaded.data.id, null, prizeForm()),

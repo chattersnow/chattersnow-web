@@ -300,6 +300,7 @@ async function readFinanceActivity(
     in_kind_items: raw.in_kind_items ?? [],
     monetary_donations: raw.monetary_donations ?? [],
     sales: raw.sales ?? [],
+    giveaway_ticket_sales: raw.giveaway_ticket_sales ?? [],
   });
 
   const outstandingRows = (reimbursements?.data ?? []) as AmountRow[];

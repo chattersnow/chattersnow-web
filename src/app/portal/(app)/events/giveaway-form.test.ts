@@ -14,60 +14,20 @@ function formData(fields: Record<string, string>) {
 describe("parseGiveawayForm", () => {
   test("parses valid input", () => {
     const result = parseGiveawayForm(
-      formData({ name: "50/50", ticketsSold: "10", revenueAmount: "100" }),
+      formData({ name: "50/50", drawingDate: "2026-12-01", notes: " Cash " }),
     );
     expect(result).toEqual({
-      data: {
-        name: "50/50",
-        ticketsSold: 10,
-        ticketPrice: null,
-        revenueAmount: 100,
-        drawingDate: null,
-        notes: null,
-      },
+      data: { name: "50/50", drawingDate: "2026-12-01", notes: "Cash" },
     });
   });
 
-  test("rejects a negative tickets sold", () => {
-    expect(parseGiveawayForm(formData({ ticketsSold: "-1" }))).toEqual({
-      error: "Tickets sold must be a whole number of 0 or more.",
-    });
-  });
-
-  test("rejects a non-integer tickets sold", () => {
-    expect(parseGiveawayForm(formData({ ticketsSold: "1.5" }))).toEqual({
-      error: "Tickets sold must be a whole number of 0 or more.",
-    });
-  });
-
-  test("rejects a negative revenue amount", () => {
-    expect(parseGiveawayForm(formData({ revenueAmount: "-5" }))).toEqual({
-      error: "Revenue must be a positive number.",
-    });
-  });
-
-  test("rejects a negative ticket price", () => {
-    expect(parseGiveawayForm(formData({ ticketPrice: "-5" }))).toEqual({
-      error: "Ticket price must be a positive number.",
-    });
-  });
-
-  test("accepts a valid ticket price", () => {
+  test("ignores the retired hand-entered sales figures (#1577)", () => {
     const result = parseGiveawayForm(
-      formData({
-        name: "50/50",
-        ticketsSold: "10",
-        revenueAmount: "100",
-        ticketPrice: "5",
-      }),
+      formData({ ticketsSold: "-1", ticketPrice: "x", revenueAmount: "-5" }),
     );
-    expect("data" in result && result.data.ticketPrice).toBe(5);
-  });
-
-  test("defaults tickets sold and revenue when omitted", () => {
-    const result = parseGiveawayForm(formData({}));
-    expect("data" in result && result.data.ticketsSold).toBe(0);
-    expect("data" in result && result.data.revenueAmount).toBe(0);
+    expect(result).toEqual({
+      data: { name: null, drawingDate: null, notes: null },
+    });
   });
 });
 

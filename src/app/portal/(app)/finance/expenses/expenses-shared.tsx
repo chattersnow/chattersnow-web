@@ -38,6 +38,8 @@ export type ExpenseRow = {
   /** A short-lived signed URL for `receipt_path`, minted server-side. */
   receipt_signed_url: string | null;
   notes: string | null;
+  /** Spent directly on participants; counts toward event assistance (#1588). */
+  participant_assistance: boolean;
   events: { name: string } | null;
   status: ExpenseStatus;
   submitted_by: string;
@@ -68,7 +70,7 @@ export type ExpenseActor = {
 export const CURRENCIES = [{ value: "USD", label: "USD" }];
 
 export const EXPENSE_COLUMNS =
-  "id, event_id, description, expense_date, amount, currency, receipt_url, receipt_path, notes, events(name), status, submitted_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, paid_by, paid_at, paid_by_person_id, paid_by_person:people!event_expenses_paid_by_person_id_fkey(name, preferred_name, email), source_reimbursements:reimbursements!reimbursements_source_expense_id_fkey(id, status)";
+  "id, event_id, description, expense_date, amount, currency, receipt_url, receipt_path, notes, participant_assistance, events(name), status, submitted_by, approved_by, approved_at, rejected_by, rejected_at, rejection_reason, paid_by, paid_at, paid_by_person_id, paid_by_person:people!event_expenses_paid_by_person_id_fkey(name, preferred_name, email), source_reimbursements:reimbursements!reimbursements_source_expense_id_fkey(id, status)";
 
 export type ExpenseApprovalContext = ApprovalContext;
 

@@ -126,10 +126,12 @@ describe("inventory_item_history", () => {
     expect(donated.recorded_by_name).toBeTruthy();
   });
 
-  test("a reader with inventory but not donations access sees that it was donated, not by whom", async () => {
-    // The board role is `none` across inventory, finance and people. Granting
-    // it the inventory catalog alone leaves `donations` (finance:view,
-    // inventory:manage or inventory_intake:manage) unreadable.
+  test("a reader with inventory but not people access sees the donation, not who gave it", async () => {
+    // The board role is `none` across inventory, finance and people, but
+    // reads `people` through reimbursement_approvals:manage, so that is
+    // closed for the test. Granting inventory_reports:view makes `donations`
+    // readable (#1572, so an event's Donations card works for it) while
+    // `people` stays closed, so the donor is the part that stays hidden.
     const { data: board } = await adminClient
       .from("roles")
       .select("id")
@@ -138,16 +140,22 @@ describe("inventory_item_history", () => {
     const { data: resources } = await adminClient
       .from("resources")
       .select("id, key")
-      .in("key", ["inventory", "inventory_reports"]);
-    if (!board || !resources?.length) {
-      throw new Error("expected the board role and inventory resources");
+      .in("key", ["inventory", "inventory_reports", "reimbursement_approvals"]);
+    if (!board || resources?.length !== 3) {
+      throw new Error("expected the board role and three resources");
     }
+    const reimbursements = resources.find(
+      (resource) => resource.key === "reimbursement_approvals",
+    )!;
+    const inventory = resources.filter(
+      (resource) => resource !== reimbursements,
+    );
 
     const grant = await adminClient.from("role_permissions").upsert(
       resources.map((resource) => ({
         role_id: board.id,
         resource_id: resource.id,
-        level: "view",
+        level: resource === reimbursements ? "none" : "view",
       })),
       { onConflict: "role_id,resource_id" },
     );
@@ -160,13 +168,14 @@ describe("inventory_item_history", () => {
 
       expect(rows).toHaveLength(3);
       expect(donated).toMatchObject({
-        donation_id: null,
-        donor_id: null,
+        donation_id: donationId,
+        // The donation's own donor_id (#1592): set, so the reader can tell a
+        // donor it cannot see from an anonymous donation, which has none.
+        donor_id: expect.any(String),
         donor_name: null,
-        donated_on: null,
         intake_route: "intake_form",
       });
-      // The intake movement still dates the entry for this reader.
+      expect(donated!.donated_on).toBeTruthy();
       expect(donated!.occurred_at).toBeTruthy();
     } finally {
       await adminClient
@@ -175,8 +184,13 @@ describe("inventory_item_history", () => {
         .eq("role_id", board.id)
         .in(
           "resource_id",
-          resources.map((resource) => resource.id),
+          inventory.map((resource) => resource.id),
         );
+      await adminClient
+        .from("role_permissions")
+        .update({ level: "manage" })
+        .eq("role_id", board.id)
+        .eq("resource_id", reimbursements.id);
     }
   });
 

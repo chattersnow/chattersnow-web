@@ -27,6 +27,16 @@ describe("renderRegistrationAnswersRequestEmail", () => {
     expect(email.html).toContain("white-space: pre-line;");
   });
 
+  test("words the link as asked (#1591)", () => {
+    const email = renderRegistrationAnswersRequestEmail({
+      ...REQUEST,
+      linkLabel: "Change your answers",
+    });
+    expect(email.text).toContain(`Change your answers: ${REQUEST.url}`);
+    expect(email.html).toContain(">Change your answers</a>");
+    expect(email.text).not.toContain("Answer the questions");
+  });
+
   test("tells them the link is theirs and repeats nothing else", () => {
     const email = renderRegistrationAnswersRequestEmail(REQUEST);
     expect(email.text).toContain("This link is just for you");

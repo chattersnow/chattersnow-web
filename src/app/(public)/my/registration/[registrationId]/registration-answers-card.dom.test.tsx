@@ -129,7 +129,7 @@ describe("RegistrationAnswersCard", () => {
     ).toBeTruthy();
   });
 
-  test("reads back the stored words once registration has closed", () => {
+  test("reads back the stored words once the event has ended", () => {
     renderCard({
       editable: false,
       initialAnswers: { "q-from": "Burlington", "q-share": true },
@@ -139,6 +139,6 @@ describe("RegistrationAnswersCard", () => {
     expect(screen.getByText("Burlington")).toBeTruthy();
     expect(screen.getByText("Yes")).toBeTruthy();
     expect(screen.getByText("Not answered")).toBeTruthy();
-    expect(screen.getByText(/Registration has closed/)).toBeTruthy();
+    expect(screen.getByText(/This event has ended/)).toBeTruthy();
   });
 });

@@ -25,6 +25,8 @@ import {
 } from "@/lib/notifications/submission-emails";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
+import type { IssuedAnswersLink } from "@/lib/notifications/registration-answer-self-links";
+import { publicEventAnswersPath } from "@/app/(public)/events/event-path";
 import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
 import { renderContactMessageConfirmationEmail } from "@/lib/notifications/contact-message-confirmation-email";
 import { renderArtworkSubmissionConfirmationEmail } from "@/lib/notifications/artwork-submission-confirmation-email";
@@ -1030,6 +1032,12 @@ export async function sendEventRegistrationConfirmation(
      * resolves one of its own, so the caller already knows who it reached.
      */
     onRendered?: (email: RenderedEmail) => void;
+    /**
+     * The registrant's own answers link (#1591), issued by the caller --
+     * issueConfirmationAnswersLink() -- so the success screen can show the
+     * same one. Absent or null renders no link.
+     */
+    answersLink?: IssuedAnswersLink | null;
   },
 ): Promise<DeliveryOutcome> {
   const { data, error } = await admin
@@ -1060,39 +1068,51 @@ export async function sendEventRegistrationConfirmation(
   // (tenant_id, id) foreign key, so an embed could not name its tenant -- and on
   // the service-role client there is no policy underneath to catch a mistake.
   // Inside the same Promise.all it costs no latency.
-  const [event, mail, reply, optionCounts, answerRows] = await Promise.all([
-    admin
-      .from("events")
-      .select("name, starts_at, ends_at, location, timezone, confirmation_note")
-      .eq("id", data.event_id)
-      .eq("tenant_id", data.tenant_id)
-      .maybeSingle<ConfirmationEventRow>(),
-    tenantMailContext(admin, data.tenant_id, {
-      fallbackOrigin: options.siteUrl,
-    }),
-    resolveAutoReply(
-      admin,
-      data.tenant_id,
-      EVENT_REGISTRATION_CONFIRMATION_KIND,
-    ),
-    // #1407. The answer to the event's registration question, echoed back so
-    // a party can check it. A failed read leaves the row out rather than
-    // holding up the receipt.
-    admin
-      .from("event_registration_option_counts")
-      .select("label, quantity, sort_order")
-      .eq("registration_id", data.id)
-      .eq("tenant_id", data.tenant_id)
-      .order("sort_order", { ascending: true }),
-    // #1501. The answers to the event's registration questions, in the words
-    // they were given in, for the same reason and with the same tolerance.
-    admin
-      .from("event_registration_answers")
-      .select("prompt_as_shown, answer_text, sort_order")
-      .eq("registration_id", data.id)
-      .eq("tenant_id", data.tenant_id)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const [event, mail, reply, optionCounts, answerRows, sharedCode] =
+    await Promise.all([
+      admin
+        .from("events")
+        .select(
+          "name, starts_at, ends_at, location, timezone, confirmation_note",
+        )
+        .eq("id", data.event_id)
+        .eq("tenant_id", data.tenant_id)
+        .maybeSingle<ConfirmationEventRow>(),
+      tenantMailContext(admin, data.tenant_id, {
+        fallbackOrigin: options.siteUrl,
+      }),
+      resolveAutoReply(
+        admin,
+        data.tenant_id,
+        EVENT_REGISTRATION_CONFIRMATION_KIND,
+      ),
+      // #1407. The answer to the event's registration question, echoed back so
+      // a party can check it. A failed read leaves the row out rather than
+      // holding up the receipt.
+      admin
+        .from("event_registration_option_counts")
+        .select("label, quantity, sort_order")
+        .eq("registration_id", data.id)
+        .eq("tenant_id", data.tenant_id)
+        .order("sort_order", { ascending: true }),
+      // #1501. The answers to the event's registration questions, in the words
+      // they were given in, for the same reason and with the same tolerance.
+      admin
+        .from("event_registration_answers")
+        .select("prompt_as_shown, answer_text, sort_order")
+        .eq("registration_id", data.id)
+        .eq("tenant_id", data.tenant_id)
+        .order("sort_order", { ascending: true }),
+      // #1589. The event's shared code and PIN, the same for every registrant,
+      // with the same tolerance: a failed read leaves the row out.
+      admin
+        .from("discount_codes")
+        .select("code, pin")
+        .eq("event_id", data.event_id)
+        .eq("tenant_id", data.tenant_id)
+        .eq("shared", true)
+        .maybeSingle<{ code: string; pin: string | null }>(),
+    ]);
 
   // The second of the three gates, after the org-wide kill switch above. A
   // registrant has no account and so no opt-out of their own; switching this
@@ -1141,6 +1161,13 @@ export async function sendEventRegistrationConfirmation(
             }),
           ),
           note: registered.confirmation_note,
+          sharedCode: sharedCode.data ?? null,
+          answersLink: options.answersLink
+            ? {
+                url: `${mail.origin.replace(/\/+$/, "")}${publicEventAnswersPath(data.event_id, options.answersLink.token)}`,
+                expiresAt: options.answersLink.expiresAt,
+              }
+            : null,
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,

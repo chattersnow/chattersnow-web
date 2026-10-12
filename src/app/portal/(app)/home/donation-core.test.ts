@@ -96,9 +96,9 @@ describe("createDonation", () => {
     expect(result).toEqual({
       error: {
         code: "invalid_input",
-        message: "Donor name is required unless the donation is anonymous.",
+        message: "Pick a donor, or mark the donation anonymous.",
         fields: {
-          donorName: "Donor name is required unless the donation is anonymous.",
+          donorId: "Pick a donor, or mark the donation anonymous.",
         },
       },
     });
