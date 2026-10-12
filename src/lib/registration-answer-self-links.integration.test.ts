@@ -172,10 +172,14 @@ describe("the link issued with a registration", () => {
 
     const e = await event();
     const cancelled = await registration(e.eventId);
-    await service
+    const { error: cancelError } = await service
       .from("event_registrations")
-      .update({ cancelled_at: new Date().toISOString() })
+      .update({
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: "not_attending",
+      })
       .eq("id", cancelled.id);
+    if (cancelError) throw cancelError;
     expect((await issue(cancelled.id)).expiresAt).toBeNull();
 
     expect((await issue(crypto.randomUUID())).expiresAt).toBeNull();
