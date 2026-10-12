@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 import type { DeviceClass } from "@/proxy";
 
-const PortalDeviceContext = createContext<DeviceClass>("desktop");
+const PortalDeviceContext = createContext<DeviceClass | null>(null);
 
 /**
  * The layout's device class, made readable from any client component (#1115).
@@ -40,5 +40,16 @@ export function PortalDeviceProvider({
 }
 
 export function usePortalDevice(): DeviceClass {
+  return useContext(PortalDeviceContext) ?? "desktop";
+}
+
+/**
+ * The server's answer, or `null` outside the portal layout. Only for a
+ * primitive that renders on both sites and needs to tell "the portal said
+ * desktop" from "nobody said anything" -- `SheetContent` falls back to the
+ * viewport on the public site, whose CDN-cached pages carry no device class
+ * (#1561). Everything in the portal wants `usePortalDevice()`.
+ */
+export function useServerDevice(): DeviceClass | null {
   return useContext(PortalDeviceContext);
 }

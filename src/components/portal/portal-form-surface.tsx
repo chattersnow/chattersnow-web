@@ -37,16 +37,8 @@ const SIZE_CLASS = {
 
 export type PortalFormSurfaceSize = keyof typeof SIZE_CLASS;
 
-/**
- * The phone sheet's own classes, for a form that cannot sit inside this
- * component (a multi-step sheet whose desktop branch stays a right-hand
- * sheet) but must still open as the same bottom drawer. See the branch below
- * for why each one is spelled the way it is.
- */
-export const MOBILE_FORM_SHEET_CLASS =
-  "data-[side=bottom]:h-[92dvh] rounded-t-xl";
-export const MOBILE_FORM_SHEET_FOOTER_CLASS =
-  "pb-[max(env(safe-area-inset-bottom),1rem)]";
+/** The phone sheet's height and corners; see the branch below for the spelling. */
+const MOBILE_FORM_SHEET_CLASS = "data-[side=bottom]:h-[92dvh] rounded-t-xl";
 
 /**
  * The cancel button a footer renders, in either branch.
@@ -220,15 +212,8 @@ export function PortalFormSurface({
             >
               {children}
             </div>
-            {/* `max(env(...), 1rem)` rather than the inset alone, for the reason
-                spelled out on the tab bar in `shell/mobile-nav.tsx`: `env()`
-                safe-area insets resolve to 0 until a page opts in with
-                `viewport-fit=cover`, which this app does not. The constant
-                clears the home indicator today and the inset takes over by
-                itself if that is ever turned on. */}
-            <SheetFooter className={MOBILE_FORM_SHEET_FOOTER_CLASS}>
-              {footer}
-            </SheetFooter>
+            {/* `SheetFooter` clears the home indicator on any bottom sheet. */}
+            <SheetFooter>{footer}</SheetFooter>
           </form>
         </SheetContent>
       ) : (
@@ -247,5 +232,56 @@ export function PortalFormSurface({
         </DialogContent>
       )}
     </Dialog>
+  );
+}
+
+export type PortalFormPopupProps = {
+  title: ReactNode;
+  description?: ReactNode;
+  size?: PortalFormSurfaceSize;
+  device?: DeviceClass;
+  /** A form that owns its own `<form>` and buttons. */
+  children: ReactNode;
+};
+
+/**
+ * The popup half of `PortalFormSurface`, for a form component that renders its
+ * own `<form>` and buttons -- shared with an inline or page use, so it cannot
+ * hand them over (#1561). Goes inside the caller's `Dialog` root in place of
+ * `DialogContent`: the same bottom drawer on a phone, the same centred dialog
+ * at a desk. The form's buttons scroll with it rather than pinning; a form
+ * that can give them up belongs on `PortalFormSurface`.
+ */
+export function PortalFormPopup({
+  title,
+  description,
+  size = "lg",
+  device: deviceOverride,
+  children,
+}: PortalFormPopupProps) {
+  const contextDevice = usePortalDevice();
+  const device = deviceOverride ?? contextDevice;
+
+  return device === "mobile" ? (
+    <SheetContent side="bottom" className={MOBILE_FORM_SHEET_CLASS}>
+      <SheetHeader>
+        <SheetTitle>{title}</SheetTitle>
+        {description && <SheetDescription>{description}</SheetDescription>}
+      </SheetHeader>
+      <div
+        data-slot="portal-form-surface-body"
+        className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
+      >
+        {children}
+      </div>
+    </SheetContent>
+  ) : (
+    <DialogContent className={SIZE_CLASS[size]}>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        {description && <DialogDescription>{description}</DialogDescription>}
+      </DialogHeader>
+      {children}
+    </DialogContent>
   );
 }

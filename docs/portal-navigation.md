@@ -186,17 +186,22 @@ Three surfaces, three answers, decided once so no call site re-opens them.
   footer, because a dialog pins its footer with `sticky` and a sheet pins it
   with `mt-auto` inside a fixed-height column — incompatible layouts that a
   call site should not have to pick between.
-- **On a phone, every form slides up from the bottom** — the 92dvh sheet with a
-  rounded top and a pinned, safe-area-padded footer — whatever it is at a desk.
-  A form that cannot sit inside `PortalFormSurface` (a multi-step right-hand
-  sheet such as "Accept a donation") forks `side` on `usePortalDevice()` and
-  takes `MOBILE_FORM_SHEET_CLASS` / `MOBILE_FORM_SHEET_FOOTER_CLASS` from the
-  surface rather than restating them. The audit of existing forms is #1561.
+- **On a phone there are no side sheets — anywhere on the platform.** Every
+  sheet, portal or public — form, detail, preview, filter, nav menu — slides up
+  from the bottom as a 92dvh drawer with a rounded top and a safe-area-padded
+  footer. `SheetContent` decides it itself (#1561), so a `side` prop is the
+  desktop answer and no call site forks on the device: in the portal the
+  device is the server's (`usePortalDevice()`'s source), and on the public
+  site, whose pages are cached per host and carry no device class, it is the
+  viewport. A form component that owns its own `<form>` and buttons, and so
+  cannot sit in `PortalFormSurface`, goes in `PortalFormPopup` inside its
+  `Dialog` root — the same drawer on a phone, the same dialog at a desk.
 - **A destructive confirm is an `AlertDialog`, centred on both.** It is a
   question, not a task. Giving two lines 92% of a phone screen overstates it,
   and it lands "Delete" under the thumb that was on "Cancel" a moment ago.
-- **A preview, picker or read-only detail stays whatever it is** — `Dialog` for
-  the short ones, `Sheet` for the long ones, `ListPreviewSheet`
+- **A preview, picker or read-only detail stays whatever it is** at a desk —
+  `Dialog` for the short ones, `Sheet` for the long ones (a bottom drawer on a
+  phone, like every sheet), `ListPreviewSheet`
   (`src/components/portal/list-preview-sheet.tsx`) for the overflow half of a
   capped list. `PortalFormSurface`'s whole value is form wiring; nothing else
   gains from it.
