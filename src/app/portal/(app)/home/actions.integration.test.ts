@@ -10,6 +10,7 @@ import {
   anonClient,
   cleanupDonation,
   createDonation,
+  createPerson,
   createPublishedEvent,
   signIn,
 } from "../../../../../test/integration-setup";
@@ -141,6 +142,136 @@ describe("createDonationAction (integration)", () => {
 });
 
 const DENIED = { error: "You don't have permission to perform this action." };
+
+// #1592: an anonymous gift has no donor, and a named one is picked rather
+// than retyped -- so neither path adds a `people` row.
+describe("create_donation_with_items donor (integration)", () => {
+  async function peopleCount() {
+    const { count } = await adminClient
+      .from("people")
+      .select("id", { count: "exact", head: true });
+    return count ?? 0;
+  }
+
+  test("anonymous donations add no people and list as having no donor", async () => {
+    const event = await createPublishedEvent();
+    const eventId = event.id;
+    const before = await peopleCount();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const result = await createDonationAction(
+        donationInput({ isAnonymous: true, donorName: "", eventId }),
+      );
+      expect(result).toMatchObject({ success: true });
+      if ("donationId" in result) ids.push(result.donationId);
+    }
+
+    expect(await peopleCount()).toBe(before);
+    const listed = await listEventDonationsAction(eventId);
+    expect("data" in listed && listed.data.map((row) => row.donor_id)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+
+    for (const id of ids) await cleanupDonation(id);
+    await event.cleanup();
+  });
+
+  test("a picked person is the donor, and no person is added", async () => {
+    const person = await createPerson();
+    const before = await peopleCount();
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const result = await createDonationAction(
+      donationInput({ donorId: person.id, donorName: "" }),
+    );
+
+    expect(result).toMatchObject({ success: true });
+    expect(await peopleCount()).toBe(before);
+    const donationId = "donationId" in result ? result.donationId : "";
+    const { data } = await adminClient
+      .from("donations")
+      .select("donor_id")
+      .eq("id", donationId)
+      .single();
+    expect(data?.donor_id).toBe(person.id);
+
+    // Deletes the person too, since it is the donation's donor.
+    await cleanupDonation(donationId);
+  });
+
+  test("a donor typed in with an email is created once, then matched", async () => {
+    const email = `intake-${crypto.randomUUID()}@example.com`;
+    currentSupabase = await signIn(SEEDED_USERS.finance);
+
+    const first = await createDonationAction(
+      donationInput({ donorEmail: email }),
+    );
+    const second = await createDonationAction(
+      donationInput({ donorEmail: email }),
+    );
+    const ids = [first, second].map((result) =>
+      "donationId" in result ? result.donationId : "",
+    );
+    const { data } = await adminClient
+      .from("donations")
+      .select("donor_id")
+      .in("id", ids);
+    const donors = new Set((data ?? []).map((row) => row.donor_id));
+    expect(donors.size).toBe(1);
+    expect([...donors][0]).toEqual(expect.any(String));
+
+    await cleanupDonation(ids[1]);
+    await cleanupDonation(ids[0]);
+  });
+
+  test("refuses a donor that is not a person of this tenant", async () => {
+    const client = await signIn(SEEDED_USERS.finance);
+    const { error } = await client.rpc("create_donation_with_items", {
+      p_donor_name: "",
+      p_donor_is_anonymous: false,
+      p_donor_source_type: "individual",
+      p_donor_email: "",
+      p_donor_phone: "",
+      p_donor_notes: "",
+      p_donor_id: crypto.randomUUID(),
+      p_items: [
+        {
+          description: "Winter coat",
+          category_key: "jacket",
+          condition: "good",
+        },
+      ],
+    });
+    expect(error?.message).toBe("Donor not found");
+  });
+
+  test("refuses an anonymous donation that names a donor", async () => {
+    const person = await createPerson();
+    const client = await signIn(SEEDED_USERS.finance);
+    const { error } = await client.rpc("create_donation_with_items", {
+      p_donor_name: "",
+      p_donor_is_anonymous: true,
+      p_donor_source_type: "individual",
+      p_donor_email: "",
+      p_donor_phone: "",
+      p_donor_notes: "",
+      p_donor_id: person.id,
+      p_items: [
+        {
+          description: "Winter coat",
+          category_key: "jacket",
+          condition: "good",
+        },
+      ],
+    });
+    expect(error?.message).toBe("An anonymous donation has no donor");
+    await person.cleanup();
+  });
+});
 
 describe("listEventDonationsAction (integration)", () => {
   test("an anonymous session cannot list donations", async () => {

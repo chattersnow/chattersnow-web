@@ -1,3 +1,4 @@
+import { donorDisplayName } from "@/lib/donor-label";
 import { flattenCategory } from "@/lib/inventory";
 import {
   CONDITIONS,
@@ -45,20 +46,23 @@ export type DonationRow = {
   donated_at: string;
   notes: string | null;
   event_id: string | null;
+  /** Null for an anonymous donation (#1592). */
+  donor_id: string | null;
+  /** Null when there is no donor, or the reader cannot see the person. */
   donor: {
     id: string;
     name: string | null;
     is_anonymous: boolean;
     source_type: string;
-  };
+  } | null;
   event: { id: string; name: string } | null;
   inventory_items: DonationItemRow[];
 };
 
 export type EventOption = { id: string; name: string };
 
-export function donorLabel(donor: DonationRow["donor"]) {
-  return donor.is_anonymous ? "Anonymous" : donor.name || "—";
+export function donorLabel(donation: Pick<DonationRow, "donor_id" | "donor">) {
+  return donorDisplayName(donation.donor_id, donation.donor);
 }
 
 /**

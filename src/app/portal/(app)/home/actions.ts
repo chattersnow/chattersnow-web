@@ -110,6 +110,8 @@ export type EventDonationRow = {
   id: string;
   donated_at: string;
   notes: string | null;
+  /** Null for an anonymous donation (#1592). */
+  donor_id: string | null;
   donor: { name: string | null; is_anonymous: boolean } | null;
   inventory_items: {
     id: string;
@@ -125,7 +127,6 @@ export type EventDonationRow = {
 
 /** An event card's donation, with what its summary needs (#1586). */
 export type EventCardDonationRow = EventDonationRow & {
-  donor_id: string | null;
   /** Set when the donation is a sponsorship's in-kind mirror. */
   event_sponsors: { id: string }[];
 };
@@ -173,7 +174,7 @@ export async function listRecentDonationsAction(
   const { data, error } = await supabase
     .from("donations")
     .select(
-      "id, donated_at, notes, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
+      "id, donated_at, notes, donor_id, donor:people(name, is_anonymous), inventory_items(id, description, type, size, condition, face_value, status, inventory_categories(key, label))",
     )
     // The tiebreaker matters most here: `donated_at` ties per day and this
     // query takes only `limit` rows, so without it a donation entered seconds

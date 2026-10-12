@@ -13,6 +13,7 @@ import {
   DashboardSectionCard,
   DashboardStatRow,
 } from "./dashboard-section-card";
+import { donorDisplayName } from "@/lib/donor-label";
 import { meetingTypeLabels, SectionLabel } from "./dashboard-chrome";
 import type { DashboardData } from "./dashboard-data";
 
@@ -244,9 +245,7 @@ export function HomeDesktop({
                       className="flex items-center justify-between py-2 text-sm"
                     >
                       <span>
-                        {donation.donor?.is_anonymous || !donation.donor?.name
-                          ? "Anonymous"
-                          : donation.donor.name}
+                        {donorDisplayName(donation.donor_id, donation.donor)}
                       </span>
                       <span className="app-muted">
                         {formatCalendarDate(donation.donated_at)} ·{" "}

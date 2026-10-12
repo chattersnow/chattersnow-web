@@ -15,11 +15,50 @@ const validInput: CreateDonationInput = {
 };
 
 describe("parseDonationInput", () => {
-  test("requires a donor name unless anonymous", () => {
+  test("requires a donor unless anonymous", () => {
     expect(parseDonationInput({ ...validInput, donorName: "" })).toEqual({
-      error: "Donor name is required unless the donation is anonymous.",
-      field: "donorName",
+      error: "Pick a donor, or mark the donation anonymous.",
+      field: "donorId",
     });
+  });
+
+  test("passes a picked donor and drops the typed-in fields (#1592)", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      donorId: "person-1",
+      donorName: "",
+      donorEmail: "typed@example.com",
+      notes: " Dropped at the door ",
+    });
+    expect("data" in result && result.data).toMatchObject({
+      p_donor_id: "person-1",
+      p_donor_name: null,
+      p_donor_email: null,
+      p_notes: "Dropped at the door",
+    });
+  });
+
+  test("an anonymous donation names no donor, even one picked first", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      isAnonymous: true,
+      donorId: "person-1",
+    });
+    expect("data" in result && result.data).toMatchObject({
+      p_donor_id: null,
+      p_donor_name: null,
+      p_donor_is_anonymous: true,
+    });
+  });
+
+  test("defaults the source of a typed-in donor to individual", () => {
+    const result = parseDonationInput({
+      ...validInput,
+      sourceType: undefined,
+    });
+    expect("data" in result && result.data.p_donor_source_type).toBe(
+      "individual",
+    );
   });
 
   test("allows an empty donor name when anonymous", () => {
@@ -185,6 +224,8 @@ describe("parseDonationInput", () => {
         ],
         p_event_id: "event-1",
         p_donated_at: null,
+        p_donor_id: null,
+        p_notes: null,
       },
     });
   });

@@ -38,12 +38,14 @@ test.describe("portal inventory donations", () => {
       addSheet.getByRole("heading", { name: "Record a donation" }),
     ).toBeVisible();
 
-    await addSheet.getByLabel(exactLabel("Donor name")).fill(donorName);
-    await addSheet.getByLabel("Donor source").click();
-    await page
-      .getByRole("listbox")
-      .getByText("Individual", { exact: true })
-      .click();
+    // The donor is picked from People (#1592); this one is new, so it goes
+    // through the picker's create-new.
+    await addSheet.getByRole("button", { name: "+ Create new person" }).click();
+    await addSheet.getByLabel(exactLabel("Name")).fill(donorName);
+    await addSheet.getByRole("button", { name: "Create & select" }).click();
+    await expect(
+      addSheet.getByRole("button", { name: "Change" }),
+    ).toBeVisible();
     await addSheet.getByRole("button", { name: "Continue" }).click();
 
     await addSheet

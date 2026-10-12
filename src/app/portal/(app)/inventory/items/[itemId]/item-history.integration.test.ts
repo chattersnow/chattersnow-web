@@ -169,7 +169,9 @@ describe("inventory_item_history", () => {
       expect(rows).toHaveLength(3);
       expect(donated).toMatchObject({
         donation_id: donationId,
-        donor_id: null,
+        // The donation's own donor_id (#1592): set, so the reader can tell a
+        // donor it cannot see from an anonymous donation, which has none.
+        donor_id: expect.any(String),
         donor_name: null,
         intake_route: "intake_form",
       });
