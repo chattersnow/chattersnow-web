@@ -58,6 +58,11 @@ import {
   useControlledOpen,
   type ControlledOpenProps,
 } from "@/components/portal/use-controlled-open";
+import {
+  MOBILE_FORM_SHEET_CLASS,
+  MOBILE_FORM_SHEET_FOOTER_CLASS,
+} from "@/components/portal/portal-form-surface";
+import { usePortalDevice } from "@/lib/portal/device-context";
 
 const GENDERS = [
   { value: "unisex", label: "Unisex" },
@@ -152,6 +157,7 @@ export function AddDonationModal({
   initialAssetTag?: string;
 } & ControlledOpenProps) {
   const router = useRouter();
+  const mobile = usePortalDevice() === "mobile";
   const [open, setOpen] = useControlledOpen(
     controlledOpen,
     onOpenChange,
@@ -409,7 +415,13 @@ export function AddDonationModal({
           {triggerLabel}
         </SheetTrigger>
       ) : null}
-      <SheetContent side="right" size="lg">
+      {/* A form slides up from the bottom on a phone, as every
+          PortalFormSurface does; at a desk it stays a right-hand sheet. */}
+      <SheetContent
+        side={mobile ? "bottom" : "right"}
+        size="lg"
+        className={mobile ? MOBILE_FORM_SHEET_CLASS : undefined}
+      >
         <SheetHeader>
           <SheetTitle>Record a donation</SheetTitle>
           <SheetDescription>
@@ -427,7 +439,7 @@ export function AddDonationModal({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           <p className="app-muted text-sm">
             {step === "donor"
               ? "Step 1 of 2 · Donor details"
@@ -906,7 +918,9 @@ export function AddDonationModal({
           </form>
         </div>
 
-        <SheetFooter>
+        <SheetFooter
+          className={mobile ? MOBILE_FORM_SHEET_FOOTER_CLASS : undefined}
+        >
           {step === "saved" ? (
             <Button type="button" onClick={() => handleOpenChange(false)}>
               Done
