@@ -19,8 +19,9 @@ import { setMyAnswersAction } from "./registration-answers-actions";
 
 /**
  * Your answers to the event's registration questions (#1501), and the one
- * place a registrant can change them. Editable while registration is open;
- * after that read-only, because the organizer is working from them.
+ * place a signed-in registrant can change them. Editable until the event
+ * ends (#1591) -- changing an answer takes no place, so the registration
+ * deadline does not close it -- and read-only after that.
  *
  * It is also how somebody who registered before the questions were added
  * completes them, so a required question they have not answered is called out
@@ -134,7 +135,7 @@ export function RegistrationAnswersCard({
               ))}
             </dl>
             <p className="app-muted text-sm">
-              Registration has closed, so these can&apos;t be changed here. Get
+              This event has ended, so these can&apos;t be changed any more. Get
               in touch if something is wrong.
             </p>
           </div>

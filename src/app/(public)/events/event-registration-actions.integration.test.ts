@@ -14,6 +14,7 @@ import {
   uniqueIp,
 } from "../../../../test/integration-setup";
 import { EVENT_REGISTRATION_CONFIRMATION_KIND } from "@/lib/notifications/kinds";
+import { ALREADY_REGISTERED_LINK_SENT } from "@/lib/registration-answer-requests";
 
 const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -579,6 +580,55 @@ describe("registerForEventAction (integration)", () => {
       step: "about",
     });
     expect(await countEventRegistrations(id, email)).toBe(1);
+  });
+
+  // #1591. An event with questions hands the registrant their own answers
+  // link, and turns "already registered" into a way forward.
+  test("hands over an answers link, and mails a fresh one to a duplicate", async () => {
+    currentIp = uniqueIp();
+    const { id } = await event();
+    const { error: questionsError } = await adminClient.rpc(
+      "save_event_registration_questions",
+      {
+        p_event_id: id,
+        p_questions: [
+          {
+            id: crypto.randomUUID(),
+            kind: "short_text",
+            prompt: "Leaving from",
+          },
+        ],
+      },
+    );
+    if (questionsError) throw questionsError;
+    const email = uniqueEmail("self-link");
+
+    const first = await registerForEventAction(
+      id,
+      formData({ name: "Jamie Rivera", email }),
+    );
+    expect(first).toMatchObject({ success: true });
+    if (!("success" in first)) throw new Error("expected a registration");
+    expect(first.answersPath).toMatch(
+      new RegExp(`^/events/e/${id}/answers\\?t=[0-9a-f]{64}$`),
+    );
+
+    const second = await registerForEventAction(
+      id,
+      formData({ name: "Jamie Rivera", email: email.toUpperCase() }),
+    );
+    expect(second).toEqual({
+      error: ALREADY_REGISTERED_LINK_SENT,
+      step: "about",
+    });
+    expect(await countEventRegistrations(id, email)).toBe(1);
+
+    const { data: request } = await service
+      .from("event_registration_answer_requests")
+      .select("source")
+      .eq("registration_id", first.registrationId)
+      .single();
+    expect(request?.source).toBe("already_registered");
   });
 
   test("reports EVENT_NOT_FOUND for a private/unpublished event", async () => {

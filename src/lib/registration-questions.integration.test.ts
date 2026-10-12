@@ -863,7 +863,7 @@ describe("the registrant's own answers", () => {
       .eq("id", id as string);
   });
 
-  test("reads back and changes them on their own registration only, while registration is open", async () => {
+  test("reads back and changes them on their own registration only, until the event ends", async () => {
     const { eventId, ids, options } = await eventWithQuestions();
     const client = await constituent();
     const { data: id, error } = await registerMyself(client, eventId, {
@@ -943,14 +943,33 @@ describe("the registrant's own answers", () => {
       (await answersOf(registrationId)).map((row) => row.answer_text),
     ).toEqual(["Making my own way"]);
 
-    // Closed with the registration window.
+    // A change of the registrant's own is stamped for staff (#1591).
+    const { data: stamped } = await service
+      .from("event_registrations")
+      .select("answers_changed_at")
+      .eq("id", registrationId)
+      .single();
+    expect(stamped?.answers_changed_at).not.toBeNull();
+
+    // Not closed with the registration window (#1591): changing an answer
+    // takes no place, so it stays open until the event ends.
     await adminClient
       .from("events")
       .update({ registration_enabled: false })
       .eq("id", eventId);
+    expect((await mine()).every((row) => row.editable)).toBe(true);
+    expect((await set({ [ids.gettingThere]: options.ride })).error).toBeNull();
+
+    await adminClient
+      .from("events")
+      .update({
+        starts_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        ends_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .eq("id", eventId);
     expect(
-      (await set({ [ids.gettingThere]: options.ride })).error?.message,
-    ).toBe("REGISTRATION_CLOSED");
+      (await set({ [ids.gettingThere]: options.drive })).error?.message,
+    ).toBe("EVENT_ENDED");
     expect((await mine()).every((row) => !row.editable)).toBe(true);
 
     await service.from("event_registrations").delete().eq("id", registrationId);

@@ -35,6 +35,7 @@ const REGISTRANT: EventRegistrant = {
   option_counts: [],
   answers: [],
   answer_request: null,
+  answers_changed_at: null,
   rider: null,
   minorContacts: null,
 };

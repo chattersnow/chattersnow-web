@@ -48,6 +48,7 @@ const registrants: EventRegistrant[] = [
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -96,6 +97,7 @@ const registrants: EventRegistrant[] = [
     option_counts: [],
     answers: [],
     answer_request: null,
+    answers_changed_at: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",

@@ -52,6 +52,7 @@ import {
   type RegistrationAnswersRequestBatch,
 } from "@/lib/notifications/registration-answers-request";
 import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
+import { issueConfirmationAnswersLink } from "@/lib/notifications/registration-answer-self-links";
 import {
   ANSWER_REQUEST_ERRORS,
   answersRequestSubject,
@@ -241,6 +242,12 @@ export type EventRegistrant = {
    * has been asked. Read at `events: view`, like the answers themselves.
    */
   answer_request: AnswerRequestStatus | null;
+  /**
+   * When the registrant last changed their own answers after registering --
+   * through their link or `/my` (#1591). Null where they never have. Staff
+   * edits do not set it, so it is the "these moved since you planned" flag.
+   */
+  answers_changed_at: string | null;
   /**
    * The single-use codes this registration holds, each with the partner's
    * PIN (#1589). Read at `events: view`, like the codes table. Absent on
@@ -581,7 +588,7 @@ export async function listEventRegistrantsAction(
 // `option_counts`, `answers` and `discount_codes` are embeds, not columns of
 // this table (#1407, #1501, #1589).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, instagram_handle, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at), discount_codes(code, pin)";
+  "id, event_id, name, email, phone, instagram_handle, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
@@ -1164,10 +1171,15 @@ export async function resendEventRegistrationConfirmationAction(
   // assigns to its initial type, and this is only ever read afterwards.
   const sent: { subject?: string } = {};
 
+  // #1591. A fresh answers link with every resend, superseding the old one:
+  // the newest email from the organization is the one that works.
+  const answersLink = await issueConfirmationAnswersLink(admin, registrationId);
+
   const outcome = await sendEventRegistrationConfirmation(admin, {
     registrationId,
     siteUrl: await getRequestOrigin(),
     dedupeSuffix,
+    answersLink,
     onRendered: (email) => {
       sent.subject = email.subject;
     },
@@ -1318,7 +1330,7 @@ export async function askForMissingAnswersAction(input: {
     guard.supabase
       .from("event_registrations")
       .select(
-        "id, name, email, person_id, answers:event_registration_answers(question_id, value), answer_request:event_registration_answer_requests(requested_at, answered_at)",
+        "id, name, email, person_id, answers:event_registration_answers(question_id, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source)",
       )
       .eq("event_id", input.eventId)
       .is("cancelled_at", null)

@@ -429,4 +429,29 @@ describe("the tenant's shell (#1238)", () => {
     expect(html).not.toContain("<img");
     expect(html).toContain("Chatter Snow");
   });
+
+  test("carries the registrant's own answers link where there is one (#1591)", () => {
+    const url = "https://chattersnow.example/events/e/abc123/answers?t=tok";
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      answersLink: { url, expiresAt: "2026-03-16T00:00:00.000Z" },
+    });
+
+    expect(text).toContain(`Change your answers: ${url}`);
+    expect(html).toContain(
+      `href="https://chattersnow.example/events/e/abc123/answers?t=tok"`,
+    );
+    for (const part of [text, html]) {
+      expect(part).toContain("Change your answers");
+      // Until when, in the event's own zone.
+      expect(part).toContain("Mar 15, 2026");
+      expect(part).toContain("MDT");
+    }
+  });
+
+  test("renders no answers link without one", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail(base);
+    expect(text).not.toContain("Change your answers");
+    expect(html).not.toContain("Change your answers");
+  });
 });

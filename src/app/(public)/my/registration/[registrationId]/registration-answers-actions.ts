@@ -20,17 +20,17 @@ const ERROR_MESSAGES: Record<string, string> = {
   NO_RECORD: "We could not find that registration on your account.",
   REGISTRATION_CANCELLED:
     "This registration has been cancelled, so its answers can't be changed here.",
-  REGISTRATION_CLOSED:
-    "Registration for this event is closed, so this can't be changed here any more. Please get in touch with us instead.",
-  REGISTRATION_DEADLINE_PASSED:
-    "The registration deadline has passed, so this can't be changed here any more. Please get in touch with us instead.",
+  // #1591. Answers can be changed until the event ends, not just while
+  // registration is open: changing one takes no place.
+  EVENT_ENDED:
+    "This event has ended, so its answers can't be changed any more.",
 };
 
 /**
  * Changing your own answers to an event's registration questions (#1501).
  * `set_my_registration_answers()` resolves the person itself, holds the answers
  * to the same rules as registering -- required questions included -- and
- * closes with the registration window. It replaces every current answer, so
+ * closes when the event ends (#1591). It replaces every current answer, so
  * the whole set is sent each time.
  */
 export async function setMyAnswersAction(
