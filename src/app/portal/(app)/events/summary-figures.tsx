@@ -13,12 +13,18 @@ export function Figure({
   label,
   value,
   caption,
+  now,
 }: {
   eventId?: string;
   card?: TabValue;
   label: string;
   value: string;
   caption?: string;
+  /**
+   * The figure's current value, when `value` is one frozen at submission that
+   * has changed since (#1579).
+   */
+  now?: string;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-lg border p-3">
@@ -36,6 +42,11 @@ export function Figure({
         )}
       </dd>
       {caption && <dd className="app-muted text-xs">{caption}</dd>}
+      {now !== undefined && (
+        <dd className="text-warning text-xs font-medium">
+          Changed since submission: {now} now
+        </dd>
+      )}
     </div>
   );
 }

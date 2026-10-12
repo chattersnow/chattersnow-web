@@ -399,18 +399,12 @@ export async function submitEventReportAction(
     "You must be signed in to submit the event report.",
   );
   if ("error" in userResult) return userResult;
-  const { user } = userResult;
   const permissionError = await checkPermission(supabase, "events", "manage");
   if (permissionError) return permissionError;
 
-  const { error } = await supabase
-    .from("events")
-    .update({
-      report_status: "submitted",
-      report_submitted_at: new Date().toISOString(),
-      report_submitted_by: user.id,
-    })
-    .eq("id", id);
+  // The RPC freezes the report's figures in report_snapshot as it submits
+  // (#1579), reading every section whatever the submitter may see.
+  const { error } = await supabase.rpc("submit_event_report", { p_id: id });
 
   if (error) {
     return { error: "Could not submit the event report. Please try again." };

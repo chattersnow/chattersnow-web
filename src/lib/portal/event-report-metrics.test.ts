@@ -8,6 +8,8 @@ import {
   computeEventReport,
   computeEventSponsors,
   computeEventTeam,
+  eventReportDrift,
+  eventReportFigures,
   goodsHasData,
   moneyHasData,
   teamHasData,
@@ -232,5 +234,93 @@ describe("computeEventReport", () => {
       team: null,
       operations: null,
     });
+  });
+});
+
+describe("eventReportDrift", () => {
+  const atSubmission = computeEventReport({
+    money: {
+      ...EMPTY_MONEY,
+      revenue: [{ source: "ticket_sales", amount: "200.10" }],
+      expenses: [{ status: "paid", amount: 50 }],
+    },
+    goods: null,
+    sponsors: null,
+    team: null,
+    operations: { incidents: [{ severity: "minor" }] },
+  });
+
+  test("keys every figure by section and path, lists by key or status", () => {
+    const figures = eventReportFigures(atSubmission);
+    expect(figures.get("money.net")).toBeCloseTo(150.1);
+    expect(figures.get("money.incomeStreams.ticket_sales.total")).toBe(200.1);
+    expect(figures.get("money.expensesByStatus.paid.total")).toBe(50);
+    expect(figures.get("operations.bySeverity.minor")).toBe(1);
+    expect([...figures.keys()].some((key) => key.startsWith("goods."))).toBe(
+      false,
+    );
+  });
+
+  test("an unchanged report has no drift", () => {
+    expect(eventReportDrift(atSubmission, atSubmission).size).toBe(0);
+  });
+
+  test("a late paid expense and a voided sale show as drift", () => {
+    const now = computeEventReport({
+      money: {
+        ...EMPTY_MONEY,
+        revenue: [{ source: "ticket_sales", amount: "200.10" }],
+        expenses: [
+          { status: "paid", amount: 50 },
+          { status: "paid", amount: 60 },
+        ],
+      },
+      goods: null,
+      sponsors: null,
+      team: null,
+      operations: { incidents: [{ severity: "minor" }] },
+    });
+    const drift = eventReportDrift(atSubmission, now);
+    expect(drift.get("money.paidSpend")).toEqual({
+      atSubmission: 50,
+      now: 110,
+    });
+    expect(drift.get("money.net")?.now).toBeCloseTo(90.1);
+    expect(drift.has("money.income")).toBe(false);
+    expect(drift.has("operations.incidents")).toBe(false);
+  });
+
+  test("a stream that appears or goes away has drifted", () => {
+    const now = computeEventReport({
+      money: {
+        ...EMPTY_MONEY,
+        expenses: [{ status: "paid", amount: 50 }],
+        sales: [{ amount: 30, tax: 0 }],
+      },
+      goods: null,
+      sponsors: null,
+      team: null,
+      operations: { incidents: [{ severity: "minor" }] },
+    });
+    const drift = eventReportDrift(atSubmission, now);
+    expect(drift.get("money.incomeStreams.ticket_sales.total")).toEqual({
+      atSubmission: 200.1,
+      now: null,
+    });
+    expect(
+      drift.get(`money.incomeStreams.${MERCHANDISE_SOURCE}.total`),
+    ).toEqual({ atSubmission: null, now: 30 });
+  });
+
+  test("ignores float noise below a cent", () => {
+    const now = structuredClone(atSubmission);
+    now.money!.net += 0.001;
+    expect(eventReportDrift(atSubmission, now).size).toBe(0);
+  });
+
+  test("compares only sections present on both sides", () => {
+    const hidden = { ...atSubmission, money: null };
+    expect(eventReportDrift(hidden, atSubmission).size).toBe(0);
+    expect(eventReportDrift(atSubmission, hidden).size).toBe(0);
   });
 });

@@ -7,6 +7,10 @@
 // tenant without Finance gets no Money section at all, and that the event's
 // net agrees with Finance > Financial Reports.
 //
+// Submitting freezes the figures (#1579): the snapshot is written by
+// submit_event_report whatever the submitter may see, read back under the
+// same per-section checks, and cleared by reopening.
+//
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
@@ -26,6 +30,9 @@ import {
   summarizeByEvent,
   type FinanceReportData,
 } from "../finance/reports/summary";
+import { eventReportDrift } from "@/lib/portal/event-report-metrics";
+
+mock.module("next/cache", () => ({ revalidatePath: () => {} }));
 
 let currentSupabase: SupabaseClient;
 mock.module("@/lib/supabase/server", () => ({
@@ -33,6 +40,8 @@ mock.module("@/lib/supabase/server", () => ({
 }));
 
 const { getEventReportAction } = await import("./report-data-actions");
+const { reopenEventReportAction, submitEventReportAction } =
+  await import("./actions");
 
 const service = serviceRoleClient();
 let tenantId: string;
@@ -96,11 +105,15 @@ afterAll(async () => {
   await event.cleanup();
 });
 
-async function reportAs(email: string) {
+async function viewAs(email: string) {
   currentSupabase = await signInAs(email);
   const result = await getEventReportAction(event.id);
   if ("error" in result) throw new Error(result.error);
   return result.data;
+}
+
+async function reportAs(email: string) {
+  return (await viewAs(email)).live;
 }
 
 describe("get_event_report_data (integration)", () => {
@@ -165,5 +178,77 @@ describe("get_event_report_data (integration)", () => {
     expect(result).toEqual({
       error: "Could not load the event report. Please try again.",
     });
+  });
+});
+
+describe("report_snapshot (integration)", () => {
+  let adminId: string;
+
+  beforeAll(async () => {
+    const { data: user } = await adminClient.auth.getUser();
+    adminId = user.user!.id;
+  });
+
+  test("an unsubmitted report has no snapshot", async () => {
+    expect((await viewAs(SEEDED_USERS.admin)).snapshot).toBeNull();
+  });
+
+  // events:manage without finance_reports:view: the snapshot is still
+  // complete, because the RPC writes it rather than the submitter's session.
+  test("submitting freezes every section, even those the submitter cannot see", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.coordinator);
+    expect(await submitEventReportAction(event.id)).toEqual({ success: true });
+
+    const view = await viewAs(SEEDED_USERS.admin);
+    expect(view.snapshot?.capturedAt).toBeTruthy();
+    expect(view.snapshot?.report).toEqual(view.live);
+    expect(view.snapshot?.report.money?.net).toBe(230);
+  });
+
+  test("a later change shows as drift while the snapshot holds", async () => {
+    const late = await service.from("event_expenses").insert({
+      event_id: event.id,
+      description: "Report test: paid after submission",
+      expense_date: tenantToday(),
+      amount: 30,
+      currency: "USD",
+      created_by: adminId,
+      submitted_by: adminId,
+      status: "paid",
+    });
+    if (late.error) throw late.error;
+
+    const view = await viewAs(SEEDED_USERS.admin);
+    expect(view.snapshot?.report.money?.net).toBe(230);
+    expect(view.live.money?.net).toBe(200);
+    expect(
+      eventReportDrift(view.snapshot!.report, view.live).get("money.net"),
+    ).toEqual({ atSubmission: 230, now: 200 });
+  });
+
+  test("board reads the frozen Money and no frozen events section", async () => {
+    const { snapshot } = await viewAs(SEEDED_USERS.board);
+    expect(snapshot?.report.money?.net).toBe(230);
+    expect(snapshot?.report.sponsors).toBeNull();
+    expect(snapshot?.report.team).toBeNull();
+    expect(snapshot?.report.operations).toBeNull();
+  });
+
+  test("the snapshot cannot be written directly", async () => {
+    const { error } = await adminClient
+      .from("events")
+      .update({ report_snapshot: { money: null } })
+      .eq("id", event.id);
+    expect(error?.message).toContain(
+      "The report snapshot is written only by submitting or reopening the report",
+    );
+  });
+
+  test("reopening clears the snapshot", async () => {
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    expect(
+      await reopenEventReportAction(event.id, "Report test: late expense"),
+    ).toEqual({ success: true });
+    expect((await viewAs(SEEDED_USERS.admin)).snapshot).toBeNull();
   });
 });

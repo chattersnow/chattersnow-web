@@ -374,3 +374,87 @@ export function teamHasData(team: EventReportTeam): boolean {
     team.volunteerHours > 0
   );
 }
+
+/**
+ * The report's rows as they stood when it was submitted (#1579), from
+ * `events.report_snapshot`. Each section is null under the same permission as
+ * its live one, so a reader sees the frozen figures for exactly the sections
+ * they see live.
+ */
+export type EventReportSnapshotData = EventReportData & {
+  captured_at: string;
+};
+
+export type FigureDrift = { atSubmission: number | null; now: number | null };
+
+// A list's entries are addressed by their key or status, not their position,
+// so an income stream that appears later is a new figure rather than a shift.
+function entryKey(entry: unknown, index: number): string {
+  if (entry && typeof entry === "object") {
+    const { key, status } = entry as { key?: unknown; status?: unknown };
+    if (typeof key === "string") return key;
+    if (typeof status === "string") return status;
+  }
+  return String(index);
+}
+
+function collectFigures(
+  value: unknown,
+  path: string,
+  into: Map<string, number>,
+): void {
+  if (typeof value === "number") {
+    into.set(path, value);
+  } else if (Array.isArray(value)) {
+    value.forEach((entry, index) =>
+      collectFigures(entry, `${path}.${entryKey(entry, index)}`, into),
+    );
+  } else if (value && typeof value === "object") {
+    for (const [key, entry] of Object.entries(value)) {
+      if (key === "key" || key === "status") continue;
+      collectFigures(entry, path ? `${path}.${key}` : key, into);
+    }
+  }
+}
+
+/**
+ * Every figure in a report, by a dotted path: `money.net`,
+ * `money.incomeStreams.ticket_sales.total`, `operations.bySeverity.serious`.
+ * A section the reader may not see contributes nothing.
+ */
+export function eventReportFigures(report: EventReport): Map<string, number> {
+  const figures = new Map<string, number>();
+  collectFigures(report, "", figures);
+  return figures;
+}
+
+// Totals are sums of numeric(10,2) dollars; compare to the cent so float
+// rounding never reads as a change.
+const sameFigure = (a: number, b: number) => Math.abs(a - b) < 0.005;
+
+/**
+ * The figures that have changed since the report was submitted, keyed like
+ * eventReportFigures. Only sections present on both sides are compared: one
+ * hidden from the reader, or missing from an older snapshot, has nothing to
+ * compare. A figure on one side only (a stream that appeared or went away)
+ * has drifted unless it is zero.
+ */
+export function eventReportDrift(
+  atSubmission: EventReport,
+  now: EventReport,
+): Map<string, FigureDrift> {
+  const sections = (Object.keys(now) as (keyof EventReport)[]).filter(
+    (section) => atSubmission[section] !== null && now[section] !== null,
+  );
+  const before = eventReportFigures(atSubmission);
+  const after = eventReportFigures(now);
+  const drift = new Map<string, FigureDrift>();
+  for (const path of new Set([...before.keys(), ...after.keys()])) {
+    if (!sections.some((section) => path.startsWith(`${section}.`))) continue;
+    const then = before.get(path) ?? null;
+    const current = after.get(path) ?? null;
+    if (sameFigure(then ?? 0, current ?? 0)) continue;
+    drift.set(path, { atSubmission: then, now: current });
+  }
+  return drift;
+}

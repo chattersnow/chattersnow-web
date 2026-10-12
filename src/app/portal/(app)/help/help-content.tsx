@@ -2513,7 +2513,11 @@ export const helpContent: Record<string, HelpEntry> = {
               from. You only see the sections your role can read: Money needs
               access to financial reports, and its net is income less what has
               been paid out, counted the same way as Finance → Reports.
-              Submitting the report locks the whole card until it is reopened.
+              Submitting the report locks the whole card until it is reopened,
+              and freezes its money, goods, sponsors, team and incident figures
+              as they stood. A late expense or a voided sale after that
+              doesn&apos;t move the submitted figures: each one that has changed
+              since says what it is now. Reopening drops the frozen figures.
             </li>
             <li>
               <strong className="text-foreground">

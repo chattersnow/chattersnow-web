@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { EventRow } from "./event-badges";
 import * as EventsActions from "./actions";
 import * as ImpactActions from "./impact-actions";
 import * as RetroActions from "./retro-actions";
 import { labelText } from "../../../../../test/labels";
 import type { EventReport } from "@/lib/portal/event-report-metrics";
+import type { EventReportView } from "./report-data-actions";
 import type { EventRetro, EventRetroItem } from "./retro-actions";
 import type { EventImpactNotes } from "./impact-actions";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
@@ -86,18 +93,20 @@ const emptyMoney = {
   budgetRemaining: null,
 };
 
+const emptyLive = {
+  money: emptyMoney,
+  goods: null,
+  sponsors: null,
+  team: null,
+  operations: { incidents: 0, bySeverity: {} },
+} satisfies EventReport;
+
 const emptyReport = async () => ({
-  data: {
-    money: emptyMoney,
-    goods: null,
-    sponsors: null,
-    team: null,
-    operations: { incidents: 0, bySeverity: {} },
-  } satisfies EventReport,
+  data: { live: emptyLive, snapshot: null } satisfies EventReportView,
 });
 
 const getEventReportActionMock =
-  mock<(eventId: string) => Promise<{ data: EventReport }>>(emptyReport);
+  mock<(eventId: string) => Promise<{ data: EventReportView }>>(emptyReport);
 
 mock.module("./report-data-actions", () => ({
   getEventReportAction: getEventReportActionMock,
@@ -252,16 +261,19 @@ describe("ResultsTab", () => {
   test("shows computed sections the reader may see, and no summary textarea", async () => {
     getEventReportActionMock.mockImplementation(async () => ({
       data: {
-        money: {
-          ...emptyMoney,
-          incomeStreams: [{ key: "ticket_sales", count: 2, total: 300 }],
-          income: 300,
-          net: 300,
+        live: {
+          money: {
+            ...emptyMoney,
+            incomeStreams: [{ key: "ticket_sales", count: 2, total: 300 }],
+            income: 300,
+            net: 300,
+          },
+          goods: null,
+          sponsors: null,
+          team: null,
+          operations: { incidents: 1, bySeverity: { minor: 1 } },
         },
-        goods: null,
-        sponsors: null,
-        team: null,
-        operations: { incidents: 1, bySeverity: { minor: 1 } },
+        snapshot: null,
       },
     }));
 
@@ -284,6 +296,51 @@ describe("ResultsTab", () => {
     expect(screen.queryByRole("region", { name: "Goods" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Sponsors" })).toBeNull();
     expect(screen.queryByLabelText(/report summary/i)).toBeNull();
+  });
+
+  // #1579: a submitted report shows what it was submitted with.
+  test("a submitted report shows its frozen figures and flags drift", async () => {
+    const sales = [{ key: "ticket_sales", count: 4, total: 1240 }];
+    const frozen = {
+      ...emptyLive,
+      money: { ...emptyMoney, incomeStreams: sales, income: 1240, net: 1240 },
+    };
+    getEventReportActionMock.mockImplementation(async () => ({
+      data: {
+        live: {
+          ...emptyLive,
+          money: {
+            ...emptyMoney,
+            incomeStreams: sales,
+            income: 1240,
+            paidSpend: 60,
+            net: 1180,
+          },
+        },
+        snapshot: { report: frozen, capturedAt: "2026-10-01T18:00:00Z" },
+      },
+    }));
+
+    render(
+      <ResultsTab
+        event={makeEvent({ report_status: "submitted" })}
+        formId="report-form"
+        mode="view"
+        onSaved={() => {}}
+      />,
+    );
+
+    const money = await screen.findByRole("region", { name: "Money" });
+    expect(screen.getByRole("note")).toHaveTextContent(
+      /Figures as submitted on .*Some have changed since/,
+    );
+    const figure = (label: string) =>
+      within(money).getByText(label, { selector: "dt" }).closest("div")!;
+    const net = figure("Net");
+    expect(net).toHaveTextContent("$1,240.00");
+    expect(net).toHaveTextContent("Changed since submission: $1,180.00 now");
+    const income = figure("Income");
+    expect(income).not.toHaveTextContent("Changed since submission");
   });
 
   test("says so when a visible section has nothing recorded", async () => {
