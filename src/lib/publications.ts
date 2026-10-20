@@ -94,10 +94,14 @@ export function publicationImage(
   return { url, width, height, srcSet, sources };
 }
 
-/** A download's size as a reader thinks of it: "820 KB", "18 MB". */
+/** A download's size as a reader thinks of it: "820 KB", "18 MB", "2.4 GB". */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) {
     return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+  if (bytes >= 1024 * 1024 * 1024) {
+    const gb = bytes / (1024 * 1024 * 1024);
+    return `${gb < 10 ? gb.toFixed(1).replace(/\.0$/, "") : Math.round(gb)} GB`;
   }
   const mb = bytes / (1024 * 1024);
   return `${mb < 10 ? mb.toFixed(1).replace(/\.0$/, "") : Math.round(mb)} MB`;

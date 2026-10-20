@@ -32,3 +32,15 @@ export async function getRegistrationAsksAboutMinors(
   if (error || typeof data !== "boolean") return null;
   return data;
 }
+
+/**
+ * The current tenant's Event media uploads setting (#1606), for the Events
+ * page switch. Null when the caller may not read it (events:view).
+ */
+export async function getEventMediaUploadsEnabled(
+  supabase: SupabaseClient,
+): Promise<boolean | null> {
+  const { data, error } = await supabase.rpc("event_media_uploads_enabled");
+  if (error || typeof data !== "boolean") return null;
+  return data;
+}
