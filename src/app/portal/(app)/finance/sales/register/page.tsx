@@ -60,14 +60,14 @@ export default async function SalesRegisterPage({
       // select is a picker somebody uses standing up, and a merch table belongs
       // to something happening around now.
       //
-      // `completed` is in the filter as well as `published` because yesterday's
-      // takings are often typed up the morning after, by which point the event
-      // has been marked completed. Draft, cancelled and archived are not:
-      // nothing is sold at an event in any of those states.
+      // Published only: draft, cancelled and archived events are not -- nothing
+      // is sold at an event in any of those states. A finished event stays
+      // published (#1609), so yesterday's takings typed up the morning after
+      // still find it.
       supabase
         .from("events")
         .select("id, name, starts_at, ends_at")
-        .in("status", ["published", "completed"])
+        .eq("status", "published")
         .gte("starts_at", from)
         .lte("starts_at", to)
         .order("starts_at"),

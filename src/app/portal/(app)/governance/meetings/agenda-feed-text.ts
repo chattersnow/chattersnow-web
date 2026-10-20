@@ -62,12 +62,13 @@ const CALENDAR_UNAVAILABLE = {
 } as const;
 
 /**
- * An event that went ahead. A cancelled or still-draft event owes no report,
+ * An event that went ahead: a published one (that it is past is the caller's
+ * `past`). A cancelled or still-draft event owes no report,
  * so flagging one as outstanding sends a board after paperwork that was never
  * due. Shared with `agenda-events-feed.tsx`: the printed agenda flags exactly
  * the rows the screen flags, or the board is reading two different meetings.
  */
-const HELD_STATUSES = new Set(["published", "completed"]);
+const HELD_STATUSES = new Set(["published"]);
 
 export function eventReportOutstanding(
   event: Pick<AgendaEvent, "status" | "report_status">,

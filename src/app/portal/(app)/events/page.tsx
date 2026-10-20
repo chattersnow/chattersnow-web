@@ -45,6 +45,12 @@ import {
   groupEventTasksByEvent,
 } from "@/lib/portal/attention-items";
 import { ViewerTime } from "@/components/viewer-time";
+import { EventTimingBadge } from "./event-timing-badge";
+import {
+  pastEventsFilter,
+  splitPageRange,
+  upcomingEventsFilter,
+} from "./list-order";
 
 const SORTABLE_COLUMNS = [
   "name",
@@ -59,19 +65,16 @@ function isSortColumn(value: string | undefined): value is SortColumn {
   return !!value && (SORTABLE_COLUMNS as readonly string[]).includes(value);
 }
 
-const STATUS_VALUES = [
-  "draft",
-  "published",
-  "completed",
-  "cancelled",
-  "archived",
-] as const;
+const STATUS_VALUES = ["draft", "published", "cancelled", "archived"] as const;
 const VISIBILITY_VALUES = ["public", "private"] as const;
 const WHEN_VALUES = ["upcoming", "past"] as const;
 
 type EventsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const EVENT_COLUMNS =
+  "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, report_status, report_summary, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url";
 
 const COLUMNS: { key: SortColumn; label: string; hideBelow?: HideBelow }[] = [
   { key: "name", label: "Event" },
@@ -108,9 +111,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     return Array.isArray(value) ? value[0] : value;
   };
 
+  // No sort in the URL means the default order -- upcoming soonest first,
+  // then past most recent first (#1609) -- not a sort on any one column.
   const sortParam = raw("sort");
-  const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "starts_at";
+  const sort: SortColumn | null = isSortColumn(sortParam) ? sortParam : null;
   const dir: "asc" | "desc" = raw("dir") === "desc" ? "desc" : "asc";
+  const sortParams: Record<string, string> = sort ? { sort, dir } : {};
 
   const statusRaw = raw("status");
   const statusFilter = STATUS_VALUES.includes(
@@ -141,29 +147,67 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const tasksOpen = raw("tasks") === "open";
   const nowIso = new Date().toISOString();
 
-  let query = supabase
-    .from("events")
-    .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, budget_amount, event_lead_id, report_status, report_summary, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url",
-      { count: "exact" },
-    )
-    .order(sort, { ascending: dir === "asc" })
-    .order("id", { ascending: true });
-
-  if (statusFilter !== "all") {
-    query = query.eq("status", statusFilter);
-  }
-  if (visibilityFilter !== "all") {
-    query = query.eq("visibility", visibilityFilter);
-  }
-  if (whenFilter === "upcoming") {
-    query = query.gte("starts_at", nowIso);
-  } else if (whenFilter === "past") {
-    query = query.lt("starts_at", nowIso);
-  }
+  const filteredEvents = (head = false) => {
+    let query = supabase
+      .from("events")
+      .select(EVENT_COLUMNS, { count: "exact", head });
+    if (statusFilter !== "all") query = query.eq("status", statusFilter);
+    if (visibilityFilter !== "all") {
+      query = query.eq("visibility", visibilityFilter);
+    }
+    return query;
+  };
+  const upcomingEvents = (head = false) =>
+    filteredEvents(head)
+      .or(upcomingEventsFilter(nowIso))
+      .order("starts_at", { ascending: true })
+      .order("id", { ascending: true });
+  const pastEvents = (head = false) =>
+    filteredEvents(head)
+      .or(pastEventsFilter(nowIso))
+      .order("starts_at", { ascending: false })
+      .order("id", { ascending: true });
 
   const { offset, to } = pageRange(page, perPage);
-  const { data: events, error, count } = await query.range(offset, to);
+
+  async function loadEvents() {
+    if (sort) {
+      let query = filteredEvents();
+      if (whenFilter === "upcoming") {
+        query = query.or(upcomingEventsFilter(nowIso));
+      } else if (whenFilter === "past") {
+        query = query.or(pastEventsFilter(nowIso));
+      }
+      return query
+        .order(sort, { ascending: dir === "asc" })
+        .order("id", { ascending: true })
+        .range(offset, to);
+    }
+    if (whenFilter === "upcoming") return upcomingEvents().range(offset, to);
+    if (whenFilter === "past") return pastEvents().range(offset, to);
+
+    // Both halves: count them first, so the page knows where upcoming stops.
+    const [upcomingHead, pastHead] = await Promise.all([
+      upcomingEvents(true),
+      pastEvents(true),
+    ]);
+    const headError = upcomingHead.error ?? pastHead.error;
+    if (headError) return { data: null, error: headError, count: null };
+    const upcomingCount = upcomingHead.count ?? 0;
+    const split = splitPageRange(offset, to, upcomingCount);
+    const [upcoming, past] = await Promise.all([
+      split.upcoming &&
+        upcomingEvents().range(split.upcoming.from, split.upcoming.to),
+      split.past && pastEvents().range(split.past.from, split.past.to),
+    ]);
+    return {
+      data: [...(upcoming?.data ?? []), ...(past?.data ?? [])],
+      error: upcoming?.error ?? past?.error ?? null,
+      count: upcomingCount + (pastHead.count ?? 0),
+    };
+  }
+
+  const { data: events, error, count } = await loadEvents();
   const [programsResult, eventTasks, riderMountains, asksAboutMinors] =
     await Promise.all([
       listProgramsAction(),
@@ -200,8 +244,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   function pageHref(nextPage: number) {
     return buildHref("/portal/events", filterParams, {
-      sort,
-      dir,
+      ...sortParams,
       page: nextPage,
     });
   }
@@ -210,8 +253,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     // Back to page one: a bigger page renumbers them all, and page 4 of
     // 9 is nothing in particular once each page holds 25.
     return buildHref("/portal/events", filterParams, {
-      sort,
-      dir,
+      ...sortParams,
       perPage: nextPerPage,
       page: 1,
     });
@@ -252,8 +294,12 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
         <FiltersSheet activeCount={activeFilterCount}>
           <form method="get" className="flex flex-col gap-4">
-            <input type="hidden" name="sort" value={sort} />
-            <input type="hidden" name="dir" value={dir} />
+            {sort && (
+              <>
+                <input type="hidden" name="sort" value={sort} />
+                <input type="hidden" name="dir" value={dir} />
+              </>
+            )}
 
             <div className="flex flex-col gap-1">
               <label
@@ -290,7 +336,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                 <option value="all">All statuses</option>
                 <option value="draft">Draft</option>
                 <option value="published">Published</option>
-                <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="archived">Archived</option>
               </select>
@@ -403,7 +448,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
                       {event.location || "—"}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={event.status} />
+                      <div className="flex flex-wrap gap-1">
+                        <StatusBadge status={event.status} />
+                        <EventTimingBadge event={event} nowIso={nowIso} />
+                      </div>
                     </TableCell>
                     <TableCell hideBelow="sm">
                       <VisibilityBadge visibility={event.visibility} />

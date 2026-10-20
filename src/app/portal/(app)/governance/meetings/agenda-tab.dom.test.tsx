@@ -131,7 +131,7 @@ const listAgendaEventsAction = mock(
             starts_at: "2026-02-20T18:00:00.000Z",
             ends_at: null,
             timezone: "America/Denver",
-            status: "completed",
+            status: "published",
             report_status: "not_started",
             event_lead_id: null,
             event_lead_name: null,

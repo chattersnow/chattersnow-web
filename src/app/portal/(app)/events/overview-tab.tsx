@@ -49,7 +49,6 @@ const VISIBILITIES = [
 const STATUSES = [
   { value: "draft", label: "Draft" },
   { value: "published", label: "Published" },
-  { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
   { value: "archived", label: "Archived" },
 ];

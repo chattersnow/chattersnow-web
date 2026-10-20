@@ -2454,8 +2454,10 @@ export const helpContent: Record<string, HelpEntry> = {
           <ol className="list-decimal space-y-2 pl-4">
             <li>
               <strong className="text-foreground">Status</strong> tracks where
-              an event is in its lifecycle: draft → published → completed, or
-              cancelled/archived along the way.
+              an event is in its lifecycle: draft → published, or
+              cancelled/archived along the way. There is no status to set once
+              an event is over: its dates mark it Upcoming, Today or Past, and a
+              past published event stays on the public site.
             </li>
             <li>
               <strong className="text-foreground">Visibility</strong> controls

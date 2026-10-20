@@ -458,6 +458,8 @@ describe("checkRegistrationWindow", () => {
       checkRegistrationWindow({
         registration_enabled: false,
         registration_deadline: null,
+        starts_at: "2099-01-01T00:00:00Z",
+        ends_at: null,
       }),
     ).toEqual({
       open: false,
@@ -472,6 +474,8 @@ describe("checkRegistrationWindow", () => {
         {
           registration_enabled: true,
           registration_deadline: "2026-08-22T00:00:00Z",
+          starts_at: "2099-01-01T00:00:00Z",
+          ends_at: null,
         },
         now,
       ),
@@ -486,6 +490,8 @@ describe("checkRegistrationWindow", () => {
       checkRegistrationWindow({
         registration_enabled: true,
         registration_deadline: null,
+        starts_at: "2099-01-01T00:00:00Z",
+        ends_at: null,
       }),
     ).toEqual({
       open: true,
@@ -499,6 +505,37 @@ describe("checkRegistrationWindow", () => {
         {
           registration_enabled: true,
           registration_deadline: "2026-08-24T00:00:00Z",
+          starts_at: "2099-01-01T00:00:00Z",
+          ends_at: null,
+        },
+        now,
+      ),
+    ).toEqual({ open: true });
+  });
+  test("rejects once the event is over, even with no deadline", () => {
+    const now = new Date("2026-08-23T00:00:00Z");
+    expect(
+      checkRegistrationWindow(
+        {
+          registration_enabled: true,
+          registration_deadline: null,
+          starts_at: "2026-08-21T18:00:00Z",
+          ends_at: "2026-08-21T22:00:00Z",
+        },
+        now,
+      ),
+    ).toEqual({ open: false, reason: "This event has already happened." });
+  });
+
+  test("stays open while the event is running", () => {
+    const now = new Date("2026-08-21T20:00:00Z");
+    expect(
+      checkRegistrationWindow(
+        {
+          registration_enabled: true,
+          registration_deadline: null,
+          starts_at: "2026-08-21T18:00:00Z",
+          ends_at: "2026-08-21T22:00:00Z",
         },
         now,
       ),

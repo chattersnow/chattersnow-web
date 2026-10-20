@@ -68,7 +68,6 @@ describe("parseEventForm", () => {
     for (const status of [
       "draft",
       "published",
-      "completed",
       "cancelled",
       "archived",
     ] as const) {

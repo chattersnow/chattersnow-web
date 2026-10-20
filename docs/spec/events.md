@@ -30,7 +30,7 @@ An event must support these fields:
 - Description
 - Start and end date/time, including timezone
 - Location or location description
-- Status: draft, published, completed, cancelled, or archived
+- Status: draft, published, cancelled, or archived. Whether an event is over is derived from its dates (Upcoming / Today / Past), not stored: `completed` was removed in #1609, since it had to be set by hand and took the event off the public site
 - Public/private visibility
 - Registration enabled/disabled
 - Optional capacity

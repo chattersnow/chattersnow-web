@@ -193,6 +193,7 @@ export default async function EventDetailPage({
         groups={groups}
         initialCard={initialCard}
         cardTasks={cardTasks}
+        nowIso={new Date().toISOString()}
       />
     </>
   );
