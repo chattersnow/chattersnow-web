@@ -26,6 +26,7 @@ function item(overrides: Partial<EventMediaRow>): EventMediaRow {
     uploader_name: "Sam Lee",
     url: "https://storage.test/sign/a.jpg?token=t",
     download_url: "https://storage.test/sign/a.jpg?token=t&download=a.jpg",
+    expires_at: null,
     ...overrides,
   };
 }
@@ -38,6 +39,8 @@ function stateWith(overrides: Partial<EventMediaState>): EventMediaState {
     eventBytes: 0,
     tenantBytes: 0,
     photoObjections: 0,
+    retentionDays: null,
+    eventExpiresAt: null,
     items: [],
     ...overrides,
   };
@@ -197,6 +200,55 @@ describe("MediaTab", () => {
       await screen.findByText(
         /300 MB for this event, 12 GB for all of this organization/,
       ),
+    ).toBeTruthy();
+  });
+
+  test("says media is kept indefinitely when no period is set", async () => {
+    state = stateWith({ items: [item({})] });
+    renderTab();
+    expect(await screen.findByText(/Kept indefinitely\./)).toBeTruthy();
+    expect(screen.queryByText(/will be deleted soon/)).toBeNull();
+  });
+
+  test("shows the retention period and the event's date", async () => {
+    state = stateWith({
+      retentionDays: 365,
+      eventExpiresAt: "2027-10-18T19:30:00Z",
+      items: [item({ expires_at: "2027-10-18T19:30:00Z" })],
+    });
+    renderTab();
+    expect(
+      await screen.findByText(/Kept 1 year after the event, until/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/will be deleted soon/)).toBeNull();
+  });
+
+  test("lists only what expires within 14 days, with downloads", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const soon = new Date(Date.now() + 3 * day).toISOString();
+    const later = new Date(Date.now() + 30 * day).toISOString();
+    state = stateWith({
+      retentionDays: 90,
+      items: [
+        item({ original_filename: "soon.jpg", expires_at: soon }),
+        item({ original_filename: "later.jpg", expires_at: later }),
+        item({
+          kind: "video",
+          original_filename: "soon.mov",
+          content_type: "video/quicktime",
+          expires_at: soon,
+        }),
+      ],
+    });
+    renderTab();
+    const notice = (
+      await screen.findByText("2 photos and videos will be deleted soon")
+    ).closest('[role="alert"]') as HTMLElement;
+    expect(within(notice).getByText("soon.jpg")).toBeTruthy();
+    expect(within(notice).getByText("soon.mov")).toBeTruthy();
+    expect(within(notice).queryByText("later.jpg")).toBeNull();
+    expect(
+      within(notice).getByRole("link", { name: "Download soon.jpg" }),
     ).toBeTruthy();
   });
 

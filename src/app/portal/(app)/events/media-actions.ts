@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/permissions";
 import {
   EVENT_MEDIA_BUCKET,
+  EVENT_MEDIA_RETENTION_PRESETS,
   eventMediaDownloadUrl,
   eventMediaPath,
   planEventMediaFile,
@@ -29,6 +30,8 @@ export type EventMediaRow = {
   url: string | null;
   /** The same signature, saving as the original filename. */
   download_url: string | null;
+  /** When the retention setting deletes it; null when kept indefinitely. */
+  expires_at: string | null;
 };
 
 export type EventMediaState = {
@@ -43,6 +46,10 @@ export type EventMediaState = {
   tenantBytes: number;
   /** Active registrations of this event that objected to being photographed. */
   photoObjections: number;
+  /** The tenant's retention period in days; null keeps media indefinitely. */
+  retentionDays: number | null;
+  /** When this event's media expires, before any late upload's later date. */
+  eventExpiresAt: string | null;
   items: EventMediaRow[];
 };
 
@@ -72,18 +79,28 @@ export async function getEventMediaAction(
   const permissionError = await checkPermission(supabase, "events", "view");
   if (permissionError) return permissionError;
 
-  const [enabled, canUpload, summary, rows, permissions] = await Promise.all([
+  const [
+    enabled,
+    canUpload,
+    summary,
+    rows,
+    permissions,
+    retentionDays,
+    eventExpiresAt,
+  ] = await Promise.all([
     supabase.rpc("event_media_uploads_enabled"),
     supabase.rpc("can_upload_event_media", { p_event_id: eventId }),
     supabase.rpc("event_media_summary", { p_event_id: eventId }).single(),
     supabase
       .from("event_media")
       .select(
-        "id, kind, storage_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name",
+        "id, kind, storage_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name, expires_at",
       )
       .eq("event_id", eventId)
       .order("uploaded_at", { ascending: false }),
     getCurrentUserPermissions(supabase),
+    supabase.rpc("event_media_retention_days"),
+    supabase.rpc("event_media_event_expires_at", { p_event_id: eventId }),
   ]);
 
   if (rows.error) {
@@ -115,6 +132,9 @@ export async function getEventMediaAction(
       eventBytes: Number(summary.data?.event_bytes ?? 0),
       tenantBytes: Number(summary.data?.tenant_bytes ?? 0),
       photoObjections: Number(summary.data?.photo_objections ?? 0),
+      retentionDays:
+        typeof retentionDays.data === "number" ? retentionDays.data : null,
+      eventExpiresAt: eventExpiresAt.data ?? null,
       items: stored.map(({ storage_path, ...row }) => {
         const url = urls.get(storage_path) ?? null;
         return {
@@ -315,6 +335,46 @@ export async function updateEventMediaUploadsEnabledAction(
 
   const { error } = await supabase.rpc("set_event_media_uploads_enabled", {
     p_enabled: enabled === true,
+  });
+  if (error) {
+    return {
+      error:
+        error.message === "PERMISSION_DENIED"
+          ? "You don't have permission to change event settings."
+          : "Could not save the setting. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * Sets how long this organization keeps event photos and videos after the
+ * event (#1608), or null to keep them indefinitely. Gated on events:manage and
+ * written through set_event_media_retention_days(), which checks it again and
+ * holds the 30-day to 10-year range. Only the periods the sheet offers are
+ * accepted here, so a hand-made call cannot pick an odd one.
+ */
+export async function updateEventMediaRetentionAction(
+  days: number | null,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to change event settings.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  if (days !== null && !EVENT_MEDIA_RETENTION_PRESETS.includes(days)) {
+    return { error: "Choose one of the listed periods." };
+  }
+
+  const { error } = await supabase.rpc("set_event_media_retention_days", {
+    // Null is "indefinitely"; the generated type does not say it is nullable.
+    p_days: days as number,
   });
   if (error) {
     return {

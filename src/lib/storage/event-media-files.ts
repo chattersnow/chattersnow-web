@@ -147,3 +147,39 @@ export function eventMediaDownloadUrl(
   url.searchParams.set("download", filename);
   return url.toString();
 }
+
+/**
+ * How long a tenant may keep event media after the event (#1608): the periods
+ * the Media sheet offers. `set_event_media_retention_days()` takes any whole
+ * number from 30 to 3650; null is "keep indefinitely", which is also where
+ * every tenant starts.
+ */
+export const EVENT_MEDIA_RETENTION_PRESETS = [30, 90, 180, 365, 730, 1825];
+
+/** The Media card lists what expires this soon, so it can be downloaded first. */
+export const EVENT_MEDIA_EXPIRY_WARNING_DAYS = 14;
+
+export function eventMediaRetentionLabel(days: number | null): string {
+  if (days === null) return "Keep indefinitely";
+  if (days % 365 === 0) {
+    const years = days / 365;
+    return `${years} ${years === 1 ? "year" : "years"} after the event`;
+  }
+  return `${days} days after the event`;
+}
+
+/**
+ * Whether a file's expiry falls inside the warning window. A date already
+ * past counts too: the purge runs once a day, so it is still there until then.
+ */
+export function eventMediaExpiresSoon(
+  expiresAt: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (!expiresAt) return false;
+  const at = Date.parse(expiresAt);
+  return (
+    Number.isFinite(at) &&
+    at - now.getTime() <= EVENT_MEDIA_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000
+  );
+}

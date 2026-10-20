@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   EVENT_MEDIA_MAX_BYTES,
   eventMediaDownloadUrl,
+  eventMediaExpiresSoon,
   eventMediaPath,
+  eventMediaRetentionLabel,
   planEventMediaFile,
 } from "./event-media-files";
 
@@ -88,5 +90,30 @@ describe("eventMediaDownloadUrl", () => {
     );
     expect(url.searchParams.get("token")).toBe("abc");
     expect(url.searchParams.get("download")).toBe("Snow day #2.jpg");
+  });
+});
+
+describe("eventMediaRetentionLabel", () => {
+  test("names indefinitely, whole years and days", () => {
+    expect(eventMediaRetentionLabel(null)).toBe("Keep indefinitely");
+    expect(eventMediaRetentionLabel(365)).toBe("1 year after the event");
+    expect(eventMediaRetentionLabel(1825)).toBe("5 years after the event");
+    expect(eventMediaRetentionLabel(90)).toBe("90 days after the event");
+  });
+});
+
+describe("eventMediaExpiresSoon", () => {
+  const now = new Date("2026-10-20T12:00:00Z");
+  const inDays = (days: number) =>
+    new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+
+  test("is the 14-day window, past dates included", () => {
+    expect(eventMediaExpiresSoon(inDays(14), now)).toBe(true);
+    expect(eventMediaExpiresSoon(inDays(-1), now)).toBe(true);
+    expect(eventMediaExpiresSoon(inDays(15), now)).toBe(false);
+  });
+
+  test("never for media kept indefinitely", () => {
+    expect(eventMediaExpiresSoon(null, now)).toBe(false);
   });
 });

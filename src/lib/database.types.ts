@@ -3003,6 +3003,7 @@ export type Database = {
           tenant_id: string;
           uploaded_at: string;
           uploaded_by: string | null;
+          expires_at: string | null;
           uploader_name: string | null;
         };
         Insert: {
@@ -10836,7 +10837,20 @@ export type Database = {
       };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
+      event_media_event_expires_at: {
+        Args: { p_event_id: string };
+        Returns: string;
+      };
+      event_media_expiry: {
+        Args: {
+          p_event_id: string;
+          p_tenant_id: string;
+          p_uploaded_at: string;
+        };
+        Returns: string;
+      };
       event_media_path_event_id: { Args: { p_name: string }; Returns: string };
+      event_media_retention_days: { Args: never; Returns: number };
       event_media_summary: {
         Args: { p_event_id: string };
         Returns: {
@@ -10854,6 +10868,19 @@ export type Database = {
           p_money: boolean;
         };
         Returns: Json;
+      };
+      expired_event_media: {
+        Args: { p_now?: string };
+        Returns: {
+          id: string;
+          storage_path: string;
+        }[];
+      };
+      expires_at: {
+        Args: { "": Database["public"]["Tables"]["event_media"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.expires_at with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
       export_current_tenant_data: { Args: never; Returns: Json };
       export_tenant_data: { Args: { p_tenant_id: string }; Returns: Json };
@@ -12388,6 +12415,10 @@ export type Database = {
         Args: { p_mapping: Json };
         Returns: undefined;
       };
+      set_event_media_retention_days: {
+        Args: { p_days: number };
+        Returns: undefined;
+      };
       set_event_media_uploads_enabled: {
         Args: { p_enabled: boolean };
         Returns: undefined;
@@ -12699,6 +12730,10 @@ export type Database = {
       };
       tenant_asks_photo_consent: { Args: never; Returns: boolean };
       tenant_data_snapshot: { Args: { p_tenant_id: string }; Returns: Json };
+      tenant_event_media_retention_days: {
+        Args: { p_tenant_id: string };
+        Returns: number;
+      };
       tenant_event_media_uploads_enabled: {
         Args: { p_tenant_id: string };
         Returns: boolean;
