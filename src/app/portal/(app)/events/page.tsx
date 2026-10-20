@@ -36,6 +36,7 @@ import { RegistrationSettingsSheet } from "./registration-settings-sheet";
 import { MediaSettingsSheet } from "./media-settings-sheet";
 import { getRiderProfileMountains } from "@/lib/rider-profile-settings";
 import {
+  getEventMediaRetentionDays,
   getEventMediaUploadsEnabled,
   getRegistrationAsksAboutMinors,
 } from "@/lib/registration-settings";
@@ -218,6 +219,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     riderMountains,
     asksAboutMinors,
     mediaUploadsEnabled,
+    mediaRetention,
   ] = await Promise.all([
     listProgramsAction(),
     getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
@@ -232,6 +234,8 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       : Promise.resolve(null),
     // Event media uploads (#1606), likewise.
     canManage ? getEventMediaUploadsEnabled(supabase) : Promise.resolve(null),
+    // And how long that media is kept (#1608).
+    canManage ? getEventMediaRetentionDays(supabase) : Promise.resolve(null),
   ]);
   const programs = "data" in programsResult ? programsResult.data : [];
   const taskGroups = groupEventTasksByEvent(eventTasks.items);
@@ -403,8 +407,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
           <RegistrationSettingsSheet asksAboutMinors={asksAboutMinors} />
         )}
 
-        {mediaUploadsEnabled !== null && (
-          <MediaSettingsSheet enabled={mediaUploadsEnabled} />
+        {mediaUploadsEnabled !== null && mediaRetention !== null && (
+          <MediaSettingsSheet
+            enabled={mediaUploadsEnabled}
+            retentionDays={mediaRetention.days}
+          />
         )}
 
         {canManage && <NewEventDialog programs={programs} />}

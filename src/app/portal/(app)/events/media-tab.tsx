@@ -6,7 +6,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { runAction } from "@/components/portal/action-toast";
 import { EmptyState } from "@/components/portal/empty-state";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
+import { ViewerTime } from "@/components/viewer-time";
 import { formatFileSize } from "@/lib/publications";
+import {
+  eventMediaExpiresSoon,
+  eventMediaRetentionLabel,
+} from "@/lib/storage/event-media-files";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import {
@@ -16,6 +21,7 @@ import {
   type EventMediaState,
 } from "./media-actions";
 import { EventMediaUploader } from "./event-media-uploader";
+import { MediaExpiryNotice } from "./media-expiry-notice";
 import { MediaPhotoGrid } from "./media-photo-grid";
 import { MediaVideoList } from "./media-video-list";
 
@@ -25,10 +31,11 @@ function storageSize(bytes: number): string {
 }
 
 /**
- * An event's photos and videos (#1606, #1607): the upload control, while the
- * organization has uploads on and the reader may upload here; the
- * photo-objection notice; how much storage the event and the organization
- * use; then the photo gallery and the video list.
+ * An event's photos and videos (#1606, #1607, #1608): the upload control,
+ * while the organization has uploads on and the reader may upload here; the
+ * photo-objection notice; what the retention setting deletes soon; then the
+ * photo gallery and the video list; how much storage the event and the
+ * organization use, and how long this event's media is kept.
  */
 export function MediaTab({
   eventId,
@@ -40,6 +47,9 @@ export function MediaTab({
   timeZone: string;
 }) {
   const [state, setState] = useState<EventMediaState | null>(null);
+  // When `state` was read, which "expires soon" is measured from: a clock read
+  // during render would differ between renders.
+  const [loadedAt, setLoadedAt] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -50,6 +60,7 @@ export function MediaTab({
       else {
         setLoadError(null);
         setState(result.data);
+        setLoadedAt(new Date());
       }
     });
   }, [eventId]);
@@ -78,11 +89,14 @@ export function MediaTab({
       </Alert>
     );
   }
-  if (!state) return <TabLoadingSkeleton />;
+  if (!state || !loadedAt) return <TabLoadingSkeleton />;
 
   const showUploader = state.enabled && state.canUpload;
   const photos = state.items.filter((item) => item.kind === "photo");
   const videos = state.items.filter((item) => item.kind === "video");
+  const expiring = state.items.filter((item) =>
+    eventMediaExpiresSoon(item.expires_at, loadedAt),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,6 +111,9 @@ export function MediaTab({
             — check photos and footage before sharing them outside the portal.
           </AlertDescription>
         </Alert>
+      )}
+      {expiring.length > 0 && (
+        <MediaExpiryNotice items={expiring} timeZone={timeZone} />
       )}
       {showUploader && (
         <EventMediaUploader eventId={eventId} onUploaded={load} />
@@ -137,7 +154,24 @@ export function MediaTab({
       <p className="app-muted text-xs">
         Storage: {storageSize(state.eventBytes)} for this event,{" "}
         {storageSize(state.tenantBytes)} for all of this organization&apos;s
-        event media.
+        event media.{" "}
+        {state.retentionDays === null ? (
+          "Kept indefinitely."
+        ) : (
+          <>
+            Kept {eventMediaRetentionLabel(state.retentionDays).toLowerCase()}
+            {state.eventExpiresAt && (
+              <>
+                , until{" "}
+                <ViewerTime
+                  iso={state.eventExpiresAt}
+                  fallbackZone={timeZone}
+                />
+              </>
+            )}
+            .
+          </>
+        )}
       </p>
     </div>
   );

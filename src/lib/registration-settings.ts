@@ -44,3 +44,16 @@ export async function getEventMediaUploadsEnabled(
   if (error || typeof data !== "boolean") return null;
   return data;
 }
+
+/**
+ * The current tenant's event media retention period (#1608), for the Events
+ * page's Media sheet: `{ days: null }` is "keep indefinitely". Null when the
+ * caller may not read it.
+ */
+export async function getEventMediaRetentionDays(
+  supabase: SupabaseClient,
+): Promise<{ days: number | null } | null> {
+  const { data, error } = await supabase.rpc("event_media_retention_days");
+  if (error) return null;
+  return { days: typeof data === "number" ? data : null };
+}
