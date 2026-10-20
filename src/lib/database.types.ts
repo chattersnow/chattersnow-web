@@ -259,7 +259,9 @@ export type Database = {
           created_by: string;
           document_path: string | null;
           external_link: string | null;
+          format: string;
           id: string;
+          items: Json;
           meeting_id: string;
           new_business: Json;
           next_meeting_date: string | null;
@@ -279,7 +281,9 @@ export type Database = {
           created_by?: string;
           document_path?: string | null;
           external_link?: string | null;
+          format?: string;
           id?: string;
+          items?: Json;
           meeting_id: string;
           new_business?: Json;
           next_meeting_date?: string | null;
@@ -299,7 +303,9 @@ export type Database = {
           created_by?: string;
           document_path?: string | null;
           external_link?: string | null;
+          format?: string;
           id?: string;
+          items?: Json;
           meeting_id?: string;
           new_business?: Json;
           next_meeting_date?: string | null;

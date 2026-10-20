@@ -37,8 +37,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Every key `buildMinutesSnapshot()` mints: a bare item name (`opening`,
  * `parking_lot`) or one qualified after a colon (`section:finance_fundraising`,
- * `new_business:0`), where the section half is itself a template section key
- * and so already matches `isValidSectionKey`.
+ * `new_business:0`, `item:<uuid>`), where the section half is itself a
+ * template section key and so already matches `isValidSectionKey`, and an
+ * agenda item's id matches `AGENDA_ITEM_ID_PATTERN` (#1623) -- which is why the
+ * qualifier admits a hyphen.
  *
  * Checking the shape rather than only the emptiness closes two things at once.
  * A key that matches nothing in the snapshot is notes written into a section
@@ -49,7 +51,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * on, rather than copying it key by key into a fresh one, so there is no
  * computed property write here at all.
  */
-const NOTE_KEY_PATTERN = /^[a-z][a-z0-9_]*(:[a-z0-9_]+)?$/;
+const NOTE_KEY_PATTERN = /^[a-z][a-z0-9_]*(:[a-z0-9_-]+)?$/;
 
 export function parseMinutesPatch(
   input: MinutesPatchInput,

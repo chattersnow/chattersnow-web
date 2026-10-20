@@ -16,6 +16,7 @@ import {
   type ActionFailure,
 } from "@/lib/portal/action-result";
 import type { AgendaTemplateSection } from "./agenda-template-shared";
+import { agendaFormatForMeetingType, type AgendaFormat } from "./agenda-form";
 import { OPENING_CHECKLIST } from "./opening-checklist";
 import {
   buildMinutesSnapshot,
@@ -133,7 +134,7 @@ export async function startMinutesFromAgenda(
 
   const { data: meeting, error: meetingError } = await supabase
     .from("governance_meetings")
-    .select("id, meeting_date")
+    .select("id, meeting_date, meeting_type")
     .eq("id", meetingId)
     .maybeSingle();
 
@@ -147,11 +148,16 @@ export async function startMinutesFromAgenda(
     return actionError("conflict", "That meeting no longer exists.");
   }
 
-  const agendaResult = await loadAgendaForSnapshot(supabase, meetingId);
+  const agendaResult = await loadAgendaForSnapshot(
+    supabase,
+    meetingId,
+    agendaFormatForMeetingType(meeting.meeting_type as string),
+  );
   if ("error" in agendaResult) return agendaResult;
 
   const snapshot = buildMinutesSnapshot({
     meetingDate: meeting.meeting_date as string,
+    format: agendaResult.format,
     agenda: agendaResult.agenda,
     sections: agendaResult.sections,
     openingChecklist: OPENING_CHECKLIST,
@@ -322,12 +328,20 @@ export async function reopenMinutes(
  * The agenda row plus the sections to render it against, resolved through the
  * agenda tab's ladder. Read here rather than through `getAgendaAction`, which
  * is a `"use server"` module and would drag `next/cache` into this core.
+ *
+ * The shape is the row's own `format` when there is a row -- a committee
+ * meeting that still holds a board agenda from before #1623 freezes that
+ * agenda, so its minutes match what it planned -- and `meetingFormat`, from
+ * the meeting's type, when there is none. A simple agenda has no template, so
+ * it never reaches the fallback read.
  */
 async function loadAgendaForSnapshot(
   supabase: SupabaseClient,
   meetingId: string,
+  meetingFormat: AgendaFormat,
 ): Promise<
   | {
+      format: AgendaFormat;
       agenda: SnapshotAgenda | null;
       bodyText: string | null;
       sections: AgendaTemplateSection[];
@@ -337,7 +351,7 @@ async function loadAgendaForSnapshot(
   const { data: agenda, error } = await supabase
     .from("agendas")
     .select(
-      "external_link, body_text, template_id, template_version_id, ongoing_items, new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, agenda_template_versions!agendas_template_version_id_fkey(sections)",
+      "format, items, external_link, body_text, template_id, template_version_id, ongoing_items, new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, agenda_template_versions!agendas_template_version_id_fkey(sections)",
     )
     .eq("meeting_id", meetingId)
     .maybeSingle();
@@ -351,6 +365,7 @@ async function loadAgendaForSnapshot(
 
   const row = agenda as unknown as
     | (SnapshotAgenda & {
+        format: AgendaFormat;
         body_text: string | null;
         agenda_template_versions: {
           sections: AgendaTemplateSection[];
@@ -358,9 +373,20 @@ async function loadAgendaForSnapshot(
       })
     | null;
 
+  const format = row?.format ?? meetingFormat;
+  if (format === "simple") {
+    return {
+      format,
+      agenda: row,
+      bodyText: row?.body_text ?? null,
+      sections: [],
+    };
+  }
+
   const pinnedSections = row?.agenda_template_versions?.sections ?? [];
   if (pinnedSections.length > 0) {
     return {
+      format,
       agenda: row,
       bodyText: row?.body_text ?? null,
       sections: pinnedSections,
@@ -391,6 +417,7 @@ async function loadAgendaForSnapshot(
     | undefined;
 
   return {
+    format,
     agenda: row,
     bodyText: row?.body_text ?? null,
     sections: fallback?.agenda_template_versions?.sections ?? [],

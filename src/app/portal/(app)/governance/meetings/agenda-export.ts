@@ -119,25 +119,126 @@ function sectionBodyLines(
   return lines;
 }
 
+/**
+ * The link and document lines both shapes open with. Named, never linked: a
+ * signed URL in an exported file stops working within the hour, and the file
+ * is private to the portal (#1489).
+ */
+function documentLines(agenda: Agenda): string[] {
+  const lines: string[] = [];
+  if (agenda.external_link) {
+    lines.push(`External link: ${agenda.external_link}`, "");
+  }
+  if (agenda.document_path) {
+    lines.push(
+      `Document: ${documentNameFromPath(agenda.document_path)} (in the portal)`,
+      "",
+    );
+  }
+  return lines;
+}
+
+/**
+ * A simple agenda (#1623): the opening, its items in order, and what the
+ * meeting has recorded so far. None of the board agenda's standing sections,
+ * which a committee or annual meeting does not have -- printing them empty
+ * would read as a board agenda nobody filled in.
+ */
+function formatSimpleAgendaMarkdown(input: AgendaExportInput): string {
+  const { agenda } = input;
+  const lines: string[] = [
+    `# Agenda — ${formatInstantDate(input.meetingDate)}`,
+    "",
+    ...documentLines(agenda),
+  ];
+
+  lines.push("## Opening");
+  for (const step of input.openingChecklist) lines.push(`- ${step}`);
+  lines.push("");
+
+  lines.push("## Agenda items");
+  if (agenda.items.length === 0) {
+    lines.push("No items yet.", "");
+  } else {
+    agenda.items.forEach((item, index) => {
+      lines.push(`### ${index + 1}. ${item.title}`);
+      if (item.notes) lines.push(item.notes);
+      lines.push("");
+    });
+  }
+
+  lines.push("## Decisions & votes");
+  if (input.decisions.length === 0) {
+    lines.push("No decisions recorded yet.");
+  } else {
+    for (const decision of input.decisions)
+      lines.push(`- ${decisionLine(decision)}`);
+  }
+  lines.push("");
+
+  lines.push("## Action items created today");
+  if (input.createdItems.length === 0) {
+    lines.push("None yet.");
+  } else {
+    for (const item of input.createdItems)
+      lines.push(`- ${actionItemLine(item)}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatSimpleAgendaPlainText(input: AgendaExportInput): string {
+  const { agenda } = input;
+  const lines: string[] = [
+    `AGENDA — ${formatInstantDate(input.meetingDate)}`,
+    "",
+    ...documentLines(agenda),
+  ];
+
+  lines.push("OPENING");
+  for (const step of input.openingChecklist) lines.push(`  - ${step}`);
+  lines.push("");
+
+  lines.push("AGENDA ITEMS");
+  if (agenda.items.length === 0) {
+    lines.push("  No items yet.");
+  } else {
+    agenda.items.forEach((item, index) => {
+      lines.push(`  ${index + 1}. ${item.title}`);
+      if (item.notes) lines.push(`     ${item.notes}`);
+    });
+  }
+  lines.push("");
+
+  lines.push("DECISIONS & VOTES");
+  if (input.decisions.length === 0) {
+    lines.push("  No decisions recorded yet.");
+  } else {
+    for (const decision of input.decisions)
+      lines.push(`  - ${decisionLine(decision)}`);
+  }
+  lines.push("");
+
+  lines.push("ACTION ITEMS CREATED TODAY");
+  if (input.createdItems.length === 0) {
+    lines.push("  None yet.");
+  } else {
+    for (const item of input.createdItems)
+      lines.push(`  - ${actionItemLine(item)}`);
+  }
+
+  return lines.join("\n");
+}
+
 export function formatAgendaMarkdown(input: AgendaExportInput): string {
+  if (input.agenda.format === "simple")
+    return formatSimpleAgendaMarkdown(input);
   const { agenda, sections, openingChecklist } = input;
   const lines: string[] = [];
 
   lines.push(`# Agenda — ${formatInstantDate(input.meetingDate)}`);
   lines.push("");
-
-  if (agenda.external_link) {
-    lines.push(`External link: ${agenda.external_link}`);
-    lines.push("");
-  }
-  if (agenda.document_path) {
-    // Named, never linked: a signed URL in an exported file stops working
-    // within the hour, and the file is private to the portal (#1489).
-    lines.push(
-      `Document: ${documentNameFromPath(agenda.document_path)} (in the portal)`,
-    );
-    lines.push("");
-  }
+  lines.push(...documentLines(agenda));
 
   lines.push("## Opening");
   for (const step of openingChecklist) lines.push(`- ${step}`);
@@ -244,24 +345,14 @@ export function formatAgendaMarkdown(input: AgendaExportInput): string {
 }
 
 export function formatAgendaPlainText(input: AgendaExportInput): string {
+  if (input.agenda.format === "simple")
+    return formatSimpleAgendaPlainText(input);
   const { agenda, sections, openingChecklist } = input;
   const lines: string[] = [];
 
   lines.push(`AGENDA — ${formatInstantDate(input.meetingDate)}`);
   lines.push("");
-
-  if (agenda.external_link) {
-    lines.push(`External link: ${agenda.external_link}`);
-    lines.push("");
-  }
-  if (agenda.document_path) {
-    // Named, never linked: a signed URL in an exported file stops working
-    // within the hour, and the file is private to the portal (#1489).
-    lines.push(
-      `Document: ${documentNameFromPath(agenda.document_path)} (in the portal)`,
-    );
-    lines.push("");
-  }
+  lines.push(...documentLines(agenda));
 
   lines.push("OPENING");
   for (const step of openingChecklist) lines.push(`  - ${step}`);

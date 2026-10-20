@@ -331,3 +331,58 @@ describe("supporting records (#1224)", () => {
     );
   });
 });
+
+describe("minutes of a simple agenda (#1623)", () => {
+  const LONG_TITLE =
+    "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+  const input: MinutesExportInput = {
+    meetingDate: "2026-09-01",
+    minutes: minutes({
+      agenda_snapshot: {
+        version: 3,
+        meeting_date: "2026-09-01",
+        template_id: null,
+        template_version_id: null,
+        external_link: null,
+        items: [
+          { key: "opening", label: "Opening", kind: "opening" },
+          {
+            key: "item:3f1c9a2e-7b4d-4e8a-9c61-0d2b5e8f4a17",
+            label: LONG_TITLE,
+            kind: "item",
+            planned: { text: "Bring last year's sign-up sheet." },
+          },
+          { key: "decisions", label: "Decisions & votes", kind: "decisions" },
+        ],
+      },
+      notes: {
+        "item:3f1c9a2e-7b4d-4e8a-9c61-0d2b5e8f4a17":
+          "Agreed two leads per site.",
+      },
+    }),
+    actionItems: [
+      actionItem({
+        description: "Recruit Saturday volunteers",
+        minutes_item_key: "item:3f1c9a2e-7b4d-4e8a-9c61-0d2b5e8f4a17",
+      }),
+    ],
+  };
+
+  test("heads each item with its title, with its note and actions beneath", () => {
+    const markdown = formatMinutesMarkdown(input);
+    const item = markdown.indexOf(
+      `## ${LONG_TITLE}\nAgreed two leads per site.`,
+    );
+    const action = markdown.indexOf("- Recruit Saturday volunteers — Alex");
+    expect(item).toBeGreaterThan(-1);
+    expect(action).toBeGreaterThan(item);
+    expect(action).toBeLessThan(markdown.indexOf("## Decisions & votes"));
+  });
+
+  test("prints the same shape as plain text", () => {
+    const text = formatMinutesPlainText(input);
+    expect(text).toContain(
+      `${LONG_TITLE.toUpperCase()}\n  Agreed two leads per site.`,
+    );
+  });
+});
