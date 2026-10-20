@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import type { EventRow } from "./event-badges";
 import type { Program } from "../programs/actions";
 import * as EventsActions from "./actions";
+import * as MeetingsActions from "../governance/meetings/actions";
+import type { EventMeeting } from "../governance/meetings/actions";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -14,6 +16,15 @@ const updateEventActionMock = mock<
 mock.module("./actions", () => ({
   ...EventsActions,
   updateEventAction: updateEventActionMock,
+}));
+
+const listEventMeetingsActionMock = mock<
+  (eventId: string) => Promise<EventMeeting[]>
+>(async () => []);
+
+mock.module("../governance/meetings/actions", () => ({
+  ...MeetingsActions,
+  listEventMeetingsAction: listEventMeetingsActionMock,
 }));
 
 const { OverviewTab } = await import("./overview-tab");
@@ -197,5 +208,43 @@ describe("OverviewTab start and end times", () => {
 
     await waitFor(() => expect(updateEventActionMock).toHaveBeenCalledTimes(1));
     expect(updateEventActionMock.mock.calls[0][1].get("endsAt")).toBe("");
+  });
+});
+
+// #1622: the governance meetings linked to the event, each linking back.
+describe("OverviewTab linked meetings", () => {
+  beforeEach(() => {
+    listEventMeetingsActionMock.mockReset();
+  });
+
+  test("lists the event's meetings with a link to each", async () => {
+    listEventMeetingsActionMock.mockImplementation(async () => [
+      {
+        id: "meeting-1",
+        meeting_date: "2026-08-20T23:00:00.000Z",
+        meeting_type: "committee",
+        status: "scheduled",
+      },
+    ]);
+    renderTab(makeEvent(), "view");
+
+    const link = await screen.findByRole("link");
+    expect(link).toHaveAttribute(
+      "href",
+      "/portal/governance/meetings/meeting-1",
+    );
+    expect(screen.getByText("Meetings")).toBeInTheDocument();
+    expect(screen.getByText("committee")).toBeInTheDocument();
+    expect(listEventMeetingsActionMock).toHaveBeenCalledWith("event-1");
+  });
+
+  test("shows no meetings field when none are linked", async () => {
+    listEventMeetingsActionMock.mockImplementation(async () => []);
+    renderTab(makeEvent(), "view");
+
+    await waitFor(() =>
+      expect(listEventMeetingsActionMock).toHaveBeenCalledTimes(1),
+    );
+    expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
   });
 });

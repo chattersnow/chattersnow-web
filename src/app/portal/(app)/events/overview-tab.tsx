@@ -40,6 +40,7 @@ import {
 import { runAction } from "@/components/portal/action-toast";
 import { ViewerTime } from "@/components/viewer-time";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
+import { LinkedMeetings } from "./linked-meetings";
 
 const VISIBILITIES = [
   { value: "private", label: "Private" },
@@ -210,6 +211,8 @@ export function OverviewTab({
         <ReadOnlyField label="Programs" htmlFor="details-programIds">
           {programNames.length > 0 ? programNames.join(", ") : "—"}
         </ReadOnlyField>
+
+        <LinkedMeetings eventId={event.id} />
 
         <ReadOnlyField label="Location" htmlFor="details-location">
           {form.location || "—"}

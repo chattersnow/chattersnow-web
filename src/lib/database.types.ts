@@ -5542,6 +5542,7 @@ export type Database = {
         Row: {
           created_at: string;
           created_by: string;
+          event_id: string | null;
           facilitator_person_id: string | null;
           id: string;
           location: string | null;
@@ -5559,6 +5560,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           created_by?: string;
+          event_id?: string | null;
           facilitator_person_id?: string | null;
           id?: string;
           location?: string | null;
@@ -5576,6 +5578,7 @@ export type Database = {
         Update: {
           created_at?: string;
           created_by?: string;
+          event_id?: string | null;
           facilitator_person_id?: string | null;
           id?: string;
           location?: string | null;
@@ -5591,6 +5594,13 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "governance_meetings_event_id_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "governance_meetings_facilitator_person_id_fkey";
             columns: ["tenant_id", "facilitator_person_id"];

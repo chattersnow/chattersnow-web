@@ -51,7 +51,7 @@ export default async function MeetingDetailPage({
   const { data: meeting, error } = await supabase
     .from("governance_meetings")
     .select(
-      "id, meeting_date, meeting_type, status, location, notes, minutes_approved_at, facilitator:people!governance_meetings_facilitator_person_id_fkey(id, name, preferred_name, email, phone), notetaker:people!governance_meetings_notetaker_person_id_fkey(id, name, preferred_name, email, phone)",
+      "id, meeting_date, meeting_type, status, location, notes, minutes_approved_at, facilitator:people!governance_meetings_facilitator_person_id_fkey(id, name, preferred_name, email, phone), notetaker:people!governance_meetings_notetaker_person_id_fkey(id, name, preferred_name, email, phone), event_id, event:events!governance_meetings_event_id_fkey(id, name, starts_at)",
     )
     .eq("id", meetingId)
     .maybeSingle();
