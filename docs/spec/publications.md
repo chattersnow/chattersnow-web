@@ -88,7 +88,7 @@ are #1473.
   preview and not indexed, even while the section is hidden. Nobody else does.
 - **Nothing is deleted by hand.** A removed page, a replaced cover or PDF and
   every file of a deleted issue are collected by the daily orphan sweep
-  (`/api/cron/gear-photo-purge`) once a day old and unreferenced.
+  (`/api/cron/storage-purge`) once a day old and unreferenced.
 
 ## 6. Data model — Publications
 
