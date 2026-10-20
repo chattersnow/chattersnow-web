@@ -2990,6 +2990,70 @@ export type Database = {
           },
         ];
       };
+      event_media: {
+        Row: {
+          caption: string | null;
+          content_type: string;
+          event_id: string;
+          id: string;
+          kind: string;
+          original_filename: string;
+          size_bytes: number;
+          storage_path: string;
+          tenant_id: string;
+          uploaded_at: string;
+          uploaded_by: string | null;
+        };
+        Insert: {
+          caption?: string | null;
+          content_type: string;
+          event_id: string;
+          id?: string;
+          kind?: string;
+          original_filename: string;
+          size_bytes: number;
+          storage_path: string;
+          tenant_id?: string;
+          uploaded_at?: string;
+          uploaded_by?: string | null;
+        };
+        Update: {
+          caption?: string | null;
+          content_type?: string;
+          event_id?: string;
+          id?: string;
+          kind?: string;
+          original_filename?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          tenant_id?: string;
+          uploaded_at?: string;
+          uploaded_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_media_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_media_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_media_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_programs: {
         Row: {
           event_id: string;
@@ -10556,6 +10620,10 @@ export type Database = {
         Args: { p_report_id: string };
         Returns: boolean;
       };
+      can_upload_event_media: {
+        Args: { p_event_id: string };
+        Returns: boolean;
+      };
       can_write_event_retro: { Args: { p_event_id: string }; Returns: boolean };
       cancel_event_registration: {
         Args: { p_note?: string; p_reason: string; p_registration_id: string };
@@ -10767,6 +10835,8 @@ export type Database = {
       };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
+      event_media_path_event_id: { Args: { p_name: string }; Returns: string };
+      event_media_uploads_enabled: { Args: never; Returns: boolean };
       event_report_rows: {
         Args: {
           p_event_id: string;
@@ -11707,6 +11777,32 @@ export type Database = {
         };
         Returns: string;
       };
+      record_event_media: {
+        Args: {
+          p_caption?: string;
+          p_original_filename: string;
+          p_path: string;
+        };
+        Returns: {
+          caption: string | null;
+          content_type: string;
+          event_id: string;
+          id: string;
+          kind: string;
+          original_filename: string;
+          size_bytes: number;
+          storage_path: string;
+          tenant_id: string;
+          uploaded_at: string;
+          uploaded_by: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "event_media";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       record_giveaway_ticket_sale: {
         Args: {
           p_giveaway_id: string;
@@ -12283,6 +12379,10 @@ export type Database = {
         Args: { p_mapping: Json };
         Returns: undefined;
       };
+      set_event_media_uploads_enabled: {
+        Args: { p_enabled: boolean };
+        Returns: undefined;
+      };
       set_gear_request_notes: {
         Args: { p_notes: string; p_request_id: string };
         Returns: undefined;
@@ -12590,6 +12690,10 @@ export type Database = {
       };
       tenant_asks_photo_consent: { Args: never; Returns: boolean };
       tenant_data_snapshot: { Args: { p_tenant_id: string }; Returns: Json };
+      tenant_event_media_uploads_enabled: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
       tenant_isolation_gaps: {
         Args: never;
         Returns: {

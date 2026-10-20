@@ -224,6 +224,7 @@ const EVENT_CHILD_TABLES = [
   "discount_codes",
   "giveaways",
   "volunteer_hours",
+  "event_media",
 ] as const;
 
 /**

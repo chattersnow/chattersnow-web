@@ -30,6 +30,7 @@ import { EventRevenueTab } from "./event-revenue-tab";
 import { EventSalesTab } from "./event-sales-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ResultsTab } from "./results-tab";
+import { MediaTab } from "./media-tab";
 import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
 import { LogIncidentDialog } from "./log-incident-dialog";
 import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
@@ -66,6 +67,7 @@ export type TabValue =
   | "revenue"
   | "sales"
   | "results"
+  | "media"
   | "donations"
   | "cash-donations";
 
@@ -494,6 +496,16 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         onDirtyChange={ctx.formCallbacks.results.onDirtyChange}
       />
     ),
+  },
+  {
+    // Photos and videos taken at the event (#1606). Ungated beyond the route's
+    // events:view; the upload control inside checks who may upload.
+    value: "media",
+    label: "Media",
+    keywords: ["photos", "videos", "pictures", "footage", "gallery"],
+    group: "results",
+    kind: "plain",
+    render: (ctx) => <MediaTab eventId={ctx.event.id} />,
   },
 ] as const;
 
