@@ -380,3 +380,29 @@ export function isEventActiveToday(
 
   return startsAt <= now && (endsAt === null || endsAt >= now);
 }
+
+/**
+ * True once an event is over: its `ends_at` has passed, or, with no `ends_at`,
+ * its `starts_at` has. The same rule as the public site's upcoming/past split.
+ */
+export function eventHasEnded(
+  event: Pick<EventWindow, "starts_at" | "ends_at">,
+  now: Date = new Date(),
+): boolean {
+  return new Date(event.ends_at ?? event.starts_at) < now;
+}
+
+export type EventTiming = "upcoming" | "today" | "past";
+
+/**
+ * Where an event sits in time, derived from its dates rather than a status
+ * someone has to set by hand (#1609). "Today" is `isEventActiveToday` in
+ * `event.timezone`, so pass the viewer's zone there to get the viewer's today.
+ */
+export function eventTiming(
+  event: EventWindow,
+  now: Date = new Date(),
+): EventTiming {
+  if (eventHasEnded(event, now)) return "past";
+  return isEventActiveToday(event, now) ? "today" : "upcoming";
+}

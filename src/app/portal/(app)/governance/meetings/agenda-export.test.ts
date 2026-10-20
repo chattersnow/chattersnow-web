@@ -199,7 +199,7 @@ const eventsFeed: AgendaEventsFeed = {
         starts_at: "2026-02-20T12:00:00.000Z",
         ends_at: null,
         timezone: "America/Denver",
-        status: "completed",
+        status: "published",
         report_status: "not_started",
         event_lead_id: null,
         event_lead_name: "Dana Lead",
@@ -558,7 +558,7 @@ describe("formatAgendaMarkdown with sourced sections", () => {
       "**Since the last meeting** (Feb 11, 2026 – Mar 18, 2026)",
     );
     expect(markdown).toContain(
-      "- Feb 20, 2026 — Winter gear swap — Completed — report outstanding — Dana Lead",
+      "- Feb 20, 2026 — Winter gear swap — Published — report outstanding — Dana Lead",
     );
     // Held, behind us, report in: not flagged. The cancelled one owed none.
     expect(markdown).toContain(
@@ -667,7 +667,7 @@ describe("formatAgendaPlainText", () => {
       "  Since the last meeting (Feb 11, 2026 – Mar 18, 2026)",
     );
     expect(text).toContain(
-      "  - Feb 20, 2026 — Winter gear swap — Completed — report outstanding — Dana Lead",
+      "  - Feb 20, 2026 — Winter gear swap — Published — report outstanding — Dana Lead",
     );
     expect(text).toContain("    Discussion: —");
     expect(text).not.toContain("**");

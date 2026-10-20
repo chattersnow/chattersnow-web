@@ -3,6 +3,7 @@ import { parseAdultsOnlyConfirmed } from "@/lib/adults-only";
 import { parseAttendedBefore } from "@/lib/attended-before";
 import { parseRegistrationMinors, type MinorContacts } from "@/lib/minors";
 import { parsePronouns } from "@/lib/pronouns";
+import { eventHasEnded } from "@/lib/time";
 import {
   parseRegistrationRiding,
   type RiderProfileFormData,
@@ -163,6 +164,8 @@ export function checkRegistrationWindow(
   event: {
     registration_enabled: boolean;
     registration_deadline: string | null;
+    starts_at: string;
+    ends_at: string | null;
   },
   now: Date = new Date(),
 ): RegistrationEligibility {
@@ -177,6 +180,12 @@ export function checkRegistrationWindow(
       open: false,
       reason: "The registration deadline for this event has passed.",
     };
+  }
+  // A past event stays listed on the public site (#1609), so one with no
+  // deadline must still close once it is over. The registration RPCs refuse
+  // the same case.
+  if (eventHasEnded(event, now)) {
+    return { open: false, reason: "This event has already happened." };
   }
   return { open: true };
 }

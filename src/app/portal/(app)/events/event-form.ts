@@ -1,13 +1,8 @@
 import type { ParseResult } from "@/lib/forms";
 
 const VISIBILITIES = ["public", "private"] as const;
-const STATUSES = [
-  "draft",
-  "published",
-  "completed",
-  "cancelled",
-  "archived",
-] as const;
+// No `completed` (#1609): whether an event is over is read off its dates.
+const STATUSES = ["draft", "published", "cancelled", "archived"] as const;
 
 export type EventFormData = {
   name: string;

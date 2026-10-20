@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   daysInMonth,
+  eventTiming,
   formatDueRelative,
   isEventActiveToday,
   todayInZone,
@@ -99,6 +100,56 @@ describe("isEventActiveToday", () => {
     };
     expect(() => isEventActiveToday(event, now)).not.toThrow();
     expect(isEventActiveToday(event, now)).toBe(true);
+  });
+});
+
+describe("eventTiming", () => {
+  const now = new Date("2026-08-24T18:00:00Z");
+  const zone = "America/Denver";
+
+  test("an event that has ended is past", () => {
+    const event = {
+      starts_at: "2026-08-24T14:00:00Z",
+      ends_at: "2026-08-24T16:00:00Z",
+      timezone: zone,
+    };
+    expect(eventTiming(event, now)).toBe("past");
+  });
+
+  test("an event with no end is past once it has started", () => {
+    const event = {
+      starts_at: "2026-08-24T17:00:00Z",
+      ends_at: null,
+      timezone: zone,
+    };
+    expect(eventTiming(event, now)).toBe("past");
+  });
+
+  test("an event still running is today", () => {
+    const event = {
+      starts_at: "2026-08-22T14:00:00Z",
+      ends_at: "2026-08-26T02:00:00Z",
+      timezone: zone,
+    };
+    expect(eventTiming(event, now)).toBe("today");
+  });
+
+  test("an event later on the same local day is today", () => {
+    const event = {
+      starts_at: "2026-08-25T01:00:00Z", // 7pm Denver on the 24th
+      ends_at: "2026-08-25T04:00:00Z",
+      timezone: zone,
+    };
+    expect(eventTiming(event, now)).toBe("today");
+  });
+
+  test("an event on a later day is upcoming", () => {
+    const event = {
+      starts_at: "2026-08-26T18:00:00Z",
+      ends_at: "2026-08-26T20:00:00Z",
+      timezone: zone,
+    };
+    expect(eventTiming(event, now)).toBe("upcoming");
   });
 });
 
