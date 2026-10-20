@@ -82,12 +82,19 @@ export async function liveEventMediaPaths(
   for (let from = 0; ; from += ROW_PAGE) {
     const { data, error } = await supabase
       .from("event_media")
-      .select("id, storage_path")
+      .select("id, storage_path, thumb_path")
       .order("id")
       .range(from, from + ROW_PAGE - 1);
     if (error) throw new Error(`Could not read event_media: ${error.message}`);
-    const page = (data ?? []) as { storage_path: string }[];
-    for (const row of page) paths.add(row.storage_path);
+    const page = (data ?? []) as {
+      storage_path: string;
+      thumb_path: string | null;
+    }[];
+    for (const row of page) {
+      paths.add(row.storage_path);
+      // An original photo's thumbnail (#1620) is as live as the photo.
+      if (row.thumb_path) paths.add(row.thumb_path);
+    }
     if (page.length < ROW_PAGE) return paths;
   }
 }
@@ -123,14 +130,22 @@ async function purgeExpired(
   if (error) {
     throw new Error(`Could not read expired event media: ${error.message}`);
   }
-  const expired = (data ?? []) as { id: string; storage_path: string }[];
+  const expired = (data ?? []) as {
+    id: string;
+    storage_path: string;
+    thumb_path: string | null;
+  }[];
 
   let deleted = 0;
   for (let at = 0; at < expired.length; at += PAGE_SIZE) {
     const batch = expired.slice(at, at + PAGE_SIZE);
     await removeAll(
       supabase,
-      batch.map((row) => row.storage_path),
+      batch.flatMap((row) =>
+        row.thumb_path
+          ? [row.storage_path, row.thumb_path]
+          : [row.storage_path],
+      ),
     );
     const { data: rows, error: deleteError } = await supabase
       .from("event_media")

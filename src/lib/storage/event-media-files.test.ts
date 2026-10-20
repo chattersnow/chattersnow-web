@@ -5,7 +5,9 @@ import {
   eventMediaExpiresSoon,
   eventMediaPath,
   eventMediaRetentionLabel,
+  eventMediaThumbPath,
   planEventMediaFile,
+  storedAsPickedType,
 } from "./event-media-files";
 
 const MB = 1024 * 1024;
@@ -115,5 +117,60 @@ describe("eventMediaExpiresSoon", () => {
 
   test("never for media kept indefinitely", () => {
     expect(eventMediaExpiresSoon(null, now)).toBe(false);
+  });
+});
+
+describe("upload link originals (#1620)", () => {
+  const keep = { keepOriginals: true };
+
+  test("a JPEG, PNG or WebP is stored as picked, marked original", () => {
+    expect(
+      planEventMediaFile(
+        { name: "a.jpg", type: "image/jpeg", size: 30 * MB },
+        keep,
+      ),
+    ).toEqual({
+      kind: "photo",
+      contentType: "image/jpeg",
+      extension: "jpg",
+      original: true,
+    });
+    expect(
+      planEventMediaFile({ name: "a.png", type: "image/png", size: MB }, keep),
+    ).toMatchObject({ contentType: "image/png", extension: "png" });
+    expect(
+      planEventMediaFile({ name: "a.webp", type: "", size: MB }, keep),
+    ).toMatchObject({ contentType: "image/webp", extension: "webp" });
+  });
+
+  test("HEIC is converted to JPEG, still as an original", () => {
+    expect(
+      planEventMediaFile(
+        { name: "a.HEIC", type: "image/heic", size: MB },
+        keep,
+      ),
+    ).toMatchObject({ contentType: "image/jpeg", original: true });
+    expect(storedAsPickedType({ name: "a.heic", type: "image/heic" })).toBe(
+      undefined,
+    );
+  });
+
+  test("a blank type falls back to the extension", () => {
+    expect(storedAsPickedType({ name: "DSC_1.JPG", type: "" })).toBe(
+      "image/jpeg",
+    );
+    expect(
+      storedAsPickedType({ name: "x.png", type: "application/octet-stream" }),
+    ).toBe("image/png");
+  });
+
+  test("without the option, photos are still re-encoded as before", () => {
+    expect(
+      planEventMediaFile({ name: "a.png", type: "image/png", size: MB }),
+    ).toEqual({ kind: "photo", contentType: "image/webp", extension: "webp" });
+  });
+
+  test("the thumbnail sits beside the original", () => {
+    expect(eventMediaThumbPath("t/e/abc.png")).toBe("t/e/abc-thumb.jpg");
   });
 });

@@ -25,6 +25,7 @@ function item(overrides: Partial<EventMediaRow>): EventMediaRow {
     uploaded_at: "2026-10-18T19:30:00Z",
     uploader_name: "Sam Lee",
     url: "https://storage.test/sign/a.jpg?token=t",
+    display_url: null,
     download_url: "https://storage.test/sign/a.jpg?token=t&download=a.jpg",
     expires_at: null,
     ...overrides,
@@ -51,6 +52,8 @@ function renderTab() {
     <MediaTab
       eventId="e1"
       eventName="Winter Social"
+      eventStartsAt="2026-10-18T18:00:00Z"
+      eventEndsAt={null}
       timeZone="America/Denver"
     />,
   );

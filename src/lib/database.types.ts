@@ -3003,10 +3003,15 @@ export type Database = {
           event_id: string;
           id: string;
           kind: string;
+          link_receipt_hash: string | null;
           original_filename: string;
+          rights_confirmed_at: string | null;
+          rights_terms: string | null;
           size_bytes: number;
           storage_path: string;
           tenant_id: string;
+          thumb_path: string | null;
+          upload_link_id: string | null;
           uploaded_at: string;
           uploaded_by: string | null;
           expires_at: string | null;
@@ -3018,10 +3023,15 @@ export type Database = {
           event_id: string;
           id?: string;
           kind?: string;
+          link_receipt_hash?: string | null;
           original_filename: string;
+          rights_confirmed_at?: string | null;
+          rights_terms?: string | null;
           size_bytes: number;
           storage_path: string;
           tenant_id?: string;
+          thumb_path?: string | null;
+          upload_link_id?: string | null;
           uploaded_at?: string;
           uploaded_by?: string | null;
         };
@@ -3031,10 +3041,15 @@ export type Database = {
           event_id?: string;
           id?: string;
           kind?: string;
+          link_receipt_hash?: string | null;
           original_filename?: string;
+          rights_confirmed_at?: string | null;
+          rights_terms?: string | null;
           size_bytes?: number;
           storage_path?: string;
           tenant_id?: string;
+          thumb_path?: string | null;
+          upload_link_id?: string | null;
           uploaded_at?: string;
           uploaded_by?: string | null;
         };
@@ -3055,6 +3070,74 @@ export type Database = {
           },
           {
             foreignKeyName: "event_media_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_media_upload_link_fkey";
+            columns: ["tenant_id", "upload_link_id"];
+            isOneToOne: false;
+            referencedRelation: "event_media_upload_links";
+            referencedColumns: ["tenant_id", "id"];
+          },
+        ];
+      };
+      event_media_upload_links: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          event_id: string;
+          expires_at: string;
+          id: string;
+          label: string;
+          max_bytes: number;
+          revoked_at: string | null;
+          tenant_id: string;
+          token_hash: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id: string;
+          expires_at: string;
+          id?: string;
+          label: string;
+          max_bytes?: number;
+          revoked_at?: string | null;
+          tenant_id?: string;
+          token_hash: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          event_id?: string;
+          expires_at?: string;
+          id?: string;
+          label?: string;
+          max_bytes?: number;
+          revoked_at?: string | null;
+          tenant_id?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_media_upload_links_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_media_upload_links_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_media_upload_links_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -10672,6 +10755,18 @@ export type Database = {
           tenant_id: string;
         }[];
       };
+      claim_event_media_link_upload_slots: {
+        Args: {
+          p_bytes: number;
+          p_count: number;
+          p_ip_address: unknown;
+          p_token_hash: string;
+        };
+        Returns: {
+          event_id: string;
+          tenant_id: string;
+        }[];
+      };
       claim_pending_role_grants: { Args: never; Returns: number };
       complete_my_welcome: {
         Args: { p_current_release?: string };
@@ -10734,6 +10829,16 @@ export type Database = {
           untiered_item_ids: string[];
         }[];
       };
+      create_event_media_upload_link: {
+        Args: {
+          p_event_id: string;
+          p_expires_at: string;
+          p_label: string;
+          p_max_bytes: number;
+          p_token_hash: string;
+        };
+        Returns: string;
+      };
       create_event_sponsor: {
         Args: {
           p_contribution_value: number;
@@ -10781,6 +10886,18 @@ export type Database = {
       default_tenant_id: { Args: never; Returns: string };
       delete_article_category: { Args: { p_id: string }; Returns: number };
       delete_content_pack: { Args: { p_id: string }; Returns: number };
+      delete_event_media_by_link: {
+        Args: {
+          p_ip_address: unknown;
+          p_media_id: string;
+          p_receipt_hash: string;
+          p_token_hash: string;
+        };
+        Returns: {
+          storage_path: string;
+          thumb_path: string;
+        }[];
+      };
       delete_event_sponsor: { Args: { p_id: string }; Returns: undefined };
       delete_giveaway_prize: {
         Args: { p_prize_id: string };
@@ -10875,6 +10992,19 @@ export type Database = {
           tenant_bytes: number;
         }[];
       };
+      event_media_upload_link_list: {
+        Args: { p_event_id: string };
+        Returns: {
+          bytes: number;
+          created_at: string;
+          expires_at: string;
+          files: number;
+          id: string;
+          label: string;
+          max_bytes: number;
+          revoked_at: string;
+        }[];
+      };
       event_media_uploads_enabled: { Args: never; Returns: boolean };
       event_report_rows: {
         Args: {
@@ -10890,6 +11020,7 @@ export type Database = {
         Returns: {
           id: string;
           storage_path: string;
+          thumb_path: string;
         }[];
       };
       expires_at: {
@@ -10983,6 +11114,10 @@ export type Database = {
       get_donation_import_mapping: { Args: never; Returns: Json };
       get_event_impact_derived_data: {
         Args: { p_event_id: string };
+        Returns: Json;
+      };
+      get_event_media_upload_link: {
+        Args: { p_ip_address: unknown; p_token_hash: string };
         Returns: Json;
       };
       get_event_report_data: { Args: { p_event_id: string }; Returns: Json };
@@ -11841,10 +11976,15 @@ export type Database = {
           event_id: string;
           id: string;
           kind: string;
+          link_receipt_hash: string | null;
           original_filename: string;
+          rights_confirmed_at: string | null;
+          rights_terms: string | null;
           size_bytes: number;
           storage_path: string;
           tenant_id: string;
+          thumb_path: string | null;
+          upload_link_id: string | null;
           uploaded_at: string;
           uploaded_by: string | null;
         };
@@ -11854,6 +11994,17 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      record_event_media_by_link: {
+        Args: {
+          p_ip_address: unknown;
+          p_original_filename: string;
+          p_path: string;
+          p_receipt_hash: string;
+          p_rights_confirmed: boolean;
+          p_token_hash: string;
+        };
+        Returns: string;
       };
       record_giveaway_ticket_sale: {
         Args: {
@@ -12183,6 +12334,16 @@ export type Database = {
         Args: { p_for_update: boolean; p_token_hash: string };
         Returns: string;
       };
+      resolve_event_media_upload_link: {
+        Args: { p_for_update: boolean; p_token_hash: string };
+        Returns: {
+          event_id: string;
+          label: string;
+          link_id: string;
+          max_bytes: number;
+          tenant_id: string;
+        }[];
+      };
       resolve_gear_request_acknowledgement_token: {
         Args: { p_for_update: boolean; p_token_hash: string };
         Returns: string;
@@ -12342,6 +12503,10 @@ export type Database = {
           p_note?: string;
           p_submission_id: string;
         };
+        Returns: undefined;
+      };
+      revoke_event_media_upload_link: {
+        Args: { p_link_id: string };
         Returns: undefined;
       };
       revoke_support_access: {
@@ -12761,6 +12926,10 @@ export type Database = {
           kind: string;
           table_name: string;
         }[];
+      };
+      tenant_media_upload_rights: {
+        Args: { p_tenant_id: string };
+        Returns: string;
       };
       tenant_module_enabled: {
         Args: { p_module_key: string };

@@ -5,6 +5,8 @@ import {
   EVENT_MEDIA_BUCKET,
   EVENT_PHOTO_MAX_EDGE,
   TUS_CHUNK_SIZE,
+  eventMediaThumbPath,
+  storedAsPickedType,
   type EventMediaSlot,
 } from "./event-media-files";
 
@@ -65,6 +67,72 @@ export async function uploadEventPhoto(
   if ("ok" in result || result.status === 409) return { ok: true };
   console.error("Could not upload the event photo", slot.path, result.status);
   return { error: uploadErrorFor(file.name, result.status) };
+}
+
+/**
+ * Past any camera's longest edge: a converted original (HEIC) keeps its size.
+ * Browsers cap a canvas at 16384px a side.
+ */
+const ORIGINAL_MAX_EDGE = 16384;
+
+/**
+ * An upload link's photo (#1620): the file as delivered, byte for byte, then a
+ * 2048px JPEG thumbnail beside it for the gallery. A type the bucket cannot
+ * store (HEIC) is converted to a full-size JPEG first.
+ *
+ * The thumbnail is best effort: a photo whose thumbnail fails is still stored
+ * and recorded, and the gallery shows the original instead. Never throws.
+ */
+export async function uploadEventPhotoOriginal(
+  file: File,
+  slot: EventMediaSlot,
+  onProgress?: (fraction: number) => void,
+): Promise<EventMediaUploadResult> {
+  let body: Blob;
+  if (storedAsPickedType(file)) {
+    // Typed explicitly: a browser that left `file.type` blank would send
+    // application/octet-stream, which the bucket refuses.
+    body = new Blob([file], { type: slot.contentType });
+  } else {
+    try {
+      body = await compressImage(file, ORIGINAL_MAX_EDGE, "image/jpeg");
+    } catch (error) {
+      console.error("Could not convert the selected photo", error);
+      return {
+        error: `${file.name} couldn't be converted in this browser. Export it as a JPEG and upload that.`,
+      };
+    }
+  }
+
+  const result = await putToSignedUrl(
+    EVENT_MEDIA_BUCKET,
+    slot.path,
+    slot.token,
+    body,
+    onProgress,
+  );
+  if (!("ok" in result) && result.status !== 409) {
+    console.error("Could not upload the event photo", slot.path, result.status);
+    return { error: uploadErrorFor(file.name, result.status) };
+  }
+
+  if (slot.thumbToken) {
+    try {
+      const thumb = await compressImage(file, EVENT_PHOTO_MAX_EDGE);
+      const thumbResult = await putToSignedUrl(
+        EVENT_MEDIA_BUCKET,
+        eventMediaThumbPath(slot.path),
+        slot.thumbToken,
+        thumb,
+      );
+      if (!("ok" in thumbResult) && thumbResult.status !== 409) {
+        console.error("Could not upload the photo's thumbnail", thumbResult);
+      }
+    } catch (error) {
+      console.error("Could not make the photo's thumbnail", error);
+    }
+  }
+  return { ok: true };
 }
 
 export type VideoUploadHandlers = {

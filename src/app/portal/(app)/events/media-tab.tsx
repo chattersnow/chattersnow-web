@@ -23,6 +23,7 @@ import {
 import { EventMediaUploader } from "./event-media-uploader";
 import { MediaExpiryNotice } from "./media-expiry-notice";
 import { MediaPhotoGrid } from "./media-photo-grid";
+import { MediaUploadLinks } from "./media-upload-links";
 import { MediaVideoList } from "./media-video-list";
 
 /** formatFileSize rounds anything under a KB up to "1 KB"; nothing is nothing. */
@@ -40,10 +41,14 @@ function storageSize(bytes: number): string {
 export function MediaTab({
   eventId,
   eventName,
+  eventStartsAt,
+  eventEndsAt,
   timeZone,
 }: {
   eventId: string;
   eventName: string;
+  eventStartsAt: string;
+  eventEndsAt: string | null;
   timeZone: string;
 }) {
   const [state, setState] = useState<EventMediaState | null>(null);
@@ -92,6 +97,9 @@ export function MediaTab({
   if (!state || !loadedAt) return <TabLoadingSkeleton />;
 
   const showUploader = state.enabled && state.canUpload;
+  // events:manage (canDelete) on top of being allowed to upload at all, which
+  // is what rules out the demo tenant (#1620).
+  const showLinks = showUploader && state.canDelete;
   const photos = state.items.filter((item) => item.kind === "photo");
   const videos = state.items.filter((item) => item.kind === "video");
   const expiring = state.items.filter((item) =>
@@ -117,6 +125,14 @@ export function MediaTab({
       )}
       {showUploader && (
         <EventMediaUploader eventId={eventId} onUploaded={load} />
+      )}
+      {showLinks && (
+        <MediaUploadLinks
+          eventId={eventId}
+          eventStartsAt={eventStartsAt}
+          eventEndsAt={eventEndsAt}
+          timeZone={timeZone}
+        />
       )}
       {state.items.length === 0 ? (
         <EmptyState
