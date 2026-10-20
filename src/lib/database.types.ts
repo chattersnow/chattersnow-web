@@ -3003,6 +3003,7 @@ export type Database = {
           tenant_id: string;
           uploaded_at: string;
           uploaded_by: string | null;
+          uploader_name: string | null;
         };
         Insert: {
           caption?: string | null;
@@ -10836,6 +10837,14 @@ export type Database = {
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
       event_media_path_event_id: { Args: { p_name: string }; Returns: string };
+      event_media_summary: {
+        Args: { p_event_id: string };
+        Returns: {
+          event_bytes: number;
+          photo_objections: number;
+          tenant_bytes: number;
+        }[];
+      };
       event_media_uploads_enabled: { Args: never; Returns: boolean };
       event_report_rows: {
         Args: {
@@ -12740,6 +12749,12 @@ export type Database = {
           p_source_monetary_donation_id?: string;
         };
         Returns: undefined;
+      };
+      uploader_name: {
+        Args: { "": Database["public"]["Tables"]["event_media"]["Row"] };
+        Returns: {
+          error: true;
+        } & "the function public.uploader_name with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache";
       };
       upsert_giveaway_winner: {
         Args: {

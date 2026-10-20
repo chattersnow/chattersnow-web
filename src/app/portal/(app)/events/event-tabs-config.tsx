@@ -505,7 +505,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     keywords: ["photos", "videos", "pictures", "footage", "gallery"],
     group: "results",
     kind: "plain",
-    render: (ctx) => <MediaTab eventId={ctx.event.id} />,
+    render: (ctx) => (
+      <MediaTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
+        timeZone={ctx.event.timezone}
+      />
+    ),
   },
 ] as const;
 
