@@ -141,7 +141,7 @@ export function MediaPhotoGrid({
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL; next/image would cache it past its expiry */}
                   <img
-                    src={photo.url}
+                    src={photo.display_url ?? photo.url}
                     alt=""
                     loading="lazy"
                     className="aspect-square w-full object-cover"
@@ -186,7 +186,7 @@ export function MediaPhotoGrid({
       {openIndex !== null && viewable[openIndex] && (
         <MediaLightbox
           photos={viewable.map((photo) => ({
-            url: photo.url,
+            url: photo.display_url ?? photo.url,
             downloadUrl: photo.download_url,
             filename: photo.original_filename,
           }))}

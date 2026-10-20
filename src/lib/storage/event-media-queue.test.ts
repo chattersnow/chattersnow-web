@@ -181,3 +181,69 @@ describe("event media queue", () => {
     expect(queue.getSnapshot()).toEqual([]);
   });
 });
+
+describe("upload link options (#1620)", () => {
+  test("keepOriginals plans a PNG as an original photo", async () => {
+    const minted: string[] = [];
+    const { queue } = setup({
+      keepOriginals: true,
+      mintSlots: async (files) => {
+        minted.push(...files.map((file) => file.name));
+        return { slots: files.map(slotFor) };
+      },
+    });
+    await queue.add([
+      new File([new Uint8Array(10)], "a.png", { type: "image/png" }),
+    ]);
+    expect(minted).toEqual(["a.png"]);
+    expect(queue.getSnapshot()[0].kind).toBe("photo");
+  });
+
+  test("a recorded file with a ref can be removed, and leaves the list", async () => {
+    const removed: string[] = [];
+    const { queue, photoResolvers } = setup({
+      record: async () => ({ ok: true, ref: "media-1.receipt" }),
+      remove: async (ref) => {
+        removed.push(ref);
+        return { ok: true };
+      },
+    });
+    await queue.add([photo()]);
+    photoResolvers[0]({ ok: true });
+    await tick();
+    const [item] = queue.getSnapshot();
+    expect(item.removable).toBe(true);
+
+    await queue.remove(item.id);
+    expect(removed).toEqual(["media-1.receipt"]);
+    expect(queue.getSnapshot()).toEqual([]);
+  });
+
+  test("a refused removal keeps the row with the reason", async () => {
+    const { queue, photoResolvers } = setup({
+      record: async () => ({ ok: true, ref: "r" }),
+      remove: async () => ({ error: "Not from here." }),
+    });
+    await queue.add([photo()]);
+    photoResolvers[0]({ ok: true });
+    await tick();
+    const id = queue.getSnapshot()[0].id;
+
+    await queue.remove(id);
+    expect(queue.getSnapshot()[0]).toMatchObject({
+      status: "done",
+      removable: true,
+      error: "Not from here.",
+    });
+  });
+
+  test("without remove, nothing is removable", async () => {
+    const { queue, photoResolvers } = setup({
+      record: async () => ({ ok: true, ref: "r" }),
+    });
+    await queue.add([photo()]);
+    photoResolvers[0]({ ok: true });
+    await tick();
+    expect(queue.getSnapshot()[0].removable).toBe(false);
+  });
+});

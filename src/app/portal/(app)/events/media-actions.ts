@@ -28,6 +28,11 @@ export type EventMediaRow = {
   uploader_name: string | null;
   /** Short-lived signed read URL; null when the object could not be signed. */
   url: string | null;
+  /**
+   * The 2048px copy to display, for a photo kept at full resolution through an
+   * upload link (#1620); otherwise `url`.
+   */
+  display_url: string | null;
   /** The same signature, saving as the original filename. */
   download_url: string | null;
   /** When the retention setting deletes it; null when kept indefinitely. */
@@ -94,7 +99,7 @@ export async function getEventMediaAction(
     supabase
       .from("event_media")
       .select(
-        "id, kind, storage_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name, expires_at",
+        "id, kind, storage_path, thumb_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name, expires_at",
       )
       .eq("event_id", eventId)
       .order("uploaded_at", { ascending: false }),
@@ -113,7 +118,11 @@ export async function getEventMediaAction(
     const { data, error } = await supabase.storage
       .from(EVENT_MEDIA_BUCKET)
       .createSignedUrls(
-        stored.map((row) => row.storage_path),
+        stored.flatMap((row) =>
+          row.thumb_path
+            ? [row.storage_path, row.thumb_path]
+            : [row.storage_path],
+        ),
         SIGNED_URL_TTL_SECONDS,
       );
     if (error) console.error("Could not sign event media URLs", error);
@@ -135,12 +144,13 @@ export async function getEventMediaAction(
       retentionDays:
         typeof retentionDays.data === "number" ? retentionDays.data : null,
       eventExpiresAt: eventExpiresAt.data ?? null,
-      items: stored.map(({ storage_path, ...row }) => {
+      items: stored.map(({ storage_path, thumb_path, ...row }) => {
         const url = urls.get(storage_path) ?? null;
         return {
           ...row,
           kind: row.kind as EventMediaKind,
           url,
+          display_url: (thumb_path && urls.get(thumb_path)) || url,
           download_url: url
             ? eventMediaDownloadUrl(url, row.original_filename)
             : null,
@@ -177,7 +187,7 @@ export async function deleteEventMediaAction(
 
   const { data: row, error: readError } = await supabase
     .from("event_media")
-    .select("id, storage_path")
+    .select("id, storage_path, thumb_path")
     .eq("id", String(mediaId))
     .maybeSingle();
   if (readError || !row) {
@@ -186,7 +196,9 @@ export async function deleteEventMediaAction(
 
   const { error: removeError } = await supabase.storage
     .from(EVENT_MEDIA_BUCKET)
-    .remove([row.storage_path]);
+    .remove(
+      row.thumb_path ? [row.storage_path, row.thumb_path] : [row.storage_path],
+    );
   if (removeError) {
     console.error("Could not remove the event media object", removeError);
     return { error: "Could not delete the file. Please try again." };

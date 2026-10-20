@@ -517,6 +517,8 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
       <MediaTab
         eventId={ctx.event.id}
         eventName={ctx.event.name}
+        eventStartsAt={ctx.event.starts_at}
+        eventEndsAt={ctx.event.ends_at}
         timeZone={ctx.event.timezone}
       />
     ),

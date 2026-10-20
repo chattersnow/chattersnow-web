@@ -32,6 +32,8 @@ export type EventMediaItem = {
   error: string | null;
   /** False for a file that can never be stored (wrong type, too large). */
   retryable: boolean;
+  /** A recorded file the uploader may still take back (#1620). */
+  removable: boolean;
 };
 
 export type FileDescription = { name: string; type: string; size: number };
@@ -39,6 +41,8 @@ export type FileDescription = { name: string; type: string; size: number };
 export type EventMediaQueueDeps = {
   /** How many files upload at once. */
   concurrency?: number;
+  /** Plan photos as originals, as an upload link does (#1620). */
+  keepOriginals?: boolean;
   mintSlots: (
     files: FileDescription[],
   ) => Promise<{ slots: EventMediaSlot[] } | { error: string }>;
@@ -52,10 +56,15 @@ export type EventMediaQueueDeps = {
     slot: EventMediaSlot,
     handlers: VideoUploadHandlers,
   ) => VideoUploadHandle;
+  /**
+   * `ref`, when given, is what `remove` needs to take the file back -- an
+   * upload link's receipt (#1620). Never shown.
+   */
   record: (
     slot: EventMediaSlot,
     originalName: string,
-  ) => Promise<{ ok: true } | { error: string }>;
+  ) => Promise<{ ok: true; ref?: string } | { error: string }>;
+  remove?: (ref: string) => Promise<{ ok: true } | { error: string }>;
 };
 
 type Entry = {
@@ -63,6 +72,7 @@ type Entry = {
   file: File;
   slot: EventMediaSlot | null;
   video: VideoUploadHandle | null;
+  ref: string | null;
 };
 
 export type EventMediaQueue = ReturnType<typeof createEventMediaQueue>;
@@ -98,7 +108,13 @@ export function createEventMediaQueue(deps: EventMediaQueueDeps) {
       fail(id, recorded.error);
       return;
     }
-    update(id, { status: "done", progress: 1, error: null });
+    entry.ref = recorded.ref ?? null;
+    update(id, {
+      status: "done",
+      progress: 1,
+      error: null,
+      removable: !!deps.remove && !!entry.ref,
+    });
     pump();
   }
 
@@ -180,12 +196,15 @@ export function createEventMediaQueue(deps: EventMediaQueueDeps) {
       const toMint: string[] = [];
       for (const file of files) {
         const id = crypto.randomUUID();
-        const plan = planEventMediaFile(file);
+        const plan = planEventMediaFile(file, {
+          keepOriginals: deps.keepOriginals,
+        });
         const failed = "error" in plan;
         entries.set(id, {
           file,
           slot: null,
           video: null,
+          ref: null,
           item: {
             id,
             name: file.name,
@@ -195,6 +214,7 @@ export function createEventMediaQueue(deps: EventMediaQueueDeps) {
             progress: null,
             error: failed ? plan.error : null,
             retryable: !failed,
+            removable: false,
           },
         });
         if (!failed) toMint.push(id);
@@ -229,6 +249,23 @@ export function createEventMediaQueue(deps: EventMediaQueueDeps) {
       update(id, { status: "queued", error: null });
       if (entry.slot) pump();
       else void mintFor([id]);
+    },
+
+    /**
+     * Deletes a recorded file through `deps.remove` and drops its row; on a
+     * refusal the row stays, with the reason.
+     */
+    async remove(id: string) {
+      const entry = entries.get(id);
+      if (!entry?.item.removable || !entry.ref || !deps.remove) return;
+      update(id, { removable: false, error: null });
+      const result = await deps.remove(entry.ref);
+      if ("error" in result) {
+        update(id, { removable: true, error: result.error });
+        return;
+      }
+      entries.delete(id);
+      emit();
     },
 
     /** Drops a finished or failed row from the list. */

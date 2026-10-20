@@ -318,6 +318,13 @@ export const CONTENT_SECTIONS: readonly ContentSection[] = [
     label: "Community calendar",
     route: "/events/community",
   },
+  {
+    key: "events:media_uploads",
+    page: "events",
+    label: "Photo and video upload links",
+    description:
+      "Shown on the page an event's upload link opens, for a photographer or videographer without a portal account.",
+  },
 
   {
     key: "publications:print",
@@ -2046,6 +2053,22 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     // still snapshotted onto a registration -- by `set_my_photo_consent()`,
     // when somebody objects -- as the text that objection was made against
     // (#1319's shape, not #686's: no version table and no permalink here).
+    default: [],
+  },
+  {
+    key: "events.media_upload_rights",
+    page: "events",
+    section: "events:media_uploads",
+    label: "What you do with uploaded photos and video",
+    description:
+      "What your organization may do with the photos and videos a photographer sends through an upload link — your site and social accounts, press, sponsors, funder reports — and how you credit them. The upload page asks the uploader to confirm the files are theirs to share and that they agree to this, and keeps a copy of these words with each file. Leave it blank and they confirm only that the files are theirs to share and that you may keep them with the event.",
+    type: "paragraphs",
+    // Blank, for `events.photo_consent`'s reason (#1620): what an organization
+    // does with somebody else's photographs is off-platform and unknowable
+    // from this codebase, and these words are what the uploader agrees to.
+    // The platform's own sentence on the box says only what is true of the
+    // software -- the files are kept with the event -- and the box is scoped
+    // to the files being uploaded, never a site-wide acceptance (#1318).
     default: [],
   },
   {

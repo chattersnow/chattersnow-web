@@ -21,7 +21,12 @@ export const TUS_CHUNK_SIZE = 6 * 1024 * 1024;
 export type EventMediaKind = "photo" | "video";
 
 export type EventMediaContentType =
-  "video/mp4" | "video/quicktime" | "video/webm" | "image/jpeg" | "image/webp";
+  | "video/mp4"
+  | "video/quicktime"
+  | "video/webm"
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp";
 
 const VIDEO_TYPES: Record<string, EventMediaContentType> = {
   mp4: "video/mp4",
@@ -35,7 +40,19 @@ const EXTENSIONS: Record<EventMediaContentType, string> = {
   "video/quicktime": "mov",
   "video/webm": "webm",
   "image/jpeg": "jpg",
+  "image/png": "png",
   "image/webp": "webp",
+};
+
+/** Photos an upload link stores byte for byte (#1620); anything else is converted. */
+const ORIGINAL_PHOTO_TYPES: Record<string, EventMediaContentType> = {
+  "image/jpeg": "image/jpeg",
+  "image/png": "image/png",
+  "image/webp": "image/webp",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
 };
 
 const IMAGE_EXTENSIONS = new Set([
@@ -52,11 +69,27 @@ export type EventMediaPlan = {
   kind: EventMediaKind;
   contentType: EventMediaContentType;
   extension: string;
+  /** Uploaded as picked, with a thumbnail beside it; see `keepOriginals`. */
+  original?: true;
 };
 
 function extensionOf(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+/**
+ * The type a photo is stored under byte for byte by an upload link (#1620), or
+ * undefined when the bucket cannot take it as picked and it must be converted.
+ */
+export function storedAsPickedType(
+  file: Pick<File, "name" | "type">,
+): EventMediaContentType | undefined {
+  const type = file.type.toLowerCase();
+  if (type !== "" && type !== "application/octet-stream") {
+    return ORIGINAL_PHOTO_TYPES[type];
+  }
+  return ORIGINAL_PHOTO_TYPES[extensionOf(file.name)];
 }
 
 /**
@@ -68,9 +101,15 @@ function extensionOf(name: string): string {
  * way -- and as JPEG otherwise, HEIC included. Advisory: the bucket's
  * `allowed_mime_types` and `file_size_limit` are what refuse, and the server
  * action runs this again before minting a token.
+ *
+ * `keepOriginals` is an upload link's rule (#1620): a photographer's JPEG, PNG
+ * or WebP is stored exactly as delivered, at full resolution, and gets a
+ * thumbnail for the gallery. Anything else (HEIC) the bucket cannot store, so
+ * it is still converted to JPEG -- at full size, with a thumbnail too.
  */
 export function planEventMediaFile(
   file: Pick<File, "name" | "type" | "size">,
+  { keepOriginals = false }: { keepOriginals?: boolean } = {},
 ): EventMediaPlan | { error: string } {
   const extension = extensionOf(file.name);
   const type = file.type.toLowerCase();
@@ -96,6 +135,18 @@ export function planEventMediaFile(
     ((type === "" || type === "application/octet-stream") &&
       IMAGE_EXTENSIONS.has(extension))
   ) {
+    if (keepOriginals) {
+      const contentType = storedAsPickedType(file) ?? "image/jpeg";
+      if (file.size > EVENT_MEDIA_MAX_BYTES) {
+        return { error: `${file.name} is larger than 10 GB.` };
+      }
+      return {
+        kind: "photo",
+        contentType,
+        extension: EXTENSIONS[contentType],
+        original: true,
+      };
+    }
     const keepsAlpha =
       type === "image/png" ||
       type === "image/webp" ||
@@ -119,6 +170,8 @@ export type EventMediaSlot = {
   token: string;
   kind: EventMediaKind;
   contentType: EventMediaContentType;
+  /** An original photo's thumbnail slot (#1620), at `eventMediaThumbPath(path)`. */
+  thumbToken?: string;
 };
 
 /**
@@ -131,6 +184,15 @@ export function eventMediaPath(
   extension: string,
 ): string {
   return `${tenantId}/${eventId}/${crypto.randomUUID()}.${extension}`;
+}
+
+/**
+ * Where an original photo's 2048px JPEG thumbnail goes (#1620): beside it, as
+ * `{uuid}-thumb.jpg`. `record_event_media_by_link()` derives the same path
+ * rather than taking one from the client.
+ */
+export function eventMediaThumbPath(path: string): string {
+  return path.replace(/\.[a-z0-9]+$/, "-thumb.jpg");
 }
 
 /**
