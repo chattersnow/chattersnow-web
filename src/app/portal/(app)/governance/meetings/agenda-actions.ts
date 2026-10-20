@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { signDocumentPaths } from "@/lib/storage/documents-sign";
 import {
+  agendaFormatForMeetingType,
   parseAgendaForm,
+  parseSimpleAgendaForm,
+  type AgendaFormat,
+  type AgendaItem,
   type AgendaOngoingItem,
   type AgendaUpcomingDate,
 } from "./agenda-form";
@@ -18,6 +22,10 @@ import type {
 export type Agenda = {
   id: string;
   meeting_id: string;
+  /** Which shape the row was written in (#1623); see `AgendaFormat`. */
+  format: AgendaFormat;
+  /** A simple agenda's items; empty on a board agenda. */
+  items: AgendaItem[];
   external_link: string | null;
   /** Object path in the private documents bucket (#1489). */
   document_path: string | null;
@@ -51,7 +59,7 @@ export async function getAgendaAction(
   const { data, error } = await supabase
     .from("agendas")
     .select(
-      "id, meeting_id, external_link, document_path, body_text, template_id, template_version_id, ongoing_items, new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, agenda_template_versions!agendas_template_version_id_fkey(sections)",
+      "id, meeting_id, format, items, external_link, document_path, body_text, template_id, template_version_id, ongoing_items, new_business, parking_lot, upcoming_dates, next_meeting_date, next_meeting_topics, agenda_template_versions!agendas_template_version_id_fkey(sections)",
     )
     .eq("meeting_id", meetingId)
     .maybeSingle();
@@ -64,6 +72,8 @@ export async function getAgendaAction(
   const row = data as unknown as {
     id: string;
     meeting_id: string;
+    format: AgendaFormat;
+    items: AgendaItem[] | null;
     external_link: string | null;
     document_path: string | null;
     body_text: string | null;
@@ -84,6 +94,8 @@ export async function getAgendaAction(
     data: {
       id: row.id,
       meeting_id: row.meeting_id,
+      format: row.format,
+      items: row.items ?? [],
       external_link: row.external_link,
       document_path: row.document_path,
       document_url: row.document_path
@@ -120,13 +132,46 @@ export async function upsertAgendaAction(
   );
   if (permissionError) return permissionError;
 
-  const parsed = parseAgendaForm(formData);
+  // The shape is the server's decision, not the form's: it follows the
+  // meeting's type, and an agenda already written in the other shape is
+  // read-only rather than converted (#1623). Trusting a posted format would
+  // let a hand-built request write board columns onto a committee meeting.
+  const [meetingResult, existingResult] = await Promise.all([
+    supabase
+      .from("governance_meetings")
+      .select("meeting_type")
+      .eq("id", meetingId)
+      .maybeSingle(),
+    supabase
+      .from("agendas")
+      .select("format")
+      .eq("meeting_id", meetingId)
+      .maybeSingle(),
+  ]);
+  if (meetingResult.error || existingResult.error) {
+    return { error: "Could not save the agenda. Please try again." };
+  }
+  if (!meetingResult.data) return { error: "That meeting no longer exists." };
+
+  const format = agendaFormatForMeetingType(meetingResult.data.meeting_type);
+  const existing = existingResult.data;
+  if (existing && existing.format !== format) {
+    return {
+      error:
+        "This agenda was written for a different meeting type, so it can no longer be edited.",
+    };
+  }
+
+  const parsed =
+    format === "simple"
+      ? parseSimpleAgendaForm(formData)
+      : parseAgendaForm(formData);
   if ("error" in parsed) return parsed;
 
   const { error } = await supabase
     .from("agendas")
     .upsert(
-      { meeting_id: meetingId, ...parsed.data },
+      { meeting_id: meetingId, format, ...parsed.data },
       { onConflict: "meeting_id" },
     );
 

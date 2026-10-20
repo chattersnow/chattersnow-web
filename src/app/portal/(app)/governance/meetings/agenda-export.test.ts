@@ -21,6 +21,8 @@ import type {
 const baseAgenda: Agenda = {
   id: "agenda-1",
   meeting_id: "meeting-1",
+  format: "board",
+  items: [],
   external_link: null,
   document_path: null,
   document_url: null,
@@ -704,5 +706,66 @@ describe("formatAgendaPlainText", () => {
     );
     expect(text).toContain("  - Sep 15, 2026 — Fall picnic (Event)");
     expect(text).not.toContain("#");
+  });
+});
+
+describe("a simple agenda (#1623)", () => {
+  const LONG_TITLE =
+    "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+  const simpleInput: AgendaExportInput = {
+    ...emptyInput,
+    agenda: {
+      ...baseAgenda,
+      format: "simple",
+      external_link: "https://docs.example.com/committee",
+      items: [
+        {
+          id: "a1",
+          title: LONG_TITLE,
+          notes: "Bring last year's sign-up sheet.",
+        },
+        { id: "b2", title: "Budget for the spring swap" },
+      ],
+    },
+  };
+
+  test("prints its items in order and none of the board sections", () => {
+    const markdown = formatAgendaMarkdown(simpleInput);
+    expect(markdown).toContain(
+      "External link: https://docs.example.com/committee",
+    );
+    expect(markdown).toContain("## Agenda items");
+    expect(markdown).toContain(
+      `### 1. ${LONG_TITLE}\nBring last year's sign-up sheet.`,
+    );
+    expect(markdown).toContain("### 2. Budget for the spring swap");
+    expect(markdown).toContain("## Decisions & votes");
+    for (const board of [
+      "Ongoing board items",
+      "New business",
+      "Parking lot",
+      "Upcoming dates",
+      "Next meeting",
+      "Agenda notes",
+    ]) {
+      expect(markdown).not.toContain(board);
+    }
+  });
+
+  test("prints the same shape as plain text", () => {
+    const text = formatAgendaPlainText(simpleInput);
+    expect(text).toContain("AGENDA ITEMS");
+    expect(text).toContain(`  1. ${LONG_TITLE}`);
+    expect(text).toContain("     Bring last year's sign-up sheet.");
+    expect(text).not.toContain("ONGOING BOARD ITEMS");
+  });
+
+  test("says so when there are no items yet", () => {
+    const empty = {
+      ...simpleInput,
+      agenda: { ...simpleInput.agenda, items: [] },
+    };
+    expect(formatAgendaMarkdown(empty)).toContain("No items yet.");
+    expect(formatAgendaPlainText(empty)).toContain("  No items yet.");
   });
 });

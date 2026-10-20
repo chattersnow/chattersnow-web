@@ -70,7 +70,6 @@ import {
   getPreviousMeetingMinutesAction,
   type PreviousMeetingMinutes,
 } from "./minutes-approval-actions";
-import { MinutesApprovalDialog } from "./minutes-approval-dialog";
 import { RecordPreviewProvider } from "@/components/portal/record-preview-sheet";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { runAction } from "@/components/portal/action-toast";
@@ -107,16 +106,19 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useTabData } from "@/hooks/use-tab-data";
 import { Spinner } from "@/components/ui/spinner";
-import { MeetingExportDialog } from "./meeting-export-dialog";
-import {
-  formatAgendaMarkdown,
-  formatAgendaPlainText,
-  type AgendaExportInput,
-} from "./agenda-export";
 import type { AgendaSectionFeeds } from "./agenda-feed-text";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
-import { APPROVE_MINUTES_ITEM, OPENING_CHECKLIST } from "./opening-checklist";
+import { OPENING_CHECKLIST } from "./opening-checklist";
+import { agendaFormatForMeetingType, type AgendaFormat } from "./agenda-form";
+import {
+  AgendaCreatedActionItems,
+  AgendaDecisions,
+  AgendaExport,
+  AgendaOpening,
+  ReadOnlySection,
+} from "./agenda-parts";
+import { SimpleAgenda } from "./simple-agenda";
 
 /** One labelled paragraph of a standing section's per-meeting text. */
 function OngoingItemBlock({ label, text }: { label: string; text: string }) {
@@ -284,21 +286,6 @@ export function OngoingTopicsTooltip({ topics }: { topics: string[] }) {
 }
 
 /**
- * The agenda's half of the shared export dialog (#1201): the dialog takes two
- * formatted strings, and this is where an agenda becomes them. The minutes tab
- * has the same three lines over `minutes-export.ts`.
- */
-function AgendaExport({ input }: { input: AgendaExportInput }) {
-  return (
-    <MeetingExportDialog
-      title="Export agenda"
-      markdown={formatAgendaMarkdown(input)}
-      plainText={formatAgendaPlainText(input)}
-    />
-  );
-}
-
-/**
  * Titles for the rows the editor shows as linked, keyed the way a pinned row
  * names its source. Only what is in the live window is here; a pinned row whose
  * record has since moved out of it keeps its link and reads generically.
@@ -391,36 +378,6 @@ function CarriedOverActionItems({
         </li>
       ))}
     </ul>
-  );
-}
-
-function ReadOnlySection({
-  title,
-  onViewAll,
-  children,
-}: {
-  title: string;
-  onViewAll?: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold">{title}</p>
-        {onViewAll && (
-          <Button
-            type="button"
-            variant="link"
-            size="sm"
-            className="h-auto p-0"
-            onClick={onViewAll}
-          >
-            View all
-          </Button>
-        )}
-      </div>
-      <div className="mt-1">{children}</div>
-    </div>
   );
 }
 
@@ -799,7 +756,91 @@ function AgendaForm({
   );
 }
 
-export function AgendaTab({
+type AgendaTabProps = {
+  meetingId: string;
+  meetingDate: string;
+  /** The meeting's type, which decides the agenda's shape (#1623). */
+  meetingType: string;
+  mode: "view" | "edit";
+  canManage: boolean;
+  minutesApprovedAt: string | null;
+  onViewActionItems: () => void;
+  onViewDecisions: () => void;
+  onExitEdit: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * Told whether the agenda can be edited at all, so the card can drop its
+   * pencil for an agenda written in the other shape. A callback rather than a
+   * prop because only this component has read the row.
+   */
+  onReadOnlyChange?: (readOnly: boolean) => void;
+};
+
+/** What a governance manager is told about an agenda in the other shape. */
+function shapeMismatchNote(format: AgendaFormat): string {
+  return format === "board"
+    ? "This agenda was written in the board format, which only board meetings use. It is kept as it was and can no longer be edited."
+    : "This agenda was written as a list of items before this became a board meeting. It is kept as it was and can no longer be edited.";
+}
+
+/**
+ * The agenda tab (#1623): a board meeting gets the structured board agenda,
+ * every other type a simple list of items. An agenda already written in the
+ * other shape -- the meeting's type changed after, or it is a committee meeting
+ * from before #1623 -- keeps rendering in its own shape, read-only, and is
+ * never converted.
+ */
+export function AgendaTab({ onReadOnlyChange, ...props }: AgendaTabProps) {
+  const {
+    data: agenda,
+    loadError,
+    refresh: refreshAgenda,
+  } = useTabData<Agenda | null>(
+    () => getAgendaAction(props.meetingId),
+    [props.meetingId],
+  );
+  const expected = agendaFormatForMeetingType(props.meetingType);
+  const format = agenda?.format ?? expected;
+  const readOnly = format !== expected;
+
+  useEffect(() => {
+    onReadOnlyChange?.(readOnly);
+  }, [readOnly, onReadOnlyChange]);
+
+  if (agenda === undefined) {
+    return <TabLoadingSkeleton />;
+  }
+
+  const body = { ...props, agenda, loadError, refreshAgenda, readOnly };
+
+  return (
+    <div className="flex flex-col gap-6">
+      {readOnly && props.canManage && (
+        <Alert>
+          <AlertDescription>{shapeMismatchNote(format)}</AlertDescription>
+        </Alert>
+      )}
+      {format === "simple" ? (
+        <SimpleAgenda {...body} />
+      ) : (
+        <BoardAgenda {...body} />
+      )}
+    </div>
+  );
+}
+
+export type AgendaBodyProps = Omit<
+  AgendaTabProps,
+  "meetingType" | "onReadOnlyChange"
+> & {
+  agenda: Agenda | null;
+  loadError: string | null;
+  refreshAgenda: () => void;
+  /** Written in the other shape: render it, never offer to edit it. */
+  readOnly: boolean;
+};
+
+function BoardAgenda({
   meetingId,
   meetingDate,
   mode,
@@ -809,23 +850,12 @@ export function AgendaTab({
   onViewDecisions,
   onExitEdit,
   onDirtyChange,
-}: {
-  meetingId: string;
-  meetingDate: string;
-  mode: "view" | "edit";
-  canManage: boolean;
-  minutesApprovedAt: string | null;
-  onViewActionItems: () => void;
-  onViewDecisions: () => void;
-  onExitEdit: () => void;
-  onDirtyChange?: (dirty: boolean) => void;
-}) {
+  agenda,
+  loadError,
+  refreshAgenda,
+  readOnly,
+}: AgendaBodyProps) {
   const router = useRouter();
-  const {
-    data: agenda,
-    loadError,
-    refresh: refreshAgenda,
-  } = useTabData<Agenda | null>(() => getAgendaAction(meetingId), [meetingId]);
   const { data: templates } = useTabData<ActiveAgendaTemplate[]>(
     () => listActiveAgendaTemplatesAction(),
     [meetingId],
@@ -946,10 +976,6 @@ export function AgendaTab({
     partnershipsFeedError,
   };
 
-  if (agenda === undefined) {
-    return <TabLoadingSkeleton />;
-  }
-
   const templateId = agenda?.template_id ?? activeTemplate?.id ?? null;
   const templateVersionId =
     agenda?.template_version_id ?? activeTemplate?.version_id ?? null;
@@ -968,7 +994,7 @@ export function AgendaTab({
     </RecordPreviewProvider>
   );
 
-  if (mode === "edit") {
+  if (mode === "edit" && !readOnly) {
     return preview(
       <AgendaForm
         agenda={agenda}
@@ -1025,26 +1051,13 @@ export function AgendaTab({
             />
           </div>
 
-          <div>
-            <p className="text-sm font-semibold">Opening</p>
-            <ul className="app-muted mt-1 list-disc pl-5 text-sm">
-              {OPENING_CHECKLIST.map((item) => (
-                <li key={item}>
-                  {item === APPROVE_MINUTES_ITEM && previousMinutes ? (
-                    <MinutesApprovalDialog
-                      meetingId={meetingId}
-                      previousMeeting={previousMinutes}
-                      approvedAt={minutesApprovedAt}
-                      canApprove={canManage}
-                      onApproved={() => router.refresh()}
-                    />
-                  ) : (
-                    item
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <AgendaOpening
+            meetingId={meetingId}
+            previousMinutes={previousMinutes}
+            minutesApprovedAt={minutesApprovedAt}
+            canManage={canManage}
+            onApproved={() => router.refresh()}
+          />
 
           <FieldGroup>
             <ReadOnlyField label="Document" htmlFor="agenda-document-view">
@@ -1158,35 +1171,10 @@ export function AgendaTab({
             </div>
           </div>
 
-          <ReadOnlySection
-            title="Decisions & votes"
+          <AgendaDecisions
+            decisions={decisions ?? []}
             onViewAll={onViewDecisions}
-          >
-            {(decisions ?? []).length === 0 ? (
-              <EmptyState
-                className="py-4"
-                title="No decisions recorded yet"
-                description="Record them in the Decisions section of the Overview tab and they will be listed here."
-              />
-            ) : (
-              <ul className="flex flex-col gap-1 text-sm">
-                {(decisions ?? []).map((decision) => (
-                  <li key={decision.id}>
-                    {decision.topic && (
-                      <span className="font-medium">{decision.topic}: </span>
-                    )}
-                    {decision.description}
-                    {decision.vote_result && (
-                      <span className="app-muted">
-                        {" "}
-                        ({decision.vote_result})
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </ReadOnlySection>
+          />
 
           <ReadOnlyListSection
             title="New business"
@@ -1230,26 +1218,10 @@ export function AgendaTab({
             )}
           </div>
 
-          <ReadOnlySection
-            title="Action items created today"
+          <AgendaCreatedActionItems
+            items={createdItems ?? []}
             onViewAll={onViewActionItems}
-          >
-            {(createdItems ?? []).length === 0 ? (
-              <p className="app-muted text-sm">None yet.</p>
-            ) : (
-              <ul className="flex flex-col gap-1 text-sm">
-                {(createdItems ?? []).map((item) => (
-                  <li key={item.id}>
-                    {item.description}
-                    <span className="app-muted">
-                      {" "}
-                      — {personDisplayName(item.owner)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </ReadOnlySection>
+          />
 
           <ReadOnlyListSection title="Parking lot" items={agenda.parking_lot} />
 

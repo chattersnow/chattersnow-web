@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { parseAgendaForm } from "./agenda-form";
+import {
+  agendaFormatForMeetingType,
+  parseAgendaForm,
+  parseSimpleAgendaForm,
+} from "./agenda-form";
 
 function formData(fields: Record<string, string>) {
   const data = new FormData();
@@ -283,5 +287,88 @@ describe("parseAgendaForm", () => {
     ).toEqual({
       error: "Could not read the ongoing board items. Please try again.",
     });
+  });
+});
+
+describe("agendaFormatForMeetingType", () => {
+  test("only a board meeting gets the board agenda", () => {
+    expect(agendaFormatForMeetingType("board")).toBe("board");
+    for (const type of ["committee", "annual", "other"]) {
+      expect(agendaFormatForMeetingType(type)).toBe("simple");
+    }
+  });
+});
+
+describe("parseSimpleAgendaForm", () => {
+  const LONG_TITLE =
+    "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+  const LONG_NOTES =
+    "Last year we were short four volunteers on the Saturday morning shift. ".repeat(
+      15,
+    );
+  const READ_ERROR = {
+    error: "Could not read the agenda items. Please try again.",
+  };
+
+  test("keeps order, trims, and drops rows left entirely blank", () => {
+    expect(
+      parseSimpleAgendaForm(
+        formData({
+          externalLink: " https://docs.example.com/committee ",
+          items: JSON.stringify([
+            { id: "b2", title: `  ${LONG_TITLE}  `, notes: `  ${LONG_NOTES}` },
+            { id: "c3", title: "", notes: "   " },
+            { id: "a1", title: "Budget", notes: "" },
+          ]),
+        }),
+      ),
+    ).toEqual({
+      data: {
+        external_link: "https://docs.example.com/committee",
+        document_path: null,
+        items: [
+          { id: "b2", title: LONG_TITLE, notes: LONG_NOTES.trim() },
+          { id: "a1", title: "Budget" },
+        ],
+      },
+    });
+  });
+
+  test("treats an empty form as an agenda with no items", () => {
+    expect(parseSimpleAgendaForm(new FormData())).toEqual({
+      data: { external_link: null, document_path: null, items: [] },
+    });
+  });
+
+  test("refuses notes with no title", () => {
+    expect(
+      parseSimpleAgendaForm(
+        formData({
+          items: JSON.stringify([{ id: "a1", title: " ", notes: "Context" }]),
+        }),
+      ),
+    ).toEqual({ error: "Every agenda item needs a title." });
+  });
+
+  test("refuses anything that is not a list of well-formed items", () => {
+    for (const items of [
+      "not json",
+      "null",
+      '"a string"',
+      JSON.stringify(["Budget"]),
+      JSON.stringify([{ title: "No id" }]),
+      JSON.stringify([{ id: "", title: "Blank id" }]),
+      // The id becomes half a minutes note key, so it keeps to that alphabet.
+      JSON.stringify([{ id: "Has Spaces", title: "Bad id" }]),
+      JSON.stringify([{ id: "__proto__:x", title: "Bad id" }]),
+      JSON.stringify([
+        { id: "a1", title: "One" },
+        { id: "a1", title: "Same id" },
+      ]),
+      JSON.stringify([{ id: "a1", title: 3 }]),
+      JSON.stringify([{ id: "a1", title: "T", notes: ["x"] }]),
+    ]) {
+      expect(parseSimpleAgendaForm(formData({ items }))).toEqual(READ_ERROR);
+    }
   });
 });

@@ -293,6 +293,8 @@ function agenda(
   return {
     id: "agenda-1",
     meeting_id: "meeting-1",
+    format: "board",
+    items: [],
     external_link: null,
     document_path: null,
     document_url: null,
@@ -311,11 +313,18 @@ function agenda(
 
 // With a toaster throughout: the tab announces a failed action through one,
 // and a tab rendered without it would swallow the only evidence a tick failed.
-function renderTab(mode: "view" | "edit", canManage = true) {
+function renderTab(
+  mode: "view" | "edit",
+  canManage = true,
+  meetingType = "board",
+  onReadOnlyChange?: (readOnly: boolean) => void,
+) {
   return renderWithToaster(
     <AgendaTab
       meetingId="meeting-1"
       meetingDate="2026-09-01"
+      meetingType={meetingType}
+      onReadOnlyChange={onReadOnlyChange}
       mode={mode}
       canManage={canManage}
       minutesApprovedAt={null}
@@ -739,5 +748,132 @@ describe("AgendaTab carried-over action items", () => {
     );
     expect(screen.queryByRole("checkbox")).toBeNull();
     expect(updateActionItemStatusAction).not.toHaveBeenCalled();
+  });
+});
+
+// Realistic lengths (#1623): a committee's item titles are sentences, and its
+// notes run to a paragraph or two.
+const LONG_TITLE =
+  "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+const LONG_NOTES =
+  "Last year we were short four volunteers on the Saturday morning shift and the drop-off line backed up into the parking lot for most of an hour. ".repeat(
+    8,
+  );
+
+function simpleAgenda(items: Agenda["items"]): Agenda {
+  return {
+    ...agenda([]),
+    format: "simple",
+    items,
+    template_id: null,
+    template_version_id: null,
+  };
+}
+
+describe("AgendaTab simple agenda (#1623)", () => {
+  for (const meetingType of ["committee", "annual", "other"]) {
+    test(`a ${meetingType} meeting gets the item editor, not the board agenda`, async () => {
+      renderTab("edit", true, meetingType);
+
+      await waitFor(
+        () => expect(screen.getByLabelText("Item 1")).toBeDefined(),
+        SETTLE,
+      );
+      expect(screen.getByRole("button", { name: /Add item/ })).toBeDefined();
+      expect(screen.queryByText("Ongoing board items")).toBeNull();
+      expect(screen.queryByText("Parking lot")).toBeNull();
+      expect(screen.queryByLabelText("Next meeting date")).toBeNull();
+    });
+  }
+
+  test("a board meeting still gets the board agenda", async () => {
+    agendaRow = agenda(MANUAL_SECTIONS);
+    renderTab("edit", true, "board");
+
+    await waitFor(
+      () => expect(screen.getByText("Ongoing board items")).toBeDefined(),
+      SETTLE,
+    );
+    expect(screen.queryByLabelText("Item 1")).toBeNull();
+  });
+
+  test("reads back items in order with their notes", async () => {
+    agendaRow = simpleAgenda([
+      { id: "a1", title: LONG_TITLE, notes: LONG_NOTES.trim() },
+      { id: "b2", title: "Budget for the spring swap" },
+    ]);
+    renderTab("view", true, "committee");
+
+    const list = await waitFor(
+      () => screen.getByText("Agenda items").nextElementSibling as HTMLElement,
+      SETTLE,
+    );
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain(LONG_TITLE);
+    expect(rows[0]!.textContent).toContain("Saturday morning shift");
+    expect(rows[1]!.textContent).toBe("Budget for the spring swap");
+    expect(screen.queryByText("Ongoing board items")).toBeNull();
+  });
+
+  test("adds, renames, reorders and removes items, and saves them in order", async () => {
+    agendaRow = simpleAgenda([
+      { id: "a1", title: "Volunteer plan" },
+      { id: "b2", title: "Budget" },
+    ]);
+    const user = userEvent.setup();
+    renderTab("edit", true, "committee");
+
+    const second = await waitFor(() => screen.getByLabelText("Item 2"), SETTLE);
+    fireEvent.change(second, { target: { value: LONG_TITLE } });
+    await user.click(screen.getByRole("button", { name: "Move item 2 up" }));
+    await user.click(screen.getByRole("button", { name: /Add item/ }));
+    fireEvent.change(screen.getByLabelText("Item 3"), {
+      target: { value: "Throwaway" },
+    });
+    await user.click(screen.getByRole("button", { name: "Remove item 3" }));
+    fireEvent.change(screen.getAllByLabelText("Notes")[0]!, {
+      target: { value: LONG_NOTES },
+    });
+    await user.click(screen.getByRole("button", { name: "Save agenda" }));
+
+    await waitFor(() => expect(upsertAgendaAction).toHaveBeenCalled(), SETTLE);
+    const form = upsertAgendaAction.mock.calls[0]![1];
+    const saved = JSON.parse(String(form.get("items")));
+    expect(saved.map((item: { id: string }) => item.id)).toEqual(["b2", "a1"]);
+    expect(saved[0].title).toBe(LONG_TITLE);
+    expect(saved[0].notes).toBe(LONG_NOTES);
+    expect(form.get("ongoingItems")).toBeNull();
+  });
+
+  test("a board agenda on a committee meeting stays readable and read-only", async () => {
+    agendaRow = agenda(MANUAL_SECTIONS, {
+      finance_fundraising: { updates: "Winter drive on track." },
+    });
+    const onReadOnlyChange = mock(() => {});
+    renderTab("edit", true, "committee", onReadOnlyChange);
+
+    await waitFor(
+      () => expect(screen.getByText("Winter drive on track.")).toBeDefined(),
+      SETTLE,
+    );
+    expect(screen.getByText(/written in the board format/)).toBeDefined();
+    // Rendered as the read view even though the card asked for edit.
+    expect(screen.queryByRole("button", { name: "Save agenda" })).toBeNull();
+    expect(onReadOnlyChange).toHaveBeenLastCalledWith(true);
+  });
+
+  test("a simple agenda on a board meeting stays readable and read-only", async () => {
+    agendaRow = simpleAgenda([{ id: "a1", title: "Volunteer plan" }]);
+    renderTab("view", true, "board");
+
+    await waitFor(
+      () => expect(screen.getByText("Volunteer plan")).toBeDefined(),
+      SETTLE,
+    );
+    expect(
+      screen.getByText(/before this became a board meeting/),
+    ).toBeDefined();
+    expect(screen.queryByText("Ongoing board items")).toBeNull();
   });
 });

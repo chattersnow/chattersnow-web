@@ -45,6 +45,7 @@ const FULL_AGENDA: SnapshotAgenda = {
 function build(agenda: SnapshotAgenda | null, sections = SECTIONS) {
   return buildMinutesSnapshot({
     meetingDate: "2026-03-18T18:00:00.000Z",
+    format: "board",
     agenda,
     sections,
     openingChecklist: OPENING_CHECKLIST,
@@ -335,5 +336,89 @@ describe("isMinutesSnapshot", () => {
         ]),
       ),
     ).toBe(true);
+  });
+});
+
+// A non-board meeting's minutes follow its agenda items (#1623). Real lengths:
+// a committee's item titles are sentences and its notes run long.
+const LONG_TITLE =
+  "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+const LONG_NOTES =
+  "Last year we were short four volunteers on the Saturday morning shift and the line backed up for most of an hour. ".repeat(
+    10,
+  );
+
+function buildSimple(agenda: SnapshotAgenda | null) {
+  return buildMinutesSnapshot({
+    meetingDate: "2026-03-18T18:00:00.000Z",
+    format: "simple",
+    agenda,
+    // Ignored on this path: a simple agenda has no template.
+    sections: SECTIONS,
+    openingChecklist: OPENING_CHECKLIST,
+  });
+}
+
+describe("buildMinutesSnapshot for a simple agenda", () => {
+  test("opening, one item per agenda item keyed by its id, then decisions", () => {
+    const snapshot = buildSimple({
+      external_link: "https://example.test/committee.pdf",
+      items: [
+        {
+          id: "3f1c9a2e-7b4d-4e8a-9c61-0d2b5e8f4a17",
+          title: LONG_TITLE,
+          notes: LONG_NOTES,
+        },
+        { id: "b2", title: "Budget for the spring swap" },
+      ],
+    });
+
+    expect(snapshot.version).toBe(MINUTES_SNAPSHOT_VERSION);
+    expect(snapshot.template_id).toBeNull();
+    expect(snapshot.template_version_id).toBeNull();
+    expect(snapshot.external_link).toBe("https://example.test/committee.pdf");
+    expect(snapshot.items).toEqual([
+      {
+        key: "opening",
+        label: "Opening",
+        kind: "opening",
+        planned: { topics: [...OPENING_CHECKLIST] },
+      },
+      {
+        key: "item:3f1c9a2e-7b4d-4e8a-9c61-0d2b5e8f4a17",
+        label: LONG_TITLE,
+        kind: "item",
+        planned: { text: LONG_NOTES },
+      },
+      { key: "item:b2", label: "Budget for the spring swap", kind: "item" },
+      { key: "decisions", label: "Decisions & votes", kind: "decisions" },
+    ]);
+    expect(isMinutesSnapshot(snapshot)).toBe(true);
+  });
+
+  test("an empty list, or no agenda at all, freezes the opening and decisions", () => {
+    for (const agenda of [{ items: [] }, null]) {
+      expect(buildSimple(agenda).items.map((item) => item.key)).toEqual([
+        "opening",
+        "decisions",
+      ]);
+    }
+  });
+
+  test("skips entries it cannot key or head, and repeated ids", () => {
+    const snapshot = buildSimple({
+      items: [
+        "a bare string",
+        { id: "Not Valid", title: "Bad id" },
+        { id: "a1", title: "   " },
+        { id: "a1", title: "Kept" },
+        { id: "a1", title: "Repeated" },
+      ],
+    });
+    expect(snapshot.items.map((item) => item.label)).toEqual([
+      "Opening",
+      "Kept",
+      "Decisions & votes",
+    ]);
   });
 });
