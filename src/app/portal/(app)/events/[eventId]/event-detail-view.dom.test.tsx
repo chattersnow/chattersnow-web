@@ -262,9 +262,10 @@ describe("EventDetailView", () => {
   test("lists every section at once, under its group heading", () => {
     renderView();
 
-    // The whole point of the rail (#1008): all 20 sections are readable
-    // without opening anything, so finding one is not a memory test.
-    expect(rail().getAllByRole("button")).toHaveLength(19);
+    // The whole point of the rail (#1008): every section is readable
+    // without opening anything, so finding one is not a memory test. Media
+    // joined Results in #1606.
+    expect(rail().getAllByRole("button")).toHaveLength(20);
     for (const heading of [
       "Overview",
       "Guests",
@@ -284,6 +285,7 @@ describe("EventDetailView", () => {
       "Sponsors",
       "Registrants",
       "Results",
+      "Media",
     ]) {
       expect(railRow(section)).toBeVisible();
     }
