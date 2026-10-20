@@ -154,7 +154,7 @@ export function uniqueEmail(tag: string) {
 type EventOverrides = {
   name?: string;
   visibility?: "public" | "private";
-  status?: "draft" | "published" | "completed" | "cancelled" | "archived";
+  status?: "draft" | "published" | "cancelled" | "archived";
   registration_enabled?: boolean;
   registration_deadline?: string | null;
   capacity?: number | null;

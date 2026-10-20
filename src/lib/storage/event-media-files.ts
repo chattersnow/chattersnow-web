@@ -1,5 +1,5 @@
 /**
- * The private `event-media` bucket created by 20261020120000 (#1606).
+ * The private `event-media` bucket created by 20261020130000 (#1606).
  *
  * Photos are re-encoded in the browser and go up in one request; videos go up
  * by resumable (TUS) upload, because a phone records 100-400 MB a minute and a

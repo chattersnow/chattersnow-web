@@ -20,6 +20,7 @@ import {
 import type { Program } from "../../programs/actions";
 import type { EventRow } from "../event-badges";
 import { StatusBadge, VisibilityBadge } from "../event-badges";
+import { EventTimingBadge } from "../event-timing-badge";
 import {
   FORM_ID_PREFIX,
   LOCKED_ON_REPORT_SUBMIT_TABS,
@@ -260,6 +261,8 @@ export function EventDetailView(props: {
   /** The card to open, already resolved against `groups` on the server. */
   initialCard: TabValue;
   cardTasks?: Partial<Record<TabValue, string[]>>;
+  /** The render's instant, for the Upcoming/Today/Past badge (#1609). */
+  nowIso: string;
 }) {
   return (
     <TabRefreshProvider>
@@ -277,6 +280,7 @@ function EventDetailContent({
   groups,
   initialCard,
   cardTasks,
+  nowIso,
 }: {
   device: DeviceClass;
   event: EventRow;
@@ -286,6 +290,7 @@ function EventDetailContent({
   groups: EventGroup[];
   initialCard: TabValue;
   cardTasks?: Partial<Record<TabValue, string[]>>;
+  nowIso: string;
 }) {
   // One parameter, and it is the one every deep link in the app already writes
   // -- the notification bell, the outstanding-tasks sheet, attention-items and
@@ -327,6 +332,7 @@ function EventDetailContent({
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <StatusBadge status={event.status} />
+            <EventTimingBadge event={event} nowIso={nowIso} />
             <VisibilityBadge visibility={event.visibility} />
           </div>
         </div>

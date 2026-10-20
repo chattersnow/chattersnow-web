@@ -641,9 +641,10 @@ export function groupEventTasksByEvent(
  *  - phase-derived tasks, using the same per-phase status logic that drives
  *    the event detail page's Planning/During/After badges (see
  *    events/phase-status.ts) -- an event whose phase isn't "done" yet is an
- *    open task. Scoped to draft/published events, since completed/
- *    cancelled/archived events are done by definition even if a phase was
- *    never filled in.
+ *    open task. Scoped to draft/published events, since cancelled/archived
+ *    events are done by definition even if a phase was never filled in. A
+ *    past published event stays in scope (#1609): its open work is the
+ *    after-report, which `report_status` tracks.
  *  - free-form event_checklist_items rows with is_done = false, from the
  *    event detail page's Checklist tab -- not scoped by event status, since
  *    a manually-added item (e.g. "send thank-you emails") can legitimately
