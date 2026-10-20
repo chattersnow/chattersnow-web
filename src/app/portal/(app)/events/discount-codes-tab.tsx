@@ -159,11 +159,14 @@ export function DiscountCodesTab({
   eventId,
   mode,
   registrants: registrantsData,
+  refreshDerived,
   previewRows = LIST_PREVIEW_ROWS,
 }: {
   eventId: string;
   mode: "view" | "edit";
   registrants: TabData<EventRegistrantsData>;
+  /** Refetches the Results card's Outcomes, which count these codes. */
+  refreshDerived: () => void;
   /** Rows before the rest move behind "View all"; `null` disables the cap. */
   previewRows?: number | null;
 }) {
@@ -191,6 +194,14 @@ export function DiscountCodesTab({
 
   useRegisterTabRefresh<TabValue>("discount-codes", refreshAll);
 
+  // The toolbar's notification reaches the shared-data provider, which
+  // refreshes the derived figures itself. A change made inside the card goes
+  // through no notification, so it refreshes them here (#1619).
+  const refreshAfterChange = useCallback(() => {
+    refreshAll();
+    refreshDerived();
+  }, [refreshAll, refreshDerived]);
+
   const handleAssign = useCallback(
     (codeId: string, registrationId: string) => {
       setActionError(null);
@@ -203,10 +214,10 @@ export function DiscountCodesTab({
           setActionError(result.error);
           return;
         }
-        refreshAll();
+        refreshAfterChange();
       });
     },
-    [refreshAll],
+    [refreshAfterChange],
   );
 
   const handleMarkSent = useCallback(
@@ -218,20 +229,20 @@ export function DiscountCodesTab({
           setActionError(result.error);
           return;
         }
-        refreshAll();
+        refreshAfterChange();
       });
     },
-    [refreshAll],
+    [refreshAfterChange],
   );
 
   const handleDelete = useCallback(
     (codeId: string) => {
       startTransition(async () => {
         await deleteDiscountCodeAction(codeId);
-        refreshAll();
+        refreshAfterChange();
       });
     },
-    [refreshAll],
+    [refreshAfterChange],
   );
 
   const sharedCode = useMemo(
@@ -448,7 +459,7 @@ export function DiscountCodesTab({
         <EditDiscountCodeDialog
           code={editing}
           onClose={() => setEditing(null)}
-          onSaved={refreshAll}
+          onSaved={refreshAfterChange}
         />
       )}
       {loadError && (
@@ -470,7 +481,7 @@ export function DiscountCodesTab({
           pending={isPending}
           onEdit={setEditing}
           onDelete={handleDelete}
-          onSaved={refreshAll}
+          onSaved={refreshAfterChange}
         />
       )}
 
