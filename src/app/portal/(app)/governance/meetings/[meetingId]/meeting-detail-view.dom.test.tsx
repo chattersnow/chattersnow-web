@@ -105,6 +105,8 @@ function makeMeeting(overrides: Partial<MeetingRow> = {}): MeetingRow {
     notes: null,
     facilitator: null,
     notetaker: null,
+    event_id: null,
+    event: null,
     minutes_approved_at: null,
     ...overrides,
   };

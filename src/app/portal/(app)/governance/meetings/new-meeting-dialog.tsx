@@ -3,6 +3,10 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createMeetingAction } from "./actions";
+import {
+  MeetingEventSelect,
+  useMeetingEventOptions,
+} from "./meeting-event-select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +41,7 @@ function getInitialFormState() {
     status: "scheduled",
     location: "",
     notes: "",
+    eventId: "",
   };
 }
 
@@ -46,6 +51,7 @@ export function NewMeetingDialog() {
   const [form, setForm] = useState(getInitialFormState);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const events = useMeetingEventOptions(open);
 
   function update<K extends keyof ReturnType<typeof getInitialFormState>>(
     key: K,
@@ -74,6 +80,7 @@ export function NewMeetingDialog() {
     formData.set("status", form.status);
     formData.set("location", form.location);
     formData.set("notes", form.notes);
+    formData.set("eventId", form.eventId);
 
     startTransition(async () => {
       const result = await createMeetingAction(formData);
@@ -161,6 +168,13 @@ export function NewMeetingDialog() {
             />
           </Field>
         </Field>
+
+        <MeetingEventSelect
+          id="new-meeting-event"
+          events={events}
+          value={form.eventId}
+          onChange={(eventId) => update("eventId", eventId)}
+        />
 
         <Field>
           <FieldLabel htmlFor="new-meeting-notes">Notes</FieldLabel>

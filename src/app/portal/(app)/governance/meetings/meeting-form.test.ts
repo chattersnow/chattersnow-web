@@ -44,6 +44,7 @@ describe("parseMeetingForm", () => {
         notes: "Quarterly meeting",
         facilitatorPersonId: "11111111-1111-1111-1111-111111111111",
         notetakerPersonId: "22222222-2222-2222-2222-222222222222",
+        eventId: "33333333-3333-3333-3333-333333333333",
       }),
     );
     expect("data" in result).toBe(true);
@@ -58,6 +59,7 @@ describe("parseMeetingForm", () => {
       expect(result.data.notetaker_person_id).toBe(
         "22222222-2222-2222-2222-222222222222",
       );
+      expect(result.data.event_id).toBe("33333333-3333-3333-3333-333333333333");
       expect(new Date(result.data.meeting_date).toISOString()).toBe(
         result.data.meeting_date,
       );
@@ -77,7 +79,19 @@ describe("parseMeetingForm", () => {
         notes: null,
         facilitator_person_id: null,
         notetaker_person_id: null,
+        event_id: null,
       },
     });
+  });
+
+  test("an empty event clears the link", () => {
+    const result = parseMeetingForm(
+      formData({
+        meetingDate: "2026-01-01T10:00",
+        meetingType: "committee",
+        eventId: "  ",
+      }),
+    );
+    expect("data" in result && result.data.event_id).toBeNull();
   });
 });

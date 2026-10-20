@@ -7,6 +7,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { updateMeetingAction } from "../actions";
@@ -15,6 +16,10 @@ import {
   MeetingTypeBadge,
   type MeetingRow,
 } from "../meeting-badges";
+import {
+  MeetingEventSelect,
+  useMeetingEventOptions,
+} from "../meeting-event-select";
 import { PersonPicker, type PickedPerson } from "../../../people/person-picker";
 import { listPeopleAction, type PersonListItem } from "../../../people/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,7 +48,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatDateTime, personDisplayName } from "@/lib/format";
+import {
+  formatDateTime,
+  formatInstantDate,
+  personDisplayName,
+} from "@/lib/format";
 import { utcIsoToDatetimeLocalInBrowser } from "@/lib/time";
 import { runAction } from "@/components/portal/action-toast";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -70,6 +79,7 @@ function formStateFor(meeting: MeetingRow) {
     notes: meeting.notes ?? "",
     facilitator: meeting.facilitator as PickedPerson | null,
     notetaker: meeting.notetaker as PickedPerson | null,
+    eventId: meeting.event_id ?? "",
   };
 }
 
@@ -89,6 +99,7 @@ function buildFormData(form: FormState) {
   formData.set("notes", form.notes);
   formData.set("facilitatorPersonId", form.facilitator?.id ?? "");
   formData.set("notetakerPersonId", form.notetaker?.id ?? "");
+  formData.set("eventId", form.eventId);
   return formData;
 }
 
@@ -239,6 +250,7 @@ function MeetingDetailsCard({
 }) {
   const card = useMeetingCardForm(meeting, "Meeting details");
   const { form, update } = card;
+  const events = useMeetingEventOptions(card.mode === "edit");
 
   return (
     <EditableCard
@@ -262,6 +274,19 @@ function MeetingDetailsCard({
           </ReadOnlyField>
           <ReadOnlyField label="Location" htmlFor="meeting-location-view">
             {meeting.location || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Event" htmlFor="meeting-event-view">
+            {meeting.event ? (
+              <Link
+                href={`/portal/events/${meeting.event.id}`}
+                className="underline underline-offset-2"
+              >
+                {meeting.event.name} ·{" "}
+                {formatInstantDate(meeting.event.starts_at)}
+              </Link>
+            ) : (
+              "—"
+            )}
           </ReadOnlyField>
         </FieldGroup>
       ) : (
@@ -332,6 +357,13 @@ function MeetingDetailsCard({
                 onChange={(event) => update("location", event.target.value)}
               />
             </Field>
+
+            <MeetingEventSelect
+              id="meeting-event"
+              events={events}
+              value={form.eventId}
+              onChange={(eventId) => update("eventId", eventId)}
+            />
           </FieldGroup>
 
           <CardFormActions isPending={card.isPending} onCancel={card.cancel} />

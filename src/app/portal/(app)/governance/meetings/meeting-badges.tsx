@@ -11,6 +11,12 @@ export type MeetingPerson = {
   phone: string | null;
 };
 
+export type MeetingEvent = {
+  id: string;
+  name: string;
+  starts_at: string;
+};
+
 export type MeetingRow = {
   id: string;
   meeting_date: string;
@@ -20,6 +26,13 @@ export type MeetingRow = {
   notes: string | null;
   facilitator: MeetingPerson | null;
   notetaker: MeetingPerson | null;
+  /**
+   * The linked event (#1622). `event_id` is kept beside the embed because the
+   * embed is null for a reader who cannot see events, and a save must not
+   * clear a link that reader could not see.
+   */
+  event_id: string | null;
+  event: MeetingEvent | null;
   minutes_approved_at: string | null;
 };
 

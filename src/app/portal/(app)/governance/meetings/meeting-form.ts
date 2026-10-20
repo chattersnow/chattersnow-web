@@ -11,6 +11,7 @@ export type MeetingFormData = {
   notes: string | null;
   facilitator_person_id: string | null;
   notetaker_person_id: string | null;
+  event_id: string | null;
 };
 
 export function parseMeetingForm(
@@ -27,6 +28,7 @@ export function parseMeetingForm(
   const notetakerPersonId = String(
     formData.get("notetakerPersonId") ?? "",
   ).trim();
+  const eventId = String(formData.get("eventId") ?? "").trim();
 
   if (!meetingDate) return { error: "Meeting date and time are required." };
   if (!MEETING_TYPES.includes(meetingType as (typeof MEETING_TYPES)[number])) {
@@ -47,6 +49,7 @@ export function parseMeetingForm(
       notes: notes || null,
       facilitator_person_id: facilitatorPersonId || null,
       notetaker_person_id: notetakerPersonId || null,
+      event_id: eventId || null,
     },
   };
 }

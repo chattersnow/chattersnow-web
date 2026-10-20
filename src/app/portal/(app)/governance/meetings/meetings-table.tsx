@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
+import Link from "next/link";
 import { Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -33,13 +34,26 @@ export function MeetingsTable({
   newAction?: ReactNode;
 }) {
   const [typeFilter, setTypeFilter] = useState<string>(FILTER_ALL);
+  const [eventFilter, setEventFilter] = useState<string>(FILTER_ALL);
+
+  // The filter offers only the events some meeting is linked to, so it never
+  // lists an option that matches nothing.
+  const linkedEvents = useMemo(() => {
+    const byId = new Map<string, NonNullable<MeetingRow["event"]>>();
+    for (const meeting of meetings) {
+      if (meeting.event) byId.set(meeting.event.id, meeting.event);
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [meetings]);
 
   const visibleMeetings = useMemo(
     () =>
-      typeFilter === FILTER_ALL
-        ? meetings
-        : meetings.filter((meeting) => meeting.meeting_type === typeFilter),
-    [meetings, typeFilter],
+      meetings.filter(
+        (meeting) =>
+          (typeFilter === FILTER_ALL || meeting.meeting_type === typeFilter) &&
+          (eventFilter === FILTER_ALL || meeting.event?.id === eventFilter),
+      ),
+    [meetings, typeFilter, eventFilter],
   );
 
   const columns = useMemo<PortalDataTableColumn<MeetingRow>[]>(
@@ -73,6 +87,23 @@ export function MeetingsTable({
         sortValue: (meeting) => meeting.location,
         cellClassName: "app-muted",
         render: (meeting) => meeting.location ?? "—",
+      },
+      {
+        key: "event",
+        label: "Event",
+        hideBelow: "md",
+        sortValue: (meeting) => meeting.event?.name ?? null,
+        render: (meeting) =>
+          meeting.event ? (
+            <Link
+              href={`/portal/events/${meeting.event.id}`}
+              className="underline underline-offset-2"
+            >
+              {meeting.event.name}
+            </Link>
+          ) : (
+            <span className="app-muted">—</span>
+          ),
       },
       {
         key: "actions",
@@ -116,6 +147,34 @@ export function MeetingsTable({
               </SelectContent>
             </Select>
           </div>
+          {linkedEvents.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+                Event
+              </span>
+              <Select
+                value={eventFilter}
+                onValueChange={(value) => setEventFilter(value ?? FILTER_ALL)}
+              >
+                <SelectTrigger aria-label="Filter by event">
+                  <SelectValue placeholder="Event">
+                    {(value: string) =>
+                      linkedEvents.find((event) => event.id === value)?.name ??
+                      "All events"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILTER_ALL}>All events</SelectItem>
+                  {linkedEvents.map((event) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {newAction}
