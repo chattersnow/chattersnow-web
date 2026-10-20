@@ -18,6 +18,23 @@ inputs:
 runs:
   using: composite
   steps:
+    # Pull from GHCR rather than ECR Public. The cache below only helps once
+    # development has saved it: a cold run -- the first push after a key
+    # change, or any PR before then -- still pulls everything, and from ECR
+    # Public that hit "toomanyrequests: Data limit exceeded" on #1617's own
+    # runs. `supabase start` survived on retries; `gen types`, which pulls
+    # postgres-meta through a plain `docker run`, did not. Supabase mirrors
+    # every image to ghcr.io/supabase, and GitHub-hosted runners pulling
+    # public GHCR images do not hit the shared-IP quota.
+    #
+    # SUPABASE_INTERNAL_IMAGE_REGISTRY is the CLI's own registry override
+    # (viper key INTERNAL_IMAGE_REGISTRY, apps/cli-go/internal/utils/docker.go).
+    # Written to GITHUB_ENV so every later Supabase command in the job -- the
+    # `db:types` check in particular -- pulls from the same place.
+    - name: Pull Supabase images from GHCR
+      shell: bash
+      run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io" >> "$GITHUB_ENV"
+
     - name: Setup Supabase CLI
       uses: supabase/setup-cli@v3
       with:
@@ -28,10 +45,11 @@ runs:
     # runners share IPs, and a runner whose IP had already spent its quota
     # failed `supabase start` with "toomanyrequests: Data limit exceeded" on
     # changes that had nothing to do with it -- twice in a row on #1615
-    # (#1616). With the images cached, a normal run pulls nothing.
+    # (#1616). With the images cached, a normal run pulls nothing at all.
     #
-    # The key is what decides the image tags: the CLI version pins them, and
-    # config.toml decides which services start. A change to either is a new
+    # The key is what decides the image names: the registry, the CLI version
+    # that pins their tags, and config.toml, which decides which services
+    # start. A change to either is a new
     # key; the old entry stops being restored and GitHub evicts it after 7
     # days.
     - name: Restore Supabase images
@@ -39,7 +57,7 @@ runs:
       uses: actions/cache/restore@v6
       with:
         path: ${{ runner.temp }}/supabase-images.tar
-        key: supabase-images-${{ runner.os }}-cli${{ inputs.cli-version }}-${{ hashFiles('supabase/config.toml') }}
+        key: supabase-images-${{ runner.os }}-ghcr-cli${{ inputs.cli-version }}-${{ hashFiles('supabase/config.toml') }}
 
     - name: Load Supabase images
       if: steps.restore.outputs.cache-hit == 'true'
@@ -79,9 +97,9 @@ runs:
         supabase gen types typescript --local > /dev/null
 
         images=$(docker images --format '{{.Repository}}:{{.Tag}}' \
-          | grep '^public\.ecr\.aws/supabase/' | sort -u)
+          | grep '^ghcr\.io/supabase/' | sort -u)
         if [ -z "$images" ]; then
-          echo "::error::No public.ecr.aws/supabase images found to cache."
+          echo "::error::No ghcr.io/supabase images found to cache."
           exit 1
         fi
         # shellcheck disable=SC2086 # one argument per image
