@@ -9,6 +9,10 @@ import {
 } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
 import {
+  loadCarriedForwardActions,
+  type CarriedForwardEvent,
+} from "./carried-forward";
+import {
   parseRetroItemForm,
   type RetroArea,
   type RetroKind,
@@ -32,7 +36,7 @@ export type EventRetroItem = {
 
 /** An open action item from an earlier event in the same program. */
 export type CarriedForwardAction = EventRetroItem & {
-  event: { id: string; name: string; starts_at: string };
+  event: CarriedForwardEvent;
 };
 
 export type EventRetro = {
@@ -133,56 +137,17 @@ export async function listCarriedForwardActionsAction(eventId: string): Promise<
       userId: userResult.user.id,
     },
   };
-  const failed = { error: "Could not load carried-forward actions." };
-
-  const { data: event, error: eventError } = await supabase
-    .from("events")
-    .select("starts_at, event_programs(program_id)")
-    .eq("id", eventId)
-    .maybeSingle();
-  if (eventError) return failed;
-  const programIds = (event?.event_programs ?? []).map(
-    (link: { program_id: string }) => link.program_id,
+  const carried = await loadCarriedForwardActions<EventRetroItem>(
+    supabase,
+    eventId,
+    ITEM_COLUMNS,
   );
-  if (!event || programIds.length === 0) return empty;
-
-  const { data: links, error: linksError } = await supabase
-    .from("event_programs")
-    .select("event:events!inner(id, name, starts_at)")
-    .in("program_id", programIds)
-    .lt("event.starts_at", event.starts_at)
-    .neq("event_id", eventId);
-  if (linksError) return failed;
-
-  const earlier = new Map<
-    string,
-    { id: string; name: string; starts_at: string }
-  >();
-  for (const link of (links ?? []) as unknown as {
-    event: { id: string; name: string; starts_at: string };
-  }[]) {
-    earlier.set(link.event.id, link.event);
+  if ("error" in carried) {
+    return { error: "Could not load carried-forward actions." };
   }
-  if (earlier.size === 0) return empty;
+  if (carried.data.length === 0) return empty;
 
-  const { data: items, error: itemsError } = await supabase
-    .from("event_retro_items")
-    .select(ITEM_COLUMNS)
-    .in("event_id", [...earlier.keys()])
-    .eq("kind", "action")
-    .eq("status", "open")
-    .order("created_at", { ascending: true });
-  if (itemsError) return failed;
-
-  const carried = ((items ?? []) as unknown as EventRetroItem[])
-    .map((item) => ({ ...item, event: earlier.get(item.event_id)! }))
-    .sort(
-      (a, b) =>
-        a.event.starts_at.localeCompare(b.event.starts_at) ||
-        a.created_at.localeCompare(b.created_at),
-    );
-
-  return { data: { ...empty.data, items: carried } };
+  return { data: { ...empty.data, items: carried.data } };
 }
 
 async function isReportLocked(supabase: SupabaseClient, eventId: string) {

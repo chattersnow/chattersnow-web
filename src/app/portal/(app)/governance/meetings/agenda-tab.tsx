@@ -119,6 +119,7 @@ import {
   ReadOnlySection,
 } from "./agenda-parts";
 import { SimpleAgenda } from "./simple-agenda";
+import { prefillAgendaFromEventAction } from "./agenda-prefill-actions";
 
 /** One labelled paragraph of a standing section's per-meeting text. */
 function OngoingItemBlock({ label, text }: { label: string; text: string }) {
@@ -761,6 +762,8 @@ type AgendaTabProps = {
   meetingDate: string;
   /** The meeting's type, which decides the agenda's shape (#1623). */
   meetingType: string;
+  /** The event the meeting is linked to, if any (#1622). */
+  eventId: string | null;
   mode: "view" | "edit";
   canManage: boolean;
   minutesApprovedAt: string | null;
@@ -784,6 +787,35 @@ function shapeMismatchNote(format: AgendaFormat): string {
 }
 
 /**
+ * Whether this agenda is filled from the meeting's linked event (#1624): a
+ * committee meeting with an event, for someone who may write the agenda.
+ * Board meetings pull events through their own feed instead.
+ */
+function fillsFromEvent(props: {
+  meetingType: string;
+  eventId: string | null;
+  canManage: boolean;
+}): boolean {
+  return (
+    props.canManage && props.meetingType === "committee" && !!props.eventId
+  );
+}
+
+/**
+ * Loads the agenda, pre-filling it from the linked event first when there is
+ * none yet (#1624). Re-read after the pre-fill whatever it reported, so a
+ * second tab that won the race to create the row is shown rather than an empty
+ * agenda; a failed pre-fill leaves the agenda empty, and "Refresh from event"
+ * is where its error would surface.
+ */
+async function loadAgenda(meetingId: string, prefill: boolean) {
+  const first = await getAgendaAction(meetingId);
+  if (!prefill || "error" in first || first.data) return first;
+  await prefillAgendaFromEventAction(meetingId);
+  return getAgendaAction(meetingId);
+}
+
+/**
  * The agenda tab (#1623): a board meeting gets the structured board agenda,
  * every other type a simple list of items. An agenda already written in the
  * other shape -- the meeting's type changed after, or it is a committee meeting
@@ -796,7 +828,7 @@ export function AgendaTab({ onReadOnlyChange, ...props }: AgendaTabProps) {
     loadError,
     refresh: refreshAgenda,
   } = useTabData<Agenda | null>(
-    () => getAgendaAction(props.meetingId),
+    () => loadAgenda(props.meetingId, fillsFromEvent(props)),
     [props.meetingId],
   );
   const expected = agendaFormatForMeetingType(props.meetingType);
@@ -811,7 +843,14 @@ export function AgendaTab({ onReadOnlyChange, ...props }: AgendaTabProps) {
     return <TabLoadingSkeleton />;
   }
 
-  const body = { ...props, agenda, loadError, refreshAgenda, readOnly };
+  const body = {
+    ...props,
+    agenda,
+    loadError,
+    refreshAgenda,
+    readOnly,
+    fillsFromEvent: fillsFromEvent(props),
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -831,13 +870,15 @@ export function AgendaTab({ onReadOnlyChange, ...props }: AgendaTabProps) {
 
 export type AgendaBodyProps = Omit<
   AgendaTabProps,
-  "meetingType" | "onReadOnlyChange"
+  "meetingType" | "eventId" | "onReadOnlyChange"
 > & {
   agenda: Agenda | null;
   loadError: string | null;
   refreshAgenda: () => void;
   /** Written in the other shape: render it, never offer to edit it. */
   readOnly: boolean;
+  /** A committee meeting linked to an event (#1624); see `fillsFromEvent`. */
+  fillsFromEvent: boolean;
 };
 
 function BoardAgenda({

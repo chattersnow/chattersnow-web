@@ -206,7 +206,42 @@ export type AgendaItem = {
   id: string;
   title: string;
   notes?: string;
+  /** Set on an item pre-filled from the meeting's linked event (#1624). */
+  source?: AgendaItemSource;
 };
+
+/**
+ * The open piece of event work an item was pre-filled from (#1624), frozen
+ * like a pinned upcoming date (#1223). `kind`/`id`/`label`/`date` are the
+ * record the agenda and minutes link to -- the event the work sits on, which
+ * for a carried-forward action is the earlier event. `key` names the work
+ * itself (`event_planning_<event id>`, `event_checklist_<item id>`,
+ * `retro_action_<item id>`), and is what "Refresh from event" deduplicates on:
+ * one event holds several pieces of work, so the record alone cannot.
+ */
+export type AgendaItemSource = {
+  key: string;
+  kind: AgendaUpcomingDateSourceKind;
+  id: string;
+  label: string;
+  date: string;
+};
+
+function isAgendaItemSource(value: unknown): value is AgendaItemSource {
+  return (
+    isRecord(value) &&
+    typeof value.key === "string" &&
+    value.key.trim() !== "" &&
+    typeof value.kind === "string" &&
+    AGENDA_UPCOMING_DATE_SOURCE_KINDS.includes(
+      value.kind as AgendaUpcomingDateSourceKind,
+    ) &&
+    typeof value.id === "string" &&
+    value.id.trim() !== "" &&
+    typeof value.label === "string" &&
+    typeof value.date === "string"
+  );
+}
 
 /**
  * What an item id may be: a `crypto.randomUUID()`, or anything else drawn from
@@ -227,7 +262,8 @@ export function isAgendaItems(value: unknown): value is AgendaItem[] {
       !AGENDA_ITEM_ID_PATTERN.test(item.id) ||
       ids.has(item.id) ||
       typeof item.title !== "string" ||
-      (item.notes !== undefined && typeof item.notes !== "string")
+      (item.notes !== undefined && typeof item.notes !== "string") ||
+      (item.source !== undefined && !isAgendaItemSource(item.source))
     ) {
       return false;
     }
@@ -241,6 +277,11 @@ export type SimpleAgendaFormData = {
   document_path: string | null;
   items: AgendaItem[];
 };
+
+/** Only the source's own fields reach the column, not whatever else was posted. */
+function pickSource({ key, kind, id, label, date }: AgendaItemSource) {
+  return { key, kind, id, label, date };
+}
 
 /**
  * A simple agenda's form. The same guard-then-normalize order as
@@ -272,9 +313,12 @@ export function parseSimpleAgendaForm(
     const notes = item.notes?.trim() ?? "";
     if (!title && !notes) continue;
     if (!title) return { error: "Every agenda item needs a title." };
-    normalized.push(
-      notes ? { id: item.id, title, notes } : { id: item.id, title },
-    );
+    normalized.push({
+      id: item.id,
+      title,
+      ...(notes ? { notes } : {}),
+      ...(item.source ? { source: pickSource(item.source) } : {}),
+    });
   }
 
   return { data: { ...document.data, items: normalized } };

@@ -350,6 +350,61 @@ describe("parseSimpleAgendaForm", () => {
     ).toEqual({ error: "Every agenda item needs a title." });
   });
 
+  test("keeps a pre-filled item's source, and only its own fields (#1624)", () => {
+    const source = {
+      key: "event_checklist_c1",
+      kind: "event" as const,
+      id: "event-1",
+      label: "Spring Gear Swap",
+      date: "2026-10-03",
+    };
+    expect(
+      parseSimpleAgendaForm(
+        formData({
+          items: JSON.stringify([
+            {
+              id: "a1",
+              title: "Book the hall",
+              source: { ...source, extra: 1 },
+            },
+          ]),
+        }),
+      ),
+    ).toEqual({
+      data: {
+        external_link: null,
+        document_path: null,
+        items: [{ id: "a1", title: "Book the hall", source }],
+      },
+    });
+  });
+
+  test("refuses a source it could not link back to", () => {
+    const source = {
+      key: "event_checklist_c1",
+      kind: "event",
+      id: "event-1",
+      label: "Spring Gear Swap",
+      date: "2026-10-03",
+    };
+    for (const bad of [
+      "event-1",
+      { ...source, key: "" },
+      { ...source, kind: "grant" },
+      { ...source, id: " " },
+      { ...source, label: undefined },
+      { ...source, date: null },
+    ]) {
+      expect(
+        parseSimpleAgendaForm(
+          formData({
+            items: JSON.stringify([{ id: "a1", title: "T", source: bad }]),
+          }),
+        ),
+      ).toEqual(READ_ERROR);
+    }
+  });
+
   test("refuses anything that is not a list of well-formed items", () => {
     for (const items of [
       "not json",

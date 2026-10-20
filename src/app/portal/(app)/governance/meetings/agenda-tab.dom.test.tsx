@@ -284,6 +284,22 @@ mock.module("./agenda-calendar-actions", () => ({
   listOpenPartnershipsAction,
 }));
 
+// Pre-filling from the linked event (#1624): the prefill mock writes the row
+// the next `getAgendaAction` reads, as the real action would.
+let prefillItems: Agenda["items"] = [];
+const prefillAgendaFromEventAction = mock(async (_meetingId: string) => {
+  if (prefillItems.length === 0) return { added: 0 };
+  agendaRow = simpleAgenda(prefillItems);
+  return { added: prefillItems.length };
+});
+const refreshAgendaFromEventAction = mock(async (_meetingId: string) => ({
+  added: 0,
+}));
+mock.module("./agenda-prefill-actions", () => ({
+  prefillAgendaFromEventAction,
+  refreshAgendaFromEventAction,
+}));
+
 const { AgendaTab } = await import("./agenda-tab");
 
 function agenda(
@@ -318,12 +334,14 @@ function renderTab(
   canManage = true,
   meetingType = "board",
   onReadOnlyChange?: (readOnly: boolean) => void,
+  eventId: string | null = null,
 ) {
   return renderWithToaster(
     <AgendaTab
       meetingId="meeting-1"
       meetingDate="2026-09-01"
       meetingType={meetingType}
+      eventId={eventId}
       onReadOnlyChange={onReadOnlyChange}
       mode={mode}
       canManage={canManage}
@@ -353,6 +371,9 @@ beforeEach(() => {
   updateActionItemStatusAction.mockResolvedValue({ success: true as const });
   agendaRow = null;
   carriedOver = [];
+  prefillItems = [];
+  prefillAgendaFromEventAction.mockClear();
+  refreshAgendaFromEventAction.mockClear();
 });
 
 describe("AgendaTab ongoing board items", () => {
@@ -875,5 +896,114 @@ describe("AgendaTab simple agenda (#1623)", () => {
       screen.getByText(/before this became a board meeting/),
     ).toBeDefined();
     expect(screen.queryByText("Ongoing board items")).toBeNull();
+  });
+});
+
+const EVENT_SOURCE = {
+  key: "event_planning_event-1",
+  kind: "event" as const,
+  id: "event-1",
+  label: "Spring Gear Swap",
+  date: "2026-10-03",
+};
+
+describe("AgendaTab pre-filled from the linked event (#1624)", () => {
+  test("a committee meeting with an event opens on the event's open work", async () => {
+    prefillItems = [
+      { id: "p1", title: "Planning incomplete", source: EVENT_SOURCE },
+    ];
+    renderTab("view", true, "committee", undefined, "event-1");
+
+    await waitFor(
+      () => expect(screen.getByText("Planning incomplete")).toBeDefined(),
+      SETTLE,
+    );
+    expect(prefillAgendaFromEventAction).toHaveBeenCalledTimes(1);
+    const link = screen.getByRole("link", { name: "Spring Gear Swap" });
+    expect(link.getAttribute("href")).toContain("event-1");
+  });
+
+  test("an event with no open work leaves the agenda empty with a note", async () => {
+    renderTab("view", true, "committee", undefined, "event-1");
+
+    await waitFor(
+      () =>
+        expect(
+          screen.getByText(/linked event has no open work to add/),
+        ).toBeDefined(),
+      SETTLE,
+    );
+    expect(prefillAgendaFromEventAction).toHaveBeenCalledTimes(1);
+  });
+
+  test("an agenda that already exists is not pre-filled", async () => {
+    agendaRow = simpleAgenda([{ id: "a1", title: "Volunteer plan" }]);
+    renderTab("view", true, "committee", undefined, "event-1");
+
+    await waitFor(
+      () => expect(screen.getByText("Volunteer plan")).toBeDefined(),
+      SETTLE,
+    );
+    expect(prefillAgendaFromEventAction).not.toHaveBeenCalled();
+  });
+
+  for (const [label, meetingType, eventId, canManage] of [
+    ["a board meeting", "board", "event-1", true],
+    ["an annual meeting", "annual", "event-1", true],
+    ["a committee meeting with no event", "committee", null, true],
+    ["a viewer who cannot manage", "committee", "event-1", false],
+  ] as const) {
+    test(`${label} is neither pre-filled nor offered a refresh`, async () => {
+      renderTab("view", canManage, meetingType, undefined, eventId);
+
+      await waitFor(
+        () => expect(screen.getByText("No agenda added yet")).toBeDefined(),
+        SETTLE,
+      );
+      expect(prefillAgendaFromEventAction).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("button", { name: /Refresh from event/ }),
+      ).toBeNull();
+    });
+  }
+
+  test("Refresh from event says when nothing was new", async () => {
+    agendaRow = simpleAgenda([
+      { id: "p1", title: "Planning incomplete", source: EVENT_SOURCE },
+    ]);
+    const user = userEvent.setup();
+    renderTab("view", true, "committee", undefined, "event-1");
+
+    await user.click(
+      await waitFor(
+        () => screen.getByRole("button", { name: /Refresh from event/ }),
+        SETTLE,
+      ),
+    );
+
+    await waitFor(
+      () => expect(screen.getByText(/already on the agenda/)).toBeDefined(),
+      SETTLE,
+    );
+    expect(refreshAgendaFromEventAction).toHaveBeenCalledWith("meeting-1");
+  });
+
+  test("editing keeps a pre-filled item's source", async () => {
+    agendaRow = simpleAgenda([
+      { id: "p1", title: "Planning incomplete", source: EVENT_SOURCE },
+    ]);
+    const user = userEvent.setup();
+    renderTab("edit", true, "committee", undefined, "event-1");
+
+    const title = await waitFor(() => screen.getByLabelText("Item 1"), SETTLE);
+    fireEvent.change(title, { target: { value: "Who leads planning?" } });
+    await user.click(screen.getByRole("button", { name: "Save agenda" }));
+
+    await waitFor(() => expect(upsertAgendaAction).toHaveBeenCalled(), SETTLE);
+    const saved = JSON.parse(
+      String(upsertAgendaAction.mock.calls[0]![1].get("items")),
+    );
+    expect(saved[0].title).toBe("Who leads planning?");
+    expect(saved[0].source).toEqual(EVENT_SOURCE);
   });
 });

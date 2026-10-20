@@ -405,6 +405,50 @@ describe("buildMinutesSnapshot for a simple agenda", () => {
     }
   });
 
+  test("a pre-filled item freezes a link to its event (#1624)", () => {
+    const snapshot = buildSimple({
+      items: [
+        {
+          id: "a1",
+          title: "Book the hall",
+          notes: "Ask about the deposit.",
+          source: {
+            key: "event_checklist_c1",
+            kind: "event",
+            id: "event-1",
+            label: "Spring Gear Swap",
+            date: "2026-10-03",
+          },
+        },
+        // A malformed source costs the link, not the item.
+        { id: "b2", title: "Volunteers", source: { kind: "event" } },
+      ],
+    });
+
+    expect(snapshot.items[1]).toEqual({
+      key: "item:a1",
+      label: "Book the hall",
+      kind: "item",
+      planned: {
+        text: "Ask about the deposit.",
+        references: [
+          {
+            kind: "event",
+            id: "event-1",
+            label: "Spring Gear Swap",
+            date: "2026-10-03",
+          },
+        ],
+      },
+    });
+    expect(snapshot.items[2]).toEqual({
+      key: "item:b2",
+      label: "Volunteers",
+      kind: "item",
+    });
+    expect(isMinutesSnapshot(snapshot)).toBe(true);
+  });
+
   test("skips entries it cannot key or head, and repeated ids", () => {
     const snapshot = buildSimple({
       items: [
