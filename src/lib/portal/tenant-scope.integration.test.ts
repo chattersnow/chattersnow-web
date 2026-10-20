@@ -96,6 +96,13 @@ afterAll(async () => {
   await service.from("people").delete().eq("tenant_id", secondTenantId);
   await service.from("app_settings").delete().eq("tenant_id", secondTenantId);
   await service.from("roles").delete().eq("tenant_id", secondTenantId);
+  // Deleting the tenant cascades only to selections pointing at it; the
+  // multi user's last selection points at the seeded tenant and would
+  // otherwise outlive this file (#1616).
+  await service
+    .from("user_tenant_selection")
+    .delete()
+    .eq("user_id", SEEDED_USER_IDS.multi);
   const { error } = await service
     .from("tenants")
     .delete()
