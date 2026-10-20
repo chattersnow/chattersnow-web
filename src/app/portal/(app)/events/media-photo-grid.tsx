@@ -1,0 +1,200 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { Download, ImageOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
+import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
+import {
+  downloadPhotosAsZip,
+  photosZipName,
+} from "@/lib/storage/event-media-zip";
+import type { EventMediaRow } from "./media-actions";
+
+const MediaLightbox = dynamic(() => import("./media-lightbox"), { ssr: false });
+
+/**
+ * The Media card's photos (#1607): a thumbnail grid that opens the lightbox,
+ * a tick on each for a bulk download, and delete for events:manage.
+ *
+ * The thumbnail is the stored photo itself -- the browser already re-encoded
+ * it at 2048px on upload (#1606), so there is no second rendition to keep.
+ */
+export function MediaPhotoGrid({
+  photos,
+  eventName,
+  canDelete,
+  deletingId,
+  onDelete,
+}: {
+  photos: EventMediaRow[];
+  eventName: string;
+  canDelete: boolean;
+  deletingId: string | null;
+  onDelete: (photo: EventMediaRow) => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+
+  // Only photos that signed can be shown, opened or zipped.
+  const viewable = useMemo(
+    () =>
+      photos.flatMap((photo) =>
+        photo.url ? [{ ...photo, url: photo.url }] : [],
+      ),
+    [photos],
+  );
+  // A photo deleted since it was ticked drops out of the selection.
+  const selectedPhotos = viewable.filter((photo) => selected.has(photo.id));
+  const allSelected =
+    viewable.length > 0 && selectedPhotos.length === viewable.length;
+
+  function toggle(id: string, on: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function handleDownload() {
+    const set = selectedPhotos.length > 0 ? selectedPhotos : viewable;
+    setProgress(`Preparing 0 of ${set.length}…`);
+    const result = await downloadPhotosAsZip(
+      set.map((photo) => ({
+        url: photo.url,
+        filename: photo.original_filename,
+      })),
+      photosZipName(eventName),
+      (done, total) => setProgress(`Preparing ${done} of ${total}…`),
+    );
+    setProgress(null);
+    if ("error" in result) toast.error(result.error);
+    else {
+      toast.success(
+        set.length === 1
+          ? "1 photo downloaded."
+          : `${set.length} photos downloaded.`,
+      );
+    }
+  }
+
+  return (
+    <section
+      aria-labelledby="event-media-photos"
+      className="flex flex-col gap-3"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 id="event-media-photos" className="text-sm font-semibold">
+          Photos{" "}
+          <span className="app-muted font-normal">({photos.length})</span>
+        </h3>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {viewable.length > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setSelected(
+                  allSelected ? new Set() : new Set(viewable.map((p) => p.id)),
+                )
+              }
+            >
+              {allSelected ? "Clear selection" : "Select all"}
+            </Button>
+          )}
+          {viewable.length > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={progress !== null}
+              onClick={handleDownload}
+            >
+              {progress ? <Spinner /> : <Download />}
+              {progress ??
+                (selectedPhotos.length > 0
+                  ? `Download selected (${selectedPhotos.length})`
+                  : "Download all")}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {photos.map((photo) => {
+          const index = viewable.findIndex((p) => p.id === photo.id);
+          return (
+            <li key={photo.id} className="flex min-w-0 flex-col gap-1.5">
+              {photo.url ? (
+                <button
+                  type="button"
+                  className="overflow-hidden rounded-md border border-[var(--line)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  onClick={() => setOpenIndex(index)}
+                  aria-label={`Open ${photo.original_filename}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL; next/image would cache it past its expiry */}
+                  <img
+                    src={photo.url}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-square w-full object-cover"
+                  />
+                </button>
+              ) : (
+                <div className="app-muted flex aspect-square flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--line)] p-2 text-center text-xs">
+                  <ImageOff className="size-5" aria-hidden />
+                  Couldn&apos;t load
+                </div>
+              )}
+              <div className="flex min-w-0 items-center gap-2">
+                {photo.url && (
+                  <Checkbox
+                    aria-label={`Select ${photo.original_filename}`}
+                    checked={selected.has(photo.id)}
+                    onCheckedChange={(on) => toggle(photo.id, on === true)}
+                  />
+                )}
+                <span
+                  className="min-w-0 flex-1 truncate text-xs"
+                  title={photo.original_filename}
+                >
+                  {photo.original_filename}
+                </span>
+                {canDelete && (
+                  <ConfirmDeleteButton
+                    label={`Delete ${photo.original_filename}`}
+                    title={`Delete ${photo.original_filename}?`}
+                    description="The photo is removed from this event and from storage. This can't be undone."
+                    pending={deletingId === photo.id}
+                    disabled={deletingId !== null}
+                    onConfirm={() => onDelete(photo)}
+                  />
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {openIndex !== null && viewable[openIndex] && (
+        <MediaLightbox
+          photos={viewable.map((photo) => ({
+            url: photo.url,
+            downloadUrl: photo.download_url,
+            filename: photo.original_filename,
+          }))}
+          index={openIndex}
+          onIndexChange={setOpenIndex}
+          onClose={() => setOpenIndex(null)}
+        />
+      )}
+    </section>
+  );
+}

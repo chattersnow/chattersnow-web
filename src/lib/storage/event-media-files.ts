@@ -132,3 +132,18 @@ export function eventMediaPath(
 ): string {
   return `${tenantId}/${eventId}/${crypto.randomUUID()}.${extension}`;
 }
+
+/**
+ * A signed read URL that saves as `filename` rather than playing in the tab
+ * (#1607). Storage answers `download=` with a Content-Disposition header; the
+ * parameter sits outside the signed token, which is why one signature serves
+ * both the thumbnail and its download.
+ */
+export function eventMediaDownloadUrl(
+  signedUrl: string,
+  filename: string,
+): string {
+  const url = new URL(signedUrl);
+  url.searchParams.set("download", filename);
+  return url.toString();
+}

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   EVENT_MEDIA_MAX_BYTES,
+  eventMediaDownloadUrl,
   eventMediaPath,
   planEventMediaFile,
 } from "./event-media-files";
@@ -75,4 +76,17 @@ test("eventMediaPath is tenant / event / uuid.ext", () => {
   expect(eventMediaPath(tenant, event, "mp4")).toMatch(
     new RegExp(`^${tenant}/${event}/[0-9a-f-]{36}\\.mp4$`),
   );
+});
+
+describe("eventMediaDownloadUrl", () => {
+  test("keeps the token and names the saved file", () => {
+    const url = new URL(
+      eventMediaDownloadUrl(
+        "https://x.supabase.co/storage/v1/object/sign/event-media/t/e/a.jpg?token=abc",
+        "Snow day #2.jpg",
+      ),
+    );
+    expect(url.searchParams.get("token")).toBe("abc");
+    expect(url.searchParams.get("download")).toBe("Snow day #2.jpg");
+  });
 });

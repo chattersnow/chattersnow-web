@@ -3,9 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkUser } from "@/lib/auth/current-user";
-import { checkPermission } from "@/lib/auth/permissions";
+import {
+  checkPermission,
+  getCurrentUserPermissions,
+  hasPermission,
+} from "@/lib/auth/permissions";
 import {
   EVENT_MEDIA_BUCKET,
+  eventMediaDownloadUrl,
   eventMediaPath,
   planEventMediaFile,
   type EventMediaKind,
@@ -19,6 +24,11 @@ export type EventMediaRow = {
   content_type: string;
   size_bytes: number;
   uploaded_at: string;
+  uploader_name: string | null;
+  /** Short-lived signed read URL; null when the object could not be signed. */
+  url: string | null;
+  /** The same signature, saving as the original filename. */
+  download_url: string | null;
 };
 
 export type EventMediaState = {
@@ -26,15 +36,34 @@ export type EventMediaState = {
   enabled: boolean;
   /** Whether this reader may upload to this event right now. */
   canUpload: boolean;
+  /** events:manage, which the bucket's and the table's delete policies ask for. */
+  canDelete: boolean;
+  /** Bytes stored for this event, and for all of the tenant's event media. */
+  eventBytes: number;
+  tenantBytes: number;
+  /** Active registrations of this event that objected to being photographed. */
+  photoObjections: number;
   items: EventMediaRow[];
 };
+
+/**
+ * An hour, as for documents (#1489): long enough to look through an event's
+ * photos or watch a clip, short enough that a copied link is not a way to
+ * hand footage on. Never stored; every load signs afresh.
+ */
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 /** More than a phone's camera roll for one event is a second batch. */
 const MAX_FILES_PER_BATCH = 100;
 
 /**
- * The event's Media card (#1606): what has been uploaded, and whether the
- * upload control shows. Gated on events:view, like the bucket's read policy.
+ * The event's Media card (#1606, #1607): what has been uploaded, each with a
+ * signed URL, who may upload or delete, and the card's storage and
+ * photo-objection figures. Gated on events:view, like the bucket's read policy.
+ *
+ * Signed on the reader's own client, so the bucket's select policy decides
+ * whether a path resolves. A path that fails to sign keeps its row with a null
+ * URL: one missing object must not blank the gallery.
  */
 export async function getEventMediaAction(
   eventId: string,
@@ -43,28 +72,117 @@ export async function getEventMediaAction(
   const permissionError = await checkPermission(supabase, "events", "view");
   if (permissionError) return permissionError;
 
-  const [enabled, canUpload, rows] = await Promise.all([
+  const [enabled, canUpload, summary, rows, permissions] = await Promise.all([
     supabase.rpc("event_media_uploads_enabled"),
     supabase.rpc("can_upload_event_media", { p_event_id: eventId }),
+    supabase.rpc("event_media_summary", { p_event_id: eventId }).single(),
     supabase
       .from("event_media")
       .select(
-        "id, kind, original_filename, content_type, size_bytes, uploaded_at",
+        "id, kind, storage_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name",
       )
       .eq("event_id", eventId)
       .order("uploaded_at", { ascending: false }),
+    getCurrentUserPermissions(supabase),
   ]);
 
   if (rows.error) {
     return { error: "Could not load this event's media. Please try again." };
   }
+
+  const stored = rows.data ?? [];
+  const urls = new Map<string, string>();
+  if (stored.length > 0) {
+    const { data, error } = await supabase.storage
+      .from(EVENT_MEDIA_BUCKET)
+      .createSignedUrls(
+        stored.map((row) => row.storage_path),
+        SIGNED_URL_TTL_SECONDS,
+      );
+    if (error) console.error("Could not sign event media URLs", error);
+    for (const signed of data ?? []) {
+      if (signed.path && signed.signedUrl) {
+        urls.set(signed.path, signed.signedUrl);
+      }
+    }
+  }
+
   return {
     data: {
       enabled: enabled.data === true,
       canUpload: canUpload.data === true,
-      items: (rows.data ?? []) as EventMediaRow[],
+      canDelete: hasPermission(permissions, "events", "manage"),
+      eventBytes: Number(summary.data?.event_bytes ?? 0),
+      tenantBytes: Number(summary.data?.tenant_bytes ?? 0),
+      photoObjections: Number(summary.data?.photo_objections ?? 0),
+      items: stored.map(({ storage_path, ...row }) => {
+        const url = urls.get(storage_path) ?? null;
+        return {
+          ...row,
+          kind: row.kind as EventMediaKind,
+          url,
+          download_url: url
+            ? eventMediaDownloadUrl(url, row.original_filename)
+            : null,
+        };
+      }),
     },
   };
+}
+
+/**
+ * Deletes one photo or video (#1607): the stored object, then its row.
+ *
+ * events:manage, on the reader's own client, so the bucket's and the table's
+ * delete policies decide. The object goes first: a row left pointing at
+ * nothing shows as a broken tile and can be deleted again, whereas an object
+ * with no row is invisible storage nobody can reach to remove.
+ */
+export async function deleteEventMediaAction(
+  mediaId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to delete photos and videos.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "events",
+    "manage",
+    "You don't have permission to delete this event's photos and videos.",
+  );
+  if (permissionError) return permissionError;
+
+  const { data: row, error: readError } = await supabase
+    .from("event_media")
+    .select("id, storage_path")
+    .eq("id", String(mediaId))
+    .maybeSingle();
+  if (readError || !row) {
+    return { error: "That photo or video is no longer here." };
+  }
+
+  const { error: removeError } = await supabase.storage
+    .from(EVENT_MEDIA_BUCKET)
+    .remove([row.storage_path]);
+  if (removeError) {
+    console.error("Could not remove the event media object", removeError);
+    return { error: "Could not delete the file. Please try again." };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("event_media")
+    .delete()
+    .eq("id", row.id);
+  if (deleteError) {
+    console.error("Could not delete the event media row", deleteError);
+    return { error: "Could not delete the file. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { ok: true };
 }
 
 /**

@@ -1,5 +1,5 @@
 // Integration coverage for the private `event-media` bucket and `event_media`
-// table (#1606), against a real local Supabase stack.
+// table (#1606) and the Media card's gallery reads and delete (#1607), against a real local Supabase stack.
 //
 // The bucket's isolation lives in object paths and `storage.objects` policies,
 // where `tenant_isolation_gaps()` can't see it, so this file is what asserts
@@ -340,5 +340,138 @@ describe("record_event_media", () => {
       p_id: event.id,
     });
     expect(JSON.stringify(data)).toMatch(/photo/);
+  });
+});
+
+describe("the Media card's gallery (#1607)", () => {
+  type Summary = {
+    event_bytes: number;
+    tenant_bytes: number;
+    photo_objections: number;
+  };
+
+  async function summary(client: SupabaseClient) {
+    const { data, error } = await client
+      .rpc("event_media_summary", { p_event_id: event.id })
+      .single<Summary>();
+    if (error) throw error;
+    return data;
+  }
+
+  async function recorded(bytes: number) {
+    const objectPath = path();
+    expect((await upload(admin, objectPath, jpeg(bytes))).error).toBeNull();
+    const { data, error } = await admin.rpc("record_event_media", {
+      p_path: objectPath,
+      p_original_filename: "gallery.jpg",
+    });
+    if (error) throw error;
+    return { id: data!.id as string, objectPath };
+  }
+
+  test("uploader_name names the uploader to an events:view reader", async () => {
+    const { id } = await recorded(10);
+    const { data, error } = await volunteer
+      .from("event_media")
+      .select("id, uploader_name")
+      .eq("id", id)
+      .single();
+    expect(error).toBeNull();
+    expect(data?.uploader_name).toBeTruthy();
+  });
+
+  test("event_media_summary sums this event's and the tenant's bytes", async () => {
+    await recorded(2048);
+    const data = await summary(volunteer);
+    const { data: rows } = await service
+      .from("event_media")
+      .select("size_bytes")
+      .eq("event_id", event.id);
+    const eventTotal = (rows ?? []).reduce(
+      (sum, row) => sum + Number(row.size_bytes),
+      0,
+    );
+    expect(Number(data.event_bytes)).toBe(eventTotal);
+    expect(Number(data.tenant_bytes)).toBeGreaterThanOrEqual(eventTotal);
+  });
+
+  test("event_media_summary counts active photo objections only", async () => {
+    expect((await summary(admin)).photo_objections).toBe(0);
+
+    const stamp = crypto.randomUUID().slice(0, 8);
+    const { error } = await service.from("event_registrations").insert([
+      {
+        tenant_id: tenantId,
+        event_id: event.id,
+        name: "Objects",
+        email: `objects-${stamp}@example.test`,
+        photo_consent: false,
+        photo_consent_at: new Date().toISOString(),
+      },
+      {
+        tenant_id: tenantId,
+        event_id: event.id,
+        name: "No objection",
+        email: `fine-${stamp}@example.test`,
+      },
+      {
+        tenant_id: tenantId,
+        event_id: event.id,
+        name: "Objected, then cancelled",
+        email: `cancelled-${stamp}@example.test`,
+        photo_consent: false,
+        photo_consent_at: new Date().toISOString(),
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: "not_attending",
+      },
+    ]);
+    if (error) throw error;
+
+    expect((await summary(volunteer)).photo_objections).toBe(1);
+
+    // Anon has no grant at all.
+    const denied = await anon.rpc("event_media_summary", {
+      p_event_id: event.id,
+    });
+    expect(denied.error).not.toBeNull();
+  });
+
+  test("events:view cannot delete a photo's object or its row", async () => {
+    const { id, objectPath } = await recorded(10);
+    await volunteer.storage.from(EVENT_MEDIA_BUCKET).remove([objectPath]);
+    await volunteer.from("event_media").delete().eq("id", id);
+
+    const { data: row } = await service
+      .from("event_media")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    expect(row?.id).toBe(id);
+    const { data: still } = await service.storage
+      .from(EVENT_MEDIA_BUCKET)
+      .exists(objectPath);
+    expect(still).toBe(true);
+  });
+
+  test("events:manage deletes both the object and the row", async () => {
+    const { id, objectPath } = await recorded(10);
+    const removed = await admin.storage
+      .from(EVENT_MEDIA_BUCKET)
+      .remove([objectPath]);
+    expect(removed.error).toBeNull();
+    expect(removed.data?.length).toBe(1);
+    const deleted = await admin.from("event_media").delete().eq("id", id);
+    expect(deleted.error).toBeNull();
+
+    const { data: row } = await service
+      .from("event_media")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    expect(row).toBeNull();
+    const { data: gone } = await service.storage
+      .from(EVENT_MEDIA_BUCKET)
+      .exists(objectPath);
+    expect(gone).toBe(false);
   });
 });
