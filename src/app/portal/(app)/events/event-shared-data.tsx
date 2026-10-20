@@ -139,7 +139,14 @@ export function EventSharedDataProvider({
   // person, which every picker in the phase should then be able to find.
   useRegisterTabRefresh<TabValue>("sponsors", fetchedPeople.refresh);
   useRegisterTabRefresh<TabValue>("staff", fetchedPeople.refresh);
-  useRegisterTabRefresh<TabValue>("volunteers", fetchedPeople.refresh);
+  useRegisterTabRefresh<TabValue>("volunteers", () => {
+    fetchedPeople.refresh();
+    // Volunteers and their hours are counted in the Outcomes too (#1619).
+    impactDerived.refresh();
+  });
+  // Gear handed out and assistance spending are Outcomes figures as well.
+  useRegisterTabRefresh<TabValue>("distributions", impactDerived.refresh);
+  useRegisterTabRefresh<TabValue>("expenses", impactDerived.refresh);
 
   return (
     <EventSharedDataContext.Provider

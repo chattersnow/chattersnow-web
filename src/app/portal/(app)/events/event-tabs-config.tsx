@@ -232,6 +232,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventId={ctx.event.id}
         mode={ctx.mode}
         registrants={ctx.shared.registrants}
+        refreshDerived={ctx.shared.impactDerived.refresh}
       />
     ),
     toolbarActions: (ctx) => (
@@ -253,7 +254,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Volunteers",
     group: "team",
     kind: "plain",
-    render: (ctx) => <VolunteersTab eventId={ctx.event.id} mode={ctx.mode} />,
+    render: (ctx) => (
+      <VolunteersTab
+        eventId={ctx.event.id}
+        mode={ctx.mode}
+        refreshDerived={ctx.shared.impactDerived.refresh}
+      />
+    ),
     toolbarActions: (ctx) => (
       <>
         <AddShiftDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
@@ -445,6 +452,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventName={ctx.event.name}
         budgetAmount={ctx.event.budget_amount}
         mode={ctx.mode}
+        refreshDerived={ctx.shared.impactDerived.refresh}
       />
     ),
     toolbarActions: (ctx) => (

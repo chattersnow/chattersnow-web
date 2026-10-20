@@ -85,6 +85,9 @@ function renderPhase(
         <Notifier tab="registrants" />
         <Notifier tab="discount-codes" />
         <Notifier tab="sponsors" />
+        <Notifier tab="volunteers" />
+        <Notifier tab="distributions" />
+        <Notifier tab="expenses" />
         {children}
       </EventSharedDataProvider>
     </TabRefreshProvider>,
@@ -133,6 +136,20 @@ describe("EventSharedDataProvider", () => {
     });
     expect(listEventRegistrantsActionMock).toHaveBeenCalledTimes(1);
   });
+
+  test.each(["volunteers", "distributions", "expenses"] as const)(
+    "a %s toolbar action refreshes the derived figures (#1619)",
+    async (tab) => {
+      const user = userEvent.setup();
+      renderPhase(["impactDerived"]);
+
+      await user.click(screen.getByRole("button", { name: `notify ${tab}` }));
+
+      await waitFor(() => {
+        expect(getEventImpactDerivedActionMock).toHaveBeenCalledTimes(2);
+      });
+    },
+  );
 
   test("a sponsors toolbar action refreshes the shared people list", async () => {
     const user = userEvent.setup();

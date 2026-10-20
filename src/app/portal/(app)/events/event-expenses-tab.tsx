@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getExpenseApprovalContextAction,
   listEventExpensesAction,
@@ -51,12 +51,15 @@ export function EventExpensesTab({
   eventId,
   eventName,
   budgetAmount = null,
+  refreshDerived,
 }: {
   eventId: string;
   eventName: string;
   /** `events.budget_amount`, for the summary's budget remaining. */
   budgetAmount?: number | string | null;
   mode: "view" | "edit";
+  /** Refetches the Results card's Outcomes, which count assistance spending. */
+  refreshDerived: () => void;
 }) {
   const {
     data: expenses,
@@ -79,6 +82,14 @@ export function EventExpensesTab({
   }, [eventId]);
 
   useRegisterTabRefresh<TabValue>("expenses", refresh);
+
+  // The toolbar's notification reaches the shared-data provider, which
+  // refreshes the derived figures itself; an edit made inside the card
+  // doesn't, so it does that here (#1619).
+  const refreshAfterChange = useCallback(() => {
+    refresh();
+    refreshDerived();
+  }, [refresh, refreshDerived]);
 
   const columns = useMemo<PortalDataTableColumn<ExpenseRow>[]>(
     () => [
@@ -123,12 +134,12 @@ export function EventExpensesTab({
             events={eventOptions}
             lockEventSelection
             approvalContext={approvalContext}
-            onSaved={refresh}
+            onSaved={refreshAfterChange}
           />
         ),
       },
     ],
-    [eventOptions, approvalContext, refresh],
+    [eventOptions, approvalContext, refreshAfterChange],
   );
 
   return (
