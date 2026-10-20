@@ -760,6 +760,34 @@ describe("a simple agenda (#1623)", () => {
     expect(text).not.toContain("ONGOING BOARD ITEMS");
   });
 
+  test("names the event a pre-filled item came from (#1624)", () => {
+    const sourced: AgendaExportInput = {
+      ...simpleInput,
+      agenda: {
+        ...simpleInput.agenda,
+        items: [
+          {
+            id: "a1",
+            title: "Book the hall",
+            source: {
+              key: "event_checklist_c1",
+              kind: "event",
+              id: "event-1",
+              label: "Spring Gear Swap",
+              date: "2026-10-03",
+            },
+          },
+        ],
+      },
+    };
+    expect(formatAgendaMarkdown(sourced)).toContain(
+      "### 1. Book the hall\n_From Spring Gear Swap — ",
+    );
+    expect(formatAgendaPlainText(sourced)).toContain(
+      "  1. Book the hall\n     From Spring Gear Swap — ",
+    );
+  });
+
   test("says so when there are no items yet", () => {
     const empty = {
       ...simpleInput,

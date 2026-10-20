@@ -1,4 +1,5 @@
 import type { Agenda } from "./agenda-actions";
+import type { AgendaItemSource } from "./agenda-form";
 import {
   isSourcedSection,
   sectionShowsContentState,
@@ -138,6 +139,13 @@ function documentLines(agenda: Agenda): string[] {
   return lines;
 }
 
+/** The event a pre-filled item came from (#1624), as frozen on the item. */
+function itemSourceLine(source: AgendaItemSource): string {
+  return source.date
+    ? `${source.label} — ${formatCalendarDate(source.date)}`
+    : source.label;
+}
+
 /**
  * A simple agenda (#1623): the opening, its items in order, and what the
  * meeting has recorded so far. None of the board agenda's standing sections,
@@ -162,6 +170,7 @@ function formatSimpleAgendaMarkdown(input: AgendaExportInput): string {
   } else {
     agenda.items.forEach((item, index) => {
       lines.push(`### ${index + 1}. ${item.title}`);
+      if (item.source) lines.push(`_From ${itemSourceLine(item.source)}_`);
       if (item.notes) lines.push(item.notes);
       lines.push("");
     });
@@ -205,6 +214,7 @@ function formatSimpleAgendaPlainText(input: AgendaExportInput): string {
   } else {
     agenda.items.forEach((item, index) => {
       lines.push(`  ${index + 1}. ${item.title}`);
+      if (item.source) lines.push(`     From ${itemSourceLine(item.source)}`);
       if (item.notes) lines.push(`     ${item.notes}`);
     });
   }

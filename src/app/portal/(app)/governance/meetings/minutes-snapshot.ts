@@ -204,18 +204,24 @@ function stringEntries(value: unknown): string[] {
     : [];
 }
 
+type SimpleAgendaEntry = {
+  id: string;
+  title: string;
+  notes: string;
+  /** The event an item was pre-filled from (#1624); a bad one is just dropped. */
+  reference: MinutesItemReference | null;
+};
+
 /**
  * A simple agenda's items, entry by entry: one malformed entry is skipped
  * rather than costing the notetaker the whole list, the same tolerance
  * `stringEntries` gives the board lists. A repeated id is skipped too, since
  * two snapshot items under one key would share one note.
  */
-function simpleAgendaItems(
-  value: unknown,
-): { id: string; title: string; notes: string }[] {
+function simpleAgendaItems(value: unknown): SimpleAgendaEntry[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
-  const items: { id: string; title: string; notes: string }[] = [];
+  const items: SimpleAgendaEntry[] = [];
   for (const item of value) {
     if (
       !isRecord(item) ||
@@ -232,6 +238,14 @@ function simpleAgendaItems(
       id: item.id,
       title: item.title,
       notes: typeof item.notes === "string" ? item.notes : "",
+      reference: isMinutesItemReference(item.source)
+        ? {
+            kind: item.source.kind as AgendaUpcomingDateSourceKind,
+            id: item.source.id as string,
+            label: item.source.label as string,
+            date: item.source.date as string,
+          }
+        : null,
     });
   }
   return items;
@@ -254,7 +268,14 @@ function simpleSnapshotItems(
       key: `item:${item.id}`,
       label: item.title,
       kind: "item",
-      ...(item.notes ? { planned: { text: item.notes } } : {}),
+      ...(item.notes || item.reference
+        ? {
+            planned: {
+              ...(item.notes ? { text: item.notes } : {}),
+              ...(item.reference ? { references: [item.reference] } : {}),
+            },
+          }
+        : {}),
     });
   }
   items.push({
@@ -404,7 +425,9 @@ const ITEM_KINDS: readonly MinutesItemKind[] = [
   "item",
 ];
 
-function isMinutesItemReference(value: unknown): boolean {
+function isMinutesItemReference(
+  value: unknown,
+): value is Record<string, unknown> {
   return (
     isRecord(value) &&
     typeof value.kind === "string" &&

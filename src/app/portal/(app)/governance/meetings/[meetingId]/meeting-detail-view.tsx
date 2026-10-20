@@ -130,6 +130,7 @@ function AgendaCard({
           meetingId={meeting.id}
           meetingDate={meeting.meeting_date}
           meetingType={meeting.meeting_type}
+          eventId={meeting.event_id ?? null}
           mode={mode}
           canManage={canManage}
           minutesApprovedAt={meeting.minutes_approved_at}
