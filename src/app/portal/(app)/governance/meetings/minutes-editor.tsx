@@ -18,6 +18,7 @@ import type { MeetingTopicContext } from "./meeting-context-catalog";
 import { TopicContext } from "./meeting-topic-context";
 import { OngoingTopicsTooltip } from "./agenda-tab";
 import { MinutesActionItemDialog } from "./minutes-action-item-dialog";
+import { DecisionsTab } from "./decisions-tab";
 import {
   MinutesQuickReferenceAside,
   MinutesQuickReferenceBody,
@@ -183,8 +184,51 @@ function PlannedContent({ item }: { item: MinutesItem }) {
   );
 }
 
+/** The small caps label that separates the parts of one card. */
+function PartLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+      {children}
+    </p>
+  );
+}
+
+/**
+ * The decisions item records decisions, not prose: the same list and form
+ * the overview's Decisions section shows, so a vote is written once, as a
+ * decision, rather than as a sentence in a notes box nobody can count.
+ */
+function DecisionsItemBody({
+  meeting,
+  legacyNote,
+  readOnly,
+}: {
+  meeting: { id: string; date: string };
+  /** A note typed into this item before it became the decisions list. */
+  legacyNote: string;
+  readOnly: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <DecisionsTab
+        meetingId={meeting.id}
+        meetingDate={meeting.date.slice(0, 10)}
+        mode={readOnly ? "view" : "edit"}
+      />
+      {legacyNote.trim() !== "" && (
+        <div>
+          <PartLabel>Earlier notes</PartLabel>
+          <MarkdownText className="mt-1 text-sm">{legacyNote}</MarkdownText>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MinutesItemCard({
   item,
+  number,
+  meeting,
   note,
   actionItems,
   readOnly,
@@ -194,6 +238,8 @@ function MinutesItemCard({
   onAddActionItem,
 }: {
   item: MinutesItem;
+  number: number;
+  meeting: { id: string; date: string };
   note: string;
   actionItems: ActionItem[];
   readOnly: boolean;
@@ -202,59 +248,86 @@ function MinutesItemCard({
   onFlush?: () => void;
   onAddActionItem?: () => void;
 }) {
+  const headingId = `minutes-item-${item.key.replace(/[^a-z0-9_-]/gi, "-")}`;
   return (
-    <li className="rounded-lg border border-[var(--line)] p-4">
-      <p className="text-sm font-semibold">{item.label}</p>
-      {/* From the snapshot, never the live agenda: the plan a notetaker is
-          working against must not move under them because someone opened the
-          Agenda tab in another window. */}
-      <PlannedContent item={item} />
+    <li
+      aria-labelledby={headingId}
+      className="overflow-hidden rounded-lg border border-[var(--line)] bg-card"
+    >
+      <div className="flex items-baseline gap-3 border-b border-[var(--line)] bg-muted/50 px-4 py-3">
+        <span className="app-muted text-sm tabular-nums" aria-hidden>
+          {number}.
+        </span>
+        <h3 id={headingId} className="text-base font-semibold">
+          {item.label}
+        </h3>
+      </div>
 
-      {/* Live, and deliberately not frozen into the snapshot (#1224): what
-          gets typed into the note below is the record, and a cash position
-          copied into `agenda_snapshot` would be a second, silent, un-auditable
-          financial statement. */}
-      <TopicContext
-        itemKey={item.key}
-        context={topicContext?.context}
-        datedContext={topicContext?.datedContext}
-      />
+      <div className="flex flex-col gap-4 p-4">
+        {/* From the snapshot, never the live agenda: the plan a notetaker is
+            working against must not move under them because someone opened
+            the Agenda tab in another window. */}
+        <PlannedContent item={item} />
 
-      {readOnly ? (
-        note.trim() === "" ? (
-          <p className="app-muted mt-2 text-sm">No notes recorded.</p>
-        ) : (
-          // Rendered, not `whitespace-pre-wrap` (#1201): the editor is a plain
-          // textarea and notetakers type Markdown conventions into it, so
-          // finalized minutes read with literal asterisks otherwise.
-          <MarkdownText className="mt-2 text-sm">{note}</MarkdownText>
-        )
-      ) : (
-        <Textarea
-          className="mt-2"
-          aria-label={`Notes for ${item.label}`}
-          placeholder="What happened"
-          value={note}
-          onChange={(event) => onNoteChange?.(event.target.value)}
-          // Leaving a field is a natural save point and costs nothing when the
-          // debounce has already fired.
-          onBlur={onFlush}
+        {/* Live, and deliberately not frozen into the snapshot (#1224): what
+            gets typed into the note below is the record, and a cash position
+            copied into `agenda_snapshot` would be a second, silent,
+            un-auditable financial statement. */}
+        <TopicContext
+          itemKey={item.key}
+          context={topicContext?.context}
+          datedContext={topicContext?.datedContext}
         />
-      )}
 
-      <ItemActionItems items={actionItems} />
+        {item.kind === "decisions" ? (
+          <DecisionsItemBody
+            meeting={meeting}
+            legacyNote={note}
+            readOnly={readOnly}
+          />
+        ) : (
+          <div className="flex flex-col gap-2">
+            <PartLabel>Notes</PartLabel>
+            {readOnly ? (
+              note.trim() === "" ? (
+                <p className="app-muted text-sm">No notes recorded.</p>
+              ) : (
+                // Rendered, not `whitespace-pre-wrap` (#1201): the editor is a
+                // plain textarea and notetakers type Markdown conventions into
+                // it, so finalized minutes read with literal asterisks
+                // otherwise.
+                <MarkdownText className="text-sm">{note}</MarkdownText>
+              )
+            ) : (
+              <Textarea
+                aria-label={`Notes for ${item.label}`}
+                placeholder="What happened"
+                value={note}
+                onChange={(event) => onNoteChange?.(event.target.value)}
+                // Leaving a field is a natural save point and costs nothing
+                // when the debounce has already fired.
+                onBlur={onFlush}
+              />
+            )}
 
-      {!readOnly && onAddActionItem && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="mt-2 h-auto p-0"
-          onClick={onAddActionItem}
-        >
-          + Add action item
-        </Button>
-      )}
+            <ItemActionItems items={actionItems} />
+
+            {!readOnly && onAddActionItem && (
+              <div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0"
+                  onClick={onAddActionItem}
+                >
+                  + Add action item
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </li>
   );
 }
@@ -317,11 +390,13 @@ export function MinutesReadOnlyView({
           </div>
         </div>
 
-        <ol className="flex flex-col gap-3">
-          {items.map((item) => (
+        <ol className="flex flex-col gap-4">
+          {items.map((item, index) => (
             <MinutesItemCard
               key={item.key}
               item={item}
+              number={index + 1}
+              meeting={{ id: minutes.meeting_id, date: meetingDate }}
               note={minutes.notes[item.key] ?? ""}
               actionItems={itemsFor(actionItems, item.key)}
               topicContext={topicContext}
@@ -506,11 +581,13 @@ export function MinutesEditor({
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex flex-col gap-4">
-            <ol className="flex flex-col gap-3">
-              {items.map((item) => (
+            <ol className="flex flex-col gap-4">
+              {items.map((item, index) => (
                 <MinutesItemCard
                   key={item.key}
                   item={item}
+                  number={index + 1}
+                  meeting={{ id: meetingId, date: meetingDate }}
                   note={draft.notes[item.key] ?? ""}
                   actionItems={itemsFor(actionItems, item.key)}
                   topicContext={topicContext}
