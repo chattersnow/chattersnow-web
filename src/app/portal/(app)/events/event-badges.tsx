@@ -74,7 +74,6 @@ export type EventRow = {
 const STATUS_STYLES: Record<string, StatusTone> = {
   draft: "neutral",
   published: "progress",
-  completed: "success",
   cancelled: "danger",
   archived: "neutral",
 };

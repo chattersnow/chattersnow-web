@@ -154,7 +154,7 @@ export function uniqueEmail(tag: string) {
 type EventOverrides = {
   name?: string;
   visibility?: "public" | "private";
-  status?: "draft" | "published" | "completed" | "cancelled" | "archived";
+  status?: "draft" | "published" | "cancelled" | "archived";
   registration_enabled?: boolean;
   registration_deadline?: string | null;
   capacity?: number | null;
@@ -224,6 +224,7 @@ const EVENT_CHILD_TABLES = [
   "discount_codes",
   "giveaways",
   "volunteer_hours",
+  "event_media",
 ] as const;
 
 /**
@@ -602,7 +603,11 @@ export async function createPerson(
 // declares `on delete cascade`, so deleting the meeting is sufficient
 // cleanup for its children too.
 export async function createGovernanceMeeting(
-  overrides: { meetingDate?: string; status?: string } = {},
+  overrides: {
+    meetingDate?: string;
+    status?: string;
+    meetingType?: string;
+  } = {},
 ) {
   const { data, error } = await adminClient
     .from("governance_meetings")
@@ -610,7 +615,7 @@ export async function createGovernanceMeeting(
       meeting_date:
         overrides.meetingDate ??
         new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      meeting_type: "board",
+      meeting_type: overrides.meetingType ?? "board",
       status: overrides.status ?? "scheduled",
     })
     .select("id")

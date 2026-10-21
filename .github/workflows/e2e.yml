@@ -60,13 +60,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v3
-        with:
-          version: 2.114.0
-
       - name: Start Supabase
-        run: supabase start
+        uses: ./.github/actions/start-supabase
 
       - name: Load Supabase env
         run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"
@@ -126,13 +121,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v3
-        with:
-          version: 2.114.0
-
       - name: Start Supabase
-        run: supabase start
+        uses: ./.github/actions/start-supabase
 
       - name: Load Supabase env
         run: supabase status -o env | sed -E 's/="(.*)"$/=\1/' >> "$GITHUB_ENV"

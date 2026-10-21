@@ -27,6 +27,7 @@ mock.module("@/lib/supabase/server", () => ({
 
 const { getAgendaAction, upsertAgendaAction, listActiveAgendaTemplatesAction } =
   await import("./agenda-actions");
+const { startMinutesFromAgendaAction } = await import("./minutes-actions");
 
 afterEach(() => {
   revalidatePathMock.mockClear();
@@ -232,5 +233,124 @@ describe("agenda actions (integration)", () => {
 
   test("a deactivated (former) account can neither read nor save an agenda", async () => {
     await expectNoAccess(SEEDED_USERS.former);
+  });
+});
+
+// A committee meeting's simple agenda (#1623): the shape is chosen on the
+// server from the meeting's type, the columns hold it, and starting the
+// minutes freezes one entry per item keyed to the item's id.
+describe("simple agenda (integration)", () => {
+  const LONG_TITLE =
+    "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+  const LONG_NOTES =
+    "Last year we were short four volunteers on the Saturday morning shift and the line backed up for most of an hour. ".repeat(
+      10,
+    );
+  const FIRST = crypto.randomUUID();
+  const SECOND = crypto.randomUUID();
+
+  function simpleForm(items: unknown) {
+    const fd = new FormData();
+    fd.set("externalLink", "https://example.test/committee.pdf");
+    fd.set("items", JSON.stringify(items));
+    return fd;
+  }
+
+  test("upserts and reads a simple agenda, then freezes it into the minutes", async () => {
+    const meeting = await createGovernanceMeeting({ meetingType: "committee" });
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+
+    expect(
+      await upsertAgendaAction(
+        meeting.id,
+        simpleForm([
+          { id: FIRST, title: LONG_TITLE, notes: LONG_NOTES },
+          { id: SECOND, title: "Budget for the spring swap" },
+        ]),
+      ),
+    ).toEqual({ success: true });
+
+    const loaded = await getAgendaAction(meeting.id);
+    if (!("data" in loaded) || !loaded.data) throw new Error("expected data");
+    expect(loaded.data).toMatchObject({
+      format: "simple",
+      external_link: "https://example.test/committee.pdf",
+      template_id: null,
+      items: [
+        { id: FIRST, title: LONG_TITLE, notes: LONG_NOTES.trim() },
+        { id: SECOND, title: "Budget for the spring swap" },
+      ],
+      ongoing_items: {},
+      new_business: [],
+    });
+
+    // Reordered on the update path.
+    expect(
+      await upsertAgendaAction(
+        meeting.id,
+        simpleForm([
+          { id: SECOND, title: "Budget for the spring swap" },
+          { id: FIRST, title: LONG_TITLE, notes: LONG_NOTES },
+        ]),
+      ),
+    ).toEqual({ success: true });
+
+    const started = await startMinutesFromAgendaAction(meeting.id);
+    if (!("success" in started)) throw new Error(started.error.message);
+    expect(started.data.agenda_snapshot?.template_id).toBeNull();
+    expect(started.data.agenda_snapshot?.items.map((item) => item.key)).toEqual(
+      ["opening", `item:${SECOND}`, `item:${FIRST}`, "decisions"],
+    );
+    expect(started.data.agenda_snapshot?.items[2]).toMatchObject({
+      label: LONG_TITLE,
+      kind: "item",
+      planned: { text: LONG_NOTES.trim() },
+    });
+
+    await meeting.cleanup();
+  });
+
+  test("an agenda in the other shape is kept, and refused rather than converted", async () => {
+    const meeting = await createGovernanceMeeting();
+    currentSupabase = await signInAs(SEEDED_USERS.admin);
+    expect(await upsertAgendaAction(meeting.id, agendaForm())).toEqual({
+      success: true,
+    });
+
+    const { error } = await adminClient
+      .from("governance_meetings")
+      .update({ meeting_type: "committee" })
+      .eq("id", meeting.id);
+    if (error) throw error;
+
+    expect(
+      await upsertAgendaAction(
+        meeting.id,
+        simpleForm([{ id: FIRST, title: "Volunteer plan" }]),
+      ),
+    ).toEqual({
+      error:
+        "This agenda was written for a different meeting type, so it can no longer be edited.",
+    });
+    expect(await agendaFor(meeting.id)).toMatchObject({
+      new_business: ["Approve the gear budget"],
+    });
+
+    await meeting.cleanup();
+  });
+
+  test("the database refuses an unknown format and a non-array items column", async () => {
+    const meeting = await createGovernanceMeeting({ meetingType: "committee" });
+
+    const rows: Record<string, unknown>[] = [
+      { meeting_id: meeting.id, format: "outline" },
+      { meeting_id: meeting.id, format: "simple", items: { a: 1 } },
+    ];
+    for (const row of rows) {
+      const { error } = await adminClient.from("agendas").insert(row);
+      expect(error?.code).toBe("23514");
+    }
+
+    await meeting.cleanup();
   });
 });

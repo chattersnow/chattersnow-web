@@ -124,7 +124,9 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50MiB"
+# 10 GiB: the event-media bucket takes phone video (#1606). Hosted projects
+# raise the same limit in Dashboard -> Storage -> Settings.
+file_size_limit = "10GiB"
 
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]

@@ -16,7 +16,7 @@
       "schedule": "30 13 * * *"
     },
     {
-      "path": "/api/cron/gear-photo-purge",
+      "path": "/api/cron/storage-purge",
       "schedule": "0 15 * * *"
     }
   ]

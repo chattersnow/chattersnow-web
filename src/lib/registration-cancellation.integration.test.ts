@@ -347,8 +347,11 @@ describe("a registrant cancelling their own registration", () => {
   });
 
   test("cannot cancel once the event has started", async () => {
+    // Still running: once an event has ended, registering for it is refused
+    // too (#1609), and this test needs a registration to try cancelling.
     const eventId = await event({
       startsAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      endsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     });
     const { client } = await constituent();
     const id = await registerMyself(client, eventId);

@@ -23,7 +23,7 @@ export type CalendarEventRow = {
   /** `events.description`. */
   summary: string | null;
   location: string | null;
-  /** `events.status` -- draft/published/completed/cancelled, its own vocabulary, not `calendar_status`. */
+  /** `events.status` -- draft/published/cancelled/archived, its own vocabulary, not `calendar_status`. */
   status: string;
   /** `events.visibility` -- public/private. */
   visibility: string;
@@ -135,7 +135,7 @@ export type CalendarFilters = {
  * for -- priority tier, owner, decision, content status (an event has no
  * content pieces at all), and `calendar_status`, whose vocabulary
  * (idea/active/complete) doesn't overlap the event lifecycle
- * (draft/published/completed/cancelled). Rather than invent a mapping, a row
+ * (draft/published/cancelled/archived). Rather than invent a mapping, a row
  * that can't answer the question is left out, so "priority: Tier 1" means the
  * same thing it always did. Type, category, visibility and program do have an
  * event equivalent and are honoured below.

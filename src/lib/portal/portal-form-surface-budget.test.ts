@@ -39,6 +39,9 @@ const EXEMPT: Record<string, string> = {
   "administration/users/pending-access-section.tsx":
     "Shows a minted invite link to copy. Read-only, and the only control is " +
     "Copy.",
+  "events/media-video-list.tsx":
+    "Plays one of an event's videos (#1607): a player, not a form. The only " +
+    "controls are the video's own.",
   "events/registration-questions-editor.tsx":
     "Copy from another event (#1501): picks a source event and drops its " +
     "questions into the Planning tab's own unsaved form. Nothing is " +

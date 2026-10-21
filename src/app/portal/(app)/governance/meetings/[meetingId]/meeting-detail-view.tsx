@@ -96,13 +96,15 @@ function AgendaCard({
   onViewActionItems: () => void;
   onViewDecisions: () => void;
 }) {
+  // An agenda written in the other shape (#1623) is shown, never edited.
+  const [readOnly, setReadOnly] = useState(false);
   return (
     <Card>
       <CardHeader>
         <CardTitle className="app-muted text-sm font-semibold">
           Agenda
         </CardTitle>
-        {canManage && mode === "view" && (
+        {canManage && mode === "view" && !readOnly && (
           <CardAction>
             <Tooltip>
               <TooltipTrigger
@@ -127,6 +129,8 @@ function AgendaCard({
         <AgendaTab
           meetingId={meeting.id}
           meetingDate={meeting.meeting_date}
+          meetingType={meeting.meeting_type}
+          eventId={meeting.event_id ?? null}
           mode={mode}
           canManage={canManage}
           minutesApprovedAt={meeting.minutes_approved_at}
@@ -134,6 +138,7 @@ function AgendaCard({
           onViewDecisions={onViewDecisions}
           onExitEdit={() => onModeChange("view")}
           onDirtyChange={onDirtyChange}
+          onReadOnlyChange={setReadOnly}
         />
       </CardContent>
     </Card>

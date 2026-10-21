@@ -283,6 +283,14 @@ describe("a user in more than one tenant", () => {
       kind: "member",
     });
     if (error) throw error;
+
+    // "No selection yet" is this block's starting point, so assert it rather
+    // than inherit whatever another file's run left behind.
+    const { error: clearError } = await service
+      .from("user_tenant_selection")
+      .delete()
+      .eq("user_id", SEEDED_USER_IDS.multi);
+    if (clearError) throw clearError;
   });
 
   test("gets no tenant until they pick one", async () => {

@@ -21,6 +21,8 @@ import type {
 const baseAgenda: Agenda = {
   id: "agenda-1",
   meeting_id: "meeting-1",
+  format: "board",
+  items: [],
   external_link: null,
   document_path: null,
   document_url: null,
@@ -199,7 +201,7 @@ const eventsFeed: AgendaEventsFeed = {
         starts_at: "2026-02-20T12:00:00.000Z",
         ends_at: null,
         timezone: "America/Denver",
-        status: "completed",
+        status: "published",
         report_status: "not_started",
         event_lead_id: null,
         event_lead_name: "Dana Lead",
@@ -558,7 +560,7 @@ describe("formatAgendaMarkdown with sourced sections", () => {
       "**Since the last meeting** (Feb 11, 2026 – Mar 18, 2026)",
     );
     expect(markdown).toContain(
-      "- Feb 20, 2026 — Winter gear swap — Completed — report outstanding — Dana Lead",
+      "- Feb 20, 2026 — Winter gear swap — Published — report outstanding — Dana Lead",
     );
     // Held, behind us, report in: not flagged. The cancelled one owed none.
     expect(markdown).toContain(
@@ -667,7 +669,7 @@ describe("formatAgendaPlainText", () => {
       "  Since the last meeting (Feb 11, 2026 – Mar 18, 2026)",
     );
     expect(text).toContain(
-      "  - Feb 20, 2026 — Winter gear swap — Completed — report outstanding — Dana Lead",
+      "  - Feb 20, 2026 — Winter gear swap — Published — report outstanding — Dana Lead",
     );
     expect(text).toContain("    Discussion: —");
     expect(text).not.toContain("**");
@@ -704,5 +706,94 @@ describe("formatAgendaPlainText", () => {
     );
     expect(text).toContain("  - Sep 15, 2026 — Fall picnic (Event)");
     expect(text).not.toContain("#");
+  });
+});
+
+describe("a simple agenda (#1623)", () => {
+  const LONG_TITLE =
+    "Review the volunteer coordination plan for the winter gear swap, including shift coverage at both drop-off sites and the backup plan for snow days";
+  const simpleInput: AgendaExportInput = {
+    ...emptyInput,
+    agenda: {
+      ...baseAgenda,
+      format: "simple",
+      external_link: "https://docs.example.com/committee",
+      items: [
+        {
+          id: "a1",
+          title: LONG_TITLE,
+          notes: "Bring last year's sign-up sheet.",
+        },
+        { id: "b2", title: "Budget for the spring swap" },
+      ],
+    },
+  };
+
+  test("prints its items in order and none of the board sections", () => {
+    const markdown = formatAgendaMarkdown(simpleInput);
+    expect(markdown).toContain(
+      "External link: https://docs.example.com/committee",
+    );
+    expect(markdown).toContain("## Agenda items");
+    expect(markdown).toContain(
+      `### 1. ${LONG_TITLE}\nBring last year's sign-up sheet.`,
+    );
+    expect(markdown).toContain("### 2. Budget for the spring swap");
+    expect(markdown).toContain("## Decisions & votes");
+    for (const board of [
+      "Ongoing board items",
+      "New business",
+      "Parking lot",
+      "Upcoming dates",
+      "Next meeting",
+      "Agenda notes",
+    ]) {
+      expect(markdown).not.toContain(board);
+    }
+  });
+
+  test("prints the same shape as plain text", () => {
+    const text = formatAgendaPlainText(simpleInput);
+    expect(text).toContain("AGENDA ITEMS");
+    expect(text).toContain(`  1. ${LONG_TITLE}`);
+    expect(text).toContain("     Bring last year's sign-up sheet.");
+    expect(text).not.toContain("ONGOING BOARD ITEMS");
+  });
+
+  test("names the event a pre-filled item came from (#1624)", () => {
+    const sourced: AgendaExportInput = {
+      ...simpleInput,
+      agenda: {
+        ...simpleInput.agenda,
+        items: [
+          {
+            id: "a1",
+            title: "Book the hall",
+            source: {
+              key: "event_checklist_c1",
+              kind: "event",
+              id: "event-1",
+              label: "Spring Gear Swap",
+              date: "2026-10-03",
+            },
+          },
+        ],
+      },
+    };
+    expect(formatAgendaMarkdown(sourced)).toContain(
+      "### 1. Book the hall\n_From Spring Gear Swap — ",
+    );
+    expect(formatAgendaPlainText(sourced)).toContain(
+      "  1. Book the hall\n     From Spring Gear Swap — ",
+    );
+  });
+
+  test("says so when there are no items yet", () => {
+    const empty = {
+      ...simpleInput,
+      agenda: { ...simpleInput.agenda, items: [] },
+    };
+    expect(formatAgendaMarkdown(empty)).toContain("No items yet.");
+    expect(formatAgendaPlainText(empty)).toContain("  No items yet.");
   });
 });

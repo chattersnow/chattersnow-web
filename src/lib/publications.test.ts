@@ -134,6 +134,8 @@ describe("formatFileSize", () => {
     expect(formatFileSize(1.5 * 1024 * 1024)).toBe("1.5 MB");
     expect(formatFileSize(2 * 1024 * 1024)).toBe("2 MB");
     expect(formatFileSize(18 * 1024 * 1024 + 300_000)).toBe("18 MB");
+    expect(formatFileSize(2.4 * 1024 * 1024 * 1024)).toBe("2.4 GB");
+    expect(formatFileSize(12 * 1024 * 1024 * 1024)).toBe("12 GB");
   });
 });
 

@@ -181,3 +181,145 @@ export function parseAgendaForm(
     },
   };
 }
+
+/**
+ * Which agenda shape a row holds (#1623). Only a board meeting gets the
+ * structured, template-driven agenda; every other type gets a list of items.
+ *
+ * Stored on the row (`agendas.format`) rather than read off the meeting each
+ * time, because a meeting's type can change after its agenda is written, and
+ * the agenda then keeps rendering -- read-only -- in the shape it was written
+ * in rather than being reinterpreted as the other one.
+ */
+export type AgendaFormat = "board" | "simple";
+
+export function agendaFormatForMeetingType(meetingType: string): AgendaFormat {
+  return meetingType === "board" ? "board" : "simple";
+}
+
+/**
+ * One item of a simple agenda. `id` is minted in the browser when the item is
+ * added and never changes, so a rename or a reorder keeps the minutes note
+ * keyed `item:<id>` attached to the same item.
+ */
+export type AgendaItem = {
+  id: string;
+  title: string;
+  notes?: string;
+  /** Set on an item pre-filled from the meeting's linked event (#1624). */
+  source?: AgendaItemSource;
+};
+
+/**
+ * The open piece of event work an item was pre-filled from (#1624), frozen
+ * like a pinned upcoming date (#1223). `kind`/`id`/`label`/`date` are the
+ * record the agenda and minutes link to -- the event the work sits on, which
+ * for a carried-forward action is the earlier event. `key` names the work
+ * itself (`event_planning_<event id>`, `event_checklist_<item id>`,
+ * `retro_action_<item id>`), and is what "Refresh from event" deduplicates on:
+ * one event holds several pieces of work, so the record alone cannot.
+ */
+export type AgendaItemSource = {
+  key: string;
+  kind: AgendaUpcomingDateSourceKind;
+  id: string;
+  label: string;
+  date: string;
+};
+
+function isAgendaItemSource(value: unknown): value is AgendaItemSource {
+  return (
+    isRecord(value) &&
+    typeof value.key === "string" &&
+    value.key.trim() !== "" &&
+    typeof value.kind === "string" &&
+    AGENDA_UPCOMING_DATE_SOURCE_KINDS.includes(
+      value.kind as AgendaUpcomingDateSourceKind,
+    ) &&
+    typeof value.id === "string" &&
+    value.id.trim() !== "" &&
+    typeof value.label === "string" &&
+    typeof value.date === "string"
+  );
+}
+
+/**
+ * What an item id may be: a `crypto.randomUUID()`, or anything else drawn from
+ * the same lowercase alphabet. Checked because the id becomes half of a minutes
+ * note key, and `parseMinutesPatch` refuses a key outside that alphabet -- an
+ * id that slipped past here would freeze into a snapshot item nobody could
+ * write a note under.
+ */
+export const AGENDA_ITEM_ID_PATTERN = /^[a-z0-9_-]{1,64}$/;
+
+export function isAgendaItems(value: unknown): value is AgendaItem[] {
+  if (!Array.isArray(value)) return false;
+  const ids = new Set<string>();
+  for (const item of value) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "string" ||
+      !AGENDA_ITEM_ID_PATTERN.test(item.id) ||
+      ids.has(item.id) ||
+      typeof item.title !== "string" ||
+      (item.notes !== undefined && typeof item.notes !== "string") ||
+      (item.source !== undefined && !isAgendaItemSource(item.source))
+    ) {
+      return false;
+    }
+    ids.add(item.id);
+  }
+  return true;
+}
+
+export type SimpleAgendaFormData = {
+  external_link: string | null;
+  document_path: string | null;
+  items: AgendaItem[];
+};
+
+/** Only the source's own fields reach the column, not whatever else was posted. */
+function pickSource({ key, kind, id, label, date }: AgendaItemSource) {
+  return { key, kind, id, label, date };
+}
+
+/**
+ * A simple agenda's form. The same guard-then-normalize order as
+ * `parseAgendaForm`: a hand-built POST is refused with a message rather than
+ * thrown on, and only then are blanks trimmed away. A row left entirely blank
+ * is dropped, the way the board form drops an empty upcoming date; one with
+ * notes and no title is refused, since the title is what the minutes are
+ * headed with.
+ */
+export function parseSimpleAgendaForm(
+  formData: FormData,
+): ParseResult<SimpleAgendaFormData> {
+  const document = parseDocumentFields(formData);
+  if ("error" in document) return document;
+
+  let items: unknown;
+  try {
+    items = JSON.parse(String(formData.get("items") ?? "[]"));
+  } catch {
+    items = undefined;
+  }
+  if (!isAgendaItems(items)) {
+    return { error: "Could not read the agenda items. Please try again." };
+  }
+
+  const normalized: AgendaItem[] = [];
+  for (const item of items) {
+    const title = item.title.trim();
+    const notes = item.notes?.trim() ?? "";
+    if (!title && !notes) continue;
+    if (!title) return { error: "Every agenda item needs a title." };
+    normalized.push({
+      id: item.id,
+      title,
+      ...(notes ? { notes } : {}),
+      ...(item.source ? { source: pickSource(item.source) } : {}),
+    });
+  }
+
+  return { data: { ...document.data, items: normalized } };
+}

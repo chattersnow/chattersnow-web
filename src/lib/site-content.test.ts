@@ -103,6 +103,11 @@ describe("the site content registry", () => {
     // tenant's behalf. Blank means the box is never rendered and all three
     // columns stay null, which is where almost every tenant stays.
     expect(DEFAULT_SITE_CONTENT.paragraphs("events.photo_consent")).toEqual([]);
+    // Likewise what an organization does with a photographer's uploads
+    // (#1620): the uploader agrees to these words, so only a tenant writes them.
+    expect(
+      DEFAULT_SITE_CONTENT.paragraphs("events.media_upload_rights"),
+    ).toEqual([]);
     // And once more for the sentence only an organization can write (#1389).
     // Whether a gift is tax-deductible depends on facts the platform cannot
     // know -- a pending exemption, a fiscal sponsor, a determination letter in

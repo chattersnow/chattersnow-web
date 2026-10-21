@@ -22,7 +22,11 @@ const FORBIDDEN: ActionFailure = {
   },
 };
 
-const MEETING = { id: "meeting-1", meeting_date: "2026-03-18T18:00:00.000Z" };
+const MEETING = {
+  id: "meeting-1",
+  meeting_date: "2026-03-18T18:00:00.000Z",
+  meeting_type: "board",
+};
 
 const AGENDA_ROW = {
   external_link: null,
@@ -198,6 +202,68 @@ describe("startMinutesFromAgenda", () => {
     expect(values.body_text).toBeNull();
     expect(values.agenda_snapshot.items.map((item) => item.key)).toContain(
       "section:events",
+    );
+  });
+
+  test("a committee meeting freezes its agenda items, with no template read", async () => {
+    const supabase = starting({
+      select: {
+        governance_meetings: {
+          rows: [{ ...MEETING, meeting_type: "committee" }],
+        },
+        agendas: {
+          rows: [
+            {
+              format: "simple",
+              items: [{ id: "a1", title: "Volunteer plan" }],
+              external_link: null,
+              body_text: null,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(
+      await startMinutesFromAgenda(supabase.client, "meeting-1"),
+    ).toMatchObject({ success: true });
+    const insert = supabase.statements.find(
+      (statement) => statement.operation === "insert",
+    );
+    const values = insert?.values as {
+      agenda_snapshot: { items: { key: string }[] };
+    };
+    expect(values.agenda_snapshot.items.map((item) => item.key)).toEqual([
+      "opening",
+      "item:a1",
+      "decisions",
+    ]);
+    expect(
+      supabase.statements.some(
+        (statement) => statement.table === "agenda_templates",
+      ),
+    ).toBe(false);
+  });
+
+  test("a committee meeting keeps the board agenda it already has", async () => {
+    const supabase = starting({
+      select: {
+        governance_meetings: {
+          rows: [{ ...MEETING, meeting_type: "committee" }],
+        },
+        agendas: { rows: [{ ...AGENDA_ROW, format: "board" }] },
+      },
+    });
+
+    await startMinutesFromAgenda(supabase.client, "meeting-1");
+    const insert = supabase.statements.find(
+      (statement) => statement.operation === "insert",
+    );
+    const values = insert?.values as {
+      agenda_snapshot: { items: { key: string }[] };
+    };
+    expect(values.agenda_snapshot.items.map((item) => item.key)).toContain(
+      "section:finance_fundraising",
     );
   });
 

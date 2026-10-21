@@ -204,7 +204,8 @@ What follows from this:
   privacy policy, the terms or the code of conduct, and nothing may.
   A **snapshot** is a different thing and is allowed where an acceptance was
   genuinely obtained: `artwork_submissions.consented_terms` (#1319) and
-  `gear_requests.as_is_text` (#1367) each hold the words the person was shown,
+  `gear_requests.as_is_text` (#1367) and `event_media.rights_terms` (#1620,
+  a photographer's upload-link confirmation) each hold the words the person was shown,
   because those words live in a call row or a component constant with no
   version identity and no permalink to point at. The test is #1319's — a
   pointer where the text has an address, a snapshot where it does not, and

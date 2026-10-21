@@ -19,16 +19,19 @@
  */
 import type { AgendaTemplateSection } from "./agenda-template-shared";
 import {
+  AGENDA_ITEM_ID_PATTERN,
   AGENDA_UPCOMING_DATE_SOURCE_KINDS,
+  type AgendaFormat,
   type AgendaUpcomingDateSourceKind,
 } from "./agenda-form";
 
 /**
- * 2 since #1223, which added `planned.references`. Nothing branches on this --
- * `isMinutesSnapshot` validates structure, so a v1 row keeps reading and is
- * never back-filled -- and it is here so a future reader can date a shape.
+ * 2 since #1223, which added `planned.references`; 3 since #1623, which added
+ * the `item` kind a simple agenda freezes into. Nothing branches on this --
+ * `isMinutesSnapshot` validates structure, so a v1 or v2 row keeps reading and
+ * is never back-filled -- and it is here so a future reader can date a shape.
  */
-export const MINUTES_SNAPSHOT_VERSION = 2;
+export const MINUTES_SNAPSHOT_VERSION = 3;
 
 export type MinutesItemKind =
   | "opening"
@@ -38,7 +41,9 @@ export type MinutesItemKind =
   | "new_business"
   | "upcoming_dates"
   | "parking_lot"
-  | "next_meeting";
+  | "next_meeting"
+  /** One item of a simple agenda (#1623), keyed `item:<agenda item id>`. */
+  | "item";
 
 /**
  * A record an agenda line was pinned from (#1223), frozen alongside the line.
@@ -94,6 +99,7 @@ export type MinutesSnapshot = {
  * is imported by a Next-free action core (#1082).
  */
 export type SnapshotAgenda = {
+  items?: unknown;
   external_link?: string | null;
   template_id?: string | null;
   template_version_id?: string | null;
@@ -107,6 +113,12 @@ export type SnapshotAgenda = {
 
 export type BuildMinutesSnapshotInput = {
   meetingDate: string;
+  /**
+   * Resolved by the caller: the agenda row's own `format` when there is one,
+   * else what the meeting's type calls for. Not read off `agenda` here, because
+   * a meeting with no agenda yet still has to be frozen in the right shape.
+   */
+  format: AgendaFormat;
   agenda: SnapshotAgenda | null;
   sections: AgendaTemplateSection[];
   openingChecklist: string[];
@@ -192,18 +204,111 @@ function stringEntries(value: unknown): string[] {
     : [];
 }
 
+type SimpleAgendaEntry = {
+  id: string;
+  title: string;
+  notes: string;
+  /** The event an item was pre-filled from (#1624); a bad one is just dropped. */
+  reference: MinutesItemReference | null;
+};
+
+/**
+ * A simple agenda's items, entry by entry: one malformed entry is skipped
+ * rather than costing the notetaker the whole list, the same tolerance
+ * `stringEntries` gives the board lists. A repeated id is skipped too, since
+ * two snapshot items under one key would share one note.
+ */
+function simpleAgendaItems(value: unknown): SimpleAgendaEntry[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const items: SimpleAgendaEntry[] = [];
+  for (const item of value) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "string" ||
+      !AGENDA_ITEM_ID_PATTERN.test(item.id) ||
+      seen.has(item.id) ||
+      typeof item.title !== "string" ||
+      item.title.trim() === ""
+    ) {
+      continue;
+    }
+    seen.add(item.id);
+    items.push({
+      id: item.id,
+      title: item.title,
+      notes: typeof item.notes === "string" ? item.notes : "",
+      reference: isMinutesItemReference(item.source)
+        ? {
+            kind: item.source.kind as AgendaUpcomingDateSourceKind,
+            id: item.source.id as string,
+            label: item.source.label as string,
+            date: item.source.date as string,
+          }
+        : null,
+    });
+  }
+  return items;
+}
+
+/**
+ * A non-board meeting's minutes follow its agenda items (#1623): the opening,
+ * one entry per item, then decisions. No carried-over, standing-section or
+ * board-list entries -- those belong to the board agenda the meeting does not
+ * have. An empty list freezes just the opening and decisions; the closing
+ * notes are still there for everything else.
+ */
+function simpleSnapshotItems(
+  agenda: SnapshotAgenda | null,
+  opening: MinutesItem,
+): MinutesItem[] {
+  const items: MinutesItem[] = [opening];
+  for (const item of simpleAgendaItems(agenda?.items)) {
+    items.push({
+      key: `item:${item.id}`,
+      label: item.title,
+      kind: "item",
+      ...(item.notes || item.reference
+        ? {
+            planned: {
+              ...(item.notes ? { text: item.notes } : {}),
+              ...(item.reference ? { references: [item.reference] } : {}),
+            },
+          }
+        : {}),
+    });
+  }
+  items.push({
+    key: "decisions",
+    label: "Decisions & votes",
+    kind: "decisions",
+  });
+  return items;
+}
+
 export function buildMinutesSnapshot(
   input: BuildMinutesSnapshotInput,
 ): MinutesSnapshot {
   const { agenda, sections, openingChecklist } = input;
-  const items: MinutesItem[] = [];
-
-  items.push({
+  const opening: MinutesItem = {
     key: "opening",
     label: "Opening",
     kind: "opening",
     planned: { topics: [...openingChecklist] },
-  });
+  };
+
+  if (input.format === "simple") {
+    return {
+      version: MINUTES_SNAPSHOT_VERSION,
+      meeting_date: input.meetingDate,
+      template_id: null,
+      template_version_id: null,
+      external_link: agenda?.external_link ?? null,
+      items: simpleSnapshotItems(agenda, opening),
+    };
+  }
+
+  const items: MinutesItem[] = [opening];
 
   items.push({
     key: "carried_over",
@@ -317,9 +422,12 @@ const ITEM_KINDS: readonly MinutesItemKind[] = [
   "upcoming_dates",
   "parking_lot",
   "next_meeting",
+  "item",
 ];
 
-function isMinutesItemReference(value: unknown): boolean {
+function isMinutesItemReference(
+  value: unknown,
+): value is Record<string, unknown> {
   return (
     isRecord(value) &&
     typeof value.kind === "string" &&

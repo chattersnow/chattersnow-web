@@ -30,6 +30,7 @@ import { EventRevenueTab } from "./event-revenue-tab";
 import { EventSalesTab } from "./event-sales-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ResultsTab } from "./results-tab";
+import { MediaTab } from "./media-tab";
 import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
 import { LogIncidentDialog } from "./log-incident-dialog";
 import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
@@ -66,6 +67,7 @@ export type TabValue =
   | "revenue"
   | "sales"
   | "results"
+  | "media"
   | "donations"
   | "cash-donations";
 
@@ -230,6 +232,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventId={ctx.event.id}
         mode={ctx.mode}
         registrants={ctx.shared.registrants}
+        refreshDerived={ctx.shared.impactDerived.refresh}
       />
     ),
     toolbarActions: (ctx) => (
@@ -251,7 +254,13 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Volunteers",
     group: "team",
     kind: "plain",
-    render: (ctx) => <VolunteersTab eventId={ctx.event.id} mode={ctx.mode} />,
+    render: (ctx) => (
+      <VolunteersTab
+        eventId={ctx.event.id}
+        mode={ctx.mode}
+        refreshDerived={ctx.shared.impactDerived.refresh}
+      />
+    ),
     toolbarActions: (ctx) => (
       <>
         <AddShiftDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
@@ -443,6 +452,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         eventName={ctx.event.name}
         budgetAmount={ctx.event.budget_amount}
         mode={ctx.mode}
+        refreshDerived={ctx.shared.impactDerived.refresh}
       />
     ),
     toolbarActions: (ctx) => (
@@ -492,6 +502,24 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         onSaved={ctx.onSaved}
         onPendingChange={ctx.formCallbacks.results.onPendingChange}
         onDirtyChange={ctx.formCallbacks.results.onDirtyChange}
+      />
+    ),
+  },
+  {
+    // Photos and videos taken at the event (#1606). Ungated beyond the route's
+    // events:view; the upload control inside checks who may upload.
+    value: "media",
+    label: "Media",
+    keywords: ["photos", "videos", "pictures", "footage", "gallery"],
+    group: "results",
+    kind: "plain",
+    render: (ctx) => (
+      <MediaTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
+        eventStartsAt={ctx.event.starts_at}
+        eventEndsAt={ctx.event.ends_at}
+        timeZone={ctx.event.timezone}
       />
     ),
   },

@@ -57,9 +57,12 @@ async function fetchVolunteersTabData(
 export function VolunteersTab({
   eventId,
   mode,
+  refreshDerived,
 }: {
   eventId: string;
   mode: "view" | "edit";
+  /** Refetches the Results card's Outcomes, which count volunteers and hours. */
+  refreshDerived: () => void;
 }) {
   const router = useRouter();
   const {
@@ -82,12 +85,20 @@ export function VolunteersTab({
 
   useRegisterTabRefresh<TabValue>("volunteers", refresh);
 
+  // The toolbar's notification reaches the shared-data provider, which
+  // refreshes the derived figures itself; a change made inside the card
+  // doesn't, so it does that here (#1619).
+  function refreshAfterChange() {
+    refresh();
+    refreshDerived();
+  }
+
   function handleDeleteVolunteer(id: string) {
     startDeleteTransition(async () => {
       await runAction(() => deleteEventVolunteerAction(id), {
         success: "Volunteer removed.",
         error: "Could not remove the volunteer. Please try again.",
-        onSuccess: refresh,
+        onSuccess: refreshAfterChange,
       });
     });
   }
@@ -97,7 +108,7 @@ export function VolunteersTab({
       await runAction(() => deleteEventVolunteerHoursAction(id), {
         success: "Hours entry deleted.",
         error: "Could not delete the hours entry. Please try again.",
-        onSuccess: refresh,
+        onSuccess: refreshAfterChange,
       });
     });
   }
@@ -107,7 +118,7 @@ export function VolunteersTab({
       await runAction(() => deleteEventShiftAction(id), {
         success: "Shift deleted.",
         error: "Could not delete the shift. Please try again.",
-        onSuccess: refresh,
+        onSuccess: refreshAfterChange,
       });
     });
   }
@@ -122,7 +133,7 @@ export function VolunteersTab({
             ? `Volunteer moved to "${shiftLabel}".`
             : "Volunteer removed from their shift.",
           error: "Could not reassign the volunteer. Please try again.",
-          onSuccess: refresh,
+          onSuccess: refreshAfterChange,
         },
       );
     });
@@ -160,7 +171,7 @@ export function VolunteersTab({
         isDeleting={isDeleting}
         onUpdateShift={async (id, formData) => {
           const result = await updateEventShiftAction(id, formData);
-          if (!("error" in result)) refresh();
+          if (!("error" in result)) refreshAfterChange();
           return result;
         }}
         onDeleteShift={handleDeleteShift}
@@ -176,7 +187,7 @@ export function VolunteersTab({
         onDeleteVolunteer={handleDeleteVolunteer}
         onDeleteHours={handleDeleteHours}
         onShiftReassign={handleShiftReassign}
-        onSaved={refresh}
+        onSaved={refreshAfterChange}
       />
     </div>
   );

@@ -1,0 +1,122 @@
+name: Start Supabase
+description: >-
+  Installs the Supabase CLI and starts the local stack, loading its Docker
+  images from the Actions cache instead of pulling them from ECR Public.
+
+inputs:
+  cli-version:
+    description: >-
+      Supabase CLI version. Part of the image cache key, since the CLI pins
+      the image tags it pulls.
+    default: "2.114.0"
+  save-image-cache:
+    description: >-
+      "true" lets this job save the image cache on a miss. Set it on exactly
+      one job -- see the save step below for why.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    # Pull from GHCR rather than ECR Public. The cache below only helps once
+    # development has saved it: a cold run -- the first push after a key
+    # change, or any PR before then -- still pulls everything, and from ECR
+    # Public that hit "toomanyrequests: Data limit exceeded" on #1617's own
+    # runs. `supabase start` survived on retries; `gen types`, which pulls
+    # postgres-meta through a plain `docker run`, did not. Supabase mirrors
+    # every image to ghcr.io/supabase, and GitHub-hosted runners pulling
+    # public GHCR images do not hit the shared-IP quota.
+    #
+    # SUPABASE_INTERNAL_IMAGE_REGISTRY is the CLI's own registry override
+    # (viper key INTERNAL_IMAGE_REGISTRY, apps/cli-go/internal/utils/docker.go).
+    # Written to GITHUB_ENV so every later Supabase command in the job -- the
+    # `db:types` check in particular -- pulls from the same place.
+    - name: Pull Supabase images from GHCR
+      shell: bash
+      run: echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io" >> "$GITHUB_ENV"
+
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v3
+      with:
+        version: ${{ inputs.cli-version }}
+
+    # Every job used to pull the whole stack anonymously from public.ecr.aws.
+    # ECR Public rate-limits anonymous pulls per source IP, GitHub-hosted
+    # runners share IPs, and a runner whose IP had already spent its quota
+    # failed `supabase start` with "toomanyrequests: Data limit exceeded" on
+    # changes that had nothing to do with it -- twice in a row on #1615
+    # (#1616). With the images cached, a normal run pulls nothing at all.
+    #
+    # The key is what decides the image names: the registry, the CLI version
+    # that pins their tags, and config.toml, which decides which services
+    # start. A change to either is a new
+    # key; the old entry stops being restored and GitHub evicts it after 7
+    # days.
+    - name: Restore Supabase images
+      id: restore
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/supabase-images.tar
+        key: supabase-images-${{ runner.os }}-ghcr-cli${{ inputs.cli-version }}-${{ hashFiles('supabase/config.toml') }}
+
+    - name: Load Supabase images
+      if: steps.restore.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker load --input "$RUNNER_TEMP/supabase-images.tar"
+        rm "$RUNNER_TEMP/supabase-images.tar"
+
+    # The CLI only pulls an image that is not already present, so after a
+    # cache hit this pulls nothing; on a miss it pulls as it always did.
+    - name: Start Supabase
+      shell: bash
+      run: supabase start
+
+    # Saved only on a push to development, and only from the one job that
+    # opts in. A cache saved by a pull request belongs to that PR's merge ref
+    # and nothing else can restore it, so every PR saving its own multi-GB
+    # copy would fill the repo's 10 GB and push out the bun caches. PR runs
+    # restore development's entry instead, since a PR can read its base
+    # branch's caches. One saving job rather than all ten keeps a push from
+    # writing the same tarball ten times over.
+    #
+    # `gen types --local` runs first because it is the only thing that uses
+    # postgres-meta (Studio is disabled), and its tag is pinned inside the
+    # CLI; running it is how that exact image gets pulled into the tarball.
+    - name: Save Supabase images
+      id: save
+      if: >-
+        inputs.save-image-cache == 'true'
+        && steps.restore.outputs.cache-hit != 'true'
+        && github.event_name == 'push'
+        && github.ref == 'refs/heads/development'
+      shell: bash
+      run: |
+        set -euo pipefail
+        supabase gen types typescript --local > /dev/null
+
+        images=$(docker images --format '{{.Repository}}:{{.Tag}}' \
+          | grep '^ghcr\.io/supabase/' | sort -u)
+        if [ -z "$images" ]; then
+          echo "::error::No ghcr.io/supabase images found to cache."
+          exit 1
+        fi
+        # shellcheck disable=SC2086 # one argument per image
+        docker save --output "$RUNNER_TEMP/supabase-images.tar" $images
+
+        size=$(du -h "$RUNNER_TEMP/supabase-images.tar" | cut -f1)
+        {
+          echo "### Supabase image cache"
+          echo "Saved ${size} (before the cache's own compression):"
+          echo '```'
+          echo "$images"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload Supabase image cache
+      if: steps.save.outcome == 'success'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/supabase-images.tar
+        key: ${{ steps.restore.outputs.cache-primary-key }}

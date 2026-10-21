@@ -10,6 +10,7 @@ import * as DiscountCodesActions from "../discount-codes-actions";
 import * as DistributionActions from "../../home/distribution-actions";
 import * as IncidentsActions from "../incidents-actions";
 import * as ChecklistActions from "../checklist-actions";
+import * as MeetingsActions from "../../governance/meetings/actions";
 import * as GiveawayActions from "../giveaway-actions";
 import * as ExpensesActions from "../../finance/expenses/actions";
 import * as RevenueActions from "../../finance/revenue/actions";
@@ -82,6 +83,10 @@ mock.module("../../home/distribution-actions", () => ({
 mock.module("../incidents-actions", () => ({
   ...IncidentsActions,
   listEventIncidentsAction: mock(async () => ({ data: [] })),
+}));
+mock.module("../../governance/meetings/actions", () => ({
+  ...MeetingsActions,
+  listEventMeetingsAction: mock(async () => []),
 }));
 mock.module("../checklist-actions", () => ({
   ...ChecklistActions,
@@ -252,6 +257,7 @@ function renderView(
       deleteBlockers={[]}
       groups={ALL_GROUPS}
       initialCard="overview"
+      nowIso="2026-01-01T00:00:00.000Z"
       {...props}
     />,
   );
@@ -261,9 +267,10 @@ describe("EventDetailView", () => {
   test("lists every section at once, under its group heading", () => {
     renderView();
 
-    // The whole point of the rail (#1008): all 20 sections are readable
-    // without opening anything, so finding one is not a memory test.
-    expect(rail().getAllByRole("button")).toHaveLength(19);
+    // The whole point of the rail (#1008): every section is readable
+    // without opening anything, so finding one is not a memory test. Media
+    // joined Results in #1606.
+    expect(rail().getAllByRole("button")).toHaveLength(20);
     for (const heading of [
       "Overview",
       "Guests",
@@ -283,6 +290,7 @@ describe("EventDetailView", () => {
       "Sponsors",
       "Registrants",
       "Results",
+      "Media",
     ]) {
       expect(railRow(section)).toBeVisible();
     }

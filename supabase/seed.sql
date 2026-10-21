@@ -1372,7 +1372,7 @@ begin
   -- ~55 more events spanning far past to far future, every status/visibility.
   for i in 1..55 loop
     v_starts_at := now() + ((floor(random() * 500)::int - 250) || ' days')::interval + ((floor(random() * 12)::int) || ' hours')::interval;
-    v_status := (array['draft','published','published','published','completed','completed','cancelled','archived'])[1 + floor(random() * 8)::int];
+    v_status := (array['draft','published','published','published','published','published','cancelled','archived'])[1 + floor(random() * 8)::int];
     v_registration_enabled := random() < 0.5;
     v_visibility := case when v_status in ('draft', 'archived') and random() < 0.5 then 'private' else (array['public','private'])[1 + floor(random() * 2)::int] end;
 

@@ -1,0 +1,273 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import * as MediaActions from "./media-actions";
+import type { EventMediaRow, EventMediaState } from "./media-actions";
+
+let state: EventMediaState;
+const deleteMock = mock(async () => ({ ok: true as const }));
+
+mock.module("./media-actions", () => ({
+  ...MediaActions,
+  getEventMediaAction: async () => ({ data: state }),
+  deleteEventMediaAction: deleteMock,
+}));
+
+const { MediaTab } = await import("./media-tab");
+
+function item(overrides: Partial<EventMediaRow>): EventMediaRow {
+  return {
+    id: crypto.randomUUID(),
+    kind: "photo",
+    original_filename: "IMG_0001.jpg",
+    content_type: "image/jpeg",
+    size_bytes: 400 * 1024,
+    uploaded_at: "2026-10-18T19:30:00Z",
+    uploader_name: "Sam Lee",
+    url: "https://storage.test/sign/a.jpg?token=t",
+    display_url: null,
+    download_url: "https://storage.test/sign/a.jpg?token=t&download=a.jpg",
+    expires_at: null,
+    ...overrides,
+  };
+}
+
+function stateWith(overrides: Partial<EventMediaState>): EventMediaState {
+  return {
+    enabled: true,
+    canUpload: false,
+    canDelete: false,
+    eventBytes: 0,
+    tenantBytes: 0,
+    photoObjections: 0,
+    retentionDays: null,
+    eventExpiresAt: null,
+    items: [],
+    ...overrides,
+  };
+}
+
+function renderTab() {
+  return render(
+    <MediaTab
+      eventId="e1"
+      eventName="Winter Social"
+      eventStartsAt="2026-10-18T18:00:00Z"
+      eventEndsAt={null}
+      timeZone="America/Denver"
+    />,
+  );
+}
+
+beforeEach(() => {
+  deleteMock.mockClear();
+});
+
+describe("MediaTab", () => {
+  test("empty: says so, with no gallery or notice", async () => {
+    state = stateWith({});
+    renderTab();
+    expect(await screen.findByText("No photos or videos yet")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /Photos/ })).toBeNull();
+    expect(screen.queryByText(/objected to being photographed/)).toBeNull();
+    expect(screen.getByText(/0 MB for this event/)).toBeTruthy();
+  });
+
+  test("photos render as a grid of openable thumbnails", async () => {
+    state = stateWith({
+      items: [
+        item({ original_filename: "IMG_0001.jpg" }),
+        item({ original_filename: "IMG_0002.jpg" }),
+        item({
+          original_filename: "broken.jpg",
+          url: null,
+          download_url: null,
+        }),
+      ],
+    });
+    renderTab();
+    const section = (
+      await screen.findByRole("heading", { name: /Photos/ })
+    ).closest("section")!;
+    expect(within(section).getByText("(3)")).toBeTruthy();
+    expect(
+      within(section).getByRole("button", { name: "Open IMG_0001.jpg" }),
+    ).toBeTruthy();
+    expect(
+      within(section).getByRole("button", { name: "Open IMG_0002.jpg" }),
+    ).toBeTruthy();
+    // An object that failed to sign keeps its tile but cannot be opened.
+    expect(within(section).getByText("Couldn't load")).toBeTruthy();
+    expect(
+      within(section).queryByRole("button", { name: "Open broken.jpg" }),
+    ).toBeNull();
+    expect(
+      within(section).getByRole("button", { name: "Download all" }),
+    ).toBeTruthy();
+    // No delete without events:manage.
+    expect(
+      within(section).queryByRole("button", { name: /^Delete / }),
+    ).toBeNull();
+  });
+
+  test("ticking photos turns Download all into Download selected", async () => {
+    state = stateWith({
+      items: [
+        item({ original_filename: "a.jpg" }),
+        item({ original_filename: "b.jpg" }),
+      ],
+    });
+    renderTab();
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Select a.jpg" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Download selected (1)" }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(
+      screen.getByRole("button", { name: "Download selected (2)" }),
+    ).toBeTruthy();
+  });
+
+  test("videos list size, uploader and a labelled upload time, with play and download", async () => {
+    state = stateWith({
+      items: [
+        item({
+          kind: "video",
+          original_filename: "run.mov",
+          content_type: "video/quicktime",
+          size_bytes: 1.5 * 1024 * 1024 * 1024,
+          uploader_name: "Ada Park",
+          download_url:
+            "https://storage.test/sign/v.mov?token=t&download=run.mov",
+        }),
+      ],
+    });
+    renderTab();
+    const section = (
+      await screen.findByRole("heading", { name: /Videos/ })
+    ).closest("section")!;
+    const row = within(section).getByText("run.mov").closest("li")!;
+    expect(within(row).getByText(/1\.5 GB/)).toBeTruthy();
+    expect(within(row).getByText(/Ada Park/)).toBeTruthy();
+    const time = row.querySelector("time")!;
+    expect(time.getAttribute("dateTime")).toBe("2026-10-18T19:30:00Z");
+    // Names its zone (#1057).
+    expect(time.textContent).toMatch(/[A-Z]{2,5}|GMT/);
+    expect(
+      within(row).getByRole("link", { name: "Download run.mov" }),
+    ).toHaveProperty(
+      "href",
+      "https://storage.test/sign/v.mov?token=t&download=run.mov",
+    );
+    expect(
+      within(row).getByRole("button", { name: "Play run.mov" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /Photos/ })).toBeNull();
+  });
+
+  test("the objection notice appears exactly when someone objected", async () => {
+    state = stateWith({ photoObjections: 2, items: [item({})] });
+    const { unmount } = renderTab();
+    expect(
+      await screen.findByText(
+        /2 people at this event objected to being photographed/,
+      ),
+    ).toBeTruthy();
+    unmount();
+
+    state = stateWith({ photoObjections: 1 });
+    const second = renderTab();
+    expect(
+      await screen.findByText(
+        /1 person at this event objected to being photographed/,
+      ),
+    ).toBeTruthy();
+    second.unmount();
+
+    state = stateWith({ photoObjections: 0, items: [item({})] });
+    renderTab();
+    await screen.findByRole("heading", { name: /Photos/ });
+    expect(screen.queryByText(/objected to being photographed/)).toBeNull();
+  });
+
+  test("shows the event's and the organization's storage", async () => {
+    state = stateWith({
+      eventBytes: 300 * 1024 * 1024,
+      tenantBytes: 12 * 1024 * 1024 * 1024,
+      items: [item({})],
+    });
+    renderTab();
+    expect(
+      await screen.findByText(
+        /300 MB for this event, 12 GB for all of this organization/,
+      ),
+    ).toBeTruthy();
+  });
+
+  test("says media is kept indefinitely when no period is set", async () => {
+    state = stateWith({ items: [item({})] });
+    renderTab();
+    expect(await screen.findByText(/Kept indefinitely\./)).toBeTruthy();
+    expect(screen.queryByText(/will be deleted soon/)).toBeNull();
+  });
+
+  test("shows the retention period and the event's date", async () => {
+    state = stateWith({
+      retentionDays: 365,
+      eventExpiresAt: "2027-10-18T19:30:00Z",
+      items: [item({ expires_at: "2027-10-18T19:30:00Z" })],
+    });
+    renderTab();
+    expect(
+      await screen.findByText(/Kept 1 year after the event, until/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/will be deleted soon/)).toBeNull();
+  });
+
+  test("lists only what expires within 14 days, with downloads", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const soon = new Date(Date.now() + 3 * day).toISOString();
+    const later = new Date(Date.now() + 30 * day).toISOString();
+    state = stateWith({
+      retentionDays: 90,
+      items: [
+        item({ original_filename: "soon.jpg", expires_at: soon }),
+        item({ original_filename: "later.jpg", expires_at: later }),
+        item({
+          kind: "video",
+          original_filename: "soon.mov",
+          content_type: "video/quicktime",
+          expires_at: soon,
+        }),
+      ],
+    });
+    renderTab();
+    const notice = (
+      await screen.findByText("2 photos and videos will be deleted soon")
+    ).closest('[role="alert"]') as HTMLElement;
+    expect(within(notice).getByText("soon.jpg")).toBeTruthy();
+    expect(within(notice).getByText("soon.mov")).toBeTruthy();
+    expect(within(notice).queryByText("later.jpg")).toBeNull();
+    expect(
+      within(notice).getByRole("link", { name: "Download soon.jpg" }),
+    ).toBeTruthy();
+  });
+
+  test("delete asks first, then deletes", async () => {
+    const photo = item({ original_filename: "a.jpg" });
+    state = stateWith({ canDelete: true, items: [photo] });
+    renderTab();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Delete a.jpg" }),
+    );
+    expect(deleteMock).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Delete a.jpg?")).toBeTruthy();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Delete" }),
+    );
+    expect(deleteMock).toHaveBeenCalledWith(photo.id);
+  });
+});

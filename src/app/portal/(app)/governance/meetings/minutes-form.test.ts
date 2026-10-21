@@ -72,6 +72,7 @@ describe("parseMinutesPatch", () => {
       "upcoming_dates",
       "parking_lot",
       "next_meeting",
+      "item:3f1c9a2e-7b4d-4e8a-9c61-0d2b5e8f4a17",
     ]) {
       expect(parseMinutesPatch({ notes: { [key]: "note" } })).toEqual({
         data: { notes: { [key]: "note" } },
