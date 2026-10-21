@@ -202,11 +202,13 @@ function DecisionsItemBody({
   meeting,
   legacyNote,
   readOnly,
+  onDecisionsChange,
 }: {
   meeting: { id: string; date: string };
   /** A note typed into this item before it became the decisions list. */
   legacyNote: string;
   readOnly: boolean;
+  onDecisionsChange?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -214,6 +216,7 @@ function DecisionsItemBody({
         meetingId={meeting.id}
         meetingDate={meeting.date.slice(0, 10)}
         mode={readOnly ? "view" : "edit"}
+        onDecisionsChange={onDecisionsChange}
       />
       {legacyNote.trim() !== "" && (
         <div>
@@ -236,6 +239,7 @@ function MinutesItemCard({
   onNoteChange,
   onFlush,
   onAddActionItem,
+  onDecisionsChange,
 }: {
   item: MinutesItem;
   number: number;
@@ -247,6 +251,7 @@ function MinutesItemCard({
   onNoteChange?: (value: string) => void;
   onFlush?: () => void;
   onAddActionItem?: () => void;
+  onDecisionsChange?: () => void;
 }) {
   const headingId = `minutes-item-${item.key.replace(/[^a-z0-9_-]/gi, "-")}`;
   return (
@@ -284,6 +289,7 @@ function MinutesItemCard({
             meeting={meeting}
             legacyNote={note}
             readOnly={readOnly}
+            onDecisionsChange={onDecisionsChange}
           />
         ) : (
           <div className="flex flex-col gap-2">
@@ -457,6 +463,9 @@ export function MinutesEditor({
   const [addingActionItem, setAddingActionItem] = useState<{
     item: MinutesItem | null;
   } | null>(null);
+  // Bumped when a decision is recorded under the decisions item, so the quick
+  // reference's own copy of the list refetches rather than going stale.
+  const [decisionsVersion, setDecisionsVersion] = useState(0);
   // From the layout, decided on the server (#1079/#1115) -- never
   // `useIsMobile()`, which answers `false` during SSR and would flash the
   // desktop aside onto a phone before correcting itself.
@@ -526,6 +535,7 @@ export function MinutesEditor({
     // the result and asks about discarding if the save failed. Flushing again
     // first would only duplicate the half of that which cannot report back.
     onViewDecisions,
+    decisionsVersion,
   };
 
   return (
@@ -579,7 +589,7 @@ export function MinutesEditor({
           </Alert>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex flex-col gap-4">
             <ol className="flex flex-col gap-4">
               {items.map((item, index) => (
@@ -600,6 +610,9 @@ export function MinutesEditor({
                   }
                   onFlush={() => void flush()}
                   onAddActionItem={() => openActionItemDialog(item)}
+                  onDecisionsChange={() =>
+                    setDecisionsVersion((version) => version + 1)
+                  }
                 />
               ))}
             </ol>

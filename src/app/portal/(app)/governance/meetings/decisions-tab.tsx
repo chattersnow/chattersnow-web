@@ -149,10 +149,13 @@ export function DecisionsTab({
   meetingId,
   meetingDate,
   mode,
+  onDecisionsChange,
 }: {
   meetingId: string;
   meetingDate: string;
   mode: "view" | "edit";
+  /** Called after a decision is added or removed, for views that list them too. */
+  onDecisionsChange?: () => void;
 }) {
   const router = useRouter();
   const {
@@ -167,6 +170,7 @@ export function DecisionsTab({
 
   function refresh() {
     refreshDecisions();
+    onDecisionsChange?.();
     router.refresh();
   }
 
