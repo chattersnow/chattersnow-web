@@ -1,1 +1,5 @@
-bunx lint-staged
+# The tsc step type-checks the whole project, which outgrows Node's default
+# heap (~2 GB on an 8 GB machine). Raise it, and run the lint-staged tasks one
+# at a time so tsc isn't sharing memory with ESLint.
+export NODE_OPTIONS="--max-old-space-size=4096"
+bunx lint-staged --concurrent false
