@@ -48,6 +48,11 @@ import {
   type QuestionDraft,
 } from "./registration-questions-draft";
 import { QUESTION_KIND_LABELS } from "@/lib/registration-questions";
+import {
+  DEFAULT_GROUP_CHAT_LABEL,
+  GROUP_CHAT_LABEL_MAX_LENGTH,
+  groupChatLabel,
+} from "@/lib/registration-group-chat";
 
 function toDatetimeLocalValue(iso: string | null) {
   // The browser's zone, so the prefill and the save agree (#1063).
@@ -63,6 +68,8 @@ function formStateFor(event: EventRow) {
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
     adultsOnly: event.adults_only ?? false,
     confirmationNote: event.confirmation_note ?? "",
+    groupChatEnabled: event.group_chat_enabled ?? false,
+    groupChatLabel: event.group_chat_label ?? "",
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
     registrationOptions: registrationOptionsDraft(
@@ -176,6 +183,8 @@ export function PlanningTab({
     formData.set("adultsOnly", form.adultsOnly ? "on" : "off");
     formData.set("budgetAmount", form.budgetAmount);
     formData.set("confirmationNote", form.confirmationNote);
+    formData.set("groupChatEnabled", form.groupChatEnabled ? "on" : "off");
+    formData.set("groupChatLabel", form.groupChatLabel);
     // Only when changed, so saving a budget does not rewrite every option
     // (and the audit log with it).
     const baselineOptions = formStateFor(event).registrationOptions;
@@ -272,6 +281,11 @@ export function PlanningTab({
         </ReadOnlyField>
         <ReadOnlyField label="Adults only (18+)" htmlFor="planning-adultsOnly">
           {form.adultsOnly ? "On" : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField label="Group chat" htmlFor="planning-groupChatEnabled">
+          {form.groupChatEnabled
+            ? `On · ${groupChatLabel(form.groupChatLabel)}`
+            : "Off"}
         </ReadOnlyField>
         <ReadOnlyField
           label="Confirmation email note"
@@ -410,6 +424,44 @@ export function PlanningTab({
             onCheckedChange={(checked) => update("adultsOnly", checked)}
           />
         </Field>
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-groupChatEnabled">
+              This event has a group chat
+            </FieldLabel>
+            <FieldDescription>
+              Adds a column to the registrants list for marking who has been
+              added to the chat. Only staff see it.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-groupChatEnabled"
+            checked={form.groupChatEnabled}
+            onCheckedChange={(checked) => update("groupChatEnabled", checked)}
+          />
+        </Field>
+
+        {form.groupChatEnabled && (
+          <Field>
+            <FieldLabel htmlFor="planning-groupChatLabel">
+              Group chat name
+            </FieldLabel>
+            <Input
+              id="planning-groupChatLabel"
+              maxLength={GROUP_CHAT_LABEL_MAX_LENGTH}
+              placeholder={DEFAULT_GROUP_CHAT_LABEL}
+              value={form.groupChatLabel}
+              onChange={(changeEvent) =>
+                update("groupChatLabel", changeEvent.target.value)
+              }
+            />
+            <FieldDescription>
+              What the registrants list calls it, such as “Instagram group
+              chat”. Optional.
+            </FieldDescription>
+          </Field>
+        )}
 
         <Field>
           <FieldLabel htmlFor="planning-confirmationNote">

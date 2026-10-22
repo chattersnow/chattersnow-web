@@ -277,6 +277,8 @@ export async function updateEventPlanningAction(
     adultsOnly,
     budgetAmount,
     confirmationNote,
+    groupChatEnabled,
+    groupChatLabel,
   } = parsed.data;
 
   const { error } = await supabase
@@ -292,6 +294,12 @@ export async function updateEventPlanningAction(
       ...(confirmationNote === undefined
         ? {}
         : { confirmation_note: confirmationNote }),
+      ...(groupChatEnabled === null
+        ? {}
+        : { group_chat_enabled: groupChatEnabled }),
+      ...(groupChatLabel === undefined
+        ? {}
+        : { group_chat_label: groupChatLabel }),
     })
     .eq("id", id);
 

@@ -41,6 +41,8 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: null,
     rider: null,
     ...overrides,
@@ -63,6 +65,8 @@ const list = [
     phone: "555-0199",
     checked_in_at: "2026-08-28T09:00:00Z",
     photo_consent: false,
+    group_chat_added_at: "2026-08-20T18:00:00Z",
+    group_chat_added_by_name: "Sam Staff",
   }),
   registrant({
     id: "c",
@@ -93,6 +97,7 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
       option: null,
       checkedIn: null,
       missing: false,
+      groupChat: null,
       flags: [],
       answers: {},
       columns: null,
@@ -109,6 +114,7 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
       option: "gear",
       checkedIn: "out",
       missing: true,
+      groupChat: "not-added",
       flags: ["minor", "no-photos"],
       answers: { q1: "drive", q2: "yes" },
       columns: ["q1", "q3"],
@@ -121,6 +127,7 @@ describe("parseRegistrantsView / registrantsViewParams", () => {
       option: "gear",
       checkedIn: "out",
       missing: true,
+      groupChat: "not-added",
       flags: ["minor", "no-photos"],
       answers: { q1: "drive", q2: "yes" },
       columns: ["q1", "q3"],
@@ -199,6 +206,15 @@ describe("filterRegistrants", () => {
     ).toEqual(["b"]);
     expect(
       ids(filterRegistrants(list, { ...view, checkedIn: "out" }, [])),
+    ).toEqual(["a", "c"]);
+  });
+
+  test("group chat: added, or not added (#1648)", () => {
+    expect(
+      ids(filterRegistrants(list, { ...view, groupChat: "added" }, [])),
+    ).toEqual(["b"]);
+    expect(
+      ids(filterRegistrants(list, { ...view, groupChat: "not-added" }, [])),
     ).toEqual(["a", "c"]);
   });
 

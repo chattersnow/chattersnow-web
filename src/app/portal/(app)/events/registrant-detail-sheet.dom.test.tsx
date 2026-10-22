@@ -39,6 +39,8 @@ const REGISTRANT: EventRegistrant = {
   answers: [],
   answer_request: null,
   answers_changed_at: null,
+  group_chat_added_at: null,
+  group_chat_added_by_name: null,
   rider: null,
   minorContacts: null,
 };

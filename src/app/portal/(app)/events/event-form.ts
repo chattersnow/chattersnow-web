@@ -1,4 +1,5 @@
 import type { ParseResult } from "@/lib/forms";
+import { GROUP_CHAT_LABEL_MAX_LENGTH } from "@/lib/registration-group-chat";
 
 const VISIBILITIES = ["public", "private"] as const;
 // No `completed` (#1609): whether an event is over is read off its dates.
@@ -97,6 +98,12 @@ export type EventPlanningFormData = {
    * (stored as null).
    */
   confirmationNote: string | null | undefined;
+  /**
+   * #1648. The switch and its label, under `adultsOnly`'s null-when-absent
+   * rule; a blank label is stored as null, which reads "Group chat".
+   */
+  groupChatEnabled: boolean | null;
+  groupChatLabel: string | null | undefined;
 };
 
 /** AUTO_REPLY_PARAGRAPH_MAX_LENGTH, the paragraphs either side of it. */
@@ -122,6 +129,21 @@ export function parseEventPlanningForm(
     adultsOnlyRaw === null
       ? null
       : adultsOnlyRaw === "on" || adultsOnlyRaw === "true";
+  const groupChatEnabledRaw = formData.get("groupChatEnabled");
+  const groupChatEnabled =
+    groupChatEnabledRaw === null
+      ? null
+      : groupChatEnabledRaw === "on" || groupChatEnabledRaw === "true";
+  const groupChatLabelRaw = formData.get("groupChatLabel");
+  const groupChatLabel =
+    groupChatLabelRaw === null
+      ? undefined
+      : String(groupChatLabelRaw).trim() || null;
+  if (groupChatLabel && groupChatLabel.length > GROUP_CHAT_LABEL_MAX_LENGTH) {
+    return {
+      error: `Group chat name must be ${GROUP_CHAT_LABEL_MAX_LENGTH} characters or fewer.`,
+    };
+  }
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
   const confirmationNoteRaw = formData.get("confirmationNote");
   const confirmationNote =
@@ -190,6 +212,8 @@ export function parseEventPlanningForm(
       adultsOnly,
       budgetAmount,
       confirmationNote,
+      groupChatEnabled,
+      groupChatLabel,
     },
   };
 }

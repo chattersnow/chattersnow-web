@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -9,11 +15,14 @@ import {
   Search,
   Snowflake,
   Ban,
+  MessageCircle,
+  MessageCircleOff,
   Undo2,
   X,
 } from "lucide-react";
 import {
   listEventRegistrantsAction,
+  setRegistrationsGroupChatAction,
   type EventRegistrant,
 } from "../../registrants-actions";
 import { getEventImpactDerivedAction } from "../../impact-derived-actions";
@@ -31,6 +40,7 @@ import {
 import {
   registrantAnswersCsvHref,
   registrationAnswerColumns,
+  registrantGroupChatColumns,
   registrantInstagramColumns,
 } from "../../registrants-tab";
 import { useRegistrantRowActions } from "../../use-registrant-row-actions";
@@ -57,6 +67,9 @@ import {
   shownAnswerColumns,
 } from "@/lib/registration-answer-columns";
 import { useTabData } from "@/hooks/use-tab-data";
+import { runAction } from "@/components/portal/action-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { EventGroupChat } from "@/lib/registration-group-chat";
 import { formatInstantDate } from "@/lib/format";
 import { ViewerTime } from "@/components/viewer-time";
 import { StatusBadge } from "@/components/portal/status-badge";
@@ -233,6 +246,8 @@ export function RegistrantsPage({
   const messaging = data?.messaging ?? null;
   const registrationOptions = data?.registrationOptions ?? null;
   const questions = data?.registrationQuestions ?? NO_QUESTIONS;
+  // #1648. Null when the event's switch is off: no column, filter or toggle.
+  const groupChat = data?.groupChat ?? null;
   const asksRequired = questions.some((question) => question.required);
 
   const refreshRegistrants = registrantsData.refresh;
@@ -298,9 +313,60 @@ export function RegistrantsPage({
   const list = useMemo(() => data?.registrants ?? [], [data]);
   const cancelled = data?.cancelled ?? [];
   const rows = useMemo(
-    () => filterRegistrants(list, view, questions),
-    [list, view, questions],
+    () =>
+      filterRegistrants(
+        list,
+        // A `chat=` left in a link filters nothing once the switch is off.
+        groupChat ? view : { ...view, groupChat: null },
+        questions,
+      ),
+    [list, view, questions, groupChat],
   );
+
+  // #1648. The rows ticked for a bulk group chat change. Only the ones still
+  // on screen count, so a filter that hides a ticked row also leaves it out.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const shownSelectedIds = rows
+    .map((row) => row.id)
+    .filter((id) => selectedIds.has(id));
+  const toggleSelected = useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const [groupChatPending, startGroupChat] = useTransition();
+  const setGroupChat = useCallback(
+    (ids: string[], added: boolean, onDone?: () => void) => {
+      if (!groupChat || ids.length === 0) return;
+      startGroupChat(async () => {
+        await runAction(
+          () =>
+            setRegistrationsGroupChatAction({
+              eventId,
+              registrationIds: ids,
+              added,
+            }),
+          {
+            success: ({ changed }) =>
+              `${changed} ${changed === 1 ? "registrant" : "registrants"} marked ${added ? "added to" : "not in"} ${groupChat.label}.`,
+            onSuccess: () => {
+              onDone?.();
+              refreshRegistrants();
+            },
+          },
+        );
+      });
+    },
+    [groupChat, eventId, refreshRegistrants],
+  );
+  const notInChatCount = groupChat
+    ? list.filter((row) => row.group_chat_added_at === null).length
+    : 0;
 
   const totalAttending = list.reduce((sum, row) => sum + row.party_size, 0);
   const checkedIn = list.filter((row) => row.checked_in_at !== null);
@@ -341,6 +407,28 @@ export function RegistrantsPage({
 
   const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
     () => [
+      ...(canManage && groupChat
+        ? [
+            {
+              key: "select",
+              label: "Select",
+              srOnlyLabel: true,
+              headClassName: "w-0",
+              render: (registrant: EventRegistrant) => (
+                // A label, so the row's click-to-open leaves it alone.
+                <label className="flex items-center">
+                  <Checkbox
+                    aria-label={`Select ${registrant.name}`}
+                    checked={selectedIds.has(registrant.id)}
+                    onCheckedChange={(checked) =>
+                      toggleSelected(registrant.id, Boolean(checked))
+                    }
+                  />
+                </label>
+              ),
+            } satisfies PortalDataTableColumn<EventRegistrant>,
+          ]
+        : []),
       {
         key: "name",
         label: "Name",
@@ -390,6 +478,7 @@ export function RegistrantsPage({
         ),
       },
       ...registrantInstagramColumns(list, canManage),
+      ...registrantGroupChatColumns(groupChat),
       {
         key: "party_size",
         label: "Party",
@@ -481,6 +570,14 @@ export function RegistrantsPage({
                   onUndoCheckIn={() => toggleCheckIn(registrant)}
                   onRider={() => setRiderTarget(registrant)}
                   onCancel={() => setCancelTarget(registrant)}
+                  groupChat={groupChat}
+                  groupChatPending={groupChatPending}
+                  onToggleGroupChat={() =>
+                    setGroupChat(
+                      [registrant.id],
+                      registrant.group_chat_added_at === null,
+                    )
+                  }
                 />
               ),
             } satisfies PortalDataTableColumn<EventRegistrant>,
@@ -496,6 +593,11 @@ export function RegistrantsPage({
       isRowPending,
       toggleCheckIn,
       openDetail,
+      groupChat,
+      groupChatPending,
+      selectedIds,
+      toggleSelected,
+      setGroupChat,
     ],
   );
 
@@ -807,6 +909,52 @@ export function RegistrantsPage({
                     Missing required answers ({missingCount})
                   </Button>
                 )}
+                {groupChat && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant={view.groupChat ? "secondary" : "outline"}
+                          size="sm"
+                          className="max-w-full"
+                        />
+                      }
+                    >
+                      <span className="truncate">
+                        {view.groupChat === "added"
+                          ? `${groupChat.label}: added`
+                          : view.groupChat === "not-added"
+                            ? `${groupChat.label}: not added`
+                            : groupChat.label}
+                      </span>
+                      <ChevronDown />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuRadioGroup
+                        value={view.groupChat ?? "any"}
+                        onValueChange={(value) =>
+                          setView({
+                            groupChat:
+                              value === "added" || value === "not-added"
+                                ? value
+                                : null,
+                          })
+                        }
+                      >
+                        <DropdownMenuRadioItem value="any">
+                          Any
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="added">
+                          Added
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="not-added">
+                          Not added ({notInChatCount})
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -957,6 +1105,24 @@ export function RegistrantsPage({
                 </p>
               </div>
 
+              {canManage && groupChat && rows.length > 0 && (
+                <GroupChatBulkBar
+                  groupChat={groupChat}
+                  shownCount={rows.length}
+                  selectedCount={shownSelectedIds.length}
+                  pending={groupChatPending}
+                  onSelectAll={() =>
+                    setSelectedIds(new Set(rows.map((row) => row.id)))
+                  }
+                  onClear={() => setSelectedIds(new Set())}
+                  onMark={(added) =>
+                    setGroupChat(shownSelectedIds, added, () =>
+                      setSelectedIds(new Set()),
+                    )
+                  }
+                />
+              )}
+
               <PortalDataTable
                 columns={columns}
                 rows={rows}
@@ -981,6 +1147,8 @@ export function RegistrantsPage({
             canRestore={canManage}
             onRestore={restore}
             isRowPending={isRowPending}
+            groupChat={groupChat}
+            onGroupChatChanged={refreshRegistrants}
           />
 
           <RegistrantAnnouncementsSection data={data} />
@@ -1034,8 +1202,73 @@ export function RegistrantsPage({
 }
 
 /**
+ * #1648. Ticking rows, and marking the ticked ones in or out of the event's
+ * group chat. Above the table rather than in its header, which takes text.
+ */
+function GroupChatBulkBar({
+  groupChat,
+  shownCount,
+  selectedCount,
+  pending,
+  onSelectAll,
+  onClear,
+  onMark,
+}: {
+  groupChat: NonNullable<EventGroupChat>;
+  shownCount: number;
+  selectedCount: number;
+  pending: boolean;
+  onSelectAll: () => void;
+  onClear: () => void;
+  onMark: (added: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+      {selectedCount === 0 ? (
+        <>
+          <span className="app-muted">
+            {groupChat.label}: tick registrants to mark them added, or not.
+          </span>
+          <Button type="button" variant="ghost" size="sm" onClick={onSelectAll}>
+            Select all {shownCount} shown
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="font-medium" role="status">
+            {selectedCount} selected
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={pending}
+            onClick={() => onMark(true)}
+          >
+            <MessageCircle /> Mark added to {groupChat.label}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => onMark(false)}
+          >
+            <MessageCircleOff /> Mark not added
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+            Clear selection
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * The row's less frequent actions (#1511): undo a check-in, the rider
- * profile, cancel. Check-in itself is the labelled button beside it.
+ * profile, the group chat (#1648), cancel. Check-in itself is the labelled
+ * button beside it.
  */
 function RowMenu({
   registrant,
@@ -1043,12 +1276,18 @@ function RowMenu({
   onUndoCheckIn,
   onRider,
   onCancel,
+  groupChat,
+  groupChatPending,
+  onToggleGroupChat,
 }: {
   registrant: EventRegistrant;
   pending: boolean;
   onUndoCheckIn: () => void;
   onRider: () => void;
   onCancel: () => void;
+  groupChat: EventGroupChat;
+  groupChatPending: boolean;
+  onToggleGroupChat: () => void;
 }) {
   const checkedIn = registrant.checked_in_at !== null;
   // The profile hangs off the person record, so a registration never linked
@@ -1078,6 +1317,22 @@ function RowMenu({
         {canRider && (
           <DropdownMenuItem onClick={onRider}>
             <Snowflake /> Rider profile
+          </DropdownMenuItem>
+        )}
+        {groupChat && (
+          <DropdownMenuItem
+            disabled={groupChatPending}
+            onClick={onToggleGroupChat}
+          >
+            {registrant.group_chat_added_at ? (
+              <>
+                <MessageCircleOff /> Mark not in {groupChat.label}
+              </>
+            ) : (
+              <>
+                <MessageCircle /> Mark added to {groupChat.label}
+              </>
+            )}
           </DropdownMenuItem>
         )}
         {/* #1418. Not once they are through the door: undo the check-in

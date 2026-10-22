@@ -56,6 +56,12 @@ export type EventRow = {
    * Loaded by the event detail page, where the Planning tab edits it.
    */
   confirmation_note?: string | null;
+  /**
+   * The group chat switch and its label (#1648). Loaded by the event detail
+   * page, where the Planning tab edits them.
+   */
+  group_chat_enabled?: boolean;
+  group_chat_label?: string | null;
   registration_options?: {
     id: string;
     label: string;

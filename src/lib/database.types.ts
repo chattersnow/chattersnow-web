@@ -3597,6 +3597,8 @@ export type Database = {
           emergency_contact_name: string | null;
           emergency_contact_phone: string | null;
           event_id: string;
+          group_chat_added_at: string | null;
+          group_chat_added_by: string | null;
           has_no_instagram: boolean | null;
           id: string;
           instagram_handle: string | null;
@@ -3635,6 +3637,8 @@ export type Database = {
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           event_id: string;
+          group_chat_added_at?: string | null;
+          group_chat_added_by?: string | null;
           has_no_instagram?: boolean | null;
           id?: string;
           instagram_handle?: string | null;
@@ -3673,6 +3677,8 @@ export type Database = {
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           event_id?: string;
+          group_chat_added_at?: string | null;
+          group_chat_added_by?: string | null;
           has_no_instagram?: boolean | null;
           id?: string;
           instagram_handle?: string | null;
@@ -4276,6 +4282,8 @@ export type Database = {
           event_lead_id: string | null;
           feedback_notes: string | null;
           flier_url: string | null;
+          group_chat_enabled: boolean;
+          group_chat_label: string | null;
           id: string;
           lessons_learned: string | null;
           location: string | null;
@@ -4315,6 +4323,8 @@ export type Database = {
           event_lead_id?: string | null;
           feedback_notes?: string | null;
           flier_url?: string | null;
+          group_chat_enabled?: boolean;
+          group_chat_label?: string | null;
           id?: string;
           lessons_learned?: string | null;
           location?: string | null;
@@ -4354,6 +4364,8 @@ export type Database = {
           event_lead_id?: string | null;
           feedback_notes?: string | null;
           flier_url?: string | null;
+          group_chat_enabled?: boolean;
+          group_chat_label?: string | null;
           id?: string;
           lessons_learned?: string | null;
           location?: string | null;
@@ -11148,6 +11160,13 @@ export type Database = {
         }[];
       };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
+      event_group_chat_adders: {
+        Args: { p_event_id: string };
+        Returns: {
+          name: string;
+          user_id: string;
+        }[];
+      };
       event_linked_record_labels: { Args: { p_id: string }; Returns: string[] };
       event_media_event_expires_at: {
         Args: { p_event_id: string };
@@ -12425,6 +12444,8 @@ export type Database = {
           event_lead_id: string | null;
           feedback_notes: string | null;
           flier_url: string | null;
+          group_chat_enabled: boolean;
+          group_chat_label: string | null;
           id: string;
           lessons_learned: string | null;
           location: string | null;
@@ -13019,6 +13040,14 @@ export type Database = {
         Args: { p_enabled: boolean };
         Returns: undefined;
       };
+      set_registrations_group_chat: {
+        Args: {
+          p_added: boolean;
+          p_event_id: string;
+          p_registration_ids: string[];
+        };
+        Returns: number;
+      };
       set_retention_policy_mode: {
         Args: { p_mode: string; p_policy_key: string };
         Returns: undefined;
@@ -13094,6 +13123,8 @@ export type Database = {
           event_lead_id: string | null;
           feedback_notes: string | null;
           flier_url: string | null;
+          group_chat_enabled: boolean;
+          group_chat_label: string | null;
           id: string;
           lessons_learned: string | null;
           location: string | null;

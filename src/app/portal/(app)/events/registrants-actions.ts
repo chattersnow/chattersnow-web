@@ -101,6 +101,11 @@ import {
   type CancellationReason,
 } from "@/lib/registration-cancellation";
 import { sendRegistrationCancellationNotice } from "@/lib/notifications/registration-cancellation";
+import {
+  eventGroupChat,
+  GROUP_CHAT_ERROR_MESSAGES,
+  type EventGroupChat,
+} from "@/lib/registration-group-chat";
 
 /**
  * The rider level recorded when this registrant was checked in, alongside the
@@ -262,6 +267,14 @@ export type EventRegistrant = {
    */
   answers_changed_at: string | null;
   /**
+   * When staff marked this registrant added to the event's group chat, and
+   * who (#1648). Null is not added. Staff only: no registrant-facing surface
+   * reads it. Read at `events: view`, like the rest of the row; written at
+   * `events: manage`. Cancelled rows keep it, so staff see who to remove.
+   */
+  group_chat_added_at: string | null;
+  group_chat_added_by_name: string | null;
+  /**
    * The single-use codes this registration holds, each with the partner's
    * PIN (#1589). Read at `events: view`, like the codes table. Absent on
    * rows built elsewhere, such as the door's.
@@ -349,6 +362,11 @@ export type EventRegistrantsData = {
    * dialog (#1408). Null wherever `rider` is null on every registrant.
    */
   riderMountains: string[] | null;
+  /**
+   * The event's group chat switch and label (#1648), null when it is off --
+   * which leaves every surface as it was.
+   */
+  groupChat: EventGroupChat;
 };
 
 /**
@@ -470,21 +488,31 @@ export async function listEventRegistrantsAction(
   const canSeeRider =
     canManage && hasPermission(permissions, "rider_profiles", "view");
 
-  const { data, error } = await supabase
-    .from("event_registrations")
-    .select(
-      canSeeRider
-        ? `${REGISTRANT_COLUMNS}, ${RIDER_COLUMNS}`
-        : REGISTRANT_COLUMNS,
-    )
-    .eq("event_id", eventId)
-    .order("created_at", { ascending: true });
+  const [{ data, error }, adders] = await Promise.all([
+    supabase
+      .from("event_registrations")
+      .select(
+        canSeeRider
+          ? `${REGISTRANT_COLUMNS}, ${RIDER_COLUMNS}`
+          : REGISTRANT_COLUMNS,
+      )
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true }),
+    // #1648. Who marked each registrant added to the group chat, by name. A
+    // failure only loses the "by" in "Added {date} by {name}".
+    supabase.rpc("event_group_chat_adders", { p_event_id: eventId }),
+  ]);
 
   if (error) {
     return { error: "Could not load registrants. Please try again." };
   }
 
-  const rows = (data ?? []).map((row) => toRegistrant(row, canSeeRider));
+  const adderNames = new Map(
+    (adders.data ?? []).map((row) => [row.user_id, row.name]),
+  );
+  const rows = (data ?? []).map((row) =>
+    toRegistrant(row, canSeeRider, adderNames),
+  );
   const registrants = rows.filter((row) => row.cancelled_at === null);
   const cancelled = rows.filter((row) => row.cancelled_at !== null);
   // Read for both readers, including the `events: view` door shift: whether
@@ -499,10 +527,12 @@ export async function listEventRegistrantsAction(
   // shows, because that condition does not depend on this flag.
   const photoConsentInForce =
     (await supabase.rpc("tenant_asks_photo_consent")).data === true;
-  const [registrationOptions, registrationQuestions] = await Promise.all([
-    loadRegistrationOptions(supabase, eventId, registrants),
-    loadRegistrationQuestions(supabase, eventId),
-  ]);
+  const [registrationOptions, registrationQuestions, groupChat] =
+    await Promise.all([
+      loadRegistrationOptions(supabase, eventId, registrants),
+      loadRegistrationQuestions(supabase, eventId),
+      loadGroupChat(supabase, eventId),
+    ]);
 
   if (!canManage) {
     return {
@@ -516,6 +546,7 @@ export async function listEventRegistrantsAction(
         registrationOptions,
         registrationQuestions,
         riderMountains: null,
+        groupChat,
       },
     };
   }
@@ -589,27 +620,47 @@ export async function listEventRegistrantsAction(
       registrationOptions,
       registrationQuestions,
       riderMountains,
+      groupChat,
     },
   };
 }
 
-// Every name here also has to appear in 20260922070000's `grant select (...)`
-// list: that migration replaced this table's table-level SELECT with a column
-// allow-list so the minor contacts could be carved out of it, and a column
-// missing from the list simply disappears from the portal.
+/** #1648. A failed read lands on "off", which hides the column. */
+async function loadGroupChat(
+  supabase: SupabaseClient,
+  eventId: string,
+): Promise<EventGroupChat> {
+  const { data } = await supabase
+    .from("events")
+    .select("group_chat_enabled, group_chat_label")
+    .eq("id", eventId)
+    .maybeSingle();
+  return data ? eventGroupChat(data) : null;
+}
+
+// Every column here also has to appear in a `grant select (...)` list --
+// 20260922070000's, or the migration that added it: that one replaced this
+// table's table-level SELECT with a column allow-list so the minor contacts
+// could be carved out of it, and a column missing from the list simply
+// disappears from the portal.
 //
 // `option_counts`, `answers` and `discount_codes` are embeds, not columns of
 // this table (#1407, #1501, #1589).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
+  "id, event_id, name, email, phone, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, group_chat_added_at, group_chat_added_by, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
 
 type RegistrantRow = Omit<
   EventRegistrant,
-  "rider" | "minorContacts" | "answer_request" | "discount_codes"
+  | "rider"
+  | "minorContacts"
+  | "answer_request"
+  | "discount_codes"
+  | "group_chat_added_by_name"
 > & {
+  group_chat_added_by: string | null;
   // A registration holds at most one code (discount_codes_unique_registration),
   // so PostgREST embeds an object; read either shape as a list.
   discount_codes?: HeldDiscountCode | HeldDiscountCode[] | null;
@@ -627,8 +678,14 @@ type RegistrantRow = Omit<
   } | null;
 };
 
-function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
+function toRegistrant(
+  row: unknown,
+  canSeeRider: boolean,
+  /** #1648. Who marked each row added to the group chat; see the list. */
+  adderNames: ReadonlyMap<string | null, string | null> = new Map(),
+): EventRegistrant {
   const {
+    group_chat_added_by,
     person,
     riding_discipline_at_event,
     ski_experience_level_at_event,
@@ -641,6 +698,7 @@ function toRegistrant(row: unknown, canSeeRider: boolean): EventRegistrant {
   } = row as RegistrantRow;
   const rest = {
     ...fields,
+    group_chat_added_by_name: adderNames.get(group_chat_added_by) ?? null,
     option_counts: option_counts ?? [],
     answers: answers ?? [],
     discount_codes: Array.isArray(discount_codes)
@@ -1710,4 +1768,38 @@ function cancellationFailure(code: string): ActionFailure {
         "server_error",
         "Could not update this registration. Please try again.",
       );
+}
+
+/**
+ * Mark one or many registrants added to the event's group chat, or not
+ * (#1648). Rows already in that state keep their date and name.
+ */
+export async function setRegistrationsGroupChatAction(input: {
+  eventId: string;
+  registrationIds: string[];
+  added: boolean;
+}): Promise<{ success: true; changed: number } | ActionFailure> {
+  const guard = await requireEventsManage();
+  if ("error" in guard) return fromGuard("forbidden", guard);
+
+  const { data, error } = await guard.supabase.rpc(
+    "set_registrations_group_chat",
+    {
+      p_event_id: input.eventId,
+      p_registration_ids: input.registrationIds,
+      p_added: input.added,
+    },
+  );
+  if (error) {
+    const message = GROUP_CHAT_ERROR_MESSAGES[error.message];
+    return message
+      ? actionError("conflict", message)
+      : actionError(
+          "server_error",
+          "Could not update the group chat list. Please try again.",
+        );
+  }
+
+  revalidatePath(EVENTS_PATH);
+  return { success: true, changed: data ?? 0 };
 }
