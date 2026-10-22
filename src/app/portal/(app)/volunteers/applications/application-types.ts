@@ -1,3 +1,6 @@
+import type { Claimant } from "@/components/portal/queue-claims";
+import { CLAIM_FK } from "@/lib/queue-claims";
+
 /**
  * URL parameter the notification email (#742) links one application with.
  *
@@ -36,4 +39,9 @@ export type VolunteerApplication = {
   availability: string | null;
   status: VolunteerApplicationStatus;
   created_at: string;
+  /** Who is working the application (#1669). */
+  claimant: Claimant;
 };
+
+/** The columns a `VolunteerApplication` is read with, list and linked row alike. */
+export const VOLUNTEER_APPLICATION_SELECT = `id, person_id, name, email, phone, pronouns, role_interest, availability, status, created_at, claimant:people!${CLAIM_FK.volunteer_applications}(id, name, preferred_name)`;

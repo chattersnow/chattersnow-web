@@ -15,10 +15,15 @@ export function QueueClaimFilterField({
   filter,
   staff,
   selectClassName,
+  labelClassName = "text-sm font-medium",
+  className = "flex min-w-40 flex-col gap-1",
 }: {
   filter: ClaimFilter;
   staff: ClaimStaffMember[];
   selectClassName: string;
+  /** For a form whose other labels are styled differently, e.g. a filters sheet. */
+  labelClassName?: string;
+  className?: string;
 }) {
   const value = claimFilterValue(filter);
   // A person who has since lost portal access can still be the filter in a
@@ -28,8 +33,8 @@ export function QueueClaimFilterField({
     !staff.some((person) => person.id === filter.personId);
 
   return (
-    <div className="flex min-w-40 flex-col gap-1">
-      <label htmlFor="queue-claimed" className="text-sm font-medium">
+    <div className={className}>
+      <label htmlFor="queue-claimed" className={labelClassName}>
         Claimed by
       </label>
       <select
