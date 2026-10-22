@@ -33,6 +33,13 @@ import {
 const ACCEPT =
   "image/*,video/mp4,video/quicktime,video/webm,.heic,.heif,.mov,.mp4,.m4v,.webm";
 
+/**
+ * How long finished files gather before the list below reloads: one reload
+ * for a burst of photos rather than one each (#1653), while a new photo still
+ * shows within a second or so.
+ */
+export const UPLOADED_REFRESH_DELAY_MS = 1000;
+
 const STATUS_LABELS: Record<EventMediaItem["status"], string> = {
   queued: "Waiting",
   uploading: "Uploading",
@@ -70,11 +77,28 @@ export function MediaUploader({
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // The list below the uploader reloads as each file is recorded.
+  // The list below the uploader reloads once the files recorded in the last
+  // UPLOADED_REFRESH_DELAY_MS are in, not once per file.
   const doneCount = items.filter((item) => item.status === "done").length;
+  const onUploadedRef = useRef(onUploaded);
   useEffect(() => {
-    if (doneCount > 0) onUploaded?.();
-  }, [doneCount, onUploaded]);
+    onUploadedRef.current = onUploaded;
+  }, [onUploaded]);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (doneCount === 0 || refreshTimer.current) return;
+    refreshTimer.current = setTimeout(() => {
+      refreshTimer.current = null;
+      onUploadedRef.current?.();
+    }, UPLOADED_REFRESH_DELAY_MS);
+  }, [doneCount]);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    },
+    [],
+  );
 
   // Leaving the page drops every request in flight; say so first.
   const busy = items.some(

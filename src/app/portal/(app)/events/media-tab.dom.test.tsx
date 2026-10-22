@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen, within } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  waitForElementToBeRemoved,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
+import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
 import * as MediaActions from "./media-actions";
 import type { EventMediaRow, EventMediaState } from "./media-actions";
 
@@ -47,16 +55,37 @@ function stateWith(overrides: Partial<EventMediaState>): EventMediaState {
   };
 }
 
-function renderTab() {
+let notifyMedia: () => void = () => {};
+
+function RefreshHandle() {
+  const { notify } = useTabRefresh<"media">();
+  useEffect(() => {
+    notifyMedia = () => notify("media");
+  }, [notify]);
+  return null;
+}
+
+// A fresh event each time unless named: the tab holds what it showed per event.
+function renderTab(eventId: string = crypto.randomUUID()) {
   return render(
-    <MediaTab
-      eventId="e1"
-      eventName="Winter Social"
-      eventStartsAt="2026-10-18T18:00:00Z"
-      eventEndsAt={null}
-      timeZone="America/Denver"
-    />,
+    <TabRefreshProvider>
+      <RefreshHandle />
+      <MediaTab
+        eventId={eventId}
+        eventName="Winter Social"
+        eventStartsAt="2026-10-18T18:00:00Z"
+        eventEndsAt={null}
+        timeZone="America/Denver"
+      />
+    </TabRefreshProvider>,
   );
+}
+
+function thumbSrc(filename: string) {
+  return screen
+    .getByRole("button", { name: `Open ${filename}` })
+    .querySelector("img")!
+    .getAttribute("src");
 }
 
 beforeEach(() => {
@@ -253,6 +282,80 @@ describe("MediaTab", () => {
     expect(
       within(notice).getByRole("link", { name: "Download soon.jpg" }),
     ).toBeTruthy();
+  });
+
+  test("a reload that adds a photo leaves the ones on screen alone (#1653)", async () => {
+    const a = item({
+      original_filename: "a.jpg",
+      url: "https://storage.test/sign/a.jpg?token=first",
+    });
+    state = stateWith({ items: [a] });
+    renderTab();
+    await screen.findByRole("button", { name: "Open a.jpg" });
+    expect(thumbSrc("a.jpg")).toBe(
+      "https://storage.test/sign/a.jpg?token=first",
+    );
+
+    // Every load signs afresh, so A comes back with a new token.
+    state = stateWith({
+      items: [
+        item({
+          original_filename: "b.jpg",
+          url: "https://storage.test/sign/b.jpg?token=second",
+        }),
+        { ...a, url: "https://storage.test/sign/a.jpg?token=second" },
+      ],
+    });
+    act(() => notifyMedia());
+    await screen.findByRole("button", { name: "Open b.jpg" });
+    expect(thumbSrc("a.jpg")).toBe(
+      "https://storage.test/sign/a.jpg?token=first",
+    );
+    expect(thumbSrc("b.jpg")).toBe(
+      "https://storage.test/sign/b.jpg?token=second",
+    );
+  });
+
+  test("coming back to the tab shows the URLs it already held", async () => {
+    const eventId = crypto.randomUUID();
+    const a = item({
+      original_filename: "a.jpg",
+      url: "https://storage.test/sign/a.jpg?token=first",
+    });
+    state = stateWith({ items: [a] });
+    const first = renderTab(eventId);
+    await screen.findByRole("button", { name: "Open a.jpg" });
+    first.unmount();
+
+    state = stateWith({
+      items: [{ ...a, url: "https://storage.test/sign/a.jpg?token=second" }],
+    });
+    renderTab(eventId);
+    // Straight away, from what was held, and still after the reload lands.
+    expect(thumbSrc("a.jpg")).toBe(
+      "https://storage.test/sign/a.jpg?token=first",
+    );
+    await act(async () => {});
+    expect(thumbSrc("a.jpg")).toBe(
+      "https://storage.test/sign/a.jpg?token=first",
+    );
+  });
+
+  test("the refresh button drops a deleted photo", async () => {
+    state = stateWith({
+      items: [
+        item({ original_filename: "a.jpg" }),
+        item({ original_filename: "b.jpg" }),
+      ],
+    });
+    renderTab();
+    await screen.findByRole("button", { name: "Open b.jpg" });
+    state = stateWith({ items: [state.items[0]] });
+    act(() => notifyMedia());
+    await waitForElementToBeRemoved(() =>
+      screen.queryByRole("button", { name: "Open b.jpg" }),
+    );
+    expect(screen.getByRole("button", { name: "Open a.jpg" })).toBeTruthy();
   });
 
   test("delete asks first, then deletes", async () => {
