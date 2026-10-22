@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, Eye } from "lucide-react";
 import {
@@ -62,6 +62,10 @@ import {
 } from "@/components/portal/unsaved-changes-guard";
 import { RecordMessages } from "@/components/portal/record-messages";
 import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
+import {
   messagingDisabledReason,
   type MessageActor,
   type RecordMessageRow,
@@ -77,6 +81,7 @@ export function ArtworkSubmissionReviewSheet({
   submission,
   images,
   canManage,
+  claim,
   messages,
   messageActors,
   orgName,
@@ -88,6 +93,8 @@ export function ArtworkSubmissionReviewSheet({
   submission: ArtworkSubmission;
   images: SignedArtworkImage[];
   canManage: boolean;
+  /** The card's claim controls (#1670), the same ones the grid offers. */
+  claim: ComponentProps<typeof ClaimRowActions>;
   /** This submission's slice of the page's history, loaded in one query. */
   messages: RecordMessageRow[];
   messageActors: MessageActor[];
@@ -386,6 +393,14 @@ export function ArtworkSubmissionReviewSheet({
                   </ReadOnlyField>
                 </>
               )}
+
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">Claimed by</span>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <ClaimedByCell claimant={submission.claimant} />
+                  <ClaimRowActions {...claim} />
+                </div>
+              </div>
 
               {error && (
                 <Alert variant="destructive">

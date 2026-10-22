@@ -5,6 +5,7 @@ import {
   applyClaimFilter,
   claimClearFor,
   claimFilterValue,
+  matchesClaimFilter,
   parseClaimFilter,
   withUnclaimedFilter,
   withUnclaimedSuffix,
@@ -76,6 +77,32 @@ describe("applyClaimFilter", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0][0]).toBe("eq");
     expect(calls[0][2]).not.toBe(PERSON);
+  });
+});
+
+describe("matchesClaimFilter", () => {
+  const OTHER = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+
+  test("All keeps every row", () => {
+    expect(matchesClaimFilter(null, { kind: "all" }, PERSON)).toBe(true);
+    expect(matchesClaimFilter(OTHER, { kind: "all" }, PERSON)).toBe(true);
+  });
+
+  test("Unclaimed keeps only rows nobody has", () => {
+    expect(matchesClaimFilter(null, { kind: "none" }, PERSON)).toBe(true);
+    expect(matchesClaimFilter(OTHER, { kind: "none" }, PERSON)).toBe(false);
+  });
+
+  test("Mine and a person keep only that person's rows", () => {
+    expect(matchesClaimFilter(PERSON, { kind: "mine" }, PERSON)).toBe(true);
+    expect(matchesClaimFilter(OTHER, { kind: "mine" }, PERSON)).toBe(false);
+    expect(matchesClaimFilter(null, { kind: "mine" }, null)).toBe(false);
+    expect(
+      matchesClaimFilter(OTHER, { kind: "person", personId: OTHER }, PERSON),
+    ).toBe(true);
+    expect(
+      matchesClaimFilter(null, { kind: "person", personId: OTHER }, PERSON),
+    ).toBe(false);
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { updateContactMessageStatusAction } from "./actions";
@@ -43,6 +43,10 @@ import { formatDateTime } from "@/lib/format";
 import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
 import { RecordMessages } from "@/components/portal/record-messages";
 import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
+import {
   messagingDisabledReason,
   type MessageActor,
   type RecordMessageRow,
@@ -52,6 +56,7 @@ import { ContactMessageReplyActions } from "./message-reply-actions";
 export function MessageDetailsSheet({
   message,
   canManage,
+  claim,
   messages,
   messageActors,
   replyTo,
@@ -60,6 +65,8 @@ export function MessageDetailsSheet({
 }: {
   message: ContactMessage;
   canManage: boolean;
+  /** The row's claim controls (#1670), the same ones the list row offers. */
+  claim: ComponentProps<typeof ClaimRowActions>;
   /** What has been sent in reply to this message from the portal (#1204). */
   messages: RecordMessageRow[];
   messageActors: MessageActor[];
@@ -201,6 +208,14 @@ export function MessageDetailsSheet({
                 {message.status}
               </ReadOnlyField>
             )}
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Claimed by</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <ClaimedByCell claimant={message.claimant} />
+                <ClaimRowActions {...claim} />
+              </div>
+            </div>
 
             {error && (
               <Alert variant="destructive">
