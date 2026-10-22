@@ -1,0 +1,264 @@
+"use client";
+
+import { ReactNode, useMemo, useTransition } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  PortalDataTable,
+  type PortalDataTableColumn,
+} from "@/components/portal/data-table";
+import { StatusBadge } from "@/components/portal/status-badge";
+import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import {
+  isTaskOverdue,
+  serializeTaskFilters,
+  TASK_DUE_FILTER_LABELS,
+  TASK_STATUS_FILTER_LABELS,
+  type TaskDueFilter,
+  type TaskFilters,
+  type TaskOwner,
+  type TaskRow,
+  type TaskStatusFilter,
+} from "@/lib/portal/task-list";
+
+/**
+ * The one table every module-level task list renders (#1643, #1658): item,
+ * type, owner, due date, status and source, with the shared filter bar above
+ * it. The filters live in the URL, so a link or a reload opens the same list,
+ * and the page re-queries on the server when they move.
+ *
+ * Each module supplies what only it knows: its kind labels, and the inline
+ * controls for a row the viewer may edit (`renderStatus`, `renderActions`).
+ * A row with `canEdit` false gets the plain status badge and no actions.
+ */
+export function TaskTable<R extends TaskRow>({
+  rows,
+  filters,
+  owners,
+  today,
+  kindLabels,
+  renderStatus,
+  renderActions,
+  emptyMessage = "Nothing matches these filters.",
+}: {
+  /** Already filtered and sorted, overdue first. */
+  rows: readonly R[];
+  filters: TaskFilters;
+  owners: readonly TaskOwner[];
+  /** The organization's day, "YYYY-MM-DD", that "overdue" is measured from. */
+  today: string;
+  kindLabels: Record<string, string>;
+  renderStatus?: (row: R) => ReactNode;
+  renderActions?: (row: R) => ReactNode;
+  emptyMessage?: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
+
+  function setFilter<K extends keyof TaskFilters>(
+    key: K,
+    value: TaskFilters[K],
+  ) {
+    const query = serializeTaskFilters({ ...filters, [key]: value });
+    startTransition(() => {
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    });
+  }
+
+  const columns = useMemo<PortalDataTableColumn<R>[]>(
+    () => [
+      {
+        key: "title",
+        label: "Item",
+        sortValue: (row) => row.title,
+        cellClassName: "max-w-xs font-medium",
+        render: (row) => (
+          <span className="line-clamp-2" title={row.title}>
+            {row.title}
+          </span>
+        ),
+      },
+      {
+        key: "kind",
+        label: "Type",
+        hideBelow: "md",
+        sortValue: (row) => kindLabels[row.kind] ?? row.kind,
+        cellClassName: "app-muted",
+        render: (row) => kindLabels[row.kind] ?? row.kind,
+      },
+      {
+        key: "owner",
+        label: "Owner",
+        hideBelow: "lg",
+        sortValue: (row) => personDisplayName(row.owner, ""),
+        cellClassName: "app-muted",
+        render: (row) => personDisplayName(row.owner, "Unassigned"),
+      },
+      {
+        key: "dueDate",
+        label: "Due date",
+        sortValue: (row) => row.dueDate,
+        render: (row) => (
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="app-muted">
+              {formatCalendarDate(row.dueDate, "No due date")}
+            </span>
+            {isTaskOverdue(row, today) ? (
+              <StatusBadge tone="warning">Overdue</StatusBadge>
+            ) : null}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        label: "Status",
+        sortValue: (row) => row.statusLabel,
+        render: (row) =>
+          row.canEdit && renderStatus ? (
+            renderStatus(row)
+          ) : (
+            <StatusBadge tone={row.isDone ? "success" : "neutral"}>
+              {row.statusLabel}
+            </StatusBadge>
+          ),
+      },
+      {
+        key: "source",
+        label: "Source",
+        hideBelow: "lg",
+        sortValue: (row) => row.source.label,
+        render: (row) => (
+          <Link
+            href={row.source.href}
+            className="underline-offset-4 hover:underline"
+          >
+            {row.source.label}
+          </Link>
+        ),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        srOnlyLabel: true,
+        headClassName: "w-0",
+        render: (row) =>
+          row.canEdit && renderActions ? renderActions(row) : null,
+      },
+    ],
+    [kindLabels, renderActions, renderStatus, today],
+  );
+
+  const ownerIsListed =
+    ["all", "mine", "unassigned"].includes(filters.owner) ||
+    owners.some((owner) => owner.id === filters.owner);
+
+  return (
+    <div className="space-y-4" aria-busy={isPending}>
+      <div className="rainbow-surface flex flex-wrap items-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <FilterSelect
+          label="Owner"
+          value={filters.owner}
+          onChange={(value) => setFilter("owner", value)}
+        >
+          <SelectItem value="all">Anyone</SelectItem>
+          <SelectItem value="mine">Mine</SelectItem>
+          <SelectItem value="unassigned">Unassigned</SelectItem>
+          {owners.map((owner) => (
+            <SelectItem key={owner.id} value={owner.id}>
+              {personDisplayName(owner)}
+            </SelectItem>
+          ))}
+          {ownerIsListed ? null : (
+            // A link to someone who no longer owns anything at this status.
+            <SelectItem value={filters.owner}>Someone else</SelectItem>
+          )}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Type"
+          value={filters.type}
+          onChange={(value) => setFilter("type", value)}
+        >
+          <SelectItem value="all">All types</SelectItem>
+          {Object.entries(kindLabels).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Due"
+          value={filters.due}
+          onChange={(value) => setFilter("due", value as TaskDueFilter)}
+        >
+          {Object.entries(TASK_DUE_FILTER_LABELS).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Status"
+          value={filters.status}
+          onChange={(value) => setFilter("status", value as TaskStatusFilter)}
+        >
+          {Object.entries(TASK_STATUS_FILTER_LABELS).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+      </div>
+
+      <PortalDataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.key}
+        emptyMessage={emptyMessage}
+      />
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+        {label}
+      </span>
+      <Select
+        value={value}
+        onValueChange={(next) => {
+          if (typeof next === "string") onChange(next);
+        }}
+      >
+        <SelectTrigger aria-label={`Filter by ${label.toLowerCase()}`}>
+          <SelectValue placeholder={label} />
+        </SelectTrigger>
+        <SelectContent>{children}</SelectContent>
+      </Select>
+    </div>
+  );
+}

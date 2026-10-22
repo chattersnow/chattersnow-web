@@ -669,6 +669,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // "grants" is the thing that is wrong.
     subItems: [
       {
+        // Deliberately ungrouped, above the first heading (#1658): it lists
+        // the open items of five of the entries below, so it belongs to none
+        // of their headings.
+        value: "open-work",
+        label: "Open work",
+        href: "/portal/governance/open-work",
+        access: [{ resource: "governance", level: "manage" }],
+      },
+      {
         value: "board-members",
         label: "Board Members",
         href: "/portal/governance/board-members",

@@ -307,6 +307,8 @@ describe("navGroups", () => {
         group.items.map((sub) => sub.value),
       ]),
     ).toEqual([
+      // Open work (#1658) sits above the headings: it spans five of them.
+      [undefined, ["open-work"]],
       ["Board proceedings", ["board-members", "meetings", "resolutions"]],
       [
         "Standing obligations",
@@ -323,7 +325,7 @@ describe("navGroups", () => {
   });
 
   test("governance:manage keeps all three Governance headings", () => {
-    // The gate is identical on all ten, so unlike Administration there is no
+    // The gate is identical on all eleven, so unlike Administration there is no
     // permission that empties a heading. The board member who holds this and
     // nothing else sees the whole section, groups and all.
     const board: PermissionMap = { governance: "manage" };
@@ -331,9 +333,14 @@ describe("navGroups", () => {
       (item) => item.value === "governance",
     )!;
     expect(navGroups(governance.subItems!).map((group) => group.label)).toEqual(
-      ["Board proceedings", "Standing obligations", "External relationships"],
+      [
+        undefined,
+        "Board proceedings",
+        "Standing obligations",
+        "External relationships",
+      ],
     );
-    expect(governance.subItems).toHaveLength(10);
+    expect(governance.subItems).toHaveLength(11);
   });
 
   test("grouping Governance moved no route", () => {

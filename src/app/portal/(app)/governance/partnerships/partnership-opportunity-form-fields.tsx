@@ -10,16 +10,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { PartnershipStage } from "./partnership-opportunity-form";
+import {
+  PARTNERSHIP_STAGE_LABELS,
+  type PartnershipStage,
+} from "./partnership-opportunity-form";
 
-export const PARTNERSHIP_STAGE_LABELS: Record<PartnershipStage, string> = {
-  prospecting: "Prospecting",
-  contacted: "Contacted",
-  proposal_sent: "Proposal sent",
-  negotiating: "Negotiating",
-  closed_won: "Closed — won",
-  closed_lost: "Closed — lost",
-};
+// Defined beside the stage list so server code can read it too (#1658).
+export { PARTNERSHIP_STAGE_LABELS };
 
 export type PartnershipOpportunityFormState = {
   stage: PartnershipStage;
