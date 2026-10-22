@@ -179,6 +179,8 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Checklist",
     group: "overview",
     kind: "plain",
+    // The add dialog's owner picker.
+    sharedData: ["people"],
     render: (ctx) => <ChecklistTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <AddChecklistItemDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />

@@ -6,7 +6,15 @@
 // read the sponsor list but must not be able to change it.
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
@@ -14,6 +22,7 @@ import {
   anonClient,
   createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
 } from "../../../../../test/integration-setup";
 
@@ -543,5 +552,206 @@ describe("event sponsor contributions sync into donations/monetary_donations (in
     await deleteEventSponsorAction(other.data[0].id);
     await event.cleanup();
     await person.cleanup();
+  });
+});
+
+// #1660: an optional owner and due date on the partner follow-up, written
+// through the security definer RPCs. RLS does not apply inside them, so the
+// tenant check is the composite foreign key
+// event_sponsors_follow_up_owner_in_tenant.
+describe("sponsor follow-up owner and due date (integration)", () => {
+  const service = serviceRoleClient();
+  const run = crypto.randomUUID().slice(0, 8);
+  let otherTenantId: string;
+  let otherPersonId: string;
+
+  // Suspended, so the sole-active-tenant default the rest of the suite relies
+  // on keeps resolving while it exists.
+  beforeAll(async () => {
+    const { data: tenant, error } = await service
+      .from("tenants")
+      .insert({
+        name: `Sponsor Owner Isolation ${run}`,
+        slug: `sponsor-owner-isolation-${run}`,
+        status: "suspended",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    otherTenantId = tenant.id as string;
+
+    const {
+      data: { user },
+    } = await adminClient.auth.getUser();
+    const { data: person, error: personError } = await service
+      .from("people")
+      .insert({
+        tenant_id: otherTenantId,
+        name: `Other tenant owner ${run}`,
+        source_type: "individual",
+        created_by: user!.id,
+      })
+      .select("id")
+      .single();
+    if (personError) throw personError;
+    otherPersonId = person.id as string;
+  });
+
+  afterAll(async () => {
+    await service.from("people").delete().eq("id", otherPersonId);
+    await service
+      .from("retention_policies")
+      .delete()
+      .eq("tenant_id", otherTenantId);
+    const { error } = await service
+      .from("tenants")
+      .delete()
+      .eq("id", otherTenantId);
+    if (error) throw error;
+  });
+
+  function followUpForm(ownerPersonId: string, dueDate = "2026-12-05") {
+    const fd = sponsorForm({ supportType: "other", items: [] });
+    fd.set("followUpOwnerPersonId", ownerPersonId);
+    fd.set("followUpDueDate", dueDate);
+    return fd;
+  }
+
+  async function sponsorRow(eventId: string) {
+    const listed = await listEventSponsorsAction(eventId);
+    if (!("data" in listed)) throw new Error("expected data");
+    return listed.data[0];
+  }
+
+  test("saves, lists, changes and clears the follow-up owner and due date", async () => {
+    const event = await createPublishedEvent();
+    const sponsor = await createPerson();
+    const owner = await createPerson({ name: `Follow-up owner ${run}` });
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      expect(
+        await createEventSponsorAction(
+          event.id,
+          sponsor.id,
+          followUpForm(owner.id),
+        ),
+      ).toEqual({ success: true });
+
+      const created = await sponsorRow(event.id);
+      expect(created).toMatchObject({
+        follow_up_owner_person_id: owner.id,
+        follow_up_due_date: "2026-12-05",
+        follow_up_owner: { id: owner.id, name: `Follow-up owner ${run}` },
+      });
+      // The sponsor embed still resolves now that two keys reach people.
+      expect(created.person.id).toBe(sponsor.id);
+
+      expect(
+        await updateEventSponsorAction(
+          created.id,
+          followUpForm(owner.id, "2027-01-10"),
+        ),
+      ).toEqual({ success: true });
+      expect((await sponsorRow(event.id)).follow_up_due_date).toBe(
+        "2027-01-10",
+      );
+
+      expect(
+        await updateEventSponsorAction(created.id, followUpForm("", "")),
+      ).toEqual({ success: true });
+      expect(await sponsorRow(event.id)).toMatchObject({
+        follow_up_owner_person_id: null,
+        follow_up_due_date: null,
+      });
+    } finally {
+      await event.cleanup();
+      await sponsor.cleanup();
+      await owner.cleanup();
+    }
+  });
+
+  test("rejects a follow-up owner from another tenant on create and on update", async () => {
+    const event = await createPublishedEvent();
+    const sponsor = await createPerson();
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      const refused = {
+        error: "Pick a follow-up owner from this organization's people.",
+      };
+      expect(
+        await createEventSponsorAction(
+          event.id,
+          sponsor.id,
+          followUpForm(otherPersonId),
+        ),
+      ).toEqual(refused);
+      expect((await listEventSponsorsAction(event.id)) as unknown).toEqual({
+        data: [],
+      });
+
+      await createEventSponsorAction(event.id, sponsor.id, sponsorForm());
+      const existing = await sponsorRow(event.id);
+      expect(
+        await updateEventSponsorAction(
+          existing.id,
+          followUpForm(otherPersonId),
+        ),
+      ).toEqual(refused);
+      expect((await sponsorRow(event.id)).follow_up_owner_person_id).toBeNull();
+
+      await deleteEventSponsorAction(existing.id);
+    } finally {
+      await event.cleanup();
+      await sponsor.cleanup();
+    }
+  });
+
+  test("a view-only events role reads the follow-up owner but cannot change it", async () => {
+    const event = await createPublishedEvent();
+    const sponsor = await createPerson();
+    const owner = await createPerson();
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      await createEventSponsorAction(
+        event.id,
+        sponsor.id,
+        followUpForm(owner.id),
+      );
+      const { id } = await sponsorRow(event.id);
+
+      const finance = await signInAs(SEEDED_USERS.finance);
+      currentSupabase = finance;
+      expect((await sponsorRow(event.id)).follow_up_owner_person_id).toBe(
+        owner.id,
+      );
+
+      const { data: updated } = await finance
+        .from("event_sponsors")
+        .update({ follow_up_owner_person_id: null })
+        .eq("id", id)
+        .select("id");
+      expect(updated ?? []).toHaveLength(0);
+
+      const { error } = await finance.rpc("update_event_sponsor", {
+        p_id: id,
+        p_support_type: "other",
+        p_contribution_value: 0,
+        p_is_public: false,
+        p_notes: "",
+        p_follow_up_status: "done",
+        p_follow_up_notes: "",
+      });
+      expect(error?.message).toContain("Not authorized");
+      expect((await sponsorRow(event.id)).follow_up_owner_person_id).toBe(
+        owner.id,
+      );
+
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      await deleteEventSponsorAction(id);
+    } finally {
+      await event.cleanup();
+      await sponsor.cleanup();
+      await owner.cleanup();
+    }
   });
 });

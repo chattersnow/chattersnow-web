@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useResetOnModeChange, useTabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
+import { useEventDateDefaults } from "./event-date-defaults";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
@@ -94,6 +95,8 @@ export type SponsorFormState = {
   notes: string;
   followUpStatus: string;
   followUpNotes: string;
+  followUpOwner: PickedPerson | null;
+  followUpDueDate: string;
 };
 
 function emptyItem(): SponsorItemDraft {
@@ -139,6 +142,8 @@ export function emptySponsorForm(): SponsorFormState {
     notes: "",
     followUpStatus: "not_started",
     followUpNotes: "",
+    followUpOwner: null,
+    followUpDueDate: "",
   };
 }
 
@@ -154,6 +159,10 @@ function formStateFor(sponsor: EventSponsor): SponsorFormState {
     notes: sponsor.notes ?? "",
     followUpStatus: sponsor.follow_up_status,
     followUpNotes: sponsor.follow_up_notes ?? "",
+    followUpOwner: sponsor.follow_up_owner
+      ? { ...sponsor.follow_up_owner, email: null, phone: null }
+      : null,
+    followUpDueDate: sponsor.follow_up_due_date ?? "",
   };
 }
 
@@ -178,7 +187,14 @@ export function SponsorForm({
   personDisplay?: EventSponsorPerson;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState(initial);
+  const { date: eventDate } = useEventDateDefaults();
+  // A new sponsorship's follow-up is due on the event's day by default. An
+  // existing one keeps what was saved, empty included.
+  const [form, setForm] = useState(() =>
+    personDisplay || initial.followUpDueDate
+      ? initial
+      : { ...initial, followUpDueDate: eventDate },
+  );
   const [selectedPerson, setSelectedPerson] = useState<PickedPerson | null>(
     personDisplay ?? null,
   );
@@ -225,6 +241,8 @@ export function SponsorForm({
     formData.set("notes", form.notes);
     formData.set("followUpStatus", form.followUpStatus);
     formData.set("followUpNotes", form.followUpNotes);
+    formData.set("followUpOwnerPersonId", form.followUpOwner?.id ?? "");
+    formData.set("followUpDueDate", form.followUpDueDate);
 
     const sponsorName = personDisplayName(personDisplay ?? selectedPerson);
     startTransition(async () => {
@@ -495,6 +513,36 @@ export function SponsorForm({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+
+        <Field orientation="responsive">
+          <Field>
+            <FieldLabel htmlFor="sponsor-followUpOwner">
+              Follow-up owner
+            </FieldLabel>
+            <PersonPicker
+              id="sponsor-followUpOwner"
+              people={people}
+              selected={form.followUpOwner}
+              onSelect={(person) => update("followUpOwner", person)}
+              onPersonCreated={() => {}}
+              allowCreate={false}
+              placeholder="Search people (optional)"
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="sponsor-followUpDueDate">
+              Follow-up due date
+            </FieldLabel>
+            <Input
+              id="sponsor-followUpDueDate"
+              type="date"
+              value={form.followUpDueDate}
+              onChange={(event) =>
+                update("followUpDueDate", event.target.value)
+              }
+            />
+          </Field>
         </Field>
 
         <Field>

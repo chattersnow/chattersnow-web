@@ -13,6 +13,7 @@ import type { TabValue } from "./event-tabs-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { formatCalendarDate } from "@/lib/format";
 import { ConfirmDeleteButton } from "@/components/portal/confirm-delete-button";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import {
@@ -112,14 +113,26 @@ export function ChecklistTab({
                 handleToggle(item.id, checked === true)
               }
             />
-            <span
-              className={cn(
-                "flex-1 text-sm",
-                item.is_done && "app-muted line-through",
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span
+                className={cn(
+                  "text-sm",
+                  item.is_done && "app-muted line-through",
+                )}
+              >
+                {item.title}
+              </span>
+              {(item.owner || item.due_date) && (
+                <span className="app-muted text-xs">
+                  {[
+                    item.owner && (item.owner.name ?? "Unnamed"),
+                    item.due_date && `Due ${formatCalendarDate(item.due_date)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
               )}
-            >
-              {item.title}
-            </span>
+            </div>
             {mode === "edit" && (
               <ConfirmDeleteButton
                 label="Remove checklist item"
