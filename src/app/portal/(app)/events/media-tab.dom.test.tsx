@@ -14,11 +14,13 @@ import type { EventMediaRow, EventMediaState } from "./media-actions";
 
 let state: EventMediaState;
 const deleteMock = mock(async () => ({ ok: true as const }));
+const setPublicMock = mock(async () => ({ ok: true as const, changed: 1 }));
 
 mock.module("./media-actions", () => ({
   ...MediaActions,
   getEventMediaAction: async () => ({ data: state }),
   deleteEventMediaAction: deleteMock,
+  setEventMediaPublicAction: setPublicMock,
 }));
 
 const { MediaTab } = await import("./media-tab");
@@ -36,6 +38,7 @@ function item(overrides: Partial<EventMediaRow>): EventMediaRow {
     display_url: null,
     download_url: "https://storage.test/sign/a.jpg?token=t&download=a.jpg",
     expires_at: null,
+    is_public: true,
     ...overrides,
   };
 }
@@ -45,6 +48,8 @@ function stateWith(overrides: Partial<EventMediaState>): EventMediaState {
     enabled: true,
     canUpload: false,
     canDelete: false,
+    publicGalleryEnabled: true,
+    publicGalleryUrl: null,
     eventBytes: 0,
     tenantBytes: 0,
     photoObjections: 0,
@@ -90,6 +95,7 @@ function thumbSrc(filename: string) {
 
 beforeEach(() => {
   deleteMock.mockClear();
+  setPublicMock.mockClear();
 });
 
 describe("MediaTab", () => {
@@ -372,5 +378,108 @@ describe("MediaTab", () => {
       within(dialog).getByRole("button", { name: "Delete" }),
     );
     expect(deleteMock).toHaveBeenCalledWith(photo.id);
+  });
+  test("each item says whether it is public, with no switch below events:manage", async () => {
+    state = stateWith({
+      items: [
+        item({ original_filename: "a.jpg" }),
+        item({
+          kind: "video",
+          original_filename: "run.mov",
+          content_type: "video/quicktime",
+          is_public: false,
+        }),
+      ],
+    });
+    renderTab();
+    const photo = (await screen.findByText("a.jpg")).closest("li")!;
+    expect(within(photo).getByText("Public")).toBeTruthy();
+    const video = screen.getByText("run.mov").closest("li")!;
+    expect(within(video).getByText("Not public")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Hide |^Make / })).toBeNull();
+  });
+
+  test("events:manage hides a photo and makes a video public", async () => {
+    const photo = item({ original_filename: "a.jpg" });
+    const video = item({
+      kind: "video",
+      original_filename: "run.mov",
+      content_type: "video/quicktime",
+      is_public: false,
+    });
+    state = stateWith({ canDelete: true, items: [photo, video] });
+    renderTab("e1");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Hide a.jpg from the public site",
+      }),
+    );
+    expect(setPublicMock).toHaveBeenCalledWith("e1", [photo.id], false);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Make run.mov public" }),
+    );
+    expect(setPublicMock).toHaveBeenCalledWith("e1", [video.id], true);
+  });
+
+  test("ticked photos are hidden together", async () => {
+    const a = item({ original_filename: "a.jpg" });
+    const b = item({ original_filename: "b.jpg" });
+    state = stateWith({ canDelete: true, items: [a, b] });
+    renderTab("e1");
+    expect(screen.queryByRole("button", { name: /Hide selected/ })).toBeNull();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Select all" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Hide selected/ }),
+    );
+    expect(setPublicMock).toHaveBeenCalledWith("e1", [a.id, b.id], false);
+  });
+
+  test("offers the public gallery's link only when there is one", async () => {
+    state = stateWith({
+      publicGalleryUrl: "https://example.org/events/e/e1/photos",
+      items: [item({})],
+    });
+    const { unmount } = renderTab();
+    expect(
+      await screen.findByRole("button", { name: /Copy link/ }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /View gallery/ }).getAttribute("href"),
+    ).toBe("https://example.org/events/e/e1/photos");
+    unmount();
+
+    state = stateWith({ items: [item({})] });
+    renderTab();
+    await screen.findByRole("heading", { name: /Photos/ });
+    expect(screen.queryByRole("button", { name: /Copy link/ })).toBeNull();
+  });
+
+  test("says when the public gallery is off", async () => {
+    state = stateWith({ publicGalleryEnabled: false, items: [item({})] });
+    renderTab();
+    expect(await screen.findByText(/public event gallery is off/)).toBeTruthy();
+  });
+
+  test("the objection notice says photos are public as they are uploaded", async () => {
+    state = stateWith({ photoObjections: 1, items: [item({})] });
+    const { unmount } = renderTab();
+    expect(
+      await screen.findByText(
+        /go on the public site as soon as they are uploaded/,
+      ),
+    ).toBeTruthy();
+    unmount();
+
+    state = stateWith({
+      photoObjections: 1,
+      publicGalleryEnabled: false,
+      items: [item({})],
+    });
+    renderTab();
+    expect(
+      await screen.findByText(/before sharing them outside the portal/),
+    ).toBeTruthy();
   });
 });

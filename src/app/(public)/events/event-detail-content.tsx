@@ -23,6 +23,13 @@ import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
+import { EventGallery } from "./event-gallery";
+import { loadPublicEventMedia } from "./event-media-data";
+import { publicEventPhotosPath } from "./event-path";
+import {
+  PUBLIC_EVENT_PHOTO_PREVIEW,
+  hasPublicEventMedia,
+} from "@/lib/public-event-gallery";
 import { EventRegistrationDisclosure } from "./event-registration-disclosure";
 import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
@@ -313,6 +320,15 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
     />
   ) : null;
 
+  // Its public photos and videos (#1654), the newest photos only; the rest
+  // are a link away. Read on every request, so a hidden photo is gone from
+  // the next one.
+  const media = await loadPublicEventMedia(
+    event.id,
+    PUBLIC_EVENT_PHOTO_PREVIEW,
+  );
+  const photosHref = publicEventPhotosPath(event.id);
+
   const flierUrl = resolveImageUrl(event.flier_url);
   const hasFlier = isRenderableImageSrc(flierUrl);
 
@@ -370,6 +386,18 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             <p className="app-muted mt-4 text-sm sm:text-base">
               {formatWhen(event)}
             </p>
+            {hasPublicEventMedia(media) && (
+              <p className="mt-2 text-sm">
+                <Link
+                  href={photosHref}
+                  className="underline underline-offset-4"
+                >
+                  {media.photoCount > 0
+                    ? `Photos (${media.photoCount})`
+                    : `Videos (${media.videos.length})`}
+                </Link>
+              </p>
+            )}
           </section>
           <EventDetailBody
             event={event}
@@ -389,6 +417,15 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             registrationQuestions={registrationQuestions}
             riderProfile={riderProfile}
           />
+          {hasPublicEventMedia(media) && (
+            <div className="mt-12">
+              <EventGallery
+                eventName={event.name}
+                media={media}
+                allPhotosHref={photosHref}
+              />
+            </div>
+          )}
         </div>
       </div>
     </>

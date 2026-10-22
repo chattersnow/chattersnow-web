@@ -10,15 +10,17 @@ import "yet-another-react-lightbox/plugins/counter.css";
 
 export type LightboxPhoto = {
   url: string;
-  downloadUrl: string | null;
-  filename: string;
+  alt: string;
+  /** A download of the photo on screen; none on the public gallery. */
+  download: { url: string; filename: string } | null;
 };
 
 /**
  * An event's photos full screen (#1607): next and previous by swipe or the
  * arrow keys, zoom, and a download of the photo on screen through its signed
- * URL. Its own module so the tab loads it only when a photo is opened, as the
- * publication reader does (#1473).
+ * URL where the portal offers one. Shared by the Media card and the public
+ * gallery (#1654). Its own module so a page loads it only when a photo is
+ * opened, as the publication reader does (#1473).
  */
 export default function MediaLightbox({
   photos,
@@ -35,13 +37,12 @@ export default function MediaLightbox({
     () =>
       photos.map((photo) => ({
         src: photo.url,
-        alt: photo.filename,
-        download: photo.downloadUrl
-          ? { url: photo.downloadUrl, filename: photo.filename }
-          : false,
+        alt: photo.alt,
+        download: photo.download ?? false,
       })),
     [photos],
   );
+  const downloads = photos.some((photo) => photo.download);
 
   return (
     <Lightbox
@@ -49,7 +50,7 @@ export default function MediaLightbox({
       close={onClose}
       index={index}
       slides={slides}
-      plugins={[Zoom, Counter, Download]}
+      plugins={downloads ? [Zoom, Counter, Download] : [Zoom, Counter]}
       on={{ view: ({ index: viewed }) => onIndexChange(viewed) }}
       carousel={{ finite: true }}
       zoom={{ maxZoomPixelRatio: 3, scrollToZoom: true }}
