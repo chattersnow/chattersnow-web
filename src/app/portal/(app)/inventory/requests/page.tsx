@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/portal/empty-state";
 import { LinkPendingPulse } from "@/components/link-pending";
+import { QueueClaimFilterField } from "@/components/portal/queue-claim-filter";
+import {
+  CLAIM_FK,
+  applyClaimFilter,
+  parseClaimFilter,
+} from "@/lib/queue-claims";
+import { getQueueClaimContext } from "@/lib/portal/queue-claim-context";
 import { GearRequestsTable, type GearRequestListRow } from "./requests-table";
 import { AskAllAsIsDialog } from "./ask-all-as-is-dialog";
 import { getOrgEmailEnabled } from "@/lib/notifications/settings";
@@ -58,10 +65,11 @@ export default async function GearRequestsPage({
   searchParams,
 }: RequestsPageProps) {
   const supabase = await createSupabaseServerClient();
-  const [lexicon, permissions, params] = await Promise.all([
+  const [lexicon, permissions, params, claimContext] = await Promise.all([
     getTenantLexicon(supabase),
     getCurrentUserPermissions(supabase),
     searchParams,
+    getQueueClaimContext(supabase),
   ]);
   const canManage = hasPermission(permissions, "inventory", "manage");
 
@@ -72,13 +80,15 @@ export default async function GearRequestsPage({
   )
     ? (statusParam as string)
     : "open";
+  const claimFilter = parseClaimFilter(params.claimed);
 
   let query = supabase
     .from("gear_requests")
     .select(
-      "id, status, delivery_method, quoted_amount, created_at, as_is_acknowledged_at, as_is_method, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people(id, name, preferred_name, email), items:inventory_movements(inventory_item:inventory_items(description))",
+      `id, status, delivery_method, quoted_amount, created_at, as_is_acknowledged_at, as_is_method, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people!gear_requests_tenant_id_person_id_fkey(id, name, preferred_name, email), claimant:people!${CLAIM_FK.gear_requests}(id, name, preferred_name), items:inventory_movements(inventory_item:inventory_items(description))`,
     )
     .order("created_at", { ascending: false });
+  query = applyClaimFilter(query, claimFilter, claimContext.myPersonId);
   if (statusFilter === "open") query = query.in("status", OPEN_STATUSES);
   else if (statusFilter !== "all") query = query.eq("status", statusFilter);
 
@@ -96,7 +106,7 @@ export default async function GearRequestsPage({
         ? supabase
             .from("gear_requests")
             .select(
-              "id, status, person_id, as_is_acknowledged_at, requester:people(name, preferred_name, email), as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at)",
+              "id, status, person_id, as_is_acknowledged_at, requester:people!gear_requests_tenant_id_person_id_fkey(name, preferred_name, email), as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at)",
             )
             .is("as_is_acknowledged_at", null)
             .neq("status", "cancelled")
@@ -192,6 +202,11 @@ export default async function GearRequestsPage({
             ))}
           </select>
         </div>
+        <QueueClaimFilterField
+          filter={claimFilter}
+          staff={claimContext.staff}
+          selectClassName={selectClassName}
+        />
         <Button type="submit" variant="secondary" size="sm">
           Apply
         </Button>
@@ -227,20 +242,29 @@ export default async function GearRequestsPage({
             <CardContent className="px-0">
               <EmptyState
                 title={
-                  statusFilter === "open"
-                    ? "No open requests"
-                    : `No ${filterLabel.toLowerCase()} requests`
+                  claimFilter.kind !== "all"
+                    ? "No requests match these filters"
+                    : statusFilter === "open"
+                      ? "No open requests"
+                      : `No ${filterLabel.toLowerCase()} requests`
                 }
                 description={
-                  statusFilter === "open"
-                    ? `Requests appear here as soon as someone asks for items from the public ${lexicon.collection_public.toLowerCase()}.`
-                    : "Try a different status filter."
+                  claimFilter.kind !== "all"
+                    ? "Try a different status or claimed-by filter."
+                    : statusFilter === "open"
+                      ? `Requests appear here as soon as someone asks for items from the public ${lexicon.collection_public.toLowerCase()}.`
+                      : "Try a different status filter."
                 }
               />
             </CardContent>
           </Card>
         ) : (
-          <GearRequestsTable rows={requests} />
+          <GearRequestsTable
+            rows={requests}
+            canManage={canManage}
+            myPersonId={claimContext.myPersonId}
+            staff={claimContext.staff}
+          />
         )}
       </div>
     </>

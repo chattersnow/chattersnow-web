@@ -617,7 +617,7 @@ type GearRequestRow = {
 };
 
 const GEAR_REQUEST_SELECT =
-  "id, tenant_id, person_id, delivery_method, payment_method, requester:people(name, preferred_name, email)";
+  "id, tenant_id, person_id, delivery_method, payment_method, requester:people!gear_requests_tenant_id_person_id_fkey(name, preferred_name, email)";
 
 /**
  * Staff side of a gear request (#1032): the inventory managers hear that

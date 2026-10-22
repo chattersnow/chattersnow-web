@@ -239,6 +239,8 @@ async function collectSource(
     upcoming,
     newContactMessages,
     newVolunteerApplications,
+    unclaimedContactMessages,
+    unclaimedVolunteerApplications,
     inKindDonations,
     monetaryDonations,
   ] = await Promise.all([
@@ -272,6 +274,17 @@ async function collectSource(
           query.gte("created_at", sinceIso),
         )
       : 0,
+    // The same arrivals, less the ones somebody has claimed (#1668).
+    gates.unclaimedContactMessages
+      ? countRows(admin, "contact_messages", tenantId, (query) =>
+          query.gte("created_at", sinceIso).is("claimed_by_person_id", null),
+        )
+      : 0,
+    gates.unclaimedVolunteerApplications
+      ? countRows(admin, "volunteer_applications", tenantId, (query) =>
+          query.gte("created_at", sinceIso).is("claimed_by_person_id", null),
+        )
+      : 0,
     gates.inKindDonations
       ? countRows(admin, "donations", tenantId, (query) =>
           // `created_at`, not `donated_at`: the report counts what was entered
@@ -293,6 +306,8 @@ async function collectSource(
     shiftCoverageGaps: gates.shiftCoverageGaps ? upcoming.gaps : [],
     newContactMessages,
     newVolunteerApplications,
+    unclaimedContactMessages,
+    unclaimedVolunteerApplications,
     inKindDonations,
     monetaryDonations,
   };
