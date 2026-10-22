@@ -26,6 +26,7 @@ import {
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
 import { formatRegistrationContact } from "@/lib/registration-contact";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
+import { loadCarpoolCostNotice } from "@/lib/notifications/carpool-cost-notice";
 import type { IssuedAnswersLink } from "@/lib/notifications/registration-answer-self-links";
 import { publicEventAnswersPath } from "@/app/(public)/events/event-path";
 import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
@@ -969,6 +970,7 @@ type ConfirmationEventRow = {
   location: string | null;
   timezone: string;
   confirmation_note: string | null;
+  carpools_enabled: boolean;
 };
 
 const EVENT_REGISTRATION_SELECT =
@@ -1078,7 +1080,7 @@ export async function sendEventRegistrationConfirmation(
       admin
         .from("events")
         .select(
-          "name, starts_at, ends_at, location, timezone, confirmation_note",
+          "name, starts_at, ends_at, location, timezone, confirmation_note, carpools_enabled",
         )
         .eq("id", data.event_id)
         .eq("tenant_id", data.tenant_id)
@@ -1133,6 +1135,11 @@ export async function sendEventRegistrationConfirmation(
   }
   if (!event.data) return "skipped";
   const registered = event.data;
+  // #1650. Only on an event that organizes carpools, so every other
+  // confirmation costs no read.
+  const carpoolNotice = registered.carpools_enabled
+    ? await loadCarpoolCostNotice(admin, data.tenant_id)
+    : [];
 
   return deliverEmail(admin, {
     tenantId: data.tenant_id,
@@ -1179,6 +1186,7 @@ export async function sendEventRegistrationConfirmation(
                 expiresAt: options.answersLink.expiresAt,
               }
             : null,
+          carpoolNotice,
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,

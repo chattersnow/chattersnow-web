@@ -175,3 +175,14 @@ export const CARPOOL_ERROR_MESSAGES: Record<string, string> = {
 export function carpoolsHref(eventId: string): string {
   return `/portal/events/${encodeURIComponent(eventId)}/carpools`;
 }
+
+/**
+ * The cost-split notice's heading (#1650), the same on the registration form,
+ * the assignment card and in email.
+ */
+export const CARPOOL_COST_NOTICE_HEADING = "Carpool costs";
+
+/** The tenant's notice with blank paragraphs dropped: blanking it removes it. */
+export function writtenParagraphs(paragraphs: readonly string[]): string[] {
+  return paragraphs.filter((paragraph) => paragraph.trim());
+}

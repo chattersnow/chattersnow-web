@@ -23,6 +23,7 @@ const { EventRegistrationForm } =
   await import("./event-registration-form-fields");
 
 import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
+import { CARPOOL_COST_NOTICE_HEADING } from "@/lib/event-carpools";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 
 // Structural rather than `typeof userEvent`: the default export and what
@@ -1019,5 +1020,45 @@ describe("EventRegistrationForm and the Instagram requirement (#1647)", () => {
       preferredContactMethod: "email",
       preferredContactDetail: "",
     });
+  });
+});
+
+// #1650. Notice, on step 2 under the event's questions and again on the review
+// step -- never a box, and nothing posted about it.
+describe("EventRegistrationForm on a carpool event (#1650)", () => {
+  const NOTICE = ["Costs are split in the car and settled with the driver."];
+
+  beforeEach(() => {
+    registerForEventActionMock.mockClear();
+  });
+
+  test("tells them on This event and again on review, with no box", async () => {
+    render(
+      <EventRegistrationForm eventId="event-1" carpoolCostNotice={NOTICE} />,
+    );
+    await fillAboutYou();
+    await sayNoMinors();
+
+    expect(
+      screen.getByRole("heading", { name: CARPOOL_COST_NOTICE_HEADING }),
+    ).toBeVisible();
+    // Step 2's copy, and the review step's (hidden until reached).
+    expect(screen.getAllByText(NOTICE[0], { exact: true })).toHaveLength(2);
+    expect(screen.queryAllByRole("checkbox", { hidden: true })).toHaveLength(0);
+
+    await submit();
+    for (const key of Object.keys(lastSubmission())) {
+      expect(key).not.toMatch(/carpool/i);
+    }
+  });
+
+  test("says nothing about carpools without a notice", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+    expect(
+      screen.queryByRole("heading", {
+        name: CARPOOL_COST_NOTICE_HEADING,
+        hidden: true,
+      }),
+    ).toBeNull();
   });
 });

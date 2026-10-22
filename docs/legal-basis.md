@@ -187,6 +187,14 @@ submitted and worded by the organization for that purpose:
   nothing. The answers go with the name when the retention job anonymizes the
   registration.
 
+The carpool cost-split notice (#1650) is deliberately **not** on this list. On
+an event that organizes carpools, the registration form, its confirmation and
+the assignment card tell a registrant that costs are split in the car and
+settled with the driver, and that the people in their car see their first name
+and Instagram handle. That is notice in the organization's own words
+(`events.carpool_cost_notice`), not an agreement: there is no box, nothing is
+stored about having seen it, and its default avoids "agree" and "consent".
+
 The #599 photo-consent bullet stood in this list until #1376 removed it.
 Nothing is taken on that form any more, so it is no longer an exception of this
 kind — the one thing registration now carries is recorded in its own subsection

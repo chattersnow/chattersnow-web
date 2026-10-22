@@ -475,4 +475,29 @@ describe("the tenant's shell (#1238)", () => {
     expect(text).not.toContain("Change your answers");
     expect(html).not.toContain("Change your answers");
   });
+
+  test("tells a carpool event's registrant how costs are split (#1650)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      carpoolNotice: ["Costs are split in the car & settled with the driver."],
+    });
+    expect(text).toContain(
+      "Carpool costs:\nCosts are split in the car & settled with the driver.",
+    );
+    expect(html).toContain("<strong>Carpool costs</strong>");
+    expect(html).toContain("split in the car &amp; settled");
+    // Notice, never a request to accept anything.
+    expect(text).not.toMatch(/agree|consent/i);
+  });
+
+  test("says nothing about carpools on any other event (#1650)", () => {
+    for (const carpoolNotice of [undefined, [], ["  "]]) {
+      const { text, html } = renderEventRegistrationConfirmationEmail({
+        ...base,
+        carpoolNotice,
+      });
+      expect(text).not.toContain("Carpool");
+      expect(html).not.toContain("Carpool");
+    }
+  });
 });

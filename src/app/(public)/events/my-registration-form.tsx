@@ -19,6 +19,7 @@ import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmati
 import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
 import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { CarpoolCostNotice } from "@/components/carpool-cost-notice";
 import { waiverAcceptanceLabel } from "@/lib/photo-consent";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
 import { RegistrationQuestionsFields } from "@/components/registration-questions-fields";
@@ -93,6 +94,7 @@ export function MyEventRegistrationForm({
   adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
+  carpoolCostNotice = [],
   registrationOptions = null,
   registrationQuestions = [],
   riderProfile = null,
@@ -145,6 +147,12 @@ export function MyEventRegistrationForm({
    * to tell somebody less.
    */
   photoConsent?: string[];
+  /**
+   * The carpool cost-split notice (#1650), shown under the event's questions
+   * and again on the review step. Empty -- every event that does not organize
+   * carpools -- renders nothing. Notice only: no box, nothing sent back.
+   */
+  carpoolCostNotice?: string[];
   /**
    * The event's registration question (#1407). Null for an event that asks
    * none, which leaves this form exactly as it was.
@@ -298,10 +306,13 @@ export function MyEventRegistrationForm({
   }
 
   // Something to agree to or be told, or the agreement already on file. With
-  // neither -- a tenant with no agreement and no photo paragraphs -- the last
-  // step is the summary alone.
+  // neither -- a tenant with no agreement, no photo paragraphs and no carpool
+  // notice -- the last step is the summary alone.
   const hasReview =
-    waiver !== null || photoConsent.some((paragraph) => paragraph.trim());
+    waiver !== null ||
+    [...photoConsent, ...carpoolCostNotice].some((paragraph) =>
+      paragraph.trim(),
+    );
 
   return (
     <RegistrationSteps
@@ -436,6 +447,7 @@ export function MyEventRegistrationForm({
             onChange={setAnswerDraft}
             disabled={isPending}
           />
+          <CarpoolCostNotice paragraphs={carpoolCostNotice} />
 
           <Field>
             <FieldLabel htmlFor="my-registration-notes">
@@ -484,6 +496,7 @@ export function MyEventRegistrationForm({
                 and the waiver's box below it is the only control taking
                 anything (#1376). */}
             <PhotoConsentNotice paragraphs={photoConsent} />
+            <CarpoolCostNotice paragraphs={carpoolCostNotice} />
 
             {/* Immediately above the button that acts on it, the same placement
                 the anonymous form uses. This form carries no privacy notice --

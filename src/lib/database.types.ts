@@ -10421,6 +10421,7 @@ export type Database = {
         Row: {
           adults_only: boolean | null;
           capacity: number | null;
+          carpools_enabled: boolean | null;
           description: string | null;
           ends_at: string | null;
           flier_url: string | null;
@@ -10435,6 +10436,7 @@ export type Database = {
         Insert: {
           adults_only?: boolean | null;
           capacity?: number | null;
+          carpools_enabled?: boolean | null;
           description?: string | null;
           ends_at?: string | null;
           flier_url?: string | null;
@@ -10449,6 +10451,7 @@ export type Database = {
         Update: {
           adults_only?: boolean | null;
           capacity?: number | null;
+          carpools_enabled?: boolean | null;
           description?: string | null;
           ends_at?: string | null;
           flier_url?: string | null;
