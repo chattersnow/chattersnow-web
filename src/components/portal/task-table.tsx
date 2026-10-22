@@ -20,6 +20,7 @@ import {
   DEFAULT_TASK_FILTERS,
   isTaskOverdue,
   serializeTaskFilters,
+  taskFilterParamName,
   TASK_DUE_FILTER_LABELS,
   TASK_STATUS_FILTER_LABELS,
   type TaskDueFilter,
@@ -50,6 +51,8 @@ export function TaskTable<R extends TaskRow>({
   renderStatus,
   renderActions,
   emptyMessage = "Nothing matches these filters.",
+  paramPrefix,
+  showStatusFilter,
 }: {
   /** Already filtered and sorted, overdue first. */
   rows: readonly R[];
@@ -61,6 +64,9 @@ export function TaskTable<R extends TaskRow>({
   renderStatus?: (row: R) => ReactNode;
   renderActions?: (row: R) => ReactNode;
   emptyMessage?: string;
+  /** See `taskFilterParamName`. */
+  paramPrefix?: string;
+  showStatusFilter?: boolean;
 }) {
   const singleKind = Object.keys(kindLabels).length <= 1;
 
@@ -158,6 +164,8 @@ export function TaskTable<R extends TaskRow>({
           filters={filters}
           owners={owners}
           kindLabels={singleKind ? undefined : kindLabels}
+          paramPrefix={paramPrefix}
+          showStatus={showStatusFilter}
         />
       </div>
 
@@ -176,18 +184,21 @@ export function TaskTable<R extends TaskRow>({
  * and status -- writing to the URL. A field is offered only when its prop
  * is: no `kindLabels` means no Type select, and `showStatus={false}` is for
  * a page that lists every status itself (#1659's checklists). Params the
- * filters don't own, such as a tab, are kept.
+ * filters don't own, such as a tab, are kept. `paramPrefix` renames the
+ * filters' own params (see `taskFilterParamName`).
  */
 export function TaskFilterBar({
   filters,
   owners,
   kindLabels,
   showStatus = true,
+  paramPrefix = "",
 }: {
   filters: TaskFilters;
   owners: readonly TaskOwner[];
   kindLabels?: Record<string, string>;
   showStatus?: boolean;
+  paramPrefix?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -199,9 +210,13 @@ export function TaskFilterBar({
     value: TaskFilters[K],
   ) {
     const params = new URLSearchParams(searchParams.toString());
-    for (const name of Object.keys(DEFAULT_TASK_FILTERS)) params.delete(name);
+    for (const name of Object.keys(DEFAULT_TASK_FILTERS)) {
+      params.delete(
+        taskFilterParamName(name as keyof TaskFilters, paramPrefix),
+      );
+    }
     for (const [name, next] of new URLSearchParams(
-      serializeTaskFilters({ ...filters, [key]: value }),
+      serializeTaskFilters({ ...filters, [key]: value }, paramPrefix),
     )) {
       params.set(name, next);
     }

@@ -17,7 +17,7 @@ import {
   getOrganizationSummary,
 } from "./queries";
 import { getAccessManagementStatsSummary } from "@/lib/portal/access-management/queries";
-import { getEventTaskSummary } from "@/lib/portal/attention-items";
+import { countEventOpenWork } from "@/lib/portal/event-open-work";
 import {
   fiscalYearForDate,
   fiscalYearToDateRange,
@@ -143,8 +143,9 @@ export default async function PortalHomePage({
       ? getUpcomingSummary(supabase, nowIso)
       : Promise.resolve(null),
     canSeeUpcoming
-      ? // canCheckIn is events:manage, the same gate outstanding tasks need
-        getEventTaskSummary(supabase, { canManageEvents: canCheckIn }, nowIso)
+      ? // The Events list's Outstanding tasks total (#1661), which events:view
+        // sees -- the same query, so the two numbers cannot disagree.
+        countEventOpenWork(supabase, nowIso)
       : Promise.resolve(null),
     canSeeFinancial
       ? getFinancialSummary(
@@ -170,7 +171,7 @@ export default async function PortalHomePage({
 
   // The Inventory card is named in this organization's own word (#896).
   const lexicon = await getTenantLexicon(supabase);
-  const openTaskCount = eventTasks?.items.length ?? 0;
+  const openTaskCount = eventTasks ?? 0;
   const recentDonations =
     recentDonationsResult && "data" in recentDonationsResult
       ? recentDonationsResult.data

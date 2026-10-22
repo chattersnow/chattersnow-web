@@ -9,6 +9,7 @@ import {
   matchesTaskOwnerAndDue,
   parseTaskFilters,
   serializeTaskFilters,
+  taskFilterParamName,
   taskOwnerOptions,
   type TaskRow,
 } from "./task-list";
@@ -208,5 +209,27 @@ describe("matchesTaskOwnerAndDue", () => {
     expect(
       matchesTaskOwnerAndDue(late, filters("unassigned", "all"), context),
     ).toBe(false);
+  });
+});
+
+describe("task filter param prefix", () => {
+  test("names, reads and writes the filters under the prefix", () => {
+    expect(taskFilterParamName("owner", "task")).toBe("taskOwner");
+    expect(taskFilterParamName("owner")).toBe("owner");
+
+    const filters = parseTaskFilters(
+      new URLSearchParams("status=draft&taskOwner=mine&taskDue=overdue"),
+      ["checklist"],
+      "task",
+    );
+    // The page's own `status` is not the list's.
+    expect(filters).toEqual({
+      ...DEFAULT_TASK_FILTERS,
+      owner: "mine",
+      due: "overdue",
+    });
+    expect(serializeTaskFilters(filters, "task")).toBe(
+      "taskOwner=mine&taskDue=overdue",
+    );
   });
 });
