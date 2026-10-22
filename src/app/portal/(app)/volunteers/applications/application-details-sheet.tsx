@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { updateVolunteerApplicationStatusAction } from "./actions";
@@ -42,6 +42,10 @@ import { formatDateTime } from "@/lib/format";
 import { useDeepLinkedSheet } from "@/components/portal/use-deep-linked-sheet";
 import { RecordMessages } from "@/components/portal/record-messages";
 import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
+import {
   messagingDisabledReason,
   type MessageActor,
   type RecordMessageRow,
@@ -65,6 +69,7 @@ const APPLICATION_STATUS_ITEMS = VOLUNTEER_APPLICATION_STATUSES.map(
 export function VolunteerApplicationDetailsSheet({
   application,
   canManage,
+  claim,
   messages,
   messageActors,
   orgName,
@@ -78,6 +83,8 @@ export function VolunteerApplicationDetailsSheet({
 }: {
   application: VolunteerApplication;
   canManage: boolean;
+  /** The row's claim controls (#1669), the same ones the list row offers. */
+  claim: ComponentProps<typeof ClaimRowActions>;
   /** What has been sent to this applicant from the portal (#1204). */
   messages: RecordMessageRow[];
   messageActors: MessageActor[];
@@ -236,6 +243,14 @@ export function VolunteerApplicationDetailsSheet({
                 {humanizeStatus(application.status)}
               </ReadOnlyField>
             )}
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Claimed by</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <ClaimedByCell claimant={application.claimant} />
+                <ClaimRowActions {...claim} />
+              </div>
+            </div>
 
             {error && (
               <Alert variant="destructive">
