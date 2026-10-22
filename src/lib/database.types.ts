@@ -2651,6 +2651,149 @@ export type Database = {
           },
         ];
       };
+      event_carpool_cars: {
+        Row: {
+          created_at: string;
+          driver_assigned_at: string | null;
+          driver_registration_id: string | null;
+          event_id: string;
+          id: string;
+          label: string;
+          leaving_from: string | null;
+          notes: string | null;
+          seats: number;
+          sort_order: number;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          driver_assigned_at?: string | null;
+          driver_registration_id?: string | null;
+          event_id: string;
+          id?: string;
+          label: string;
+          leaving_from?: string | null;
+          notes?: string | null;
+          seats: number;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          driver_assigned_at?: string | null;
+          driver_registration_id?: string | null;
+          event_id?: string;
+          id?: string;
+          label?: string;
+          leaving_from?: string | null;
+          notes?: string | null;
+          seats?: number;
+          sort_order?: number;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_carpool_cars_driver_fkey";
+            columns: ["tenant_id", "driver_registration_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registrations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_cars_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_cars_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_carpool_cars_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_carpool_passengers: {
+        Row: {
+          added_at: string;
+          car_id: string;
+          event_id: string;
+          id: string;
+          paid_driver_at: string | null;
+          paid_marked_by: string | null;
+          registration_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          added_at?: string;
+          car_id: string;
+          event_id: string;
+          id?: string;
+          paid_driver_at?: string | null;
+          paid_marked_by?: string | null;
+          registration_id: string;
+          tenant_id?: string;
+        };
+        Update: {
+          added_at?: string;
+          car_id?: string;
+          event_id?: string;
+          id?: string;
+          paid_driver_at?: string | null;
+          paid_marked_by?: string | null;
+          registration_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_carpool_passengers_car_fkey";
+            columns: ["tenant_id", "car_id"];
+            isOneToOne: false;
+            referencedRelation: "event_carpool_cars";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_passengers_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_passengers_registration_fkey";
+            columns: ["tenant_id", "registration_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registrations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_passengers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_carpool_passengers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_checklist_items: {
         Row: {
           completed_at: string | null;
@@ -4273,6 +4416,8 @@ export type Database = {
           auto_assign_discount_codes: boolean;
           budget_amount: number | null;
           capacity: number | null;
+          carpool_seats_question_id: string | null;
+          carpools_enabled: boolean;
           confirmation_note: string | null;
           content_notes: string | null;
           created_at: string;
@@ -4314,6 +4459,8 @@ export type Database = {
           auto_assign_discount_codes?: boolean;
           budget_amount?: number | null;
           capacity?: number | null;
+          carpool_seats_question_id?: string | null;
+          carpools_enabled?: boolean;
           confirmation_note?: string | null;
           content_notes?: string | null;
           created_at?: string;
@@ -4355,6 +4502,8 @@ export type Database = {
           auto_assign_discount_codes?: boolean;
           budget_amount?: number | null;
           capacity?: number | null;
+          carpool_seats_question_id?: string | null;
+          carpools_enabled?: boolean;
           confirmation_note?: string | null;
           content_notes?: string | null;
           created_at?: string;
@@ -10919,6 +11068,16 @@ export type Database = {
         Args: { p_registration_id: string };
         Returns: undefined;
       };
+      carpool_car_event: { Args: { p_car_id: string }; Returns: string };
+      carpool_event_guard: { Args: { p_event_id: string }; Returns: string };
+      carpool_registration_guard: {
+        Args: {
+          p_event_id: string;
+          p_registration_id: string;
+          p_tenant_id: string;
+        };
+        Returns: undefined;
+      };
       check_gear_request_passphrase: {
         Args: { p_ip_address?: unknown; p_passphrase: string };
         Returns: boolean;
@@ -11077,6 +11236,10 @@ export type Database = {
       default_tenant_id: { Args: never; Returns: string };
       delete_article_category: { Args: { p_id: string }; Returns: number };
       delete_content_pack: { Args: { p_id: string }; Returns: number };
+      delete_event_carpool_car: {
+        Args: { p_car_id: string };
+        Returns: undefined;
+      };
       delete_event_media_by_link: {
         Args: {
           p_ip_address: unknown;
@@ -11157,6 +11320,13 @@ export type Database = {
           first_seen_at: string;
           last_release_seen: string;
           welcome_completed_at: string;
+        }[];
+      };
+      event_carpool_markers: {
+        Args: { p_event_id: string };
+        Returns: {
+          name: string;
+          user_id: string;
         }[];
       };
       event_delete_blockers: { Args: { p_id: string }; Returns: string[] };
@@ -11723,6 +11893,14 @@ export type Database = {
           enabled: boolean;
           module_key: string;
         }[];
+      };
+      move_carpool_passenger: {
+        Args: {
+          p_event_id: string;
+          p_registration_id: string;
+          p_to_car_id: string;
+        };
+        Returns: undefined;
       };
       move_distribution_draft: {
         Args: { p_from_event_id?: string; p_to_event_id?: string };
@@ -12435,6 +12613,8 @@ export type Database = {
           auto_assign_discount_codes: boolean;
           budget_amount: number | null;
           capacity: number | null;
+          carpool_seats_question_id: string | null;
+          carpools_enabled: boolean;
           confirmation_note: string | null;
           content_notes: string | null;
           created_at: string;
@@ -12785,6 +12965,18 @@ export type Database = {
         };
         Returns: string;
       };
+      save_event_carpool_car: {
+        Args: {
+          p_car_id: string;
+          p_driver_registration_id: string;
+          p_event_id: string;
+          p_label: string;
+          p_leaving_from: string;
+          p_notes: string;
+          p_seats: number;
+        };
+        Returns: string;
+      };
       save_event_registration_options: {
         Args: { p_event_id: string; p_options: Json; p_prompt: string };
         Returns: undefined;
@@ -12835,6 +13027,10 @@ export type Database = {
         Args: { p_category_id: string; p_pack_id: string };
         Returns: number;
       };
+      set_carpool_passenger_paid: {
+        Args: { p_car_id: string; p_paid: boolean; p_registration_id: string };
+        Returns: undefined;
+      };
       set_current_tenant: { Args: { p_tenant_id: string }; Returns: undefined };
       set_distribution_draft_recipient: {
         Args: { p_event_id?: string; p_person_id?: string };
@@ -12843,6 +13039,10 @@ export type Database = {
       set_donation_import_mapping: {
         Args: { p_mapping: Json };
         Returns: undefined;
+      };
+      set_event_carpool_passengers: {
+        Args: { p_car_id: string; p_registration_ids: string[] };
+        Returns: number;
       };
       set_event_media_public: {
         Args: { p_ids: string[]; p_public: boolean };
@@ -13114,6 +13314,8 @@ export type Database = {
           auto_assign_discount_codes: boolean;
           budget_amount: number | null;
           capacity: number | null;
+          carpool_seats_question_id: string | null;
+          carpools_enabled: boolean;
           confirmation_note: string | null;
           content_notes: string | null;
           created_at: string;

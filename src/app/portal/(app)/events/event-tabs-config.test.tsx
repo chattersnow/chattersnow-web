@@ -17,6 +17,7 @@ import {
   LOCKED_ON_REPORT_SUBMIT_TABS,
   TAB_CONFIG,
   eventGroups,
+  type EventGroupOptions,
   type TabValue,
 } from "./event-tabs-config";
 
@@ -39,8 +40,11 @@ function without(...resources: string[]): PermissionMap {
   return map;
 }
 
-function cards(permissions: PermissionMap): TabValue[] {
-  return eventGroups(permissions).flatMap((group) =>
+function cards(
+  permissions: PermissionMap,
+  options: EventGroupOptions = { carpoolsEnabled: true },
+): TabValue[] {
+  return eventGroups(permissions, options).flatMap((group) =>
     group.tabs.map((tab) => tab.value),
   );
 }
@@ -52,6 +56,14 @@ function titles(permissions: PermissionMap): string[] {
 }
 
 describe("eventGroups", () => {
+  test("Carpools is listed only on an event that organizes them (#1649)", () => {
+    expect(cards(FULL_ACCESS, {})).not.toContain("carpools");
+    expect(cards(FULL_ACCESS, { carpoolsEnabled: false })).not.toContain(
+      "carpools",
+    );
+    expect(cards(FULL_ACCESS, { carpoolsEnabled: true })).toContain("carpools");
+  });
+
   test("an admin holding everything gets every card in the catalog", () => {
     expect(cards(FULL_ACCESS)).toEqual(TAB_CONFIG.map((entry) => entry.value));
   });

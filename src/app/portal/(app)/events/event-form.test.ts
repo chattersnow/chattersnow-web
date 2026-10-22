@@ -190,6 +190,8 @@ describe("parseEventPlanningForm", () => {
         confirmationNote: undefined,
         groupChatEnabled: null,
         groupChatLabel: undefined,
+        carpoolsEnabled: null,
+        carpoolSeatsQuestionId: undefined,
       },
     });
   });
@@ -217,6 +219,22 @@ describe("parseEventPlanningForm", () => {
       parse({ confirmationNote: "x".repeat(CONFIRMATION_NOTE_MAX_LENGTH + 1) }),
     ).toEqual({
       error: `Confirmation email note must be ${CONFIRMATION_NOTE_MAX_LENGTH} characters or fewer.`,
+    });
+  });
+
+  test("reads the carpools switch and the seats question (#1649)", () => {
+    const parse = (fields: Record<string, string>) =>
+      parseEventPlanningForm(formData(fields), eventDates);
+    expect(
+      parse({ carpoolsEnabled: "on", carpoolSeatsQuestionId: " q-1 " }),
+    ).toMatchObject({
+      data: { carpoolsEnabled: true, carpoolSeatsQuestionId: "q-1" },
+    });
+    // Blank is "typed for each car".
+    expect(
+      parse({ carpoolsEnabled: "off", carpoolSeatsQuestionId: "" }),
+    ).toMatchObject({
+      data: { carpoolsEnabled: false, carpoolSeatsQuestionId: null },
     });
   });
 

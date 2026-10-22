@@ -177,6 +177,13 @@ export const DYNAMIC_ROUTE_SOURCES: Record<string, DynamicRouteSource> = {
     path: "/portal/events/cccccccc-0000-4000-8000-000000000001/registrants",
     expectHeading: "Registrants",
   },
+  // #1649. Linked only from the Carpools card, which an event lists only with
+  // Organize carpools on -- and no seeded event has it on, so this scans the
+  // page's switched-off state on the seeded upcoming event.
+  "/portal/events/[eventId]/carpools": {
+    path: "/portal/events/cccccccc-0000-4000-8000-000000000001/carpools",
+    expectHeading: "Carpools",
+  },
   "/portal/people/[id]": {
     listPath: "/portal/people",
     linkPattern: /^\/portal\/people\/[0-9a-f-]{36}$/,

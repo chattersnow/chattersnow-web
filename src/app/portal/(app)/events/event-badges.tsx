@@ -62,6 +62,12 @@ export type EventRow = {
    */
   group_chat_enabled?: boolean;
   group_chat_label?: string | null;
+  /**
+   * The carpools switch and the question seats come from (#1649). Loaded by
+   * the event detail page, where the Planning tab edits them.
+   */
+  carpools_enabled?: boolean;
+  carpool_seats_question_id?: string | null;
   registration_options?: {
     id: string;
     label: string;

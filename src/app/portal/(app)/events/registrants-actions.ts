@@ -106,6 +106,8 @@ import {
   GROUP_CHAT_ERROR_MESSAGES,
   type EventGroupChat,
 } from "@/lib/registration-group-chat";
+import type { EventCarpools } from "@/lib/event-carpools";
+import { loadEventCarpools } from "@/lib/portal/event-carpools";
 
 /**
  * The rider level recorded when this registrant was checked in, alongside the
@@ -367,6 +369,11 @@ export type EventRegistrantsData = {
    * which leaves every surface as it was.
    */
   groupChat: EventGroupChat;
+  /**
+   * The event's carpool plan (#1649), null when its switch is off -- which
+   * leaves every surface as it was. Absent on data built elsewhere.
+   */
+  carpools?: EventCarpools;
 };
 
 /**
@@ -527,11 +534,21 @@ export async function listEventRegistrantsAction(
   // shows, because that condition does not depend on this flag.
   const photoConsentInForce =
     (await supabase.rpc("tenant_asks_photo_consent")).data === true;
-  const [registrationOptions, registrationQuestions, groupChat] =
+  const [registrationOptions, registrationQuestions, groupChat, carpools] =
     await Promise.all([
       loadRegistrationOptions(supabase, eventId, registrants),
       loadRegistrationQuestions(supabase, eventId),
       loadGroupChat(supabase, eventId),
+      loadEventCarpools(
+        supabase,
+        eventId,
+        registrants.map((row) => ({
+          registrationId: row.id,
+          name: row.name,
+          partySize: row.party_size,
+          answersChangedAt: row.answers_changed_at,
+        })),
+      ),
     ]);
 
   if (!canManage) {
@@ -547,6 +564,7 @@ export async function listEventRegistrantsAction(
         registrationQuestions,
         riderMountains: null,
         groupChat,
+        carpools,
       },
     };
   }
@@ -621,6 +639,7 @@ export async function listEventRegistrantsAction(
       registrationQuestions,
       riderMountains,
       groupChat,
+      carpools,
     },
   };
 }
