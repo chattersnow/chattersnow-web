@@ -242,10 +242,7 @@ describe("runTaskDigest gates", () => {
   test("sends nothing to someone who has opted out", async () => {
     await optIn(false);
 
-    const summary = await runTaskDigest(service, {
-      now: WEDNESDAY,
-      siteUrl: SITE_URL,
-    });
+    await runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL });
 
     expect(mine()).toEqual([]);
     expect(await deliveries()).toEqual([]);
