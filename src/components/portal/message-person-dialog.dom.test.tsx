@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 
 const refreshMock = mock(() => {});
@@ -173,9 +173,14 @@ describe("the message id", () => {
       "Ready Saturday.",
     );
 
-    await user.click(
-      await screen.findByRole("button", { name: "Send message" }),
+    // The error renders inside the transition, so the button can still be
+    // disabled for a moment after it shows; a click then would be swallowed.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Send message" }),
+      ).toBeEnabled(),
     );
+    await user.click(screen.getByRole("button", { name: "Send message" }));
     // A new id, because the first one is spent: the delivery ledger already
     // holds a row for it, and retrying under it would answer "already sent"
     // for a message that never left.
