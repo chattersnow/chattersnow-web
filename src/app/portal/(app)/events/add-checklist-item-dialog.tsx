@@ -3,8 +3,12 @@
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createEventChecklistItemAction } from "./checklist-actions";
+import { useEventDateDefaults } from "./event-date-defaults";
+import { useEventSharedData } from "./event-shared-data";
+import { PersonPicker, type PickedPerson } from "../people/person-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { PortalFormSurface } from "@/components/portal/portal-form-surface";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,8 +24,13 @@ export function AddChecklistItemDialog({
   onSaved?: () => void;
 }) {
   const router = useRouter();
+  const { people } = useEventSharedData();
+  // A new item is due on the event's day unless someone says otherwise.
+  const { date: eventDate } = useEventDateDefaults();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [owner, setOwner] = useState<PickedPerson | null>(null);
+  const [dueDate, setDueDate] = useState(eventDate);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -29,6 +38,8 @@ export function AddChecklistItemDialog({
     setOpen(nextOpen);
     if (!nextOpen) {
       setTitle("");
+      setOwner(null);
+      setDueDate(eventDate);
       setError(null);
     }
   }
@@ -39,6 +50,8 @@ export function AddChecklistItemDialog({
 
     const formData = new FormData();
     formData.set("title", title);
+    formData.set("ownerPersonId", owner?.id ?? "");
+    formData.set("dueDate", dueDate);
 
     startTransition(async () => {
       const result = await createEventChecklistItemAction(eventId, formData);
@@ -85,20 +98,44 @@ export function AddChecklistItemDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-2">
-        <Input
-          autoFocus
-          placeholder="Checklist item"
-          aria-label="Checklist item title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-        />
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="checklist-title">Task</FieldLabel>
+          <Input
+            id="checklist-title"
+            autoFocus
+            placeholder="Checklist item"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="checklist-owner">Owner</FieldLabel>
+          <PersonPicker
+            id="checklist-owner"
+            people={people.data ?? []}
+            selected={owner}
+            onSelect={setOwner}
+            onPersonCreated={() => {}}
+            allowCreate={false}
+            placeholder="Search people (optional)"
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="checklist-due-date">Due date</FieldLabel>
+          <Input
+            id="checklist-due-date"
+            type="date"
+            value={dueDate}
+            onChange={(event) => setDueDate(event.target.value)}
+          />
+        </Field>
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-      </div>
+      </FieldGroup>
     </PortalFormSurface>
   );
 }

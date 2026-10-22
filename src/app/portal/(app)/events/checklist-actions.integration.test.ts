@@ -10,12 +10,23 @@
 // test can't see since it never runs a real trigger.
 // Requires `bun run db:start && bun run db:reset` first; run via
 // `bun run test:integration`. Not picked up by `bun run test`.
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SEEDED_USERS,
+  adminClient,
   anonClient,
+  createPerson,
   createPublishedEvent,
+  serviceRoleClient,
   signInAs,
 } from "../../../../../test/integration-setup";
 
@@ -174,5 +185,140 @@ describe("event checklist actions (integration)", () => {
     ).toEqual(DENIED);
 
     await event.cleanup();
+  });
+});
+
+// #1660: an optional owner and due date. The owner is tenant-checked by the
+// composite foreign key event_checklist_items_owner_in_tenant, so a person
+// from another organization is refused by the database, not the form.
+describe("checklist item owner and due date (integration)", () => {
+  const service = serviceRoleClient();
+  const run = crypto.randomUUID().slice(0, 8);
+  let otherTenantId: string;
+  let otherPersonId: string;
+
+  // Suspended, so the sole-active-tenant default the rest of the suite relies
+  // on keeps resolving while it exists.
+  beforeAll(async () => {
+    const { data: tenant, error } = await service
+      .from("tenants")
+      .insert({
+        name: `Checklist Owner Isolation ${run}`,
+        slug: `checklist-owner-isolation-${run}`,
+        status: "suspended",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    otherTenantId = tenant.id as string;
+
+    const {
+      data: { user },
+    } = await adminClient.auth.getUser();
+    const { data: person, error: personError } = await service
+      .from("people")
+      .insert({
+        tenant_id: otherTenantId,
+        name: `Other tenant owner ${run}`,
+        source_type: "individual",
+        created_by: user!.id,
+      })
+      .select("id")
+      .single();
+    if (personError) throw personError;
+    otherPersonId = person.id as string;
+  });
+
+  afterAll(async () => {
+    await service.from("people").delete().eq("id", otherPersonId);
+    await service
+      .from("retention_policies")
+      .delete()
+      .eq("tenant_id", otherTenantId);
+    const { error } = await service
+      .from("tenants")
+      .delete()
+      .eq("id", otherTenantId);
+    if (error) throw error;
+  });
+
+  function ownedForm(ownerPersonId: string, dueDate = "2026-12-05") {
+    const fd = checklistForm("Pick up the banner");
+    fd.set("ownerPersonId", ownerPersonId);
+    fd.set("dueDate", dueDate);
+    return fd;
+  }
+
+  test("saves an owner from this tenant and a due date, and lists them", async () => {
+    const event = await createPublishedEvent();
+    const owner = await createPerson({ name: `Checklist owner ${run}` });
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      expect(
+        await createEventChecklistItemAction(event.id, ownedForm(owner.id)),
+      ).toEqual({ success: true });
+
+      const listed = await listEventChecklistItemsAction(event.id);
+      if (!("data" in listed)) throw new Error("expected data");
+      expect(listed.data[0]).toMatchObject({
+        owner_person_id: owner.id,
+        due_date: "2026-12-05",
+        owner: { id: owner.id, name: `Checklist owner ${run}` },
+      });
+    } finally {
+      await event.cleanup();
+      await owner.cleanup();
+    }
+  });
+
+  test("rejects an owner from another tenant and writes nothing", async () => {
+    const event = await createPublishedEvent();
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      expect(
+        await createEventChecklistItemAction(
+          event.id,
+          ownedForm(otherPersonId),
+        ),
+      ).toEqual({ error: "Pick an owner from this organization's people." });
+
+      const listed = await listEventChecklistItemsAction(event.id);
+      if (!("data" in listed)) throw new Error("expected data");
+      expect(listed.data).toHaveLength(0);
+    } finally {
+      await event.cleanup();
+    }
+  });
+
+  test("a view-only events role reads the owner and due date but cannot change them", async () => {
+    const event = await createPublishedEvent();
+    const owner = await createPerson();
+    try {
+      currentSupabase = await signInAs(SEEDED_USERS.admin);
+      await createEventChecklistItemAction(event.id, ownedForm(owner.id));
+
+      const finance = await signInAs(SEEDED_USERS.finance);
+      currentSupabase = finance;
+      const listed = await listEventChecklistItemsAction(event.id);
+      if (!("data" in listed)) throw new Error("expected data");
+      expect(listed.data[0].owner_person_id).toBe(owner.id);
+      expect(listed.data[0].due_date).toBe("2026-12-05");
+
+      // Straight at the table, past the action's permission check: RLS
+      // matches no row for an update, so nothing changes.
+      const { data: updated } = await finance
+        .from("event_checklist_items")
+        .update({ owner_person_id: null, due_date: null })
+        .eq("id", listed.data[0].id)
+        .select("id");
+      expect(updated ?? []).toHaveLength(0);
+
+      const after = await listEventChecklistItemsAction(event.id);
+      if (!("data" in after)) throw new Error("expected data");
+      expect(after.data[0].owner_person_id).toBe(owner.id);
+    } finally {
+      await event.cleanup();
+      await owner.cleanup();
+    }
   });
 });

@@ -2616,9 +2616,11 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           created_by: string | null;
+          due_date: string | null;
           event_id: string;
           id: string;
           is_done: boolean;
+          owner_person_id: string | null;
           tenant_id: string;
           title: string;
           updated_at: string;
@@ -2628,9 +2630,11 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
+          due_date?: string | null;
           event_id: string;
           id?: string;
           is_done?: boolean;
+          owner_person_id?: string | null;
           tenant_id?: string;
           title: string;
           updated_at?: string;
@@ -2640,9 +2644,11 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
+          due_date?: string | null;
           event_id?: string;
           id?: string;
           is_done?: boolean;
+          owner_person_id?: string | null;
           tenant_id?: string;
           title?: string;
           updated_at?: string;
@@ -2654,6 +2660,20 @@ export type Database = {
             columns: ["tenant_id", "event_id"];
             isOneToOne: false;
             referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_checklist_items_owner_in_tenant";
+            columns: ["tenant_id", "owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_checklist_items_owner_in_tenant";
+            columns: ["tenant_id", "owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
             referencedColumns: ["tenant_id", "id"];
           },
           {
@@ -3897,7 +3917,9 @@ export type Database = {
           created_by: string;
           donation_id: string | null;
           event_id: string;
+          follow_up_due_date: string | null;
           follow_up_notes: string | null;
+          follow_up_owner_person_id: string | null;
           follow_up_status: string;
           id: string;
           in_kind_description: string | null;
@@ -3916,7 +3938,9 @@ export type Database = {
           created_by?: string;
           donation_id?: string | null;
           event_id: string;
+          follow_up_due_date?: string | null;
           follow_up_notes?: string | null;
+          follow_up_owner_person_id?: string | null;
           follow_up_status?: string;
           id?: string;
           in_kind_description?: string | null;
@@ -3935,7 +3959,9 @@ export type Database = {
           created_by?: string;
           donation_id?: string | null;
           event_id?: string;
+          follow_up_due_date?: string | null;
           follow_up_notes?: string | null;
+          follow_up_owner_person_id?: string | null;
           follow_up_status?: string;
           id?: string;
           in_kind_description?: string | null;
@@ -3961,6 +3987,20 @@ export type Database = {
             columns: ["tenant_id", "event_id"];
             isOneToOne: false;
             referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_sponsors_follow_up_owner_in_tenant";
+            columns: ["tenant_id", "follow_up_owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_sponsors_follow_up_owner_in_tenant";
+            columns: ["tenant_id", "follow_up_owner_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
             referencedColumns: ["tenant_id", "id"];
           },
           {
@@ -10846,7 +10886,9 @@ export type Database = {
         Args: {
           p_contribution_value: number;
           p_event_id: string;
+          p_follow_up_due_date?: string;
           p_follow_up_notes: string;
+          p_follow_up_owner_person_id?: string;
           p_follow_up_status: string;
           p_is_public: boolean;
           p_items?: Json;
@@ -12976,7 +13018,9 @@ export type Database = {
       update_event_sponsor: {
         Args: {
           p_contribution_value: number;
+          p_follow_up_due_date?: string;
           p_follow_up_notes: string;
+          p_follow_up_owner_person_id?: string;
           p_follow_up_status: string;
           p_id: string;
           p_is_public: boolean;

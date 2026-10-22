@@ -13,7 +13,37 @@ describe("parseChecklistItemForm", () => {
   test("trims the title", () => {
     expect(
       parseChecklistItemForm(formData({ title: "  Load the trailer  " })),
-    ).toEqual({ data: { title: "Load the trailer" } });
+    ).toEqual({
+      data: {
+        title: "Load the trailer",
+        owner_person_id: null,
+        due_date: null,
+      },
+    });
+  });
+
+  test("passes an owner and due date through", () => {
+    expect(
+      parseChecklistItemForm(
+        formData({
+          title: "Load the trailer",
+          ownerPersonId: " person-1 ",
+          dueDate: "2026-11-14",
+        }),
+      ),
+    ).toEqual({
+      data: {
+        title: "Load the trailer",
+        owner_person_id: "person-1",
+        due_date: "2026-11-14",
+      },
+    });
+  });
+
+  test("rejects a due date that is not a date", () => {
+    expect(
+      parseChecklistItemForm(formData({ title: "Load", dueDate: "soon" })),
+    ).toEqual({ error: "Enter a valid due date.", field: "dueDate" });
   });
 
   test("requires a title", () => {
