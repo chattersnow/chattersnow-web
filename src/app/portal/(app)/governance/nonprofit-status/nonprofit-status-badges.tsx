@@ -34,7 +34,8 @@ const MILESTONE_STATUS_STYLES: Record<MilestoneStatus, StatusTone> = {
   cancelled: "danger",
 };
 
-const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
+// Exported for Governance's Open work list (#1658).
+export const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   not_started: "Not started",
   in_progress: "In progress",
   done: "Done",

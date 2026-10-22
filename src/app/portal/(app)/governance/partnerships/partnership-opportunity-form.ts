@@ -17,6 +17,15 @@ export const PARTNERSHIP_STAGES: readonly PartnershipStage[] = [
   "closed_lost",
 ];
 
+export const PARTNERSHIP_STAGE_LABELS: Record<PartnershipStage, string> = {
+  prospecting: "Prospecting",
+  contacted: "Contacted",
+  proposal_sent: "Proposal sent",
+  negotiating: "Negotiating",
+  closed_won: "Closed — won",
+  closed_lost: "Closed — lost",
+};
+
 export const CLOSED_PARTNERSHIP_STAGES: readonly PartnershipStage[] = [
   "closed_won",
   "closed_lost",

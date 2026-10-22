@@ -358,7 +358,7 @@ src/app/
       people/                   # shared donor/sponsor/volunteer directory + claims/ (the
                                 # constituent claim queue, §5.23)
       programs/                 # program CRUD (issue #45) + reports/ (season/program impact rollup, issue #48)
-      governance/               # board-members, meetings (incl. agendas), resolutions, bylaws, policies, conflict-of-interest, annual-requirements, nonprofit-status — all implemented
+      governance/               # open-work, board-members, meetings (incl. agendas), resolutions, bylaws, policies, conflict-of-interest, annual-requirements, nonprofit-status — all implemented
       volunteers/                # roles (role types) + participation (hours logging) + applications (public intake queue, issue #173) — implemented (issues #49/#50/#173)
       communications/            # contact-form message queue — implemented (issue #173)
       calendar/                 # content & community calendar (§5.20) — implemented, incl. categories/ and import/
