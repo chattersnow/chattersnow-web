@@ -11,6 +11,7 @@ import { formatFileSize } from "@/lib/publications";
 import {
   eventMediaExpiresSoon,
   eventMediaRetentionLabel,
+  keepSignedUrls,
 } from "@/lib/storage/event-media-files";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
@@ -33,6 +34,20 @@ function storageSize(bytes: number): string {
   return bytes > 0 ? formatFileSize(bytes) : "0 MB";
 }
 
+type HeldMediaState = Omit<EventMediaState, "items"> & {
+  items: (EventMediaRow & { signedAt: number })[];
+};
+
+/**
+ * What each event's tab last showed, kept across the tab unmounting so coming
+ * back to it shows the same URLs, which the browser already has, rather than
+ * signing and downloading every photo again (#1653). In memory only.
+ */
+const heldByEvent = new Map<
+  string,
+  { state: HeldMediaState; loadedAt: Date }
+>();
+
 /**
  * An event's photos and videos (#1606, #1607, #1608, #1654): the upload
  * control, while the organization has uploads on and the reader may upload
@@ -53,10 +68,9 @@ export function MediaTab({
   eventEndsAt: string | null;
   timeZone: string;
 }) {
-  const [state, setState] = useState<EventMediaState | null>(null);
-  // When `state` was read, which "expires soon" is measured from: a clock read
-  // during render would differ between renders.
-  const [loadedAt, setLoadedAt] = useState<Date | null>(null);
+  // `loadedAt` is when `state` was read, which "expires soon" is measured
+  // from: a clock read during render would differ between renders.
+  const [held, setHeld] = useState(() => heldByEvent.get(eventId) ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   // Whether a show-or-hide is in flight; one at a time, like delete.
@@ -64,13 +78,27 @@ export function MediaTab({
   const [, startTransition] = useTransition();
 
   const load = useCallback(() => {
+    const requestedAt = Date.now();
     getEventMediaAction(eventId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else {
-        setLoadError(null);
-        setState(result.data);
-        setLoadedAt(new Date());
+      if ("error" in result) {
+        setLoadError(result.error);
+        return;
       }
+      setLoadError(null);
+      const prior = heldByEvent.get(eventId);
+      const next = {
+        state: {
+          ...result.data,
+          items: keepSignedUrls(
+            prior?.state.items ?? [],
+            result.data.items,
+            requestedAt,
+          ),
+        },
+        loadedAt: new Date(),
+      };
+      heldByEvent.set(eventId, next);
+      setHeld(next);
     });
   }, [eventId]);
 
@@ -124,7 +152,8 @@ export function MediaTab({
       </Alert>
     );
   }
-  if (!state || !loadedAt) return <TabLoadingSkeleton />;
+  if (!held) return <TabLoadingSkeleton />;
+  const { state, loadedAt } = held;
 
   const showUploader = state.enabled && state.canUpload;
   // events:manage (canDelete) on top of being allowed to upload at all, which
