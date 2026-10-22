@@ -40,6 +40,7 @@ import {
 import {
   registrantAnswersCsvHref,
   registrationAnswerColumns,
+  registrantCarpoolColumns,
   registrantGroupChatColumns,
   registrantInstagramColumns,
 } from "../../registrants-tab";
@@ -248,6 +249,8 @@ export function RegistrantsPage({
   const questions = data?.registrationQuestions ?? NO_QUESTIONS;
   // #1648. Null when the event's switch is off: no column, filter or toggle.
   const groupChat = data?.groupChat ?? null;
+  // #1649. Undefined or null when the event's switch is off: no column.
+  const carpools = data?.carpools;
   const asksRequired = questions.some((question) => question.required);
 
   const refreshRegistrants = registrantsData.refresh;
@@ -479,6 +482,7 @@ export function RegistrantsPage({
       },
       ...registrantInstagramColumns(list, canManage),
       ...registrantGroupChatColumns(groupChat),
+      ...registrantCarpoolColumns(carpools),
       {
         key: "party_size",
         label: "Party",
@@ -594,6 +598,7 @@ export function RegistrantsPage({
       toggleCheckIn,
       openDetail,
       groupChat,
+      carpools,
       groupChatPending,
       selectedIds,
       toggleSelected,

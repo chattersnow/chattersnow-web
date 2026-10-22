@@ -295,6 +295,7 @@ export function RegistrantOverlays({
           optionsPrompt={data?.registrationOptions?.prompt ?? null}
           registrationQuestions={data?.registrationQuestions ?? NO_QUESTIONS}
           groupChat={data?.groupChat ?? null}
+          carpools={data?.carpools ?? null}
           onClosed={onDetailClosed}
           onSent={onRegistrantsChanged}
           onAnswersSaved={onRegistrantsChanged}

@@ -104,6 +104,12 @@ export type EventPlanningFormData = {
    */
   groupChatEnabled: boolean | null;
   groupChatLabel: string | null | undefined;
+  /**
+   * #1649. The carpools switch under the same null-when-absent rule, and the
+   * number question seats come from: undefined when not sent, null for none.
+   */
+  carpoolsEnabled: boolean | null;
+  carpoolSeatsQuestionId: string | null | undefined;
 };
 
 /** AUTO_REPLY_PARAGRAPH_MAX_LENGTH, the paragraphs either side of it. */
@@ -144,6 +150,16 @@ export function parseEventPlanningForm(
       error: `Group chat name must be ${GROUP_CHAT_LABEL_MAX_LENGTH} characters or fewer.`,
     };
   }
+  const carpoolsEnabledRaw = formData.get("carpoolsEnabled");
+  const carpoolsEnabled =
+    carpoolsEnabledRaw === null
+      ? null
+      : carpoolsEnabledRaw === "on" || carpoolsEnabledRaw === "true";
+  const carpoolSeatsRaw = formData.get("carpoolSeatsQuestionId");
+  const carpoolSeatsQuestionId =
+    carpoolSeatsRaw === null
+      ? undefined
+      : String(carpoolSeatsRaw).trim() || null;
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
   const confirmationNoteRaw = formData.get("confirmationNote");
   const confirmationNote =
@@ -214,6 +230,8 @@ export function parseEventPlanningForm(
       confirmationNote,
       groupChatEnabled,
       groupChatLabel,
+      carpoolsEnabled,
+      carpoolSeatsQuestionId,
     },
   };
 }

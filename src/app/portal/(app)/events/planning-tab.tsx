@@ -53,6 +53,40 @@ import {
   GROUP_CHAT_LABEL_MAX_LENGTH,
   groupChatLabel,
 } from "@/lib/registration-group-chat";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const NO_SEATS_QUESTION = "__typed__";
+
+function carpoolsSummary(
+  event: EventRow,
+  enabled: boolean,
+  seatsQuestionId: string,
+): string {
+  if (!enabled) return "Off";
+  const question = seatsQuestionChoices(event).find(
+    (row) => row.id === seatsQuestionId,
+  );
+  return question ? `On · seats from “${question.prompt}”` : "On";
+}
+
+/**
+ * #1649. The saved, live `number` questions a new car's seats can come from.
+ * Saved only: the pointer names a stored row, so a question added in this same
+ * edit can be picked after it is saved.
+ */
+function seatsQuestionChoices(event: EventRow) {
+  return (event.registration_questions ?? []).filter(
+    (question) =>
+      question.kind === "number" &&
+      !(question as { archived_at?: string | null }).archived_at,
+  );
+}
 
 function toDatetimeLocalValue(iso: string | null) {
   // The browser's zone, so the prefill and the save agree (#1063).
@@ -70,6 +104,8 @@ function formStateFor(event: EventRow) {
     confirmationNote: event.confirmation_note ?? "",
     groupChatEnabled: event.group_chat_enabled ?? false,
     groupChatLabel: event.group_chat_label ?? "",
+    carpoolsEnabled: event.carpools_enabled ?? false,
+    carpoolSeatsQuestionId: event.carpool_seats_question_id ?? "",
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
     registrationOptions: registrationOptionsDraft(
@@ -185,6 +221,8 @@ export function PlanningTab({
     formData.set("confirmationNote", form.confirmationNote);
     formData.set("groupChatEnabled", form.groupChatEnabled ? "on" : "off");
     formData.set("groupChatLabel", form.groupChatLabel);
+    formData.set("carpoolsEnabled", form.carpoolsEnabled ? "on" : "off");
+    formData.set("carpoolSeatsQuestionId", form.carpoolSeatsQuestionId);
     // Only when changed, so saving a budget does not rewrite every option
     // (and the audit log with it).
     const baselineOptions = formStateFor(event).registrationOptions;
@@ -281,6 +319,16 @@ export function PlanningTab({
         </ReadOnlyField>
         <ReadOnlyField label="Adults only (18+)" htmlFor="planning-adultsOnly">
           {form.adultsOnly ? "On" : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Organize carpools"
+          htmlFor="planning-carpoolsEnabled"
+        >
+          {carpoolsSummary(
+            event,
+            form.carpoolsEnabled,
+            form.carpoolSeatsQuestionId,
+          )}
         </ReadOnlyField>
         <ReadOnlyField label="Group chat" htmlFor="planning-groupChatEnabled">
           {form.groupChatEnabled
@@ -459,6 +507,63 @@ export function PlanningTab({
             <FieldDescription>
               What the registrants list calls it, such as “Instagram group
               chat”. Optional.
+            </FieldDescription>
+          </Field>
+        )}
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-carpoolsEnabled">
+              Organize carpools
+            </FieldLabel>
+            <FieldDescription>
+              Adds a Carpools section for planning cars, drivers and passengers,
+              and who has paid their driver. Only staff see it.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-carpoolsEnabled"
+            checked={form.carpoolsEnabled}
+            onCheckedChange={(checked) => update("carpoolsEnabled", checked)}
+          />
+        </Field>
+
+        {form.carpoolsEnabled && seatsQuestionChoices(event).length > 0 && (
+          <Field>
+            <FieldLabel htmlFor="planning-carpoolSeatsQuestionId">
+              Seats come from
+            </FieldLabel>
+            <Select
+              value={form.carpoolSeatsQuestionId || NO_SEATS_QUESTION}
+              onValueChange={(value) =>
+                update(
+                  "carpoolSeatsQuestionId",
+                  value === NO_SEATS_QUESTION || value === null
+                    ? ""
+                    : String(value),
+                )
+              }
+            >
+              <SelectTrigger
+                id="planning-carpoolSeatsQuestionId"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SEATS_QUESTION}>
+                  Typed for each car
+                </SelectItem>
+                {seatsQuestionChoices(event).map((question) => (
+                  <SelectItem key={question.id} value={question.id}>
+                    {question.prompt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              A number question whose answer fills in a new car&apos;s seats
+              when its driver is chosen.
             </FieldDescription>
           </Field>
         )}

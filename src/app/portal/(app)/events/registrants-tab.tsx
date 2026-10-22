@@ -61,6 +61,11 @@ import { LIST_PREVIEW_ROWS } from "@/components/portal/list-preview-sheet";
 import { formatDateTime, formatInstantDate } from "@/lib/format";
 import { StatusBadge } from "@/components/portal/status-badge";
 import type { EventGroupChat } from "@/lib/registration-group-chat";
+import {
+  carpoolAssignments,
+  carpoolLine,
+  type EventCarpools,
+} from "@/lib/event-carpools";
 import { EmptyState } from "@/components/portal/empty-state";
 
 /**
@@ -199,6 +204,36 @@ export function registrantGroupChatColumns(
   ];
 }
 
+/**
+ * #1649. "Car 2 · Driver", "Car 2 · Passenger · Paid" or "Unassigned", on an
+ * event that organizes carpools; nothing on one that does not.
+ */
+export function registrantCarpoolColumns(
+  carpools: EventCarpools | undefined,
+): PortalDataTableColumn<EventRegistrant>[] {
+  if (!carpools) return [];
+  const assignments = carpoolAssignments(carpools.cars);
+  const line = (registrant: EventRegistrant) =>
+    carpoolLine(assignments.get(registrant.id) ?? null);
+  return [
+    {
+      key: "carpool",
+      label: "Carpool",
+      sortValue: line,
+      hideBelow: "md",
+      cellClassName: "whitespace-nowrap",
+      render: (registrant) => {
+        const carpool = assignments.get(registrant.id) ?? null;
+        return carpool ? (
+          line(registrant)
+        ) : (
+          <span className="app-muted text-sm">Unassigned</span>
+        );
+      },
+    },
+  ];
+}
+
 /** The cell, and the cancelled list's "still in the chat" (#1648). */
 export function GroupChatState({
   registrant,
@@ -330,6 +365,8 @@ export function RegistrantsTab({
   const [missingOnly, setMissingOnly] = useState(false);
   // #1648. Null when the event's switch is off, which hides all of it.
   const groupChat = data?.groupChat ?? null;
+  // #1649. Undefined or null when the event's switch is off: no column.
+  const carpools = data?.carpools;
   const [notInChatOnly, setNotInChatOnly] = useState(false);
 
   // A notification can link straight at one registration (#742's shape). The
@@ -462,6 +499,7 @@ export function RegistrantsTab({
       },
       ...registrantInstagramColumns(list, canManage),
       ...registrantGroupChatColumns(groupChat),
+      ...registrantCarpoolColumns(carpools),
       {
         key: "party_size",
         label: "Party size",
@@ -648,6 +686,7 @@ export function RegistrantsTab({
     [
       list,
       groupChat,
+      carpools,
       registrationOptions,
       registrationQuestions,
       showAttendedBefore,

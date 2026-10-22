@@ -279,6 +279,8 @@ export async function updateEventPlanningAction(
     confirmationNote,
     groupChatEnabled,
     groupChatLabel,
+    carpoolsEnabled,
+    carpoolSeatsQuestionId,
   } = parsed.data;
 
   const { error } = await supabase
@@ -300,10 +302,22 @@ export async function updateEventPlanningAction(
       ...(groupChatLabel === undefined
         ? {}
         : { group_chat_label: groupChatLabel }),
+      ...(carpoolsEnabled === null
+        ? {}
+        : { carpools_enabled: carpoolsEnabled }),
+      ...(carpoolSeatsQuestionId === undefined
+        ? {}
+        : { carpool_seats_question_id: carpoolSeatsQuestionId }),
     })
     .eq("id", id);
 
   if (error) {
+    // #1649. The trigger standing in for a foreign key.
+    if (error.message === "CARPOOL_SEATS_QUESTION_INVALID") {
+      return {
+        error: "Seats can only come from a number question on this event.",
+      };
+    }
     return { error: "Could not update planning details. Please try again." };
   }
 

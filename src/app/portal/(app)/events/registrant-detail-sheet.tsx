@@ -8,6 +8,13 @@ import { RegistrantAnswers } from "./registrant-answers";
 import { RegistrantContact } from "./registrant-contact";
 import { RegistrantGroupChat } from "./registrant-group-chat";
 import type { EventGroupChat } from "@/lib/registration-group-chat";
+import {
+  carpoolAssignments,
+  carpoolLine,
+  carpoolsHref,
+  type EventCarpools,
+} from "@/lib/event-carpools";
+import Link from "next/link";
 import { RegistrantBadges } from "./registrant-badges";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { Button } from "@/components/ui/button";
@@ -94,6 +101,7 @@ export function RegistrantDetailSheet({
   optionsPrompt = null,
   registrationQuestions = [],
   groupChat = null,
+  carpools = null,
   onClosed,
   onSent,
   onAnswersSaved,
@@ -112,6 +120,8 @@ export function RegistrantDetailSheet({
   canManage: boolean;
   /** The event's group chat (#1648); null when its switch is off. */
   groupChat?: EventGroupChat;
+  /** The event's carpool plan (#1649); null when its switch is off. */
+  carpools?: EventCarpools;
   /**
    * Whether this organization takes a participant waiver today (#686), which
    * is what separates "we never asked" from "this registration predates the
@@ -277,6 +287,19 @@ export function RegistrantDetailSheet({
                 canManage={canManage}
                 onSaved={onAnswersSaved}
               />
+            )}
+            {carpools && (
+              <ReadOnlyField label="Carpool" htmlFor="registrant-carpool">
+                <Link
+                  href={carpoolsHref(registrant.event_id)}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {carpoolLine(
+                    carpoolAssignments(carpools.cars).get(registrant.id) ??
+                      null,
+                  )}
+                </Link>
+              </ReadOnlyField>
             )}
             <ReadOnlyField label="Party size" htmlFor="registrant-party-size">
               {registrant.party_size}
