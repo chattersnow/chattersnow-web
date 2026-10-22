@@ -3,6 +3,11 @@ import { renderTaskDigest } from "./task-digest-email";
 import type { DigestRecipient } from "./task-digest";
 
 const SITE = "https://chattersnow.org";
+const MEETING = {
+  key: "meeting:meeting-9",
+  label: "Board meeting, Feb 19, 2026",
+};
+const EVENT = { key: "event:event-3", label: "Winter Social, Jan 10, 2027" };
 
 function recipient(overrides: Partial<DigestRecipient> = {}): DigestRecipient {
   return {
@@ -12,20 +17,20 @@ function recipient(overrides: Partial<DigestRecipient> = {}): DigestRecipient {
     name: "Avery",
     items: [
       {
-        id: "item-1",
-        description: "Send the insurance certificate",
+        key: "action_item:item-1",
+        kind: "action_item",
+        title: "Send the insurance certificate",
         dueDate: "2026-03-01",
-        meetingId: "meeting-9",
-        meetingDate: "2026-02-20T02:00:00Z",
+        group: MEETING,
         href: "/portal/governance/meetings/meeting-9?tab=overview#action-items-section",
         severity: "urgent",
       },
       {
-        id: "item-2",
-        description: "Book the lodge for the spring session",
+        key: "action_item:item-2",
+        kind: "action_item",
+        title: "Book the lodge for the spring session",
         dueDate: "2026-03-14",
-        meetingId: "meeting-9",
-        meetingDate: "2026-02-20T02:00:00Z",
+        group: MEETING,
         href: "/portal/governance/meetings/meeting-9?tab=overview#action-items-section",
         severity: "attention",
       },
@@ -37,7 +42,7 @@ function recipient(overrides: Partial<DigestRecipient> = {}): DigestRecipient {
 describe("renderTaskDigest subject", () => {
   test("counts the items and calls out the overdue ones", () => {
     expect(renderTaskDigest(recipient(), SITE).subject).toBe(
-      "2 action items need your attention (1 overdue)",
+      "2 tasks need your attention (1 overdue)",
     );
   });
 
@@ -45,7 +50,7 @@ describe("renderTaskDigest subject", () => {
     const one = recipient();
     one.items = [{ ...one.items[1] }];
     expect(renderTaskDigest(one, SITE).subject).toBe(
-      "1 action item needs your attention",
+      "1 task needs your attention",
     );
   });
 });
@@ -92,6 +97,56 @@ describe("renderTaskDigest bodies", () => {
     expect(text).not.toContain("//portal");
   });
 
+  test("lists items under their meeting or event, most pressing group first", () => {
+    const mixed = recipient();
+    mixed.items = [
+      mixed.items[0],
+      {
+        key: "checklist:item-3",
+        kind: "checklist",
+        title: "Print sign-in sheets",
+        dueDate: "2026-03-05",
+        group: EVENT,
+        href: "/portal/events/event-3?tab=checklist",
+        severity: "attention",
+      },
+      mixed.items[1],
+    ];
+    const { text, html } = renderTaskDigest(mixed, SITE);
+
+    const order = (body: string) =>
+      [
+        MEETING.label,
+        "Send the insurance certificate",
+        "Book the lodge for the spring session",
+        EVENT.label,
+        "Print sign-in sheets",
+      ].map((needle) => body.indexOf(needle));
+    for (const body of [text, html]) {
+      const positions = order(body);
+      expect(positions.every((at) => at >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    }
+    // One heading per group, however many items sit under it.
+    expect(text.split(MEETING.label)).toHaveLength(2);
+    expect(text).toContain(
+      "https://chattersnow.org/portal/events/event-3?tab=checklist",
+    );
+  });
+
+  test("escapes a group label that contains markup", () => {
+    const hostile = recipient();
+    hostile.items = [
+      {
+        ...hostile.items[0],
+        group: { key: "event:x", label: "<b>Gala</b>" },
+      },
+    ];
+    expect(renderTaskDigest(hostile, SITE).html).toContain(
+      "&lt;b&gt;Gala&lt;/b&gt;",
+    );
+  });
+
   test("greets by name, and without one when there is none", () => {
     expect(renderTaskDigest(recipient(), SITE).text).toStartWith("Hi Avery,");
     expect(renderTaskDigest(recipient({ name: null }), SITE).text).toStartWith(
@@ -104,7 +159,7 @@ describe("renderTaskDigest bodies", () => {
     // text by the time they reach an HTML body.
     const hostile = recipient();
     hostile.items = [
-      { ...hostile.items[0], description: '<img src=x onerror="alert(1)">' },
+      { ...hostile.items[0], title: '<img src=x onerror="alert(1)">' },
     ];
     const { html } = renderTaskDigest(hostile, SITE);
     expect(html).not.toContain("<img");

@@ -3,11 +3,14 @@ import {
   addCalendarDays,
   dedupeKeyFor,
   digestDay,
+  digestHref,
+  eventGroup,
   groupForDigest,
   includesUndated,
+  meetingGroup,
   qualifies,
-  type ActionItemRow,
   type DigestPerson,
+  type DigestSourceRow,
 } from "./task-digest";
 
 // Noon Mountain time, so nothing here is sitting on a zone boundary except the
@@ -18,15 +21,16 @@ const MONDAY = new Date("2026-03-09T19:00:00Z");
 const TENANT_A = "11111111-1111-1111-1111-111111111111";
 const TENANT_B = "22222222-2222-2222-2222-222222222222";
 
-function item(overrides: Partial<ActionItemRow> = {}): ActionItemRow {
+function item(overrides: Partial<DigestSourceRow> = {}): DigestSourceRow {
   return {
+    kind: "action_item",
     id: crypto.randomUUID(),
     tenant_id: TENANT_A,
-    description: "Send the insurance certificate",
+    title: "Send the insurance certificate",
     due_date: "2026-03-12",
     owner_person_id: "person-a",
-    meeting_id: "meeting-1",
-    meeting_date: null,
+    href: digestHref("action_item", "meeting-1"),
+    group: { key: "meeting:meeting-1", label: "Board meeting, Mar 1, 2026" },
     ...overrides,
   };
 }
@@ -108,8 +112,8 @@ describe("groupForDigest", () => {
   test("gives a person one digest with their qualifying items", () => {
     const recipients = groupForDigest(
       [
-        item({ description: "Due soon", due_date: "2026-03-12" }),
-        item({ description: "Too far out", due_date: "2026-04-01" }),
+        item({ title: "Due soon", due_date: "2026-03-12" }),
+        item({ title: "Too far out", due_date: "2026-04-01" }),
       ],
       [person()],
       WEDNESDAY,
@@ -117,7 +121,7 @@ describe("groupForDigest", () => {
 
     expect(recipients).toHaveLength(1);
     expect(recipients[0].email).toBe("avery@example.test");
-    expect(recipients[0].items.map((i) => i.description)).toEqual(["Due soon"]);
+    expect(recipients[0].items.map((i) => i.title)).toEqual(["Due soon"]);
   });
 
   test("addresses the override rather than the sign-in address (#1042)", () => {
@@ -141,8 +145,8 @@ describe("groupForDigest", () => {
   test("marks an overdue item urgent and a future one attention", () => {
     const recipients = groupForDigest(
       [
-        item({ description: "Late", due_date: "2026-03-01" }),
-        item({ description: "Soon", due_date: "2026-03-12" }),
+        item({ title: "Late", due_date: "2026-03-01" }),
+        item({ title: "Soon", due_date: "2026-03-12" }),
       ],
       [person()],
       WEDNESDAY,
@@ -156,30 +160,55 @@ describe("groupForDigest", () => {
   test("sorts soonest first and puts undated items last", () => {
     const recipients = groupForDigest(
       [
-        item({ description: "No date", due_date: null }),
-        item({ description: "Later", due_date: "2026-03-12" }),
-        item({ description: "Sooner", due_date: "2026-03-10" }),
+        item({ title: "No date", due_date: null }),
+        item({ title: "Later", due_date: "2026-03-12" }),
+        item({ title: "Sooner", due_date: "2026-03-10" }),
       ],
       [person()],
       // Monday, so the undated item is in scope at all.
       MONDAY,
     );
-    expect(recipients[0].items.map((i) => i.description)).toEqual([
+    expect(recipients[0].items.map((i) => i.title)).toEqual([
       "Sooner",
       "Later",
       "No date",
     ]);
   });
 
-  test("deep-links each item at its meeting's action items", () => {
+  test("keeps an item's link and group as its producer set them", () => {
+    const group = {
+      key: "event:event-9",
+      label: "Winter Social, Jan 10, 2027",
+    };
     const recipients = groupForDigest(
-      [item({ meeting_id: "meeting-9" })],
+      [
+        item({
+          kind: "checklist",
+          href: digestHref("checklist", "event-9"),
+          group,
+        }),
+      ],
       [person()],
       WEDNESDAY,
     );
-    expect(recipients[0].items[0].href).toBe(
-      "/portal/governance/meetings/meeting-9?tab=overview#action-items-section",
+    expect(recipients[0].items[0]).toMatchObject({
+      kind: "checklist",
+      href: "/portal/events/event-9?tab=checklist",
+      group,
+    });
+  });
+
+  test("keys items by kind, since ids are only unique within a source", () => {
+    const id = "same-id";
+    const recipients = groupForDigest(
+      [item({ id }), item({ id, kind: "checklist" })],
+      [person()],
+      WEDNESDAY,
     );
+    expect(recipients[0].items.map((i) => i.key).sort()).toEqual([
+      "action_item:same-id",
+      "checklist:same-id",
+    ]);
   });
 
   test("sends nothing to a person with no qualifying items", () => {
@@ -204,8 +233,8 @@ describe("groupForDigest", () => {
     // the service-role client, so nothing underneath would catch it.
     const recipients = groupForDigest(
       [
-        item({ tenant_id: TENANT_A, description: "Tenant A item" }),
-        item({ tenant_id: TENANT_B, description: "Tenant B item" }),
+        item({ tenant_id: TENANT_A, title: "Tenant A item" }),
+        item({ tenant_id: TENANT_B, title: "Tenant B item" }),
       ],
       [
         person({ tenant_id: TENANT_A, email: "a@example.test" }),
@@ -219,10 +248,10 @@ describe("groupForDigest", () => {
       expect(recipient.items).toHaveLength(1);
     }
     expect(
-      recipients.find((r) => r.tenantId === TENANT_A)?.items[0].description,
+      recipients.find((r) => r.tenantId === TENANT_A)?.items[0].title,
     ).toBe("Tenant A item");
     expect(
-      recipients.find((r) => r.tenantId === TENANT_B)?.items[0].description,
+      recipients.find((r) => r.tenantId === TENANT_B)?.items[0].title,
     ).toBe("Tenant B item");
   });
 
@@ -233,5 +262,46 @@ describe("groupForDigest", () => {
       WEDNESDAY,
     );
     expect(recipients).toEqual([]);
+  });
+});
+
+describe("digestHref", () => {
+  test("lands an action item on its meeting's action items", () => {
+    expect(digestHref("action_item", "meeting-9")).toBe(
+      "/portal/governance/meetings/meeting-9?tab=overview#action-items-section",
+    );
+  });
+
+  test("lands each event task on the tab that edits it", () => {
+    expect(digestHref("checklist", "e")).toBe("/portal/events/e?tab=checklist");
+    expect(digestHref("retro_action", "e")).toBe(
+      "/portal/events/e?tab=results",
+    );
+    expect(digestHref("sponsor_follow_up", "e")).toBe(
+      "/portal/events/e?tab=sponsors",
+    );
+  });
+});
+
+describe("group labels", () => {
+  test("names a meeting by type and its day in the digest's zone", () => {
+    // 02:00 UTC on the 2nd is the evening of the 1st in Mountain time.
+    expect(
+      meetingGroup({
+        id: "m",
+        meeting_date: "2026-03-02T02:00:00Z",
+        meeting_type: "board",
+      }),
+    ).toEqual({ key: "meeting:m", label: "Board meeting, Mar 1, 2026" });
+  });
+
+  test("names an event and the day it starts", () => {
+    expect(
+      eventGroup({
+        id: "e",
+        name: "Winter Social",
+        starts_at: "2027-01-11T01:00:00Z",
+      }),
+    ).toEqual({ key: "event:e", label: "Winter Social, Jan 10, 2027" });
   });
 });
