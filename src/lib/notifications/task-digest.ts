@@ -1,4 +1,5 @@
-import { formatDateInZone } from "@/lib/time";
+import { formatCalendarDate } from "@/lib/format";
+import { formatDateInZone, utcIsoToDateInZone } from "@/lib/time";
 import { deliveryAddress } from "@/lib/notifications/delivery-address";
 
 /**
@@ -12,10 +13,10 @@ import { deliveryAddress } from "@/lib/notifications/delivery-address";
  * service-role client, which RLS does not apply to -- so it deserves to be
  * asserted directly rather than inferred from an integration run.
  *
- * Shaped as "row producers in, per-person digest out" so the volunteer-shift
- * and approval-queue sources named in the original ticket fold in later as
- * additional producers into the same per-person email, rather than as a second
- * kind of digest.
+ * Shaped as "row producers in, per-person digest out": each source -- meeting
+ * action items (#488), and the owned event tasks (#1666) -- is read by its own
+ * producer into one `DigestSourceRow`, so a further source folds into the same
+ * per-person email rather than becoming a second kind of digest.
  */
 
 /**
@@ -32,16 +33,38 @@ export const DIGEST_TIME_ZONE = "America/Denver";
 /** How far ahead a due date still counts as worth a reminder. */
 export const DIGEST_WINDOW_DAYS = 7;
 
-/** A row of governance_meeting_action_items, joined to its meeting. */
-export type ActionItemRow = {
+/**
+ * The owned task sources the digest reads. Kinds match the Events list's and
+ * Governance's task lists (`src/lib/portal/*-open-work.ts`). Phase-derived
+ * event tasks are deliberately absent: they are not owned records, and would
+ * remind every event lead of every event daily (#1666).
+ */
+export type DigestSourceKind =
+  "action_item" | "checklist" | "retro_action" | "sponsor_follow_up";
+
+/** What a task belongs to, which is what the email groups it under. */
+export type DigestGroup = {
+  /** `meeting:<id>` or `event:<id>`, so two sources never collide. */
+  key: string;
+  label: string;
+};
+
+/**
+ * One open, owned task from any source, already titled, linked and grouped by
+ * the producer that read it -- close to `TaskRow` in src/lib/portal/task-list.ts,
+ * with the tenant kept explicit because nothing below this is RLS-scoped.
+ */
+export type DigestSourceRow = {
+  kind: DigestSourceKind;
   id: string;
   tenant_id: string;
-  description: string;
+  owner_person_id: string;
+  title: string;
   /** A `date` column: "YYYY-MM-DD", or null for an undated item. */
   due_date: string | null;
-  owner_person_id: string;
-  meeting_id: string;
-  meeting_date: string | null;
+  /** A portal path. The renderer makes it absolute; the shaper has no origin. */
+  href: string;
+  group: DigestGroup;
 };
 
 /** A person who could receive a digest: has an email and a portal account. */
@@ -56,12 +79,12 @@ export type DigestPerson = {
 };
 
 export type DigestItem = {
-  id: string;
-  description: string;
+  /** `${kind}:${id}`: ids are only unique within a source. */
+  key: string;
+  kind: DigestSourceKind;
+  title: string;
   dueDate: string | null;
-  meetingId: string;
-  meetingDate: string | null;
-  /** A portal path. The renderer makes it absolute; the shaper has no origin. */
+  group: DigestGroup;
   href: string;
   /**
    * Borrowed from AttentionSeverity in src/lib/portal/attention-items.ts so the
@@ -110,7 +133,7 @@ export function dedupeKeyFor(now: Date): string {
  * Callers pass `today` rather than a Date so every case is a plain assertion.
  */
 export function qualifies(
-  row: ActionItemRow,
+  row: Pick<DigestSourceRow, "due_date">,
   today: string,
   undated: boolean,
 ): boolean {
@@ -129,7 +152,7 @@ export function qualifies(
  * falls away with it.
  */
 export function groupForDigest(
-  rows: ActionItemRow[],
+  rows: DigestSourceRow[],
   people: DigestPerson[],
   now: Date,
 ): DigestRecipient[] {
@@ -175,17 +198,14 @@ export function groupForDigest(
   );
 }
 
-function toItem(row: ActionItemRow, today: string): DigestItem {
+function toItem(row: DigestSourceRow, today: string): DigestItem {
   return {
-    id: row.id,
-    description: row.description,
+    key: `${row.kind}:${row.id}`,
+    kind: row.kind,
+    title: row.title,
     dueDate: row.due_date,
-    meetingId: row.meeting_id,
-    meetingDate: row.meeting_date,
-    // The meeting page renders action items inside the overview tab; the tab is
-    // URL state and the section is a DOM id, so both are needed to land on the
-    // list rather than at the top of the record.
-    href: `/portal/governance/meetings/${row.meeting_id}?tab=overview#action-items-section`,
+    group: row.group,
+    href: row.href,
     severity: row.due_date && row.due_date < today ? "urgent" : "attention",
   };
 }
@@ -197,7 +217,59 @@ function byDueDateThenDescription(a: DigestItem, b: DigestItem): number {
     if (!b.dueDate) return -1;
     return a.dueDate < b.dueDate ? -1 : 1;
   }
-  return a.description.localeCompare(b.description);
+  return a.title.localeCompare(b.title);
+}
+
+/**
+ * Where each kind's link lands. The meeting page renders action items inside
+ * the overview tab; the tab is URL state and the section is a DOM id, so both
+ * are needed to land on the list rather than at the top of the record. Event
+ * tasks land on the tab that edits them, as the Events list's do.
+ */
+export function digestHref(kind: DigestSourceKind, parentId: string): string {
+  switch (kind) {
+    case "action_item":
+      return `/portal/governance/meetings/${parentId}?tab=overview#action-items-section`;
+    case "checklist":
+      return `/portal/events/${parentId}?tab=checklist`;
+    case "retro_action":
+      return `/portal/events/${parentId}?tab=results`;
+    case "sponsor_follow_up":
+      return `/portal/events/${parentId}?tab=sponsors`;
+  }
+}
+
+/** "Board meeting, Mar 1, 2026" -- the label Governance's Open work uses. */
+export function meetingGroup(meeting: {
+  id: string;
+  meeting_date: string;
+  meeting_type: string;
+}): DigestGroup {
+  return {
+    key: `meeting:${meeting.id}`,
+    label: `${capitalize(meeting.meeting_type)} meeting, ${zonedDay(meeting.meeting_date)}`,
+  };
+}
+
+/** "Winter Social, Jan 10, 2027": the date tells a repeated event apart. */
+export function eventGroup(event: {
+  id: string;
+  name: string;
+  starts_at: string;
+}): DigestGroup {
+  return {
+    key: `event:${event.id}`,
+    label: `${event.name}, ${zonedDay(event.starts_at)}`,
+  };
+}
+
+/** An instant's calendar day in the digest's zone, formatted for reading. */
+function zonedDay(iso: string): string {
+  return formatCalendarDate(utcIsoToDateInZone(iso, DIGEST_TIME_ZONE));
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function recipientKey(tenantId: string, personId: string): string {
