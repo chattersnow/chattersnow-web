@@ -225,6 +225,27 @@ describe("MinutesTab", () => {
     expect(screen.getByText(/Grant report due/)).toBeInTheDocument();
   });
 
+  test("shows the decisions list for the decisions item, not a notes box", async () => {
+    getMinutesAction.mockImplementation(async () => {
+      const minutes = draftMinutes();
+      minutes.agenda_snapshot!.items.push({
+        key: "decisions",
+        label: "Decisions & votes",
+        kind: "decisions",
+      });
+      return { data: minutes };
+    });
+    renderTab();
+
+    await screen.findByLabelText("Notes for Opening", {}, SETTLE);
+    expect(
+      screen.queryByLabelText("Notes for Decisions & votes"),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "+ Add decision" }, SETTLE),
+    ).toBeInTheDocument();
+  });
+
   test("saves a note and shows the save on the status line", async () => {
     getMinutesAction.mockImplementation(async () => ({
       data: draftMinutes(),

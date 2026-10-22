@@ -129,9 +129,10 @@ test.describe("portal governance minutes", () => {
         .getByRole("button", { name: "Start minutes from agenda" })
         .click();
 
-      // One notes box per frozen snapshot item. The opening, decisions,
-      // parking lot and next meeting are always there, so there are at least
-      // two regardless of which agenda template is active locally.
+      // One notes box per frozen snapshot item except decisions, which shows
+      // the decisions list instead. The opening, parking lot and next meeting
+      // are always there, so there are at least two regardless of which
+      // agenda template is active locally.
       const noteBoxes = page.getByRole("textbox", { name: /^Notes for / });
       await expect(noteBoxes.first()).toBeVisible({ timeout: 15_000 });
       // Through the locator so the count retries (#1294). The first box being
