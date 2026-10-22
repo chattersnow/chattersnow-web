@@ -154,7 +154,7 @@ export function HomeDesktop({
               value={openTaskCount}
               caption={
                 openTaskCount > 0
-                  ? "Across draft and published events"
+                  ? "Checklists, retro actions, sponsor follow-ups and event phases"
                   : "No open tasks."
               }
               href={openTaskCount > 0 ? "/portal/events?tasks=open" : undefined}

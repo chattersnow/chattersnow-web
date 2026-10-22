@@ -206,6 +206,38 @@ export async function updateEventSponsorAction(
   return { success: true };
 }
 
+/**
+ * Mark a sponsor's follow-up done, or reopen it, from the Events list's
+ * Outstanding tasks (#1661). Only the status moves: `update_event_sponsor`
+ * replaces the whole sponsorship and re-syncs its donated items, which a
+ * checkbox must not risk. `event_sponsors` update is events:manage under RLS.
+ */
+export async function setEventSponsorFollowUpDoneAction(
+  id: string,
+  done: boolean,
+): Promise<SponsorActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a sponsor follow-up.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("event_sponsors")
+    .update({ follow_up_status: done ? "done" : "in_progress" })
+    .eq("id", id)
+    .select("id");
+  if (error || !data?.length) {
+    return { error: "Could not update the follow-up. Please try again." };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
 export async function deleteEventSponsorAction(
   id: string,
 ): Promise<SponsorActionResult> {

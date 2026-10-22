@@ -80,6 +80,18 @@ const STATUS_FILTERS: readonly TaskStatusFilter[] = ["open", "done", "all"];
 type SearchParamsLike =
   URLSearchParams | Record<string, string | string[] | undefined>;
 
+/**
+ * The URL name of one filter. A list that shares its page with other
+ * filters -- the Events list's outstanding tasks (#1661), beside the events
+ * table's own `status` -- passes a prefix: `task` gives `taskOwner`.
+ */
+export function taskFilterParamName(
+  key: keyof TaskFilters,
+  prefix = "",
+): string {
+  return prefix ? `${prefix}${key[0].toUpperCase()}${key.slice(1)}` : key;
+}
+
 function readParam(params: SearchParamsLike, key: string): string | null {
   if (params instanceof URLSearchParams) return params.get(key);
   const value = params[key];
@@ -94,11 +106,14 @@ function readParam(params: SearchParamsLike, key: string): string | null {
 export function parseTaskFilters(
   params: SearchParamsLike,
   kinds: readonly string[],
+  prefix = "",
 ): TaskFilters {
-  const owner = readParam(params, "owner")?.trim() || "all";
-  const type = readParam(params, "type") ?? "all";
-  const due = readParam(params, "due") as TaskDueFilter | null;
-  const status = readParam(params, "status") as TaskStatusFilter | null;
+  const read = (key: keyof TaskFilters) =>
+    readParam(params, taskFilterParamName(key, prefix));
+  const owner = read("owner")?.trim() || "all";
+  const type = read("type") ?? "all";
+  const due = read("due") as TaskDueFilter | null;
+  const status = read("status") as TaskStatusFilter | null;
 
   return {
     owner,
@@ -112,11 +127,14 @@ export function parseTaskFilters(
 }
 
 /** The query string for `filters`, leaving defaults out. */
-export function serializeTaskFilters(filters: TaskFilters): string {
+export function serializeTaskFilters(
+  filters: TaskFilters,
+  prefix = "",
+): string {
   const params = new URLSearchParams();
   for (const key of ["owner", "type", "due", "status"] as const) {
     if (filters[key] !== DEFAULT_TASK_FILTERS[key]) {
-      params.set(key, filters[key]);
+      params.set(taskFilterParamName(key, prefix), filters[key]);
     }
   }
   return params.toString();
