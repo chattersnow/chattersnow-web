@@ -4,6 +4,7 @@ import {
   isPortalPathname,
   portalRedirectHosts,
   portalRedirectTarget,
+  publicSiteHref,
   publicSiteLink,
   stripPortalPrefix,
   toPortalPathname,
@@ -208,5 +209,34 @@ describe("portalRedirectHosts reads either variable", () => {
     process.env.PORTAL_REDIRECT_HOSTS = "old.org";
 
     expect(portalRedirectTarget("old.org")).toBe("portal.old.org");
+  });
+});
+
+describe("a path on the tenant's public site (#1654)", () => {
+  test("is absolute on the tenant's domain from a portal host", () => {
+    expect(
+      publicSiteHref(
+        "portal.chattersnow.org",
+        "chattersnow.org",
+        "/events/e/1/photos",
+      ),
+    ).toBe("https://chattersnow.org/events/e/1/photos");
+  });
+
+  test("stays relative off a portal host", () => {
+    expect(
+      publicSiteHref(
+        "uat.chattersnow.org",
+        "chattersnow.org",
+        "/events/e/1/photos",
+      ),
+    ).toBe("/events/e/1/photos");
+  });
+
+  test("is null from a portal host when the tenant has no public site", () => {
+    expect(
+      publicSiteHref("portal.rickiecruz.com", "portal.rickiecruz.com", "/x"),
+    ).toBeNull();
+    expect(publicSiteHref("portal.example.test", null, "/x")).toBeNull();
   });
 });

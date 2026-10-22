@@ -149,13 +149,30 @@ export function publicSiteLink(
   requestHost: string,
   tenant: { name: string; custom_domain: string | null } | null,
 ): PublicSiteLink | null {
-  const domain =
-    tenant?.custom_domain && !isPortalHost(tenant.custom_domain)
-      ? tenant.custom_domain
-      : null;
+  const domain = publicSiteDomain(tenant?.custom_domain ?? null);
   const label = domain ?? tenant?.name;
   if (!label) return null;
-  if (!isPortalHost(requestHost)) return { href: "/home", label };
-  if (!domain) return null;
-  return { href: `https://${domain}/home`, label: domain };
+  const href = publicSiteHref(requestHost, domain, "/home");
+  if (!href) return null;
+  return { href, label: isPortalHost(requestHost) ? (domain ?? label) : label };
+}
+
+/** The tenant's public host: its `custom_domain`, unless that is a portal host. */
+function publicSiteDomain(customDomain: string | null): string | null {
+  return customDomain && !isPortalHost(customDomain) ? customDomain : null;
+}
+
+/**
+ * A path on the tenant's public site as seen from `requestHost`, by
+ * publicSiteLink()'s three cases: relative off a portal host, absolute on the
+ * tenant's public domain from one, and null when the tenant has none (#1654).
+ */
+export function publicSiteHref(
+  requestHost: string,
+  customDomain: string | null,
+  path: string,
+): string | null {
+  if (!isPortalHost(requestHost)) return path;
+  const domain = publicSiteDomain(customDomain);
+  return domain ? `https://${domain}${path}` : null;
 }

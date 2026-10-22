@@ -46,6 +46,18 @@ export async function getEventMediaUploadsEnabled(
 }
 
 /**
+ * The current tenant's Public event gallery setting (#1654), for the Events
+ * page's Media sheet. Null when the caller may not read it (events:view).
+ */
+export async function getEventPublicGalleryEnabled(
+  supabase: SupabaseClient,
+): Promise<boolean | null> {
+  const { data, error } = await supabase.rpc("event_public_gallery_enabled");
+  if (error || typeof data !== "boolean") return null;
+  return data;
+}
+
+/**
  * The current tenant's event media retention period (#1608), for the Events
  * page's Media sheet: `{ days: null }` is "keep indefinitely". Null when the
  * caller may not read it.

@@ -34,6 +34,11 @@ export function publicEventPath(id: string): string {
   return `/events/e/${id}`;
 }
 
+/** The event's public photos and videos, as one shareable page (#1654). */
+export function publicEventPhotosPath(id: string): string {
+  return `${publicEventPath(id)}/photos`;
+}
+
 /**
  * Where an emailed request for missing registration answers lands (#1502).
  * The token rides in the query string because the link has to work from a

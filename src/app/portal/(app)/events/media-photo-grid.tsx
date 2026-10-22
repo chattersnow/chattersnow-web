@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Download, ImageOff } from "lucide-react";
+import { Download, Eye, EyeOff, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,12 +13,21 @@ import {
   photosZipName,
 } from "@/lib/storage/event-media-zip";
 import type { EventMediaRow } from "./media-actions";
+import {
+  MediaVisibilityBadge,
+  MediaVisibilityToggle,
+} from "./media-visibility";
 
-const MediaLightbox = dynamic(() => import("./media-lightbox"), { ssr: false });
+const MediaLightbox = dynamic(
+  () => import("@/components/event-media/media-lightbox"),
+  { ssr: false },
+);
 
 /**
  * The Media card's photos (#1607): a thumbnail grid that opens the lightbox,
- * a tick on each for a bulk download, and delete for events:manage.
+ * a tick on each for a bulk download, and delete for events:manage. Each says
+ * whether it is in the public gallery, and events:manage hides or shows one,
+ * or the ticked ones together (#1654).
  *
  * The thumbnail is the stored photo itself -- the browser already re-encoded
  * it at 2048px on upload (#1606), so there is no second rendition to keep.
@@ -29,12 +38,17 @@ export function MediaPhotoGrid({
   canDelete,
   deletingId,
   onDelete,
+  publishing,
+  onSetPublic,
 }: {
   photos: EventMediaRow[];
   eventName: string;
+  /** events:manage: delete, and show or hide in the public gallery. */
   canDelete: boolean;
   deletingId: string | null;
   onDelete: (photo: EventMediaRow) => void;
+  publishing: boolean;
+  onSetPublic: (photos: EventMediaRow[], isPublic: boolean) => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -109,6 +123,30 @@ export function MediaPhotoGrid({
               {allSelected ? "Clear selection" : "Select all"}
             </Button>
           )}
+          {canDelete && selectedPhotos.length > 0 && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={publishing}
+                onClick={() => onSetPublic(selectedPhotos, false)}
+              >
+                <EyeOff />
+                Hide selected
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={publishing}
+                onClick={() => onSetPublic(selectedPhotos, true)}
+              >
+                <Eye />
+                Make selected public
+              </Button>
+            </>
+          )}
           {viewable.length > 0 && (
             <Button
               type="button"
@@ -131,7 +169,14 @@ export function MediaPhotoGrid({
         {photos.map((photo) => {
           const index = viewable.findIndex((p) => p.id === photo.id);
           return (
-            <li key={photo.id} className="flex min-w-0 flex-col gap-1.5">
+            <li
+              key={photo.id}
+              className="relative flex min-w-0 flex-col gap-1.5"
+            >
+              <MediaVisibilityBadge
+                item={photo}
+                className="pointer-events-none absolute top-1.5 left-1.5 z-10"
+              />
               {photo.url ? (
                 <button
                   type="button"
@@ -168,6 +213,13 @@ export function MediaPhotoGrid({
                   {photo.original_filename}
                 </span>
                 {canDelete && (
+                  <MediaVisibilityToggle
+                    item={photo}
+                    disabled={publishing}
+                    onSetPublic={onSetPublic}
+                  />
+                )}
+                {canDelete && (
                   <ConfirmDeleteButton
                     label={`Delete ${photo.original_filename}`}
                     title={`Delete ${photo.original_filename}?`}
@@ -187,8 +239,10 @@ export function MediaPhotoGrid({
         <MediaLightbox
           photos={viewable.map((photo) => ({
             url: photo.display_url ?? photo.url,
-            downloadUrl: photo.download_url,
-            filename: photo.original_filename,
+            alt: photo.original_filename,
+            download: photo.download_url
+              ? { url: photo.download_url, filename: photo.original_filename }
+              : null,
           }))}
           index={openIndex}
           onIndexChange={setOpenIndex}

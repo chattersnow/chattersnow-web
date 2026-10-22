@@ -3002,6 +3002,7 @@ export type Database = {
           content_type: string;
           event_id: string;
           id: string;
+          is_public: boolean;
           kind: string;
           link_receipt_hash: string | null;
           original_filename: string;
@@ -3022,6 +3023,7 @@ export type Database = {
           content_type: string;
           event_id: string;
           id?: string;
+          is_public: boolean;
           kind?: string;
           link_receipt_hash?: string | null;
           original_filename: string;
@@ -3040,6 +3042,7 @@ export type Database = {
           content_type?: string;
           event_id?: string;
           id?: string;
+          is_public?: boolean;
           kind?: string;
           link_receipt_hash?: string | null;
           original_filename?: string;
@@ -11006,6 +11009,7 @@ export type Database = {
         }[];
       };
       event_media_uploads_enabled: { Args: never; Returns: boolean };
+      event_public_gallery_enabled: { Args: never; Returns: boolean };
       event_report_rows: {
         Args: {
           p_event_id: string;
@@ -11911,6 +11915,17 @@ export type Database = {
         };
         Returns: string;
       };
+      public_event_media: {
+        Args: { p_event_id: string; p_tenant_id: string };
+        Returns: {
+          caption: string;
+          content_type: string;
+          id: string;
+          kind: string;
+          path: string;
+          uploaded_at: string;
+        }[];
+      };
       public_module_enabled: {
         Args: { p_module_key: string };
         Returns: boolean;
@@ -11975,6 +11990,7 @@ export type Database = {
           content_type: string;
           event_id: string;
           id: string;
+          is_public: boolean;
           kind: string;
           link_receipt_hash: string | null;
           original_filename: string;
@@ -12596,11 +12612,19 @@ export type Database = {
         Args: { p_mapping: Json };
         Returns: undefined;
       };
+      set_event_media_public: {
+        Args: { p_ids: string[]; p_public: boolean };
+        Returns: number;
+      };
       set_event_media_retention_days: {
         Args: { p_days: number };
         Returns: undefined;
       };
       set_event_media_uploads_enabled: {
+        Args: { p_enabled: boolean };
+        Returns: undefined;
+      };
+      set_event_public_gallery_enabled: {
         Args: { p_enabled: boolean };
         Returns: undefined;
       };
@@ -12916,6 +12940,10 @@ export type Database = {
         Returns: number;
       };
       tenant_event_media_uploads_enabled: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      tenant_event_public_gallery_enabled: {
         Args: { p_tenant_id: string };
         Returns: boolean;
       };

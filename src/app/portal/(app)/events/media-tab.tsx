@@ -17,12 +17,14 @@ import type { TabValue } from "./event-tabs-config";
 import {
   deleteEventMediaAction,
   getEventMediaAction,
+  setEventMediaPublicAction,
   type EventMediaRow,
   type EventMediaState,
 } from "./media-actions";
 import { EventMediaUploader } from "./event-media-uploader";
 import { MediaExpiryNotice } from "./media-expiry-notice";
 import { MediaPhotoGrid } from "./media-photo-grid";
+import { MediaPublicLink } from "./media-public-link";
 import { MediaUploadLinks } from "./media-upload-links";
 import { MediaVideoList } from "./media-video-list";
 
@@ -32,9 +34,9 @@ function storageSize(bytes: number): string {
 }
 
 /**
- * An event's photos and videos (#1606, #1607, #1608): the upload control,
- * while the organization has uploads on and the reader may upload here; the
- * photo-objection notice; what the retention setting deletes soon; then the
+ * An event's photos and videos (#1606, #1607, #1608, #1654): the upload
+ * control, while the organization has uploads on and the reader may upload
+ * here; the photo-objection notice; the public gallery's link; what the retention setting deletes soon; then the
  * photo gallery and the video list; how much storage the event and the
  * organization use, and how long this event's media is kept.
  */
@@ -57,6 +59,8 @@ export function MediaTab({
   const [loadedAt, setLoadedAt] = useState<Date | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Whether a show-or-hide is in flight; one at a time, like delete.
+  const [publishing, setPublishing] = useState(false);
   const [, startTransition] = useTransition();
 
   const load = useCallback(() => {
@@ -84,6 +88,32 @@ export function MediaTab({
         onSuccess: load,
       });
       setDeletingId(null);
+    });
+  }
+
+  function handleSetPublic(items: EventMediaRow[], isPublic: boolean) {
+    if (items.length === 0) return;
+    const name =
+      items.length === 1
+        ? items[0].original_filename
+        : `${items.length} ${items.every((item) => item.kind === "photo") ? "photos" : "files"}`;
+    setPublishing(true);
+    startTransition(async () => {
+      await runAction(
+        () =>
+          setEventMediaPublicAction(
+            eventId,
+            items.map((item) => item.id),
+            isPublic,
+          ),
+        {
+          success: isPublic
+            ? `${name} ${items.length === 1 ? "is" : "are"} public.`
+            : `${name} ${items.length === 1 ? "is" : "are"} hidden from the public site.`,
+          onSuccess: load,
+        },
+      );
+      setPublishing(false);
     });
   }
 
@@ -116,7 +146,9 @@ export function MediaTab({
             {state.photoObjections === 1
               ? "1 person at this event objected to being photographed"
               : `${state.photoObjections} people at this event objected to being photographed`}{" "}
-            — check photos and footage before sharing them outside the portal.
+            {state.publicGalleryEnabled
+              ? "— photos go on the public site as soon as they are uploaded, so check them now and hide any photo of someone who objected."
+              : "— check photos and footage before sharing them outside the portal."}
           </AlertDescription>
         </Alert>
       )}
@@ -133,6 +165,15 @@ export function MediaTab({
           eventEndsAt={eventEndsAt}
           timeZone={timeZone}
         />
+      )}
+      {state.publicGalleryUrl && (
+        <MediaPublicLink url={state.publicGalleryUrl} />
+      )}
+      {!state.publicGalleryEnabled && state.items.length > 0 && (
+        <p className="app-muted text-sm">
+          The public event gallery is off for this organization, so nothing here
+          is on the public site, whatever it is marked.
+        </p>
       )}
       {state.items.length === 0 ? (
         <EmptyState
@@ -154,6 +195,8 @@ export function MediaTab({
               canDelete={state.canDelete}
               deletingId={deletingId}
               onDelete={handleDelete}
+              publishing={publishing}
+              onSetPublic={handleSetPublic}
             />
           )}
           {videos.length > 0 && (
@@ -163,6 +206,8 @@ export function MediaTab({
               canDelete={state.canDelete}
               deletingId={deletingId}
               onDelete={handleDelete}
+              publishing={publishing}
+              onSetPublic={handleSetPublic}
             />
           )}
         </>

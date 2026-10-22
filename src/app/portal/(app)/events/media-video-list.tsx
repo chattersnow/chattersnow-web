@@ -15,10 +15,16 @@ import { ViewerTime } from "@/components/viewer-time";
 import { formatFileSize } from "@/lib/publications";
 import { cn } from "@/lib/utils";
 import type { EventMediaRow } from "./media-actions";
+import {
+  MediaVisibilityBadge,
+  MediaVisibilityToggle,
+} from "./media-visibility";
 
 /**
  * The Media card's videos (#1607): one row each, with who uploaded it and
- * when, play in a dialog, download, and delete for events:manage.
+ * when, play in a dialog, download, and delete for events:manage. Each says
+ * whether it is in the public gallery, and events:manage makes one public or
+ * hides it again (#1654); a video is not public until someone does.
  *
  * Played straight from the original through its signed URL: phone MP4 and
  * MOV play in the browser, and transcoding is out of scope (#1605).
@@ -29,13 +35,18 @@ export function MediaVideoList({
   canDelete,
   deletingId,
   onDelete,
+  publishing,
+  onSetPublic,
 }: {
   videos: EventMediaRow[];
   /** The event's zone, until the browser says the viewer's own. */
   timeZone: string;
+  /** events:manage: delete, and show or hide in the public gallery. */
   canDelete: boolean;
   deletingId: string | null;
   onDelete: (video: EventMediaRow) => void;
+  publishing: boolean;
+  onSetPublic: (videos: EventMediaRow[], isPublic: boolean) => void;
 }) {
   const [playing, setPlaying] = useState<EventMediaRow | null>(null);
 
@@ -93,6 +104,14 @@ export function MediaVideoList({
               </>
             ) : (
               <span className="app-muted text-xs">Couldn&apos;t load</span>
+            )}
+            <MediaVisibilityBadge item={video} />
+            {canDelete && (
+              <MediaVisibilityToggle
+                item={video}
+                disabled={publishing}
+                onSetPublic={onSetPublic}
+              />
             )}
             {canDelete && (
               <ConfirmDeleteButton

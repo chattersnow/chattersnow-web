@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkUser } from "@/lib/auth/current-user";
 import {
+  publicEventPhotosPath,
+  publicEventPath,
+} from "@/app/(public)/events/event-path";
+import { publicSiteHref } from "@/lib/portal/paths";
+import { currentTenant, getTenantContext } from "@/lib/portal/tenants";
+import { getRequestHost } from "@/lib/request-origin";
+import {
   checkPermission,
   getCurrentUserPermissions,
   hasPermission,
@@ -37,6 +44,11 @@ export type EventMediaRow = {
   download_url: string | null;
   /** When the retention setting deletes it; null when kept indefinitely. */
   expires_at: string | null;
+  /**
+   * Whether it shows in the event's public gallery (#1654): photos are on
+   * upload, videos are not.
+   */
+  is_public: boolean;
 };
 
 export type EventMediaState = {
@@ -44,8 +56,19 @@ export type EventMediaState = {
   enabled: boolean;
   /** Whether this reader may upload to this event right now. */
   canUpload: boolean;
-  /** events:manage, which the bucket's and the table's delete policies ask for. */
+  /**
+   * events:manage, which the bucket's and the table's delete policies ask for,
+   * and which showing or hiding an item in the public gallery asks for too.
+   */
   canDelete: boolean;
+  /** The tenant's Public event gallery setting (#1654). */
+  publicGalleryEnabled: boolean;
+  /**
+   * The event's public gallery page, to copy: only while the setting is on,
+   * the event is public and published, something here is public, and the
+   * organization has a public site to link to from this host.
+   */
+  publicGalleryUrl: string | null;
   /** Bytes stored for this event, and for all of the tenant's event media. */
   eventBytes: number;
   tenantBytes: number;
@@ -92,6 +115,10 @@ export async function getEventMediaAction(
     permissions,
     retentionDays,
     eventExpiresAt,
+    galleryEnabled,
+    event,
+    tenantContext,
+    requestHost,
   ] = await Promise.all([
     supabase.rpc("event_media_uploads_enabled"),
     supabase.rpc("can_upload_event_media", { p_event_id: eventId }),
@@ -99,13 +126,21 @@ export async function getEventMediaAction(
     supabase
       .from("event_media")
       .select(
-        "id, kind, storage_path, thumb_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name, expires_at",
+        "id, kind, storage_path, thumb_path, original_filename, content_type, size_bytes, uploaded_at, uploader_name, expires_at, is_public",
       )
       .eq("event_id", eventId)
       .order("uploaded_at", { ascending: false }),
     getCurrentUserPermissions(supabase),
     supabase.rpc("event_media_retention_days"),
     supabase.rpc("event_media_event_expires_at", { p_event_id: eventId }),
+    supabase.rpc("event_public_gallery_enabled"),
+    supabase
+      .from("events")
+      .select("visibility, status")
+      .eq("id", eventId)
+      .maybeSingle(),
+    getTenantContext(supabase),
+    getRequestHost(),
   ]);
 
   if (rows.error) {
@@ -133,11 +168,29 @@ export async function getEventMediaAction(
     }
   }
 
+  const publicGalleryEnabled = galleryEnabled.data === true;
+  // public_event_media()'s own rule, so the link is offered exactly when the
+  // page it names would answer.
+  const galleryServed =
+    publicGalleryEnabled &&
+    event.data?.visibility === "public" &&
+    event.data?.status === "published" &&
+    stored.some((row) => row.is_public);
+  const publicGalleryUrl = galleryServed
+    ? publicSiteHref(
+        requestHost,
+        currentTenant(tenantContext)?.custom_domain ?? null,
+        publicEventPhotosPath(eventId),
+      )
+    : null;
+
   return {
     data: {
       enabled: enabled.data === true,
       canUpload: canUpload.data === true,
       canDelete: hasPermission(permissions, "events", "manage"),
+      publicGalleryEnabled,
+      publicGalleryUrl,
       eventBytes: Number(summary.data?.event_bytes ?? 0),
       tenantBytes: Number(summary.data?.tenant_bytes ?? 0),
       photoObjections: Number(summary.data?.photo_objections ?? 0),
@@ -215,6 +268,56 @@ export async function deleteEventMediaAction(
 
   revalidatePath("/portal/events");
   return { ok: true };
+}
+
+/**
+ * Shows or hides photos and videos in the event's public gallery (#1654).
+ * events:manage, checked here and again by set_event_media_public(), which is
+ * the only writer of the column. The public pages render on every request, so
+ * a hidden photo is gone from the next one; the revalidation is for anything
+ * that cached the route regardless.
+ */
+export async function setEventMediaPublicAction(
+  eventId: string,
+  mediaIds: string[],
+  isPublic: boolean,
+): Promise<{ ok: true; changed: number } | { error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to change what the public gallery shows.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(
+    supabase,
+    "events",
+    "manage",
+    "You don't have permission to change what this event's public gallery shows.",
+  );
+  if (permissionError) return permissionError;
+
+  if (!Array.isArray(mediaIds) || mediaIds.length === 0) {
+    return { ok: true, changed: 0 };
+  }
+
+  const { data, error } = await supabase.rpc("set_event_media_public", {
+    p_ids: mediaIds.map(String),
+    p_public: isPublic === true,
+  });
+  if (error) {
+    console.error("Could not change event media visibility", error);
+    return {
+      error:
+        error.message === "PERMISSION_DENIED"
+          ? "You don't have permission to change what this event's public gallery shows."
+          : "Could not save the change. Please try again.",
+    };
+  }
+
+  revalidatePath(publicEventPath(String(eventId)));
+  revalidatePath(publicEventPhotosPath(String(eventId)));
+  revalidatePath("/portal/events");
+  return { ok: true, changed: Number(data ?? 0) };
 }
 
 /**
@@ -346,6 +449,38 @@ export async function updateEventMediaUploadsEnabledAction(
   if (permissionError) return permissionError;
 
   const { error } = await supabase.rpc("set_event_media_uploads_enabled", {
+    p_enabled: enabled === true,
+  });
+  if (error) {
+    return {
+      error:
+        error.message === "PERMISSION_DENIED"
+          ? "You don't have permission to change event settings."
+          : "Could not save the setting. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * Turns this organization's public event gallery on or off (#1654), through
+ * set_event_public_gallery_enabled(), which checks events:manage again.
+ */
+export async function updateEventPublicGalleryEnabledAction(
+  enabled: boolean,
+): Promise<{ error: string } | { success: true }> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to change event settings.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("set_event_public_gallery_enabled", {
     p_enabled: enabled === true,
   });
   if (error) {
