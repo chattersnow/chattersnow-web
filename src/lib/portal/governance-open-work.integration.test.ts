@@ -279,6 +279,31 @@ describe("getGovernanceOpenWork", () => {
     ]);
   });
 
+  // Meetings' Action items view (#1659) is this query restricted to one kind.
+  test("action items only: owner and overdue filters", async () => {
+    const actionItems = (filters: Partial<TaskFilters>) =>
+      openWork({ ...filters, type: "action_item" });
+
+    expect((await actionItems({ owner: "mine" })).names).toEqual([
+      "actionOverdueMine",
+    ]);
+    expect((await actionItems({ due: "overdue" })).names).toEqual([
+      "actionOverdueMine",
+    ]);
+    // Done is never overdue, even past its date.
+    expect(
+      (await actionItems({ owner: other.id, status: "all" })).names,
+    ).toEqual(["actionDone"]);
+    expect(
+      (await actionItems({ owner: other.id, due: "overdue", status: "all" }))
+        .names,
+    ).toEqual([]);
+    const { result } = await actionItems({ status: "all" });
+    expect(new Set(result.rows.map((row) => row.kind))).toEqual(
+      new Set(["action_item"]),
+    );
+  });
+
   test("a reader without governance access sees none of it", async () => {
     const volunteer = await signInAs(SEEDED_USERS.volunteer);
     const { names } = await openWork({ status: "all" }, volunteer);

@@ -6,6 +6,7 @@ import {
   filterAndSortTaskRows,
   isTaskDueThisWeek,
   isTaskOverdue,
+  matchesTaskOwnerAndDue,
   parseTaskFilters,
   serializeTaskFilters,
   taskOwnerOptions,
@@ -177,4 +178,35 @@ test("taskOwnerOptions lists each owner once, by display name", () => {
     row({ id: "4" }),
   ]);
   expect(options.map((owner) => owner.id)).toEqual([ada.id, bo.id]);
+});
+
+describe("matchesTaskOwnerAndDue", () => {
+  const context = { today: TODAY, currentPersonId: ada.id };
+  const filters = (owner: string, due: "all" | "overdue" | "week") => ({
+    owner,
+    due,
+  });
+
+  test("ignores status and type: a done row still matches its owner", () => {
+    const done = { owner: ada, dueDate: "2026-10-01", isDone: true };
+    expect(matchesTaskOwnerAndDue(done, filters("mine", "all"), context)).toBe(
+      true,
+    );
+    expect(
+      matchesTaskOwnerAndDue(done, filters("mine", "overdue"), context),
+    ).toBe(false);
+  });
+
+  test("owner and due combine", () => {
+    const late = { owner: bo, dueDate: "2026-10-01", isDone: false };
+    expect(
+      matchesTaskOwnerAndDue(late, filters(bo.id, "overdue"), context),
+    ).toBe(true);
+    expect(
+      matchesTaskOwnerAndDue(late, filters("mine", "overdue"), context),
+    ).toBe(false);
+    expect(
+      matchesTaskOwnerAndDue(late, filters("unassigned", "all"), context),
+    ).toBe(false);
+  });
 });

@@ -2,7 +2,7 @@
 
 import { ReactNode, useMemo, useTransition } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import {
 import { StatusBadge } from "@/components/portal/status-badge";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import {
+  DEFAULT_TASK_FILTERS,
   isTaskOverdue,
   serializeTaskFilters,
   TASK_DUE_FILTER_LABELS,
@@ -37,6 +38,8 @@ import {
  * Each module supplies what only it knows: its kind labels, and the inline
  * controls for a row the viewer may edit (`renderStatus`, `renderActions`).
  * A row with `canEdit` false gets the plain status badge and no actions.
+ * A list of a single kind (Meetings' Action items view, #1659) drops the
+ * Type filter and column, which could only ever say one thing.
  */
 export function TaskTable<R extends TaskRow>({
   rows,
@@ -59,21 +62,7 @@ export function TaskTable<R extends TaskRow>({
   renderActions?: (row: R) => ReactNode;
   emptyMessage?: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
-
-  function setFilter<K extends keyof TaskFilters>(
-    key: K,
-    value: TaskFilters[K],
-  ) {
-    const query = serializeTaskFilters({ ...filters, [key]: value });
-    startTransition(() => {
-      router.replace(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      });
-    });
-  }
+  const singleKind = Object.keys(kindLabels).length <= 1;
 
   const columns = useMemo<PortalDataTableColumn<R>[]>(
     () => [
@@ -88,14 +77,18 @@ export function TaskTable<R extends TaskRow>({
           </span>
         ),
       },
-      {
-        key: "kind",
-        label: "Type",
-        hideBelow: "md",
-        sortValue: (row) => kindLabels[row.kind] ?? row.kind,
-        cellClassName: "app-muted",
-        render: (row) => kindLabels[row.kind] ?? row.kind,
-      },
+      ...(singleKind
+        ? []
+        : ([
+            {
+              key: "kind",
+              label: "Type",
+              hideBelow: "md",
+              sortValue: (row) => kindLabels[row.kind] ?? row.kind,
+              cellClassName: "app-muted",
+              render: (row) => kindLabels[row.kind] ?? row.kind,
+            },
+          ] satisfies PortalDataTableColumn<R>[])),
       {
         key: "owner",
         label: "Owner",
@@ -155,35 +148,97 @@ export function TaskTable<R extends TaskRow>({
           row.canEdit && renderActions ? renderActions(row) : null,
       },
     ],
-    [kindLabels, renderActions, renderStatus, today],
+    [kindLabels, renderActions, renderStatus, singleKind, today],
   );
+
+  return (
+    <div className="space-y-4">
+      <div className="rainbow-surface rounded-xl border border-[var(--line)] p-4 shadow-md">
+        <TaskFilterBar
+          filters={filters}
+          owners={owners}
+          kindLabels={singleKind ? undefined : kindLabels}
+        />
+      </div>
+
+      <PortalDataTable
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.key}
+        emptyMessage={emptyMessage}
+      />
+    </div>
+  );
+}
+
+/**
+ * The shared filter selects -- owner (with Mine and Unassigned), type, due
+ * and status -- writing to the URL. A field is offered only when its prop
+ * is: no `kindLabels` means no Type select, and `showStatus={false}` is for
+ * a page that lists every status itself (#1659's checklists). Params the
+ * filters don't own, such as a tab, are kept.
+ */
+export function TaskFilterBar({
+  filters,
+  owners,
+  kindLabels,
+  showStatus = true,
+}: {
+  filters: TaskFilters;
+  owners: readonly TaskOwner[];
+  kindLabels?: Record<string, string>;
+  showStatus?: boolean;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  function setFilter<K extends keyof TaskFilters>(
+    key: K,
+    value: TaskFilters[K],
+  ) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const name of Object.keys(DEFAULT_TASK_FILTERS)) params.delete(name);
+    for (const [name, next] of new URLSearchParams(
+      serializeTaskFilters({ ...filters, [key]: value }),
+    )) {
+      params.set(name, next);
+    }
+    const query = params.toString();
+    startTransition(() => {
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    });
+  }
 
   const ownerIsListed =
     ["all", "mine", "unassigned"].includes(filters.owner) ||
     owners.some((owner) => owner.id === filters.owner);
 
   return (
-    <div className="space-y-4" aria-busy={isPending}>
-      <div className="rainbow-surface flex flex-wrap items-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        <FilterSelect
-          label="Owner"
-          value={filters.owner}
-          onChange={(value) => setFilter("owner", value)}
-        >
-          <SelectItem value="all">Anyone</SelectItem>
-          <SelectItem value="mine">Mine</SelectItem>
-          <SelectItem value="unassigned">Unassigned</SelectItem>
-          {owners.map((owner) => (
-            <SelectItem key={owner.id} value={owner.id}>
-              {personDisplayName(owner)}
-            </SelectItem>
-          ))}
-          {ownerIsListed ? null : (
-            // A link to someone who no longer owns anything at this status.
-            <SelectItem value={filters.owner}>Someone else</SelectItem>
-          )}
-        </FilterSelect>
+    <div className="flex flex-wrap items-end gap-3" aria-busy={isPending}>
+      <FilterSelect
+        label="Owner"
+        value={filters.owner}
+        onChange={(value) => setFilter("owner", value)}
+      >
+        <SelectItem value="all">Anyone</SelectItem>
+        <SelectItem value="mine">Mine</SelectItem>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {owners.map((owner) => (
+          <SelectItem key={owner.id} value={owner.id}>
+            {personDisplayName(owner)}
+          </SelectItem>
+        ))}
+        {ownerIsListed ? null : (
+          // A link to someone who no longer owns anything at this status.
+          <SelectItem value={filters.owner}>Someone else</SelectItem>
+        )}
+      </FilterSelect>
 
+      {kindLabels ? (
         <FilterSelect
           label="Type"
           value={filters.type}
@@ -196,19 +251,21 @@ export function TaskTable<R extends TaskRow>({
             </SelectItem>
           ))}
         </FilterSelect>
+      ) : null}
 
-        <FilterSelect
-          label="Due"
-          value={filters.due}
-          onChange={(value) => setFilter("due", value as TaskDueFilter)}
-        >
-          {Object.entries(TASK_DUE_FILTER_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </FilterSelect>
+      <FilterSelect
+        label="Due"
+        value={filters.due}
+        onChange={(value) => setFilter("due", value as TaskDueFilter)}
+      >
+        {Object.entries(TASK_DUE_FILTER_LABELS).map(([value, label]) => (
+          <SelectItem key={value} value={value}>
+            {label}
+          </SelectItem>
+        ))}
+      </FilterSelect>
 
+      {showStatus ? (
         <FilterSelect
           label="Status"
           value={filters.status}
@@ -220,14 +277,7 @@ export function TaskTable<R extends TaskRow>({
             </SelectItem>
           ))}
         </FilterSelect>
-      </div>
-
-      <PortalDataTable
-        columns={columns}
-        rows={rows}
-        getRowKey={(row) => row.key}
-        emptyMessage={emptyMessage}
-      />
+      ) : null}
     </div>
   );
 }
