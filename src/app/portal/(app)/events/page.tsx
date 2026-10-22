@@ -40,6 +40,7 @@ import {
   getEventMediaUploadsEnabled,
   getEventPublicGalleryEnabled,
   getRegistrationAsksAboutMinors,
+  getRegistrationRequiresInstagram,
 } from "@/lib/registration-settings";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
@@ -219,6 +220,7 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     eventTasks,
     riderMountains,
     asksAboutMinors,
+    requiresInstagram,
     mediaUploadsEnabled,
     mediaRetention,
     publicGalleryEnabled,
@@ -233,6 +235,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     // Registration's under-18 setting (#1416), for whoever can change it.
     canManage
       ? getRegistrationAsksAboutMinors(supabase)
+      : Promise.resolve(null),
+    // And its Instagram requirement (#1647), likewise.
+    canManage
+      ? getRegistrationRequiresInstagram(supabase)
       : Promise.resolve(null),
     // Event media uploads (#1606), likewise.
     canManage ? getEventMediaUploadsEnabled(supabase) : Promise.resolve(null),
@@ -408,7 +414,10 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
         {riderMountains && <RiderMountainsSheet mountains={riderMountains} />}
 
         {asksAboutMinors !== null && (
-          <RegistrationSettingsSheet asksAboutMinors={asksAboutMinors} />
+          <RegistrationSettingsSheet
+            asksAboutMinors={asksAboutMinors}
+            requiresInstagram={requiresInstagram ?? false}
+          />
         )}
 
         {mediaUploadsEnabled !== null &&

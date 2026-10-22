@@ -4,7 +4,11 @@ import { useState, useTransition } from "react";
 import { registerForEventAction } from "./event-registration-actions";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
-import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
+import {
+  attendedBeforeRows,
+  contactSummaryRows,
+  eventSummaryRows,
+} from "./registration-summary";
 import {
   EMPTY_RIDING,
   RidingFields,
@@ -49,6 +53,13 @@ import {
   type OptionCounts,
   type RegistrationOptionsQuestion,
 } from "@/lib/registration-options";
+import { InstagramOrContactFields } from "@/components/instagram-or-contact-fields";
+import {
+  contactError,
+  EMPTY_CONTACT_VALUES,
+  setContactFields,
+  type ContactValues,
+} from "@/lib/registration-contact";
 import { PrivacyNotice } from "@/components/privacy-notice";
 import { PronounsField } from "@/components/pronouns-field";
 import { RequiredFieldsNote } from "@/components/required-fields-note";
@@ -83,6 +94,7 @@ export function EventRegistrationForm({
   waiver = null,
   waiverBlock = null,
   asksAboutMinors = true,
+  requiresInstagram = false,
   adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
@@ -117,6 +129,13 @@ export function EventRegistrationForm({
    * turned it off -- is #685's form unchanged.
    */
   asksAboutMinors?: boolean;
+  /**
+   * Whether this organization requires an Instagram handle (#1647). On, the
+   * handle is required and "I don't have Instagram" offers a preferred
+   * contact in its place. Off -- the default -- is the optional handle field
+   * the form always had.
+   */
+  requiresInstagram?: boolean;
   /**
    * Whether the event is adults only (#1417). On, step 2 asks every registrant
    * to confirm everyone in their party is 18 or over. The caller turns
@@ -167,7 +186,7 @@ export function EventRegistrationForm({
 }) {
   const [name, setName] = useState(account?.name ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
-  const [instagramHandle, setInstagramHandle] = useState("");
+  const [contact, setContact] = useState<ContactValues>(EMPTY_CONTACT_VALUES);
   const [pronouns, setPronouns] = useState("");
   // #1259. Starts empty and stays empty unless the registrant picks something:
   // the unanswered state is a real third value and must not default to "no".
@@ -212,6 +231,13 @@ export function EventRegistrationForm({
   function handleSubmit() {
     setError(null);
 
+    // #1647. On "About you", where it is asked.
+    const contactProblem = contactError(contact, requiresInstagram);
+    if (contactProblem) {
+      setError({ message: contactProblem, step: "about" });
+      return;
+    }
+
     if (registrationOptions) {
       const message = optionCountsError(optionCounts, Number(partySize));
       if (message) {
@@ -229,7 +255,7 @@ export function EventRegistrationForm({
     const formData = new FormData();
     formData.set("name", name);
     formData.set("email", email);
-    formData.set("instagramHandle", instagramHandle);
+    setContactFields(formData, contact, requiresInstagram);
     formData.set("pronouns", pronouns);
     formData.set("attendedBefore", attendedBefore);
     formData.set("partySize", partySize);
@@ -358,18 +384,13 @@ export function EventRegistrationForm({
           </Field>
           {/* Instagram and pronouns stay here (#1403): they are about the
               person, and "Your riding" (#1415) is about how they ride. */}
-          <Field>
-            <FieldLabel htmlFor="registration-instagram">
-              Instagram handle
-            </FieldLabel>
-            <Input
-              id="registration-instagram"
-              placeholder="e.g. yourhandle"
-              autoComplete="off"
-              value={instagramHandle}
-              onChange={(event) => setInstagramHandle(event.target.value)}
-            />
-          </Field>
+          <InstagramOrContactFields
+            idPrefix="registration"
+            values={contact}
+            onChange={setContact}
+            required={requiresInstagram}
+            disabled={isPending}
+          />
           <PronounsField
             id="registration-pronouns"
             value={pronouns}
@@ -494,9 +515,7 @@ export function EventRegistrationForm({
         about: [
           { label: "Name", value: name.trim() },
           { label: "Email", value: email.trim() },
-          ...(instagramHandle.trim()
-            ? [{ label: "Instagram", value: instagramHandle.trim() }]
-            : []),
+          ...contactSummaryRows(contact, requiresInstagram),
           ...(pronouns.trim()
             ? [{ label: "Pronouns", value: pronouns.trim() }]
             : []),

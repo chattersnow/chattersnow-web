@@ -25,6 +25,11 @@ const route = publicWrite<
         p_party_size: body.party_size,
         p_notes: body.notes ?? null,
         p_instagram_handle: body.instagram_handle ?? null,
+        // #1647. Ignored by an organization that does not require a handle;
+        // one that does refuses a body with neither a handle nor these.
+        p_has_no_instagram: body.has_no_instagram ?? undefined,
+        p_preferred_contact_method: body.preferred_contact_method ?? undefined,
+        p_preferred_contact_detail: body.preferred_contact_detail ?? undefined,
         p_pronouns: body.pronouns ?? null,
         // #685. `undefined` rather than null for the question itself, so a
         // caller that says nothing leaves the RPC's own default in place and

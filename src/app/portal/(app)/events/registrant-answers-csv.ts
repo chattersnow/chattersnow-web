@@ -12,7 +12,10 @@
  *
  * The Instagram handle is the exception, by the organization's choice: it is a
  * public handle the registrant gave so the organization can tag and find them,
- * and the export carries it on every row that has one, consent or not.
+ * and the export carries it on every row that has one, consent or not. So does
+ * the *method* a registrant without Instagram asked to be reached by (#1647):
+ * "Text message" says nothing about anybody. The number or address behind it
+ * is a contact detail like the phone, and follows the same consent.
  *
  * Rider answers -- how a registrant rides and at what level -- are not
  * contact details, so they are not under that consent. They appear for a
@@ -25,6 +28,7 @@ import {
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
 import { effectiveRider, type RiderAnswers } from "./rider-stats";
+import { preferredContactMethodLabel } from "@/lib/registration-contact";
 
 export type AnswersCsvQuestion = {
   id: string;
@@ -38,6 +42,9 @@ export type AnswersCsvRegistration = {
   email: string | null;
   phone: string | null;
   instagram_handle: string | null;
+  /** #1647. The no-Instagram contact; absent reads as none. */
+  preferred_contact_method?: string | null;
+  preferred_contact_detail?: string | null;
   /**
    * When the registrant last changed their own answers after registering
    * (#1591), or null where they never have.
@@ -95,9 +102,9 @@ export function csvField(value: string | number | null): string {
  * (each its answer in words, blank where unanswered), then Answers changed --
  * the instant the registrant last changed them after registering, in UTC
  * (ISO 8601), blank where they never have (#1591) -- then Rides, Ski level
- * and Snowboard level with `riders`, then Instagram on every row, then Email
- * and Phone only where the event has a `shares_contact` question -- filled
- * only on the rows that agreed. CRLF line endings, as RFC 4180 and Excel
+ * and Snowboard level with `riders`, then Instagram and Preferred contact on
+ * every row, then Email, Phone and Contact detail only where the event has a
+ * `shares_contact` question -- filled only on the rows that agreed. CRLF line endings, as RFC 4180 and Excel
  * expect.
  */
 export function registrantAnswersCsv(
@@ -113,7 +120,8 @@ export function registrantAnswersCsv(
     "Answers changed",
     ...(riders ? ["Rides", "Ski level", "Snowboard level"] : []),
     "Instagram",
-    ...(withContact ? ["Email", "Phone"] : []),
+    "Preferred contact",
+    ...(withContact ? ["Email", "Phone", "Contact detail"] : []),
   ];
 
   const rows = registrations.map((registration) => {
@@ -141,10 +149,12 @@ export function registrantAnswersCsv(
       // Bare, as stored: an `@` prefix would come out as `'@` from
       // csvField's formula guard.
       registration.instagram_handle || null,
+      preferredContactMethodLabel(registration.preferred_contact_method),
       ...(withContact
         ? [
             shares ? registration.email || null : null,
             shares ? registration.phone || null : null,
+            shares ? registration.preferred_contact_detail || null : null,
           ]
         : []),
     ];

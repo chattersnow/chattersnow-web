@@ -2,6 +2,11 @@ import type { MinorContactValues } from "@/components/minor-accompaniment-fields
 import { ATTENDED_BEFORE_OPTIONS } from "@/lib/attended-before";
 import { ADULTS_ONLY_CONFIRMATION_LABEL } from "@/lib/adults-only";
 import { PARTY_INCLUDES_MINOR_OPTIONS } from "@/lib/minors";
+import {
+  formatRegistrationContact,
+  REGISTRATION_CONTACT_HEADING,
+  type ContactValues,
+} from "@/lib/registration-contact";
 import type {
   OptionCounts,
   RegistrationOptionsQuestion,
@@ -25,6 +30,26 @@ function optionLabel(
 export function attendedBeforeRows(value: string): RegistrationSummaryRow[] {
   const label = optionLabel(ATTENDED_BEFORE_OPTIONS, value);
   return label ? [{ label: "Been before", value: label }] : [];
+}
+
+/**
+ * The handle, or -- where the organization requires one and they have no
+ * Instagram -- how they would like to be reached instead (#1647).
+ */
+export function contactSummaryRows(
+  values: ContactValues,
+  required: boolean,
+): RegistrationSummaryRow[] {
+  if (required && values.hasNoInstagram) {
+    const value = formatRegistrationContact({
+      has_no_instagram: true,
+      preferred_contact_method: values.method,
+      preferred_contact_detail: values.detail,
+    });
+    return value ? [{ label: REGISTRATION_CONTACT_HEADING, value }] : [];
+  }
+  const handle = values.instagramHandle.trim();
+  return handle ? [{ label: "Instagram", value: handle }] : [];
 }
 
 /**

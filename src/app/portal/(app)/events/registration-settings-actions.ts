@@ -44,3 +44,35 @@ export async function updateAsksAboutMinorsAction(
   // The public form reads the setting per request; nothing public is cached on it.
   return { success: true };
 }
+
+/**
+ * Turns this organization's Instagram-or-preferred-contact requirement on or
+ * off (#1647). Gated like the setting above, and for its reason.
+ */
+export async function updateRequiresInstagramAction(
+  enabled: boolean,
+): Promise<RegistrationSettingsResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to change registration settings.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { error } = await supabase.rpc("set_registration_requires_instagram", {
+    p_enabled: enabled,
+  });
+  if (error) {
+    return {
+      error:
+        error.message === "PERMISSION_DENIED"
+          ? "You don't have permission to change registration settings."
+          : "Could not save the setting. Please try again.",
+    };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}

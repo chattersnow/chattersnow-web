@@ -32,6 +32,11 @@ import {
   type OptionCounts,
 } from "@/lib/registration-options";
 import {
+  contactError,
+  REGISTRATION_CONTACT_ERROR_MESSAGES,
+  type ContactValues,
+} from "@/lib/registration-contact";
+import {
   answersError,
   REGISTRATION_ANSWER_ERROR_MESSAGES,
   toRegistrationQuestion,
@@ -156,6 +161,14 @@ export type EventRegistrant = {
    * refuses an `@` or a URL. It lives on the registration, not on `people`.
    */
   instagram_handle: string | null;
+  /**
+   * The no-Instagram answer (#1647): null where nobody was asked, false where
+   * they gave a handle under the setting, true with the method and detail
+   * where they gave a contact instead. Read like `phone`.
+   */
+  has_no_instagram: boolean | null;
+  preferred_contact_method: string | null;
+  preferred_contact_detail: string | null;
   pronouns: string | null;
   party_size: number;
   notes: string | null;
@@ -588,7 +601,7 @@ export async function listEventRegistrantsAction(
 // `option_counts`, `answers` and `discount_codes` are embeds, not columns of
 // this table (#1407, #1501, #1589).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, instagram_handle, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
+  "id, event_id, name, email, phone, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";
@@ -1010,6 +1023,57 @@ export async function setRegistrationAnswersAction(
     return actionError(
       "server_error",
       "Could not save these answers. Please try again.",
+    );
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * Staff editing a registration's Instagram handle or the contact given in its
+ * place, from the detail sheet (#1647). Validated like registering but never
+ * required: an organizer records what they know, and blank clears it.
+ */
+export async function setRegistrationContactAction(
+  registrationId: string,
+  values: ContactValues,
+): Promise<RegistrantActionResult> {
+  const problem = contactError(values, false);
+  if (problem) return actionError("conflict", problem);
+
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to edit a registration.",
+  );
+  if ("error" in userResult) return fromGuard("unauthenticated", userResult);
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return fromGuard("forbidden", permissionError);
+
+  const { error } = await supabase.rpc("set_registration_contact", {
+    p_registration_id: registrationId,
+    p_instagram_handle: values.hasNoInstagram
+      ? null
+      : values.instagramHandle.trim() || null,
+    p_has_no_instagram: values.hasNoInstagram || null,
+    p_preferred_contact_method: values.hasNoInstagram
+      ? values.method || null
+      : null,
+    p_preferred_contact_detail: values.hasNoInstagram
+      ? values.detail.trim() || null
+      : null,
+  });
+
+  if (error) {
+    if (error.message === "REGISTRATION_NOT_FOUND") {
+      return actionError("conflict", "That registration no longer exists.");
+    }
+    const message = REGISTRATION_CONTACT_ERROR_MESSAGES[error.message];
+    if (message) return actionError("conflict", message);
+    return actionError(
+      "server_error",
+      "Could not save this. Please try again.",
     );
   }
 

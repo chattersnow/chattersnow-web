@@ -22,6 +22,37 @@ export async function getPublicAsksAboutMinors(
 }
 
 /**
+ * Whether the tenant the request host resolves to requires an Instagram handle
+ * or a preferred contact at registration (#1647).
+ *
+ * False on a failed read: off is every tenant's default, and the RPC reads the
+ * setting itself, so a form that does not ask on a tenant that requires it is
+ * refused with a message rather than registering without it.
+ */
+export async function getPublicRequiresInstagram(
+  supabase: SupabaseClient,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("public_registration_settings")
+    .select("requires_instagram")
+    .maybeSingle();
+  if (error || !data) return false;
+  return data.requires_instagram === true;
+}
+
+/**
+ * The current tenant's Instagram requirement (#1647), for the portal switch.
+ * Null when the caller may not change it (events:manage).
+ */
+export async function getRegistrationRequiresInstagram(
+  supabase: SupabaseClient,
+): Promise<boolean | null> {
+  const { data, error } = await supabase.rpc("registration_requires_instagram");
+  if (error || typeof data !== "boolean") return null;
+  return data;
+}
+
+/**
  * The current tenant's setting, for the portal switch (#1416). Null when the
  * caller may not change it (events:manage).
  */

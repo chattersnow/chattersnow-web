@@ -29,7 +29,8 @@ export type IssuedAnswersLink = { token: string; expiresAt: string };
 
 /**
  * Issues a fresh link for a registration, superseding any earlier one. Null
- * where none was issued -- no current questions, a cancelled or made-up
+ * where none was issued -- nothing on the page to change (no current
+ * questions, and no Instagram requirement, #1647), a cancelled or made-up
  * registration, an event that has ended -- or the write failed, which costs
  * the registrant the link and nothing else.
  */
