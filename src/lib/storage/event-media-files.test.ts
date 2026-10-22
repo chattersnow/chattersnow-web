@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  EVENT_MEDIA_SIGNED_URL_TTL_SECONDS,
+  keepSignedUrls,
   EVENT_MEDIA_MAX_BYTES,
   eventMediaDownloadUrl,
   eventMediaExpiresSoon,
@@ -172,5 +174,56 @@ describe("upload link originals (#1620)", () => {
 
   test("the thumbnail sits beside the original", () => {
     expect(eventMediaThumbPath("t/e/abc.png")).toBe("t/e/abc-thumb.jpg");
+  });
+});
+
+describe("keepSignedUrls", () => {
+  const hour = EVENT_MEDIA_SIGNED_URL_TTL_SECONDS * 1000;
+  const minute = 60 * 1000;
+  const row = (
+    id: string,
+    token: string,
+  ): {
+    id: string;
+    url: string | null;
+    display_url: string | null;
+    download_url: string | null;
+  } => ({
+    id,
+    url: `https://s.test/${id}?token=${token}`,
+    display_url: `https://s.test/${id}-thumb?token=${token}`,
+    download_url: `https://s.test/${id}?token=${token}&download=${id}`,
+  });
+
+  test("a row still on screen keeps its URLs; a new one takes the fresh ones", () => {
+    const held = [{ ...row("a", "old"), signedAt: 0 }];
+    const merged = keepSignedUrls(
+      held,
+      [row("b", "new"), row("a", "new")],
+      5 * minute,
+      5 * minute,
+    );
+    expect(merged).toEqual([
+      { ...row("b", "new"), signedAt: 5 * minute },
+      { ...row("a", "old"), signedAt: 0 },
+    ]);
+  });
+
+  test("a URL with under ten minutes left is replaced", () => {
+    const held = [{ ...row("a", "old"), signedAt: 0 }];
+    const now = hour - 9 * minute;
+    expect(keepSignedUrls(held, [row("a", "new")], now, now)).toEqual([
+      { ...row("a", "new"), signedAt: now },
+    ]);
+  });
+
+  test("a row that failed to sign is signed again; a deleted one is dropped", () => {
+    const held = [
+      { ...row("a", "old"), url: null, signedAt: 0 },
+      { ...row("gone", "old"), signedAt: 0 },
+    ];
+    expect(keepSignedUrls(held, [row("a", "new")], 1, 1)).toEqual([
+      { ...row("a", "new"), signedAt: 1 },
+    ]);
   });
 });

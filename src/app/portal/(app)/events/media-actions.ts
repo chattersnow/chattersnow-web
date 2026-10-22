@@ -11,6 +11,7 @@ import {
 import {
   EVENT_MEDIA_BUCKET,
   EVENT_MEDIA_RETENTION_PRESETS,
+  EVENT_MEDIA_SIGNED_URL_TTL_SECONDS,
   eventMediaDownloadUrl,
   eventMediaPath,
   planEventMediaFile,
@@ -58,13 +59,6 @@ export type EventMediaState = {
   items: EventMediaRow[];
 };
 
-/**
- * An hour, as for documents (#1489): long enough to look through an event's
- * photos or watch a clip, short enough that a copied link is not a way to
- * hand footage on. Never stored; every load signs afresh.
- */
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
-
 /** More than a phone's camera roll for one event is a second batch. */
 const MAX_FILES_PER_BATCH = 100;
 
@@ -75,7 +69,8 @@ const MAX_FILES_PER_BATCH = 100;
  *
  * Signed on the reader's own client, so the bucket's select policy decides
  * whether a path resolves. A path that fails to sign keeps its row with a null
- * URL: one missing object must not blank the gallery.
+ * URL: one missing object must not blank the gallery. Every load signs
+ * afresh; the tab keeps what it already holds while it is still good (#1653).
  */
 export async function getEventMediaAction(
   eventId: string,
@@ -123,7 +118,7 @@ export async function getEventMediaAction(
             ? [row.storage_path, row.thumb_path]
             : [row.storage_path],
         ),
-        SIGNED_URL_TTL_SECONDS,
+        EVENT_MEDIA_SIGNED_URL_TTL_SECONDS,
       );
     if (error) console.error("Could not sign event media URLs", error);
     for (const signed of data ?? []) {

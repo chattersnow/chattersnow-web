@@ -211,6 +211,58 @@ export function eventMediaDownloadUrl(
 }
 
 /**
+ * How long a signed read URL lasts: an hour, as for documents (#1489). Long
+ * enough to look through an event's photos or watch a clip, short enough that
+ * a copied link is not a way to hand footage on. Never stored.
+ */
+export const EVENT_MEDIA_SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+/**
+ * A URL held with less than this left is signed afresh on the next load, so
+ * the lightbox and downloads never reach for one that has run out.
+ */
+export const EVENT_MEDIA_URL_RENEW_MS = 10 * 60 * 1000;
+
+type SignedMediaUrls = {
+  id: string;
+  url: string | null;
+  display_url: string | null;
+  download_url: string | null;
+};
+
+/**
+ * Merges a fresh load into the rows already on screen (#1653). Every load
+ * signs every path again, and a new signature is a new `src`, so the browser
+ * would fetch each thumbnail again; a row whose URLs still have
+ * EVENT_MEDIA_URL_RENEW_MS to run keeps them instead. `next` decides which
+ * rows exist and everything else about them. `signedAt` is when a row's URLs
+ * were signed: for the fresh ones, when the request went out.
+ */
+export function keepSignedUrls<T extends SignedMediaUrls>(
+  held: readonly (T & { signedAt: number })[],
+  next: readonly T[],
+  signedAt: number,
+  now: number = Date.now(),
+): (T & { signedAt: number })[] {
+  const byId = new Map(held.map((row) => [row.id, row]));
+  return next.map((row) => {
+    const prior = byId.get(row.id);
+    const stillGood =
+      prior?.url &&
+      prior.signedAt + EVENT_MEDIA_SIGNED_URL_TTL_SECONDS * 1000 - now >
+        EVENT_MEDIA_URL_RENEW_MS;
+    if (!prior || !stillGood) return { ...row, signedAt };
+    return {
+      ...row,
+      url: prior.url,
+      display_url: prior.display_url,
+      download_url: prior.download_url,
+      signedAt: prior.signedAt,
+    };
+  });
+}
+
+/**
  * How long a tenant may keep event media after the event (#1608): the periods
  * the Media sheet offers. `set_event_media_retention_days()` takes any whole
  * number from 30 to 3650; null is "keep indefinitely", which is also where
