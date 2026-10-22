@@ -408,7 +408,7 @@ describe("MediaTab", () => {
       is_public: false,
     });
     state = stateWith({ canDelete: true, items: [photo, video] });
-    renderTab();
+    renderTab("e1");
     await userEvent.click(
       await screen.findByRole("button", {
         name: "Hide a.jpg from the public site",
@@ -425,7 +425,7 @@ describe("MediaTab", () => {
     const a = item({ original_filename: "a.jpg" });
     const b = item({ original_filename: "b.jpg" });
     state = stateWith({ canDelete: true, items: [a, b] });
-    renderTab();
+    renderTab("e1");
     expect(screen.queryByRole("button", { name: /Hide selected/ })).toBeNull();
     await userEvent.click(
       await screen.findByRole("button", { name: "Select all" }),
