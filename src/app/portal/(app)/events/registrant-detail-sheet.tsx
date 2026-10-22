@@ -5,6 +5,7 @@ import { ArrowLeft, Ban, Check, Snowflake, Undo2 } from "lucide-react";
 import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantMessageActions } from "./registrant-message-actions";
 import { RegistrantAnswers } from "./registrant-answers";
+import { RegistrantContact } from "./registrant-contact";
 import { RegistrantBadges } from "./registrant-badges";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,6 @@ import {
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
 import { formatDateTime } from "@/lib/format";
-import { instagramUrl } from "@/components/instagram-link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -258,20 +258,13 @@ export function RegistrantDetailSheet({
             <ReadOnlyField label="Phone" htmlFor="registrant-phone">
               {registrant.phone || "—"}
             </ReadOnlyField>
-            <ReadOnlyField label="Instagram" htmlFor="registrant-instagram">
-              {registrant.instagram_handle ? (
-                <a
-                  href={instagramUrl(registrant.instagram_handle)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4"
-                >
-                  @{registrant.instagram_handle}
-                </a>
-              ) : (
-                "—"
-              )}
-            </ReadOnlyField>
+            {/* #1647. The handle, or the contact given in its place, and
+                where staff change either. */}
+            <RegistrantContact
+              registrant={registrant}
+              canManage={canManage}
+              onSaved={onAnswersSaved}
+            />
             <ReadOnlyField label="Party size" htmlFor="registrant-party-size">
               {registrant.party_size}
             </ReadOnlyField>

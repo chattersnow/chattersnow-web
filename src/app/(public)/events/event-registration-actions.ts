@@ -18,6 +18,7 @@ import {
 import { PRONOUNS_TOO_LONG_ERROR } from "@/lib/pronouns";
 import { REGISTRATION_OPTION_ERROR_MESSAGES } from "@/lib/registration-options";
 import { REGISTRATION_ANSWER_ERROR_MESSAGES } from "@/lib/registration-questions";
+import { REGISTRATION_CONTACT_ERROR_MESSAGES } from "@/lib/registration-contact";
 import { parseEventRegistrationForm } from "./event-registration-form";
 import { publicEventAnswersPath, publicEventPath } from "./event-path";
 import {
@@ -42,8 +43,9 @@ export type RegisterForEventResult =
       registrationId: string;
       /**
        * The registrant's own answers link (#1591), relative and token
-       * included, for the success screen. Null where the event asks no
-       * questions or none could be issued.
+       * included, for the success screen. Null where there is nothing on it
+       * to change -- no questions, and no Instagram requirement (#1647) --
+       * or none could be issued.
        */
       answersPath: string | null;
     };
@@ -83,6 +85,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   ...REGISTRATION_OPTION_ERROR_MESSAGES,
   // #1501
   ...REGISTRATION_ANSWER_ERROR_MESSAGES,
+  // #1647. The form checks these before sending, so reaching this means a
+  // client that did not.
+  ...REGISTRATION_CONTACT_ERROR_MESSAGES,
 };
 
 // Public, unauthenticated action: anyone can register for a published event
@@ -116,6 +121,13 @@ export async function registerForEventAction(
     p_honeypot: honeypot,
     p_ip_address: ipAddress,
     p_instagram_handle: parsed.data.instagram_handle,
+    // #1647. `undefined` unless the box was ticked; the RPC ignores all three
+    // on a tenant that does not require a handle.
+    p_has_no_instagram: parsed.data.has_no_instagram ?? undefined,
+    p_preferred_contact_method:
+      parsed.data.preferred_contact_method ?? undefined,
+    p_preferred_contact_detail:
+      parsed.data.preferred_contact_detail ?? undefined,
     p_pronouns: parsed.data.pronouns,
     // #1259. Sent for every registrant, whatever the email matches -- see the
     // RPC's comment for why asking selectively would be an enumeration oracle.

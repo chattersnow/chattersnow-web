@@ -24,6 +24,7 @@ import {
   renderVolunteerApplicationEmail,
 } from "@/lib/notifications/submission-emails";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
+import { formatRegistrationContact } from "@/lib/registration-contact";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
 import type { IssuedAnswersLink } from "@/lib/notifications/registration-answer-self-links";
 import { publicEventAnswersPath } from "@/app/(public)/events/event-path";
@@ -955,6 +956,10 @@ type EventRegistrationRow = {
   name: string | null;
   email: string | null;
   party_size: number | null;
+  instagram_handle: string | null;
+  has_no_instagram: boolean | null;
+  preferred_contact_method: string | null;
+  preferred_contact_detail: string | null;
 };
 
 type ConfirmationEventRow = {
@@ -967,7 +972,7 @@ type ConfirmationEventRow = {
 };
 
 const EVENT_REGISTRATION_SELECT =
-  "id, tenant_id, event_id, person_id, name, email, party_size";
+  "id, tenant_id, event_id, person_id, name, email, party_size, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail";
 
 /**
  * The registrant's own confirmation (#1068), shaped like the gear requester's
@@ -1162,6 +1167,12 @@ export async function sendEventRegistrationConfirmation(
           ),
           note: registered.confirmation_note,
           sharedCode: sharedCode.data ?? null,
+          // #1647. Only where it was asked: null on every tenant that does
+          // not require a handle, which renders no row.
+          contact:
+            data.has_no_instagram === null
+              ? null
+              : formatRegistrationContact(data),
           answersLink: options.answersLink
             ? {
                 url: `${mail.origin.replace(/\/+$/, "")}${publicEventAnswersPath(data.event_id, options.answersLink.token)}`,

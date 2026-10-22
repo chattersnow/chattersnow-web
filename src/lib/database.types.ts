@@ -3537,6 +3537,7 @@ export type Database = {
           emergency_contact_name: string | null;
           emergency_contact_phone: string | null;
           event_id: string;
+          has_no_instagram: boolean | null;
           id: string;
           instagram_handle: string | null;
           name: string;
@@ -3548,6 +3549,8 @@ export type Database = {
           photo_consent: boolean | null;
           photo_consent_at: string | null;
           photo_consent_text: string | null;
+          preferred_contact_detail: string | null;
+          preferred_contact_method: string | null;
           pronouns: string | null;
           riding_discipline_at_event: string | null;
           ski_experience_level_at_event: string | null;
@@ -3572,6 +3575,7 @@ export type Database = {
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           event_id: string;
+          has_no_instagram?: boolean | null;
           id?: string;
           instagram_handle?: string | null;
           name: string;
@@ -3583,6 +3587,8 @@ export type Database = {
           photo_consent?: boolean | null;
           photo_consent_at?: string | null;
           photo_consent_text?: string | null;
+          preferred_contact_detail?: string | null;
+          preferred_contact_method?: string | null;
           pronouns?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
@@ -3607,6 +3613,7 @@ export type Database = {
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           event_id?: string;
+          has_no_instagram?: boolean | null;
           id?: string;
           instagram_handle?: string | null;
           name?: string;
@@ -3618,6 +3625,8 @@ export type Database = {
           photo_consent?: boolean | null;
           photo_consent_at?: string | null;
           photo_consent_text?: string | null;
+          preferred_contact_detail?: string | null;
+          preferred_contact_method?: string | null;
           pronouns?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
@@ -10354,6 +10363,7 @@ export type Database = {
       public_registration_settings: {
         Row: {
           asks_about_minors: boolean | null;
+          requires_instagram: boolean | null;
         };
         Relationships: [];
       };
@@ -11660,6 +11670,17 @@ export type Database = {
         }[];
       };
       my_public_person_id: { Args: never; Returns: string };
+      my_registration_contact: {
+        Args: { p_registration_id: string };
+        Returns: {
+          editable: boolean;
+          has_no_instagram: boolean;
+          instagram_handle: string;
+          preferred_contact_detail: string;
+          preferred_contact_method: string;
+          requires_instagram: boolean;
+        }[];
+      };
       my_registration_option_counts: {
         Args: { p_registration_id: string };
         Returns: {
@@ -12073,6 +12094,7 @@ export type Database = {
           p_emergency_contact_name?: string;
           p_emergency_contact_phone?: string;
           p_event_id: string;
+          p_has_no_instagram?: boolean;
           p_honeypot?: string;
           p_instagram_handle?: string;
           p_ip_address?: unknown;
@@ -12083,6 +12105,8 @@ export type Database = {
           p_party_size: number;
           p_phone: string;
           p_photo_consent?: boolean;
+          p_preferred_contact_detail?: string;
+          p_preferred_contact_method?: string;
           p_preferred_mountain?: string;
           p_pronouns?: string;
           p_riding_discipline?: string;
@@ -12103,6 +12127,7 @@ export type Database = {
           p_emergency_contact_name?: string;
           p_emergency_contact_phone?: string;
           p_event_id: string;
+          p_has_no_instagram?: boolean;
           p_instagram_handle?: string;
           p_ip_address?: unknown;
           p_notes?: string;
@@ -12111,6 +12136,8 @@ export type Database = {
           p_party_size: number;
           p_phone?: string;
           p_photo_consent?: boolean;
+          p_preferred_contact_detail?: string;
+          p_preferred_contact_method?: string;
           p_preferred_mountain?: string;
           p_pronouns?: string;
           p_riding_discipline?: string;
@@ -12126,6 +12153,7 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: Json;
       };
+      registration_requires_instagram: { Args: never; Returns: boolean };
       reject_event_expense: {
         Args: { p_id: string; p_reason: string };
         Returns: {
@@ -12406,6 +12434,23 @@ export type Database = {
           request_id: string;
           tenant_id: string;
         }[];
+      };
+      resolve_registration_contact: {
+        Args: {
+          p_asked: boolean;
+          p_detail: string;
+          p_has_no_instagram: boolean;
+          p_instagram_handle: string;
+          p_method: string;
+          p_required: boolean;
+        };
+        Returns: Database["public"]["CompositeTypes"]["registration_contact"];
+        SetofOptions: {
+          from: "*";
+          to: "registration_contact";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       resolve_tenant_id_from_host: {
         Args: { p_host: string };
@@ -12731,6 +12776,16 @@ export type Database = {
         Args: { p_answers: Json; p_registration_id: string };
         Returns: undefined;
       };
+      set_my_registration_contact: {
+        Args: {
+          p_has_no_instagram: boolean;
+          p_instagram_handle: string;
+          p_preferred_contact_detail: string;
+          p_preferred_contact_method: string;
+          p_registration_id: string;
+        };
+        Returns: undefined;
+      };
       set_my_registration_option_counts: {
         Args: { p_counts: Json; p_registration_id: string };
         Returns: undefined;
@@ -12777,6 +12832,20 @@ export type Database = {
         Returns: undefined;
       };
       set_registration_asks_about_minors: {
+        Args: { p_enabled: boolean };
+        Returns: undefined;
+      };
+      set_registration_contact: {
+        Args: {
+          p_has_no_instagram: boolean;
+          p_instagram_handle: string;
+          p_preferred_contact_detail: string;
+          p_preferred_contact_method: string;
+          p_registration_id: string;
+        };
+        Returns: undefined;
+      };
+      set_registration_requires_instagram: {
         Args: { p_enabled: boolean };
         Returns: undefined;
       };
@@ -12900,6 +12969,17 @@ export type Database = {
         Args: { p_answers: Json; p_ip_address: unknown; p_token_hash: string };
         Returns: undefined;
       };
+      submit_registration_contact_by_token: {
+        Args: {
+          p_has_no_instagram: boolean;
+          p_instagram_handle: string;
+          p_ip_address: unknown;
+          p_preferred_contact_detail: string;
+          p_preferred_contact_method: string;
+          p_token_hash: string;
+        };
+        Returns: undefined;
+      };
       submit_volunteer_application: {
         Args: {
           p_availability: string;
@@ -12961,6 +13041,10 @@ export type Database = {
       };
       tenant_module_enabled: {
         Args: { p_module_key: string };
+        Returns: boolean;
+      };
+      tenant_requires_instagram: {
+        Args: { p_tenant_id: string };
         Returns: boolean;
       };
       trigger_retention_run: { Args: { p_dry_run?: boolean }; Returns: string };
@@ -13049,6 +13133,12 @@ export type Database = {
         consent: boolean | null;
         consented_at: string | null;
         consent_text: string | null;
+      };
+      registration_contact: {
+        instagram_handle: string | null;
+        has_no_instagram: boolean | null;
+        preferred_contact_method: string | null;
+        preferred_contact_detail: string | null;
       };
     };
   };

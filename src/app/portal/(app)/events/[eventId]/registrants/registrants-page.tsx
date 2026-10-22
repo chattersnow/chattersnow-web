@@ -31,6 +31,7 @@ import {
 import {
   registrantAnswersCsvHref,
   registrationAnswerColumns,
+  registrantInstagramColumns,
 } from "../../registrants-tab";
 import { useRegistrantRowActions } from "../../use-registrant-row-actions";
 import { levelTotal, riderStats, type LevelCounts } from "../../rider-stats";
@@ -388,6 +389,7 @@ export function RegistrantsPage({
           </>
         ),
       },
+      ...registrantInstagramColumns(list, canManage),
       {
         key: "party_size",
         label: "Party",
@@ -486,6 +488,7 @@ export function RegistrantsPage({
         : []),
     ],
     [
+      list,
       registrationOptions,
       questions,
       view.columns,

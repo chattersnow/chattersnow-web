@@ -9,6 +9,7 @@ import {
   toRegistrationQuestion,
   type RegistrationQuestion,
 } from "@/lib/registration-questions";
+import { RegistrationContactCard } from "@/app/(public)/events/registration-contact-card";
 import { PhotoConsentCard } from "./photo-consent-card";
 import { RegistrationAnswersCard } from "./registration-answers-card";
 import { RegistrationOptionsCard } from "./registration-options-card";
@@ -118,6 +119,20 @@ export default async function MyRegistrationPage({
         editable={answerRows[0].editable}
       />
     ) : null;
+  // #1647. The handle or the contact in its place, where the organization
+  // requires one. Same person resolution, so somebody else's id renders
+  // nothing.
+  const { data: contactRows } = await supabase.rpc("my_registration_contact", {
+    p_registration_id: registrationId,
+  });
+  const contact = contactRows?.[0] ?? null;
+  const contactCard = contact?.requires_instagram ? (
+    <RegistrationContactCard
+      target={{ kind: "my", registrationId }}
+      contact={contact}
+      editable={contact.editable}
+    />
+  ) : null;
   const { content } = await getPublicSite(supabase);
 
   return (
@@ -127,8 +142,9 @@ export default async function MyRegistrationPage({
       record={{ kind: "registration", id: registrationId }}
       personId={personId}
       after={
-        optionsCard || answersCard || photo?.asked ? (
+        contactCard || optionsCard || answersCard || photo?.asked ? (
           <div className="flex flex-col gap-6">
+            {contactCard}
             {optionsCard}
             {answersCard}
             {photo?.asked ? (

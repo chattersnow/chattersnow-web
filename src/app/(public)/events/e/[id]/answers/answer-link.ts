@@ -9,6 +9,7 @@ import {
   toRegistrationQuestion,
   type RegistrationQuestion,
 } from "@/lib/registration-questions";
+import type { RegistrationContact } from "@/lib/registration-contact";
 
 /** What a live answers link opens (#1502). Nothing about the registrant but a first name. */
 export type AnswerLink = {
@@ -19,6 +20,12 @@ export type AnswerLink = {
   questions: RegistrationQuestion[];
   /** The raw stored values, keyed as `answerRowsToAnswers()` reads them. */
   answerRows: { question_id: string; value: unknown }[];
+  /**
+   * The handle or no-Instagram contact on file (#1647), or null where the
+   * organization does not require one. Never carries the detail: the RPC
+   * leaves the number or address out, so a forwarded link cannot show it.
+   */
+  contact: RegistrationContact | null;
 };
 
 export type AnswerLinkLookup =
@@ -33,6 +40,11 @@ type RawLink = {
     question_id: string;
     value: unknown;
   })[];
+  contact: {
+    instagram_handle: string | null;
+    has_no_instagram: boolean | null;
+    preferred_contact_method: string | null;
+  } | null;
 };
 
 /**
@@ -80,6 +92,9 @@ export async function lookUpAnswerLink(
         question_id: row.question_id,
         value: row.value,
       })),
+      contact: raw.contact
+        ? { ...raw.contact, preferred_contact_detail: null }
+        : null,
     },
   };
 }

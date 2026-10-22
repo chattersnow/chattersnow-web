@@ -106,7 +106,27 @@ export const eventRegistrationSchema = z
       .meta({ description: "How many people are coming, including this one." }),
     notes: optionalText(2000),
     instagram_handle: optionalText(30).meta({
-      description: "Without the @; letters, numbers, dots and underscores.",
+      description:
+        "Without the @; letters, numbers, dots and underscores. Required where the organization requires an Instagram handle, unless has_no_instagram is true.",
+    }),
+    // #1647. A behaviour change for one kind of organization only: where it
+    // requires a handle, a registration with neither a handle nor these three
+    // is refused with INSTAGRAM_OR_CONTACT_REQUIRED. Everywhere else they are
+    // ignored and stored as null, so existing callers are unaffected.
+    has_no_instagram: z.boolean().optional().meta({
+      description:
+        "That the person has no Instagram. Where the organization requires a handle, send this with preferred_contact_method instead of instagram_handle. Ignored by organizations that do not.",
+    }),
+    preferred_contact_method: z
+      .enum(["text", "call", "email", "whatsapp", "other"])
+      .optional()
+      .meta({
+        description:
+          "How a person with no Instagram would like to be reached. Required with has_no_instagram.",
+      }),
+    preferred_contact_detail: optionalText(200).meta({
+      description:
+        "The number or address for preferred_contact_method. Required with it, except for email, where omitting it means the email given above.",
     }),
     // #685, and every one of them optional on purpose. This contract predates
     // the question, so a caller that says nothing is recorded as never having

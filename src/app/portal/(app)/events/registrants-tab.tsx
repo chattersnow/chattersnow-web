@@ -31,6 +31,11 @@ import {
 } from "@/lib/attended-before";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { formatOptionCounts } from "@/lib/registration-options";
+import {
+  formatRegistrationContact,
+  preferredContactMethodShort,
+} from "@/lib/registration-contact";
+import { instagramUrl } from "@/components/instagram-link";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import {
   answerCellText,
@@ -88,6 +93,76 @@ export function registrantAnswersCsvHref(eventId: string): string {
 /** The registrants page (#1511), which the card's "View all" opens. */
 export function registrantsPageHref(eventId: string): string {
   return `/portal/events/${encodeURIComponent(eventId)}/registrants`;
+}
+
+/**
+ * #1647. The Instagram handle, or "No IG · Text" for a registrant who gave a
+ * preferred contact instead -- with the number or address in a tooltip, for
+ * a reader with `events: manage` only. Nothing at all until somebody has a
+ * handle or that answer: a column of dashes costs width and says nothing.
+ */
+export function registrantInstagramColumns(
+  list: readonly EventRegistrant[],
+  canManage: boolean,
+): PortalDataTableColumn<EventRegistrant>[] {
+  if (
+    !list.some(
+      (registrant) =>
+        registrant.instagram_handle || registrant.has_no_instagram,
+    )
+  ) {
+    return [];
+  }
+  return [
+    {
+      key: "instagram",
+      label: "Instagram",
+      sortValue: (registrant) =>
+        registrant.instagram_handle ??
+        (registrant.has_no_instagram ? "~" : null),
+      hideBelow: "lg",
+      cellClassName: "app-muted whitespace-nowrap",
+      render: (registrant) => {
+        if (registrant.has_no_instagram) {
+          const method = preferredContactMethodShort(
+            registrant.preferred_contact_method,
+          );
+          const label = method ? `No IG · ${method}` : "No IG";
+          const detail = canManage
+            ? formatRegistrationContact(registrant, {
+                ownEmail: "their registration email",
+              })
+            : null;
+          return detail ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="cursor-help underline decoration-dotted underline-offset-4" />
+                }
+              >
+                {label}
+              </TooltipTrigger>
+              <TooltipContent>{detail}</TooltipContent>
+            </Tooltip>
+          ) : (
+            label
+          );
+        }
+        return registrant.instagram_handle ? (
+          <a
+            href={instagramUrl(registrant.instagram_handle)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4"
+          >
+            @{registrant.instagram_handle}
+          </a>
+        ) : (
+          "—"
+        );
+      },
+    },
+  ];
 }
 
 /**
@@ -310,6 +385,7 @@ export function RegistrantsTab({
           </>
         ),
       },
+      ...registrantInstagramColumns(list, canManage),
       {
         key: "party_size",
         label: "Party size",
@@ -494,6 +570,7 @@ export function RegistrantsTab({
       } satisfies PortalDataTableColumn<EventRegistrant>,
     ],
     [
+      list,
       registrationOptions,
       registrationQuestions,
       showAttendedBefore,

@@ -6,6 +6,7 @@ import { answerRowsToAnswers } from "@/lib/registration-questions";
 import { ANSWER_LINK_INVALID } from "@/lib/registration-answer-requests";
 import { lookUpAnswerLink } from "./answer-link";
 import { AnswersForm } from "./answers-form";
+import { RegistrationContactCard } from "@/app/(public)/events/registration-contact-card";
 
 export const metadata: Metadata = {
   title: "Your registration answers",
@@ -62,8 +63,18 @@ export default async function RegistrationAnswersPage({
           {link.firstName ? `Hi ${link.firstName}, ` : ""}
           {link.questions.length > 0
             ? "here are this event's questions. Answer what you can and save — you can come back to this link to change an answer until the event ends."
-            : "this event has no questions to answer any more. There's nothing to do here."}
+            : link.contact
+              ? "you can change how we reach you here until the event ends."
+              : "this event has no questions to answer any more. There's nothing to do here."}
         </p>
+        {/* #1647. Only the cards that apply: an event with no questions on a
+            tenant that requires a handle shows this one alone. */}
+        {link.contact ? (
+          <RegistrationContactCard
+            target={{ kind: "link", token }}
+            contact={link.contact}
+          />
+        ) : null}
         {link.questions.length > 0 ? (
           <AnswersForm
             token={token}

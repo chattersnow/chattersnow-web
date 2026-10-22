@@ -17,7 +17,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite } from "@/lib/public-site";
 import type { PublicRiderProfile } from "@/lib/rider-profile";
 import { getPublicRiderProfile } from "@/lib/rider-profile-settings";
-import { getPublicAsksAboutMinors } from "@/lib/registration-settings";
+import {
+  getPublicAsksAboutMinors,
+  getPublicRequiresInstagram,
+} from "@/lib/registration-settings";
 import { loadEventWaiver } from "./event-waiver-data";
 import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
@@ -88,6 +91,7 @@ function EventDetailBody({
   waiver,
   waiverBlock,
   asksAboutMinors,
+  requiresInstagram,
   minorAccompaniment,
   photoConsent,
   registrationOptions,
@@ -113,6 +117,8 @@ function EventDetailBody({
    * written none, which is the state every tenant starts in.
    */
   asksAboutMinors: boolean;
+  /** Whether a handle, or a contact in its place, is required (#1647). */
+  requiresInstagram: boolean;
   minorAccompaniment: string[];
   /**
    * This organization's photos-and-video paragraphs (#599, #1376), shown as a
@@ -216,6 +222,7 @@ function EventDetailBody({
                   waiverBlock={waiverBlock}
                   waiverOnFile={viewer.waiverOnFile}
                   asksAboutMinors={asksAboutMinors}
+                  requiresInstagram={requiresInstagram}
                   adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
@@ -235,6 +242,7 @@ function EventDetailBody({
                   waiver={waiver}
                   waiverBlock={waiverBlock}
                   asksAboutMinors={asksAboutMinors}
+                  requiresInstagram={requiresInstagram}
                   adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
@@ -312,6 +320,10 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
     event.registration_enabled && !event.adults_only
       ? await getPublicAsksAboutMinors(supabase)
       : !event.adults_only;
+  // #1647. Only where there is a registration form, like the setting above.
+  const requiresInstagram = event.registration_enabled
+    ? await getPublicRequiresInstagram(supabase)
+    : false;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -411,6 +423,7 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             }
             waiverBlock={waiverBlock}
             asksAboutMinors={asksAboutMinors}
+            requiresInstagram={requiresInstagram}
             minorAccompaniment={minorAccompaniment}
             photoConsent={photoConsent}
             registrationOptions={registrationOptions}

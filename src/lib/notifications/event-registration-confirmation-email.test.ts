@@ -151,6 +151,27 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     );
   });
 
+  test("says how the organization will reach them (#1647)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      contact: "Text message · 555-0142",
+    });
+    expect(text).toContain("  How we'll reach you: Text message · 555-0142");
+    expect(html).toContain(
+      "<strong>How we&#39;ll reach you:</strong> Text message · 555-0142",
+    );
+  });
+
+  test("a registration nobody asked renders exactly as before (#1647)", () => {
+    const before = renderEventRegistrationConfirmationEmail(base);
+    const after = renderEventRegistrationConfirmationEmail({
+      ...base,
+      contact: null,
+    });
+    expect(after.text).toBe(before.text);
+    expect(after.html).toBe(before.html);
+  });
+
   test("a shared code with no PIN is the code alone (#1589)", () => {
     const { text } = renderEventRegistrationConfirmationEmail({
       ...base,
