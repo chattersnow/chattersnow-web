@@ -22,6 +22,9 @@ function source(overrides: Partial<OpsReportSource> = {}): OpsReportSource {
     shiftCoverageGaps: [],
     newContactMessages: 0,
     newVolunteerApplications: 0,
+    // Everything new is unclaimed unless a test says otherwise.
+    unclaimedContactMessages: overrides.newContactMessages ?? 0,
+    unclaimedVolunteerApplications: overrides.newVolunteerApplications ?? 0,
     inKindDonations: 0,
     monetaryDonations: { count: 0, total: 0 },
     ...overrides,
@@ -202,6 +205,23 @@ describe("buildOpsReport", () => {
       "1 volunteer application",
     ]);
     expect(report?.sections[0].title).toBe("New since the last report");
+  });
+
+  test("says how many new arrivals are unclaimed, as the ops inbox does", () => {
+    const report = build({
+      newContactMessages: 3,
+      unclaimedContactMessages: 1,
+      newVolunteerApplications: 2,
+    });
+    expect(labels(report)).toEqual([
+      "3 contact messages (1 unclaimed)",
+      "2 volunteer applications",
+    ]);
+    const lines = report?.sections[0].lines ?? [];
+    expect(lines[0].href).toBe(
+      "/portal/communications?status=new&claimed=none",
+    );
+    expect(lines[1].href).toBe("/portal/volunteers/applications?status=new");
   });
 
   test("monetary donations carry their total, gear donations a count", () => {

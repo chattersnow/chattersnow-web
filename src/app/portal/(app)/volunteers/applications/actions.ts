@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { claimClearFor } from "@/lib/queue-claims";
 import { checkUser } from "@/lib/auth/current-user";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -55,7 +56,9 @@ export async function updateVolunteerApplicationStatusAction(
 
   const { error } = await supabase
     .from("volunteer_applications")
-    .update({ status })
+    // Placing, declining or closing an application resolves it, which clears
+    // its claim in the same write (#1668).
+    .update({ status, ...claimClearFor("volunteer_applications", status) })
     .eq("id", id);
 
   if (error) {

@@ -5,6 +5,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkPermission } from "@/lib/auth/permissions";
+import { claimClearFor } from "@/lib/queue-claims";
 import { checkUser } from "@/lib/auth/current-user";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { sendStaffMessage } from "@/lib/notifications/staff-message";
@@ -89,6 +90,8 @@ export async function updateArtworkSubmissionStatusAction(
       // narrower -- when a person last made a call on the piece.
       reviewed_at: new Date().toISOString(),
       reviewed_by: guard.user.id,
+      // Approving or rejecting resolves the piece and clears its claim (#1668).
+      ...claimClearFor("artwork_submissions", status),
     })
     .eq("id", id);
 

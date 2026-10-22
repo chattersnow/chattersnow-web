@@ -13,6 +13,7 @@ import {
 } from "@/lib/conduct";
 import { getOrgTimeZone } from "@/lib/org-timezone";
 import { todayInZone } from "@/lib/time";
+import { withUnclaimedFilter, withUnclaimedSuffix } from "@/lib/queue-claims";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
 
 /**
@@ -249,6 +250,41 @@ export async function getCalendarCoverageReminderSummary(
 
 type TodaysEventRow = EventWindow & { id: string; name: string };
 
+type QueueCounts = { total: number; unclaimed: number };
+
+/** Items waiting in one queue, and how many of them nobody has claimed (#1668). */
+async function countQueue(
+  supabase: SupabaseClient,
+  table: string,
+  status: string,
+): Promise<QueueCounts> {
+  const waiting = () =>
+    supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .eq("status", status);
+  const [all, unclaimed] = await Promise.all([
+    waiting(),
+    waiting().is("claimed_by_person_id", null),
+  ]);
+  return { total: all.count ?? 0, unclaimed: unclaimed.count ?? 0 };
+}
+
+function queueItem(
+  key: string,
+  label: string,
+  href: string,
+  { total, unclaimed }: QueueCounts,
+): PendingApprovalItem {
+  return {
+    key,
+    label: withUnclaimedSuffix(label, total, unclaimed),
+    count: total,
+    href: withUnclaimedFilter(href, total, unclaimed),
+    severity: "info",
+  };
+}
+
 /**
  * Ops-inbox items (issue #173): new volunteer applications, new contact
  * messages, and event registrations still awaiting check-in for events
@@ -265,6 +301,10 @@ type TodaysEventRow = EventWindow & { id: string; name: string };
  * that event's Registrants tab -- a single item pointing at the generic
  * events list forced staff to hunt for the right event themselves, even
  * though the query already knows exactly which one(s) need attention.
+ *
+ * Each queue also says how many of its items nobody has claimed (#1668), and
+ * its link narrows to those (`claimed=none`) when some are claimed. Check-ins
+ * are worked at the door, not claimed, and keep their plain count.
  */
 export async function getOpsInboxSummary(
   supabase: SupabaseClient,
@@ -285,18 +325,16 @@ export async function getOpsInboxSummary(
   // it -- so unlike a reserved item, which stays reserved for as long as the
   // hold does, the count actually goes down as the queue is worked.
   if (options.canSeeGearRequests) {
-    const { count } = await supabase
-      .from("gear_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "gear_requests_new",
-        label: "New item requests",
-        count: count ?? 0,
-        href: "/portal/inventory/requests?status=new",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "gear_requests", "new");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "gear_requests_new",
+          "New item requests",
+          "/portal/inventory/requests?status=new",
+          counts,
+        ),
+      );
     }
   }
 
@@ -306,18 +344,16 @@ export async function getOpsInboxSummary(
   // constituent_accounts module gate with it -- so on a tenant without the
   // area this is zero for everyone rather than needing a check of its own.
   if (options.canSeePersonClaims) {
-    const { count } = await supabase
-      .from("person_claims")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "person_claims_pending",
-        label: "Account claims",
-        count: count ?? 0,
-        href: "/portal/people/claims",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "person_claims", "pending");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "person_claims_pending",
+          "Account claims",
+          "/portal/people/claims",
+          counts,
+        ),
+      );
     }
   }
 
@@ -327,69 +363,73 @@ export async function getOpsInboxSummary(
   // scoping like the rest: the select policy on volunteer_hour_submissions
   // admits volunteers:view in the caller's own tenant.
   if (options.canSeeVolunteerHourSubmissions) {
-    const { count } = await supabase
-      .from("volunteer_hour_submissions")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "volunteer_hour_submissions_pending",
-        label: "Self-logged hours",
-        count: count ?? 0,
-        href: "/portal/volunteers/participation",
-        severity: "info",
-      });
+    const counts = await countQueue(
+      supabase,
+      "volunteer_hour_submissions",
+      "pending",
+    );
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "volunteer_hour_submissions_pending",
+          "Self-logged hours",
+          "/portal/volunteers/participation",
+          counts,
+        ),
+      );
     }
   }
 
   if (options.canSeeVolunteerApplications) {
-    const { count } = await supabase
-      .from("volunteer_applications")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "volunteer_applications_new",
-        label: "New volunteer applications",
-        count: count ?? 0,
-        href: "/portal/volunteers/applications?status=new",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "volunteer_applications", "new");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "volunteer_applications_new",
+          "New volunteer applications",
+          "/portal/volunteers/applications?status=new",
+          counts,
+        ),
+      );
     }
   }
 
   if (options.canSeeContactMessages) {
-    const { count } = await supabase
-      .from("contact_messages")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "contact_messages_new",
-        label: "New messages",
-        count: count ?? 0,
-        href: "/portal/communications?status=new",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "contact_messages", "new");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "contact_messages_new",
+          "New messages",
+          "/portal/communications?status=new",
+          counts,
+        ),
+      );
     }
   }
 
   if (options.canSeeArtworkSubmissions) {
-    // Through the RPC rather than a head count, because it is the same number
+    // Through the RPCs rather than head counts, because it is the same number
     // the dashboard and any later report must agree on, and the permission
-    // check lives inside it.
-    const { data: pendingArtwork } = await supabase.rpc(
-      "count_pending_artwork_submissions",
-    );
-    const count = pendingArtwork ?? 0;
-    if (count > 0) {
-      items.push({
-        key: "artwork_submissions_pending",
-        label: "Artwork to review",
-        count,
-        href: "/portal/artwork?status=pending",
-        severity: "info",
-      });
+    // check lives inside them.
+    const [{ data: pendingArtwork }, { data: unclaimedArtwork }] =
+      await Promise.all([
+        supabase.rpc("count_pending_artwork_submissions"),
+        supabase.rpc("count_unclaimed_pending_artwork_submissions"),
+      ]);
+    const counts = {
+      total: pendingArtwork ?? 0,
+      unclaimed: unclaimedArtwork ?? 0,
+    };
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "artwork_submissions_pending",
+          "Artwork to review",
+          "/portal/artwork?status=pending",
+          counts,
+        ),
+      );
     }
   }
 

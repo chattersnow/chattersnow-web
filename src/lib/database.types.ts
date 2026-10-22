@@ -699,6 +699,8 @@ export type Database = {
         Row: {
           artist_statement: string | null;
           call_id: string;
+          claimed_at: string | null;
+          claimed_by_person_id: string | null;
           consented_at: string | null;
           consented_terms: string | null;
           created_at: string;
@@ -721,6 +723,8 @@ export type Database = {
         Insert: {
           artist_statement?: string | null;
           call_id: string;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           consented_at?: string | null;
           consented_terms?: string | null;
           created_at?: string;
@@ -743,6 +747,8 @@ export type Database = {
         Update: {
           artist_statement?: string | null;
           call_id?: string;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           consented_at?: string | null;
           consented_terms?: string | null;
           created_at?: string;
@@ -763,6 +769,20 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "artwork_submissions_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "artwork_submissions_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "artwork_submissions_tenant_id_call_id_fkey";
             columns: ["tenant_id", "call_id"];
@@ -1886,6 +1906,8 @@ export type Database = {
       };
       contact_messages: {
         Row: {
+          claimed_at: string | null;
+          claimed_by_person_id: string | null;
           created_at: string;
           email: string;
           id: string;
@@ -1898,6 +1920,8 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           email: string;
           id?: string;
@@ -1910,6 +1934,8 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           email?: string;
           id?: string;
@@ -1922,6 +1948,20 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "contact_messages_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "contact_messages_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "contact_messages_tenant_id_fkey";
             columns: ["tenant_id"];
@@ -4430,6 +4470,8 @@ export type Database = {
           as_is_text: string | null;
           as_is_typed_name: string | null;
           cancelled_at: string | null;
+          claimed_at: string | null;
+          claimed_by_person_id: string | null;
           created_at: string;
           delivery_method: string;
           fulfilled_at: string | null;
@@ -4458,6 +4500,8 @@ export type Database = {
           as_is_text?: string | null;
           as_is_typed_name?: string | null;
           cancelled_at?: string | null;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           delivery_method: string;
           fulfilled_at?: string | null;
@@ -4486,6 +4530,8 @@ export type Database = {
           as_is_text?: string | null;
           as_is_typed_name?: string | null;
           cancelled_at?: string | null;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           delivery_method?: string;
           fulfilled_at?: string | null;
@@ -4509,6 +4555,20 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "gear_requests_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "gear_requests_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "gear_requests_tenant_id_fkey";
             columns: ["tenant_id"];
@@ -7283,6 +7343,8 @@ export type Database = {
       person_claims: {
         Row: {
           auth_user_id: string;
+          claimed_at: string | null;
+          claimed_by_person_id: string | null;
           claimed_person_id: string | null;
           created_at: string;
           id: string;
@@ -7301,6 +7363,8 @@ export type Database = {
         };
         Insert: {
           auth_user_id: string;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           claimed_person_id?: string | null;
           created_at?: string;
           id?: string;
@@ -7319,6 +7383,8 @@ export type Database = {
         };
         Update: {
           auth_user_id?: string;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           claimed_person_id?: string | null;
           created_at?: string;
           id?: string;
@@ -7336,6 +7402,20 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "person_claims_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "person_claims_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "person_claims_person_in_tenant";
             columns: ["tenant_id", "claimed_person_id"];
@@ -9421,6 +9501,8 @@ export type Database = {
       volunteer_applications: {
         Row: {
           availability: string | null;
+          claimed_at: string | null;
+          claimed_by_person_id: string | null;
           created_at: string;
           email: string;
           id: string;
@@ -9437,6 +9519,8 @@ export type Database = {
         };
         Insert: {
           availability?: string | null;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           email: string;
           id?: string;
@@ -9453,6 +9537,8 @@ export type Database = {
         };
         Update: {
           availability?: string | null;
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           email?: string;
           id?: string;
@@ -9468,6 +9554,20 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "volunteer_applications_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_applications_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "volunteer_applications_person_id_fkey";
             columns: ["tenant_id", "person_id"];
@@ -9500,6 +9600,8 @@ export type Database = {
       };
       volunteer_hour_submissions: {
         Row: {
+          claimed_at: string | null;
+          claimed_by_person_id: string | null;
           created_at: string;
           created_by: string | null;
           event_id: string | null;
@@ -9519,6 +9621,8 @@ export type Database = {
           volunteer_role_type_id: string | null;
         };
         Insert: {
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           event_id?: string | null;
@@ -9538,6 +9642,8 @@ export type Database = {
           volunteer_role_type_id?: string | null;
         };
         Update: {
+          claimed_at?: string | null;
+          claimed_by_person_id?: string | null;
           created_at?: string;
           created_by?: string | null;
           event_id?: string | null;
@@ -9557,6 +9663,20 @@ export type Database = {
           volunteer_role_type_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "volunteer_hour_submissions_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "volunteer_hour_submissions_claimed_by_in_tenant";
+            columns: ["tenant_id", "claimed_by_person_id"];
+            isOneToOne: false;
+            referencedRelation: "people_with_roles";
+            referencedColumns: ["tenant_id", "id"];
+          },
           {
             foreignKeyName: "volunteer_hour_submissions_event_in_tenant";
             columns: ["tenant_id", "event_id"];
@@ -10853,6 +10973,10 @@ export type Database = {
       count_pending_artwork_submissions: { Args: never; Returns: number };
       count_pending_event_expense_approvals: { Args: never; Returns: number };
       count_pending_reimbursement_approvals: { Args: never; Returns: number };
+      count_unclaimed_pending_artwork_submissions: {
+        Args: never;
+        Returns: number;
+      };
       create_blank_asset_tags: {
         Args: { p_count: number };
         Returns: {
@@ -12853,6 +12977,10 @@ export type Database = {
       };
       set_preferred_name_for_user: {
         Args: { p_preferred_name: string; p_user_id: string };
+        Returns: undefined;
+      };
+      set_queue_item_claim: {
+        Args: { p_id: string; p_person_id: string; p_queue: string };
         Returns: undefined;
       };
       set_registrant_option_counts: {

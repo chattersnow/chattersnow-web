@@ -218,6 +218,23 @@ The initial admin dashboard shall summarize:
 
 Dashboard values should be derived from stored records and clearly indicate the relevant date range. Expanded reports may later include filters, exports, and pending tasks.
 
+#### Ops inbox and queue claims
+
+The ops inbox (`getOpsInboxSummary`, the portal shell's attention list) counts work waiting on staff in six queues. Since #1668 each queue item can be **claimed**, so staff can see who is working it: every queue table carries `claimed_by_person_id` (a person in the tenant, by composite FK onto `people (tenant_id, id)`) and `claimed_at`, null together. The only write path is `set_queue_item_claim(p_queue, p_id, p_person_id)`, where a null person releases the claim. It checks "claim yourself" and "assign someone else" separately (both are the queue's `manage` today, see `permission-docs.ts`) and refuses a claim on a resolved item. Claiming yourself needs a `people` row in the tenant; without one, Claim is disabled and says why.
+
+A claim marks who is working an item, so it **survives intermediate states and clears on resolution**. The clear is written into each resolution path, with no trigger:
+
+| Queue                  | Keeps the claim                | Clears the claim              | Where                                                 |
+| ---------------------- | ------------------------------ | ----------------------------- | ----------------------------------------------------- |
+| Item requests          | new, quoted, paid              | fulfilled, cancelled          | `set_gear_request_status`                             |
+| Account claims         | pending                        | approved, rejected, withdrawn | `review_person_claim`; the claimant's withdraw policy |
+| Self-logged hours      | pending                        | confirmed, declined           | `review_volunteer_hour_submission`                    |
+| Volunteer applications | new, being reviewed, contacted | placed, declined, closed      | `volunteers/applications/actions.ts`                  |
+| Messages               | new, read                      | resolved                      | `communications/actions.ts`                           |
+| Artwork                | pending                        | approved, rejected            | `artwork/actions.ts`                                  |
+
+Reopening a resolved item, where a path allows it, comes back unclaimed. The inbox reports unclaimed counts beside each total ("New item requests (2 unclaimed)"), leaving the suffix off when nothing is claimed, and its link adds `?claimed=none` only when some items are claimed. The daily ops report words its new-arrival lines the same way. Queue lists filter by **All / Unclaimed / Mine / person** through the same `claimed=none|mine|<person id>` parameter.
+
 ## 6. Proposed Data Model
 
 The following is a logical model, not a final migration. IDs should be UUIDs and all
