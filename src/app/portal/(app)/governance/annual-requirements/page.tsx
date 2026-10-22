@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseTaskFilters } from "@/lib/portal/task-list";
+import { resolveTaskFilterContext } from "@/lib/portal/task-filter-context";
 import { withDocumentUrls } from "@/lib/storage/documents-sign";
 import {
   getCurrentUserPermissions,
@@ -16,24 +18,32 @@ export const metadata: Metadata = {
   title: "Annual Requirements",
 };
 
-export default async function AnnualRequirementsPage() {
+export default async function AnnualRequirementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createSupabaseServerClient();
+  // Owner and due only (#1659); the checklist shows every status itself.
+  const filters = parseTaskFilters(await searchParams, []);
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "governance", "manage");
 
-  const [{ data: requirements }, { data: people }] = await Promise.all([
-    supabase
-      .from("annual_requirements")
-      .select(REQUIREMENT_SELECT)
-      .order("due_date", { ascending: true })
-      .order("id", { ascending: true }),
-    supabase
-      .from("people")
-      .select(
-        "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
-      )
-      .order("name", { ascending: true }),
-  ]);
+  const [filterContext, { data: requirements }, { data: people }] =
+    await Promise.all([
+      resolveTaskFilterContext(supabase, filters),
+      supabase
+        .from("annual_requirements")
+        .select(REQUIREMENT_SELECT)
+        .order("due_date", { ascending: true })
+        .order("id", { ascending: true }),
+      supabase
+        .from("people")
+        .select(
+          "id, name, preferred_name, email, phone, auth_user_id, has_portal_access",
+        )
+        .order("name", { ascending: true }),
+    ]);
 
   // Signed on the reader's own client: the bucket decides who resolves one.
   const requirementsWithDocuments = await withDocumentUrls(
@@ -55,6 +65,8 @@ export default async function AnnualRequirementsPage() {
           requirements={requirementsWithDocuments}
           people={(people ?? []) as PersonListItem[]}
           canManage={canManage}
+          filters={filters}
+          filterContext={filterContext}
         />
       </div>
     </>

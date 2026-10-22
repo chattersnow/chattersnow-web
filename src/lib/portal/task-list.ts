@@ -149,15 +149,32 @@ export function isTaskDueThisWeek(
   );
 }
 
+export type TaskFilterContext = {
+  today: string;
+  currentPersonId: string | null;
+};
+
 export function matchesTaskFilters(
   row: TaskRow,
   filters: TaskFilters,
-  context: { today: string; currentPersonId: string | null },
+  context: TaskFilterContext,
 ): boolean {
   if (filters.status === "open" && row.isDone) return false;
   if (filters.status === "done" && !row.isDone) return false;
   if (filters.type !== "all" && row.kind !== filters.type) return false;
+  return matchesTaskOwnerAndDue(row, filters, context);
+}
 
+/**
+ * The owner and due half of the vocabulary on its own, for a page that keeps
+ * its own layout and only borrows these two filters -- the Nonprofit status
+ * and Annual requirements checklists (#1659), which show every status.
+ */
+export function matchesTaskOwnerAndDue(
+  row: Pick<TaskRow, "owner" | "dueDate" | "isDone">,
+  filters: Pick<TaskFilters, "owner" | "due">,
+  context: TaskFilterContext,
+): boolean {
   const ownerId = row.owner?.id ?? null;
   if (filters.owner === "mine") {
     // No people row for the signed-in user means nothing is theirs, not
@@ -197,7 +214,7 @@ export function compareTaskRows(a: TaskRow, b: TaskRow, today: string): number {
 export function filterAndSortTaskRows<R extends TaskRow>(
   rows: readonly R[],
   filters: TaskFilters,
-  context: { today: string; currentPersonId: string | null },
+  context: TaskFilterContext,
 ): R[] {
   return rows
     .filter((row) => matchesTaskFilters(row, filters, context))
@@ -209,7 +226,9 @@ export function filterAndSortTaskRows<R extends TaskRow>(
  * by display name. Taken from the rows rather than the whole `people` table,
  * which also holds every donor and organization.
  */
-export function taskOwnerOptions(rows: readonly TaskRow[]): TaskOwner[] {
+export function taskOwnerOptions(
+  rows: readonly Pick<TaskRow, "owner">[],
+): TaskOwner[] {
   const owners = new Map<string, TaskOwner>();
   for (const row of rows) {
     if (row.owner) owners.set(row.owner.id, row.owner);

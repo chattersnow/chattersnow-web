@@ -38,6 +38,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { useActionToast } from "@/components/portal/action-toast";
+import { TaskFilterBar } from "@/components/portal/task-table";
+import {
+  matchesTaskOwnerAndDue,
+  taskOwnerOptions,
+  type TaskFilterContext,
+  type TaskFilters,
+} from "@/lib/portal/task-list";
 
 // The Phase 1-5 checklist from supabase/migrations/20260824210000_create_nonprofit_status_milestones.sql,
 // in migration order. `milestones` already arrives sorted by `sort_order`
@@ -132,10 +139,15 @@ export function NonprofitStatusChecklist({
   milestones,
   people,
   canManage,
+  filters,
+  filterContext,
 }: {
   milestones: Milestone[];
   people: PersonListItem[];
   canManage: boolean;
+  /** Owner and due, from the URL (#1659). Status is the checklist's own. */
+  filters: TaskFilters;
+  filterContext: TaskFilterContext;
 }) {
   const completeCount = useMemo(
     () => milestones.filter((m) => m.status === "done").length,
@@ -145,7 +157,28 @@ export function NonprofitStatusChecklist({
     () => milestones.filter((m) => isMilestoneDueSoonOrOverdue(m)).length,
     [milestones],
   );
-  const phaseGroups = useMemo(() => groupByPhase(milestones), [milestones]);
+  // The counts above stay the whole checklist's; the filters narrow the rows.
+  const visibleMilestones = useMemo(
+    () =>
+      milestones.filter((milestone) =>
+        matchesTaskOwnerAndDue(
+          {
+            owner: milestone.owner,
+            dueDate: milestone.due_date,
+            isDone:
+              milestone.status === "done" || milestone.status === "cancelled",
+          },
+          filters,
+          filterContext,
+        ),
+      ),
+    [milestones, filters, filterContext],
+  );
+  const owners = useMemo(() => taskOwnerOptions(milestones), [milestones]);
+  const phaseGroups = useMemo(
+    () => groupByPhase(visibleMilestones),
+    [visibleMilestones],
+  );
 
   return (
     <div className="space-y-6">
@@ -163,9 +196,21 @@ export function NonprofitStatusChecklist({
         {canManage && (
           <NewMilestoneDialog people={people} existingPhases={PHASE_ORDER} />
         )}
+        <div className="basis-full">
+          <TaskFilterBar filters={filters} owners={owners} showStatus={false} />
+        </div>
       </div>
 
-      {phaseGroups.length === 0 ? (
+      {milestones.length > 0 && phaseGroups.length === 0 ? (
+        <Card>
+          <CardContent className="px-0">
+            <EmptyState
+              title="No milestones match these filters"
+              description="Change the owner or due filter above to see more."
+            />
+          </CardContent>
+        </Card>
+      ) : phaseGroups.length === 0 ? (
         <Card>
           <CardContent className="px-0">
             <EmptyState

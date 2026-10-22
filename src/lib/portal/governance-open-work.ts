@@ -1,8 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { resolveCurrentPersonId } from "@/lib/auth/current-person";
 import { formatCalendarDate } from "@/lib/format";
-import { getOrgTimeZone } from "@/lib/org-timezone";
-import { todayInZone, utcIsoToDateInZone } from "@/lib/time";
+import { utcIsoToDateInZone } from "@/lib/time";
+import { resolveTaskFilterContext } from "./task-filter-context";
 import {
   filterAndSortTaskRows,
   taskOwnerOptions,
@@ -352,19 +351,17 @@ export async function getGovernanceOpenWork(
   filters: TaskFilters,
   options: { canEdit: boolean; today?: string },
 ): Promise<GovernanceOpenWork> {
-  const timeZone = await getOrgTimeZone(supabase);
-  const today = options.today ?? todayInZone(timeZone);
-  const [rows, currentPersonId] = await Promise.all([
-    listGovernanceOpenWorkRows(supabase, {
-      status: filters.status,
-      type: filters.type,
-      timeZone,
-      canEdit: options.canEdit,
-    }),
-    filters.owner === "mine"
-      ? resolveCurrentPersonId(supabase)
-      : Promise.resolve(null),
-  ]);
+  const { timeZone, today, currentPersonId } = await resolveTaskFilterContext(
+    supabase,
+    filters,
+    { today: options.today },
+  );
+  const rows = await listGovernanceOpenWorkRows(supabase, {
+    status: filters.status,
+    type: filters.type,
+    timeZone,
+    canEdit: options.canEdit,
+  });
 
   return {
     rows: filterAndSortTaskRows(rows, filters, { today, currentPersonId }),

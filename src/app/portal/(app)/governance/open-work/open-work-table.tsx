@@ -26,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   ACTION_ITEM_STATUS_LABELS,
   GOVERNANCE_OPEN_WORK_KIND_LABELS,
+  type GovernanceOpenWorkKind,
   type GovernanceOpenWorkRow,
 } from "@/lib/portal/governance-open-work";
 import type { TaskFilters, TaskOwner } from "@/lib/portal/task-list";
@@ -73,12 +74,17 @@ export function OpenWorkTable({
   owners,
   today,
   people,
+  kindLabels = GOVERNANCE_OPEN_WORK_KIND_LABELS,
+  emptyMessage = "No open work matches these filters.",
 }: {
   rows: GovernanceOpenWorkRow[];
   filters: TaskFilters;
   owners: TaskOwner[];
   today: string;
   people: PersonListItem[];
+  /** The kinds `rows` hold; Meetings' Action items view passes just one. */
+  kindLabels?: Partial<Record<GovernanceOpenWorkKind, string>>;
+  emptyMessage?: string;
 }) {
   const [editing, setEditing] = useState<EditableRow | null>(null);
 
@@ -116,10 +122,10 @@ export function OpenWorkTable({
         filters={filters}
         owners={owners}
         today={today}
-        kindLabels={GOVERNANCE_OPEN_WORK_KIND_LABELS}
+        kindLabels={kindLabels as Record<string, string>}
         renderStatus={renderStatus}
         renderActions={renderActions}
-        emptyMessage="No open work matches these filters."
+        emptyMessage={emptyMessage}
       />
       {editing ? (
         <OwnerDueSurface
