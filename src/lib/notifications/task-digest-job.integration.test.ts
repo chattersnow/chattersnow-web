@@ -52,6 +52,24 @@ mock.module("@/lib/email/send", () => ({
 
 const { runTaskDigest, TASK_DIGEST_KIND } = await import("./task-digest-job");
 
+/**
+ * What this file's person was sent. The run walks every tenant's tasks, and
+ * supabase/seed.sql gives the seeded portal accounts owned, dated event tasks
+ * (#1660) -- with the admin's person opted in -- so a run-wide count or the
+ * last message sent says as much about the seed as about these fixtures.
+ */
+function mine() {
+  return sent.filter((message) => message.to === SEEDED_USERS.volunteer);
+}
+
+/** Every day a run here is dated, whose deliveries are this file's to clear. */
+const RUN_DAYS = [
+  "task-digest:2026-03-09",
+  "task-digest:2026-03-11",
+  "task-digest:2026-03-12",
+  "task-digest:2026-06-01",
+];
+
 const service = serviceRoleClient();
 const SITE_URL = "https://chattersnow.example";
 
@@ -147,6 +165,14 @@ afterEach(async () => {
     .from("notification_deliveries")
     .delete()
     .eq("person_id", personId);
+  // Whoever else the seed made a recipient: their deliveries on this file's
+  // run days, so each test starts unclaimed and none outlive the file. The
+  // seeded delivery is dated the day before the reset, never one of these.
+  await service
+    .from("notification_deliveries")
+    .delete()
+    .eq("kind", TASK_DIGEST_KIND)
+    .in("dedupe_key", RUN_DAYS);
   await service
     .from("person_notification_preferences")
     .delete()
@@ -155,6 +181,7 @@ afterEach(async () => {
     .from("app_settings")
     .delete()
     .eq("key", "notifications.email_enabled");
+  sent.length = 0;
 });
 
 afterAll(async () => {
@@ -207,7 +234,7 @@ describe("runTaskDigest gates", () => {
       siteUrl: SITE_URL,
     });
 
-    expect(summary.sent).toBe(0);
+    expect(mine()).toEqual([]);
     expect(summary.considered).toBeGreaterThan(0);
     expect(await deliveries()).toEqual([]);
   });
@@ -220,7 +247,7 @@ describe("runTaskDigest gates", () => {
       siteUrl: SITE_URL,
     });
 
-    expect(summary.sent).toBe(0);
+    expect(mine()).toEqual([]);
     expect(await deliveries()).toEqual([]);
   });
 
@@ -234,6 +261,7 @@ describe("runTaskDigest gates", () => {
     });
 
     expect(summary.sent).toBe(0);
+    expect(mine()).toEqual([]);
     expect(summary.skipped).toBeGreaterThan(0);
     expect(await deliveries()).toEqual([]);
   });
@@ -247,7 +275,7 @@ describe("runTaskDigest gates", () => {
       siteUrl: SITE_URL,
     });
 
-    expect(summary.sent).toBe(1);
+    expect(mine()).toHaveLength(1);
     expect(summary.failed).toBe(0);
 
     const rows = await deliveries();
@@ -267,12 +295,9 @@ describe("runTaskDigest gates", () => {
     // the per-person opt-in is what actually decides delivery.
     await optIn(true);
 
-    const summary = await runTaskDigest(service, {
-      now: WEDNESDAY,
-      siteUrl: SITE_URL,
-    });
+    await runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL });
 
-    expect(summary.sent).toBe(1);
+    expect(mine()).toHaveLength(1);
   });
 });
 
@@ -280,18 +305,16 @@ describe("runTaskDigest idempotency", () => {
   test("a second run on the same day sends nothing further", async () => {
     await optIn(true);
 
-    const first = await runTaskDigest(service, {
-      now: WEDNESDAY,
-      siteUrl: SITE_URL,
-    });
+    await runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL });
+    expect(mine()).toHaveLength(1);
+
     const second = await runTaskDigest(service, {
       now: WEDNESDAY,
       siteUrl: SITE_URL,
     });
 
-    expect(first.sent).toBe(1);
     expect(second.sent).toBe(0);
-    expect(second.skipped).toBe(1);
+    expect(mine()).toHaveLength(1);
     expect(await deliveries()).toHaveLength(1);
   });
 
@@ -301,12 +324,12 @@ describe("runTaskDigest idempotency", () => {
     // unique constraint, and only the winner sends.
     await optIn(true);
 
-    const [a, b] = await Promise.all([
+    await Promise.all([
       runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL }),
       runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL }),
     ]);
 
-    expect(a.sent + b.sent).toBe(1);
+    expect(mine()).toHaveLength(1);
     expect(await deliveries()).toHaveLength(1);
   });
 
@@ -314,12 +337,12 @@ describe("runTaskDigest idempotency", () => {
     await optIn(true);
 
     await runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL });
-    const nextDay = await runTaskDigest(service, {
+    await runTaskDigest(service, {
       now: new Date("2026-03-12T19:00:00Z"),
       siteUrl: SITE_URL,
     });
 
-    expect(nextDay.sent).toBe(1);
+    expect(mine()).toHaveLength(2);
     const rows = await deliveries();
     expect(rows.map((row) => row.dedupe_key).sort()).toEqual([
       "task-digest:2026-03-11",
@@ -346,22 +369,22 @@ describe("runTaskDigest scope", () => {
     if (error) throw error;
     itemIds.push(far.id as string);
 
-    // One recipient either way -- the assertion that matters is that the
-    // digest exists because of the one qualifying item, not the other two.
-    const summary = await runTaskDigest(service, {
-      now: WEDNESDAY,
-      siteUrl: SITE_URL,
-    });
-    expect(summary.sent).toBe(1);
+    await runTaskDigest(service, { now: WEDNESDAY, siteUrl: SITE_URL });
+    expect(mine()).toHaveLength(1);
+    const { text } = mine()[0];
+    expect(text).toContain("Send the insurance certificate");
+    expect(text).not.toContain("Something that is already handled");
+    expect(text).not.toContain("Not due for months");
 
-    const later = await runTaskDigest(service, {
-      // A day on which nothing of this person's qualifies: the near item is
-      // long past, the far one is still out of range on the far side.
+    await runTaskDigest(service, {
+      // The near item is long past, the far one still out of range on the far
+      // side: only the overdue near item qualifies, and it still does.
       now: new Date("2026-06-01T19:00:00Z"),
       siteUrl: SITE_URL,
     });
-    expect(later.considered).toBe(1); // the overdue near item still counts
-    expect(later.sent).toBe(1);
+    expect(mine()).toHaveLength(2);
+    expect(mine()[1].text).toContain("Overdue");
+    expect(mine()[1].text).not.toContain("Not due for months");
   });
 
   test("sends nothing to a person with no portal account", async () => {
@@ -403,7 +426,8 @@ describe("runTaskDigest scope", () => {
 
     const rows = await deliveries();
     expect(rows.every((row) => row.person_id !== noLoginId)).toBe(true);
-    expect(summary.sent).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(mine()).toHaveLength(1);
 
     await service
       .from("governance_meeting_action_items")
@@ -450,9 +474,9 @@ describe("runTaskDigest link origin", () => {
       now: WEDNESDAY,
       siteUrl: SITE_URL,
     });
-    expect(summary.sent).toBe(1);
+    expect(summary.failed).toBe(0);
 
-    const digest = sent.at(-1)!;
+    const [digest] = mine();
     expect(digest.html).toContain(`https://${TENANT_DOMAIN}/portal/`);
     // The whole point: the origin the job was handed does not reach the links.
     expect(digest.html).not.toContain(SITE_URL);
@@ -467,9 +491,9 @@ describe("runTaskDigest link origin", () => {
       now: WEDNESDAY,
       siteUrl: SITE_URL,
     });
-    expect(summary.sent).toBe(1);
+    expect(summary.failed).toBe(0);
 
-    expect(sent.at(-1)!.html).toContain(`${SITE_URL}/portal/`);
+    expect(mine()[0].html).toContain(`${SITE_URL}/portal/`);
   });
 });
 
@@ -597,9 +621,10 @@ describe("runTaskDigest event tasks (#1666)", () => {
       now: WEDNESDAY,
       siteUrl: SITE_URL,
     });
-    expect(summary.sent).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(mine()).toHaveLength(1);
 
-    const { text, html } = sent.at(-1)!;
+    const { text, html } = mine()[0];
     expect(text).toContain(`IT Digest Event ${tag}, Mar 20, 2026`);
     expect(text).toContain(titles.checklistOverdue);
     expect(text).toContain("Overdue — was due Mar 1, 2026");
@@ -630,9 +655,10 @@ describe("runTaskDigest event tasks (#1666)", () => {
       now: MONDAY,
       siteUrl: SITE_URL,
     });
-    expect(summary.sent).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(mine()).toHaveLength(1);
 
-    const { text } = sent.at(-1)!;
+    const { text } = mine()[0];
     expect(text).toContain(titles.retroOpen);
     expect(text).toContain(`${SITE_URL}/portal/events/${event.id}?tab=results`);
     expect(text).not.toContain(titles.retroDone);
@@ -648,6 +674,7 @@ describe("runTaskDigest event tasks (#1666)", () => {
     });
 
     expect(second.sent).toBe(0);
+    expect(mine()).toHaveLength(1);
     const rows = await deliveries();
     expect(rows).toHaveLength(1);
     expect(rows[0].dedupe_key).toBe("task-digest:2026-03-11");
@@ -775,10 +802,10 @@ describe("runTaskDigest tenant boundary (#1666)", () => {
       now: WEDNESDAY,
       siteUrl: SITE_URL,
     });
-    expect(summary.sent).toBe(2);
+    expect(summary.failed).toBe(0);
 
     const toB = sent.filter((message) => message.to === B_ADDRESS);
-    const toA = sent.filter((message) => message.to !== B_ADDRESS);
+    const toA = mine();
     expect(toB).toHaveLength(1);
     expect(toA).toHaveLength(1);
 
