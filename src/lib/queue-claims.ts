@@ -140,6 +140,20 @@ export function applyClaimFilter<
 }
 
 /**
+ * The same filter applied to rows already in hand, for a list that filters
+ * client-side (Messages). Agrees with `applyClaimFilter` row for row.
+ */
+export function matchesClaimFilter(
+  claimantId: string | null,
+  filter: ClaimFilter,
+  myPersonId: string | null,
+): boolean {
+  const target = claimFilterTarget(filter, myPersonId);
+  if (target === undefined) return true;
+  return claimantId === target;
+}
+
+/**
  * "New item requests (2 unclaimed)". No suffix when nothing is claimed:
  * "5 (5 unclaimed)" says the same thing twice. "(0 unclaimed)" stays, since
  * that everything has somebody on it is worth saying.

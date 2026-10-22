@@ -12,6 +12,20 @@ import {
   NO_RECORD_MESSAGES,
 } from "@/lib/outbound-messages";
 import { loadRecordMessages } from "@/lib/portal/record-messages";
+import { getQueueClaimContext } from "@/lib/portal/queue-claim-context";
+import {
+  CLAIM_FILTER_PARAM,
+  CLAIM_FK,
+  applyClaimFilter,
+  claimFilterValue,
+  isResolvedStatus,
+  parseClaimFilter,
+} from "@/lib/queue-claims";
+import { QueueClaimFilterField } from "@/components/portal/queue-claim-filter";
+import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/portal/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,8 +61,7 @@ export const metadata: Metadata = {
   title: "Artwork Submissions",
 };
 
-const SELECT =
-  "id, submitter_name, submitter_email, credit_name, portfolio_url, consented_at, consented_terms, title, medium, artist_statement, status, review_notes, reviewed_at, created_at, call:event_artwork_calls(id, title), event:events(id, name), images:artwork_submission_images(id, storage_path, thumb_path, content_type, byte_size, position)";
+const SELECT = `id, submitter_name, submitter_email, credit_name, portfolio_url, consented_at, consented_terms, title, medium, artist_statement, status, review_notes, reviewed_at, created_at, call:event_artwork_calls(id, title), event:events(id, name), images:artwork_submission_images(id, storage_path, thumb_path, content_type, byte_size, position), claimant:people!${CLAIM_FK.artwork_submissions}(id, name, preferred_name)`;
 
 const selectClassName =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -90,7 +103,10 @@ export default async function ArtworkSubmissionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const [permissions, claimContext] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getQueueClaimContext(supabase),
+  ]);
   const canManage = hasPermission(permissions, "artwork_submissions", "manage");
 
   const params = await searchParams;
@@ -104,6 +120,9 @@ export default async function ArtworkSubmissionsPage({
   const statusFilter: ArtworkSubmissionStatus | "all" = isStatus(statusRaw)
     ? statusRaw
     : "all";
+  // The ops inbox links here with `claimed=none` when some pending pieces are
+  // already claimed (#1668).
+  const claimFilter = parseClaimFilter(params[CLAIM_FILTER_PARAM]);
 
   const page = parsePage(raw("page"));
   const perPage = parsePerPage(raw("perPage"));
@@ -121,6 +140,7 @@ export default async function ArtworkSubmissionsPage({
     );
   }
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
+  query = applyClaimFilter(query, claimFilter, claimContext.myPersonId);
 
   const { offset, to } = pageRange(page, perPage);
   const { data, error, count } = await query.range(offset, to);
@@ -186,6 +206,20 @@ export default async function ArtworkSubmissionsPage({
     orgEmailEnabled,
   });
 
+  // Both of the queue's claim permissions are artwork_submissions:manage
+  // today; set_queue_item_claim() checks them separately.
+  const claimProps = (submission: ArtworkSubmission) => ({
+    queue: "artwork_submissions" as const,
+    itemId: submission.id,
+    itemLabel: submission.title || `Untitled, ${submission.submitter_name}`,
+    claimant: submission.claimant,
+    myPersonId: claimContext.myPersonId,
+    canClaim: canManage,
+    canAssign: canManage,
+    resolved: isResolvedStatus("artwork_submissions", submission.status),
+    staff: claimContext.staff,
+  });
+
   // One signing round trip for the whole page, including the deep-linked row.
   const signed = await signArtworkImages(
     supabase,
@@ -199,6 +233,9 @@ export default async function ArtworkSubmissionsPage({
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  if (claimFilter.kind !== "all") {
+    filterParams.set(CLAIM_FILTER_PARAM, claimFilterValue(claimFilter));
+  }
   if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
 
   const pageHref = (nextPage: number) =>
@@ -210,10 +247,13 @@ export default async function ArtworkSubmissionsPage({
     });
 
   const totalPages = totalPagesFor(count, perPage);
-  const hasActiveFilters = !!search || statusFilter !== "all";
-  const activeFilterCount = [!!search, statusFilter !== "all"].filter(
-    Boolean,
-  ).length;
+  const activeFilters = [
+    !!search,
+    statusFilter !== "all",
+    claimFilter.kind !== "all",
+  ];
+  const hasActiveFilters = activeFilters.some(Boolean);
+  const activeFilterCount = activeFilters.filter(Boolean).length;
 
   return (
     <>
@@ -283,6 +323,14 @@ export default async function ArtworkSubmissionsPage({
                       ))}
                     </select>
                   </div>
+
+                  <QueueClaimFilterField
+                    filter={claimFilter}
+                    staff={claimContext.staff}
+                    selectClassName={selectClassName}
+                    className="flex flex-col gap-1"
+                    labelClassName="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  />
 
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterSubmitButton />
@@ -363,17 +411,25 @@ export default async function ArtworkSubmissionsPage({
                               options={{ dateStyle: "medium" }}
                             />
                           </p>
-                          <div className="mt-1 flex items-center justify-between gap-2">
+                          <p className="truncate text-xs">
+                            <span className="app-muted">Claimed by: </span>
+                            <ClaimedByCell claimant={submission.claimant} />
+                          </p>
+                          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                             <ArtworkSubmissionStatusBadge
                               status={submission.status}
                             />
-                            <ArtworkSubmissionReviewSheet
-                              submission={submission}
-                              images={images}
-                              canManage={canManage}
-                              {...messageProps(submission.id)}
-                              defaultOpen={submission.id === linkedId}
-                            />
+                            <span className="inline-flex items-center gap-1">
+                              <ClaimRowActions {...claimProps(submission)} />
+                              <ArtworkSubmissionReviewSheet
+                                submission={submission}
+                                images={images}
+                                canManage={canManage}
+                                claim={claimProps(submission)}
+                                {...messageProps(submission.id)}
+                                defaultOpen={submission.id === linkedId}
+                              />
+                            </span>
                           </div>
                         </CardContent>
                       </Card>
@@ -388,6 +444,7 @@ export default async function ArtworkSubmissionsPage({
                 submission={linked}
                 images={imagesFor(linked)}
                 canManage={canManage}
+                claim={claimProps(linked)}
                 {...messageProps(linked.id)}
                 defaultOpen
                 withTrigger={false}
