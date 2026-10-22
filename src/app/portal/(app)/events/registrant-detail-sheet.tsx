@@ -6,6 +6,8 @@ import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantMessageActions } from "./registrant-message-actions";
 import { RegistrantAnswers } from "./registrant-answers";
 import { RegistrantContact } from "./registrant-contact";
+import { RegistrantGroupChat } from "./registrant-group-chat";
+import type { EventGroupChat } from "@/lib/registration-group-chat";
 import { RegistrantBadges } from "./registrant-badges";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { Button } from "@/components/ui/button";
@@ -91,6 +93,7 @@ export function RegistrantDetailSheet({
   photoConsentInForce,
   optionsPrompt = null,
   registrationQuestions = [],
+  groupChat = null,
   onClosed,
   onSent,
   onAnswersSaved,
@@ -107,6 +110,8 @@ export function RegistrantDetailSheet({
   replyTo: string | null;
   orgEmailEnabled: boolean;
   canManage: boolean;
+  /** The event's group chat (#1648); null when its switch is off. */
+  groupChat?: EventGroupChat;
   /**
    * Whether this organization takes a participant waiver today (#686), which
    * is what separates "we never asked" from "this registration predates the
@@ -265,6 +270,14 @@ export function RegistrantDetailSheet({
               canManage={canManage}
               onSaved={onAnswersSaved}
             />
+            {groupChat && (
+              <RegistrantGroupChat
+                registrant={registrant}
+                groupChat={groupChat}
+                canManage={canManage}
+                onSaved={onAnswersSaved}
+              />
+            )}
             <ReadOnlyField label="Party size" htmlFor="registrant-party-size">
               {registrant.party_size}
             </ReadOnlyField>

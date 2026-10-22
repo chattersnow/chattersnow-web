@@ -58,7 +58,9 @@ import {
 } from "@/components/portal/data-table";
 import { TabLoadingSkeleton } from "@/components/portal/tab-loading-skeleton";
 import { LIST_PREVIEW_ROWS } from "@/components/portal/list-preview-sheet";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatInstantDate } from "@/lib/format";
+import { StatusBadge } from "@/components/portal/status-badge";
+import type { EventGroupChat } from "@/lib/registration-group-chat";
 import { EmptyState } from "@/components/portal/empty-state";
 
 /**
@@ -93,6 +95,18 @@ export function registrantAnswersCsvHref(eventId: string): string {
 /** The registrants page (#1511), which the card's "View all" opens. */
 export function registrantsPageHref(eventId: string): string {
   return `/portal/events/${encodeURIComponent(eventId)}/registrants`;
+}
+
+/** The page, carrying the card's two toggles so its count matches. */
+function registrantsPageLink(
+  eventId: string,
+  toggles: { missing: boolean; notInChat: boolean },
+): string {
+  const params = new URLSearchParams();
+  if (toggles.missing) params.set("missing", "1");
+  if (toggles.notInChat) params.set("chat", "not-added");
+  const search = params.toString();
+  return `${registrantsPageHref(eventId)}${search ? `?${search}` : ""}`;
 }
 
 /**
@@ -163,6 +177,49 @@ export function registrantInstagramColumns(
       },
     },
   ];
+}
+
+/**
+ * #1648. "✓ {date}" or "Not added", beside the Instagram handle staff copy
+ * into the chat. Nothing at all on an event with the switch off.
+ */
+export function registrantGroupChatColumns(
+  groupChat: EventGroupChat,
+): PortalDataTableColumn<EventRegistrant>[] {
+  if (!groupChat) return [];
+  return [
+    {
+      key: "group_chat",
+      label: groupChat.label,
+      sortValue: (registrant) => registrant.group_chat_added_at,
+      hideBelow: "md",
+      cellClassName: "whitespace-nowrap",
+      render: (registrant) => <GroupChatState registrant={registrant} />,
+    },
+  ];
+}
+
+/** The cell, and the cancelled list's "still in the chat" (#1648). */
+export function GroupChatState({
+  registrant,
+}: {
+  registrant: EventRegistrant;
+}) {
+  return registrant.group_chat_added_at ? (
+    <StatusBadge
+      tone="success"
+      className="font-normal"
+      title={
+        registrant.group_chat_added_by_name
+          ? `Added by ${registrant.group_chat_added_by_name}`
+          : undefined
+      }
+    >
+      ✓ {formatInstantDate(registrant.group_chat_added_at)}
+    </StatusBadge>
+  ) : (
+    <span className="app-muted text-sm">Not added</span>
+  );
 }
 
 /**
@@ -271,6 +328,9 @@ export function RegistrantsTab({
     null,
   );
   const [missingOnly, setMissingOnly] = useState(false);
+  // #1648. Null when the event's switch is off, which hides all of it.
+  const groupChat = data?.groupChat ?? null;
+  const [notInChatOnly, setNotInChatOnly] = useState(false);
 
   // A notification can link straight at one registration (#742's shape). The
   // list arrives from a Server Action rather than the page's own render, so
@@ -335,14 +395,29 @@ export function RegistrantsTab({
         : 0,
     [asksRequired, list, registrationQuestions],
   );
+  const notInChatCount = groupChat
+    ? list.filter((registrant) => registrant.group_chat_added_at === null)
+        .length
+    : 0;
   const shownList = useMemo(
     () =>
-      asksRequired && missingOnly
-        ? list.filter((registrant) =>
-            isMissingRequired(registrant, registrationQuestions),
-          )
-        : list,
-    [asksRequired, missingOnly, list, registrationQuestions],
+      list.filter(
+        (registrant) =>
+          (!asksRequired ||
+            !missingOnly ||
+            isMissingRequired(registrant, registrationQuestions)) &&
+          (!groupChat ||
+            !notInChatOnly ||
+            registrant.group_chat_added_at === null),
+      ),
+    [
+      asksRequired,
+      missingOnly,
+      groupChat,
+      notInChatOnly,
+      list,
+      registrationQuestions,
+    ],
   );
 
   const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
@@ -386,6 +461,7 @@ export function RegistrantsTab({
         ),
       },
       ...registrantInstagramColumns(list, canManage),
+      ...registrantGroupChatColumns(groupChat),
       {
         key: "party_size",
         label: "Party size",
@@ -571,6 +647,7 @@ export function RegistrantsTab({
     ],
     [
       list,
+      groupChat,
       registrationOptions,
       registrationQuestions,
       showAttendedBefore,
@@ -653,6 +730,18 @@ export function RegistrantsTab({
       </Button>
     ) : null;
 
+  const notInChatFilter =
+    groupChat && list.length > 0 ? (
+      <Button
+        type="button"
+        variant={notInChatOnly ? "default" : "secondary"}
+        aria-pressed={notInChatOnly}
+        onClick={() => setNotInChatOnly((on) => !on)}
+      >
+        {groupChat.label}: not added ({notInChatCount})
+      </Button>
+    ) : null;
+
   // #1502. Beside the announcement composer, and only where there is
   // something to ask: a required question somebody has left unanswered.
   const askAction =
@@ -700,12 +789,14 @@ export function RegistrantsTab({
         announceAction ||
         askAction ||
         downloadAction ||
-        missingFilter) && (
+        missingFilter ||
+        notInChatFilter) && (
         <div className="flex flex-wrap items-start justify-between gap-2">
           {summary ? <p className="app-muted text-sm">{summary}</p> : <span />}
           <div className="flex flex-wrap gap-2">
             {previewRows === null && headerActions}
             {missingFilter}
+            {notInChatFilter}
             {downloadAction}
             {askAction}
             {announceAction}
@@ -744,7 +835,10 @@ export function RegistrantsTab({
               missing-answers toggle carries over so the count matches. */}
           {hasOverflow && (
             <Link
-              href={`${registrantsPageHref(eventId)}${missingOnly ? "?missing=1" : ""}`}
+              href={registrantsPageLink(eventId, {
+                missing: missingOnly,
+                notInChat: Boolean(groupChat) && notInChatOnly,
+              })}
               className={buttonVariants({
                 variant: "ghost",
                 className: "w-full",
@@ -761,6 +855,8 @@ export function RegistrantsTab({
         canRestore={mode === "edit" && canManage}
         onRestore={restore}
         isRowPending={isRowPending}
+        groupChat={groupChat}
+        onGroupChatChanged={refreshRegistrants}
       />
 
       <RegistrantAnnouncementsSection data={data} />

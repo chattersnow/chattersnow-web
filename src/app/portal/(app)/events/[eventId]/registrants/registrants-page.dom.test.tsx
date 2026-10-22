@@ -87,6 +87,8 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: null,
     rider: null,
     ...overrides,
@@ -156,6 +158,7 @@ function payload(
     },
     registrationQuestions: [],
     riderMountains: null,
+    groupChat: null,
     ...overrides,
   };
 }

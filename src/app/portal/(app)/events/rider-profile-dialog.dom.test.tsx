@@ -58,6 +58,8 @@ function registrant(
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: null,

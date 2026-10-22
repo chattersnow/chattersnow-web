@@ -52,6 +52,8 @@ const registrants: EventRegistrant[] = [
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: {
       accompanying_adult_name: "Robin Rivera",
       accompanying_adult_phone: "555-0101",
@@ -104,6 +106,8 @@ const registrants: EventRegistrant[] = [
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: "snowboard",
@@ -198,6 +202,7 @@ function payload(
     registrationQuestions: [],
     photoConsentInForce: false,
     riderMountains: null,
+    groupChat: null,
     ...overrides,
   };
 }

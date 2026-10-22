@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { GROUP_CHAT_LABEL_MAX_LENGTH } from "@/lib/registration-group-chat";
 import {
   parseEventAttendanceForm,
   parseEventForm,
@@ -187,6 +188,8 @@ describe("parseEventPlanningForm", () => {
         budgetAmount: null,
         // Not sent either, so left as it was.
         confirmationNote: undefined,
+        groupChatEnabled: null,
+        groupChatLabel: undefined,
       },
     });
   });
@@ -214,6 +217,26 @@ describe("parseEventPlanningForm", () => {
       parse({ confirmationNote: "x".repeat(CONFIRMATION_NOTE_MAX_LENGTH + 1) }),
     ).toEqual({
       error: `Confirmation email note must be ${CONFIRMATION_NOTE_MAX_LENGTH} characters or fewer.`,
+    });
+  });
+
+  test("reads the group chat switch and its label (#1648)", () => {
+    const parse = (fields: Record<string, string>) =>
+      parseEventPlanningForm(formData(fields), eventDates);
+    expect(
+      parse({ groupChatEnabled: "on", groupChatLabel: "  Instagram chat " }),
+    ).toMatchObject({
+      data: { groupChatEnabled: true, groupChatLabel: "Instagram chat" },
+    });
+    expect(
+      parse({ groupChatEnabled: "off", groupChatLabel: "  " }),
+    ).toMatchObject({
+      data: { groupChatEnabled: false, groupChatLabel: null },
+    });
+    expect(
+      parse({ groupChatLabel: "x".repeat(GROUP_CHAT_LABEL_MAX_LENGTH + 1) }),
+    ).toEqual({
+      error: `Group chat name must be ${GROUP_CHAT_LABEL_MAX_LENGTH} characters or fewer.`,
     });
   });
 
