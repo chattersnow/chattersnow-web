@@ -103,14 +103,23 @@ test.describe("event carpools", () => {
     await expect(car.getByText("1 of 2 paid")).toBeVisible();
 
     await page.goto(`/portal/events/${fixture.eventId}/registrants`);
+    // The Carpool column drops below md, like the other secondary columns;
+    // the detail sheet carries the same line on every viewport.
+    if ((page.viewportSize()?.width ?? 0) >= 768) {
+      await expect(
+        page.getByRole("cell", { name: "Car 1 · Driver" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("cell", { name: "Car 1 · Passenger · Paid" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("cell", { name: "Car 1 · Passenger", exact: true }),
+      ).toBeVisible();
+    }
+
+    await page.getByRole("button", { name: driver, exact: true }).click();
     await expect(
-      page.getByRole("cell", { name: "Car 1 · Driver" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("cell", { name: "Car 1 · Passenger · Paid" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("cell", { name: "Car 1 · Passenger", exact: true }),
+      modal(page).getByRole("link", { name: "Car 1 · Driver" }),
     ).toBeVisible();
   });
 });
