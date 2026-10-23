@@ -556,7 +556,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   administration: {
     view: "Almost nothing on its own. One database policy admits it; every page filed under Administration asks for Manage.",
     manage:
-      "Open Administration: users and their roles, the roles and the permissions matrix itself, the audit log, the email delivery log, data retention, and the organization export. Also gates Technology and some person-record administration.",
+      "Open Administration: users and their roles, the roles and the permissions matrix itself, the audit log, the email delivery log, data retention, and the organization export. Also the only grant that gives a guest per-event access (event access grants). Also gates Technology and some person-record administration.",
     excludes: [
       {
         key: "system_settings",
