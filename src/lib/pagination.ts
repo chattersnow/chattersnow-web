@@ -30,12 +30,16 @@ export function parsePage(raw: string | undefined): number {
  * seeds the rows-per-page `Select`, and a hand-edited `?perPage=15` would
  * otherwise hand it a value none of its items carry. Anything absent or
  * unparseable falls back to the default, and nothing gets past the largest
- * option however big the number in the URL is.
+ * option however big the number in the URL is. `options` defaults to the
+ * portal's; its first entry is the default size.
  */
-export function parsePerPage(raw: string | undefined): number {
+export function parsePerPage(
+  raw: string | undefined,
+  options: readonly number[] = PAGE_SIZE_OPTIONS,
+): number {
   const parsed = Number.parseInt(raw ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return PAGE_SIZE;
-  return PAGE_SIZE_OPTIONS.reduce((best, option) =>
+  if (!Number.isFinite(parsed) || parsed <= 0) return options[0];
+  return options.reduce((best, option) =>
     Math.abs(option - parsed) < Math.abs(best - parsed) ? option : best,
   );
 }

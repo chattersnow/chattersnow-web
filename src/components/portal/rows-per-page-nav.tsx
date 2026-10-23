@@ -14,14 +14,16 @@ import { useListNavigation } from "@/components/portal/list-navigation";
  *
  * Takes each option's href already built rather than the function that builds
  * them: `Pagination` renders on the server, and a function cannot cross into
- * a client component. There are two options, so pre-building both costs
- * nothing.
+ * a client component. There are a handful of options, so pre-building them
+ * costs nothing.
  */
 export function RowsPerPageNav({
   value,
   options,
+  label,
 }: {
   value: number;
+  label?: string;
   /** Each offered size with the URL that selects it. */
   options: readonly { value: number; href: string }[];
 }) {
@@ -31,6 +33,7 @@ export function RowsPerPageNav({
   return (
     <RowsPerPageSelect
       value={value}
+      label={label}
       options={options.map((option) => option.value)}
       onChange={(next) => {
         const href = options.find((option) => option.value === next)?.href;

@@ -26,6 +26,7 @@ describe("EventGallery", () => {
           ],
           videos: [{ id: "v1", url: "https://s/v1", caption: null }],
           photoCount: 12,
+          photoOffset: 0,
         }}
         allPhotosHref="/events/e/1/photos"
       />,
@@ -56,6 +57,29 @@ describe("EventGallery", () => {
     expect(section.textContent).not.toMatch(/\.jpe?g|\.mov/i);
   });
 
+  test("a later page numbers its photos from the page's offset and shows its pager", () => {
+    render(
+      <EventGallery
+        eventName="Rail Jam"
+        media={{
+          photos: [{ id: "p21", url: "https://s/p21", caption: null }],
+          videos: [],
+          photoCount: 104,
+          photoOffset: 20,
+        }}
+        pager={<nav aria-label="Gallery pages" />}
+      />,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Open Photo 21 of 104 from Rail Jam",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("navigation", { name: "Gallery pages" }),
+    ).toBeTruthy();
+  });
+
   test("videos alone get their own heading and no photos link", () => {
     render(
       <EventGallery
@@ -64,6 +88,7 @@ describe("EventGallery", () => {
           photos: [],
           videos: [{ id: "v1", url: "https://s/v1", caption: null }],
           photoCount: 0,
+          photoOffset: 0,
         }}
         allPhotosHref="/events/e/1/photos"
       />,
