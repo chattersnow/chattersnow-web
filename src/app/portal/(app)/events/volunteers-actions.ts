@@ -8,6 +8,7 @@ import {
 } from "./volunteers-form";
 import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople, sortByPersonName } from "@/lib/events/event-people";
 
 export type EventVolunteerPerson = {
   id: string;
@@ -45,7 +46,7 @@ export async function listEventVolunteersAction(
   const { data, error } = await supabase
     .from("event_volunteers")
     .select(
-      "id, event_id, person_id, shift_id, role, volunteer_role_type_id, role_type:volunteer_role_types(name), notes, person:people!inner(id, name, email, phone)",
+      "id, event_id, person_id, shift_id, role, volunteer_role_type_id, role_type:volunteer_role_types(name), notes, person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("person(name)", { ascending: true, nullsFirst: false })
@@ -54,7 +55,14 @@ export async function listEventVolunteersAction(
   if (error) {
     return { error: "Could not load volunteers. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventVolunteer[] };
+  // Plain embed for the same reason as the staff list (#1693).
+  const rows = (data ?? []) as unknown as EventVolunteer[];
+  if (
+    await fillEventPeople(supabase, eventId, rows, [["person_id", "person"]])
+  ) {
+    sortByPersonName(rows);
+  }
+  return { data: rows };
 }
 
 export async function createEventVolunteerAction(
@@ -199,7 +207,9 @@ export async function listEventVolunteerHoursAction(
   if (error) {
     return { error: "Could not load volunteer hours. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventVolunteerHours[] };
+  const rows = (data ?? []) as unknown as EventVolunteerHours[];
+  await fillEventPeople(supabase, eventId, rows, [["person_id", "person"]]);
+  return { data: rows };
 }
 
 export async function createEventVolunteerHoursAction(

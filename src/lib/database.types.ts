@@ -11668,6 +11668,16 @@ export type Database = {
         }[];
       };
       event_media_uploads_enabled: { Args: never; Returns: boolean };
+      event_people: {
+        Args: { p_event_id: string };
+        Returns: {
+          email: string;
+          id: string;
+          name: string;
+          phone: string;
+          preferred_name: string;
+        }[];
+      };
       event_public_gallery_enabled: { Args: never; Returns: boolean };
       event_reminder_due_tenants: { Args: never; Returns: string[] };
       event_reminder_message: {

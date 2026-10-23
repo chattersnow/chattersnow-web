@@ -8,6 +8,7 @@ import {
   hasPermission,
 } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 import {
   loadCarriedForwardActions,
   type CarriedForwardEvent,
@@ -28,6 +29,8 @@ export type EventRetroItem = {
   area: RetroArea | null;
   author_id: string | null;
   author_name: string | null;
+  /** Optional so fixtures built before #1693 still type-check. */
+  owner_person_id?: string | null;
   owner: RetroPerson | null;
   status: "open" | "done" | null;
   completed_at: string | null;
@@ -55,7 +58,7 @@ export type EventRetro = {
 export type RetroActionResult = { error: string } | { success: true };
 
 const ITEM_COLUMNS =
-  "id, event_id, kind, body, area, author_id, author_name, status, completed_at, created_at, owner:people!event_retro_items_owner_in_tenant(id, name)";
+  "id, event_id, kind, body, area, author_id, author_name, status, completed_at, created_at, owner_person_id, owner:people!event_retro_items_owner_in_tenant(id, name)";
 
 const LOCKED_MESSAGE =
   "This event's report has been submitted. Reopen it to change the retro.";
@@ -86,7 +89,7 @@ export async function getEventRetroAction(
       .maybeSingle(),
     supabase
       .from("event_staff")
-      .select("person:people!inner(id, name)")
+      .select("person_id, person:people(id, name)")
       .eq("event_id", eventId)
       .order("person(name)", { ascending: true, nullsFirst: false }),
   ]);
@@ -95,16 +98,30 @@ export async function getEventRetroAction(
     return { error: "Could not load the retro. Please try again." };
   }
 
+  const rows = (items.data ?? []) as unknown as EventRetroItem[];
+  const staffRows = (staff.data ?? []) as unknown as {
+    person_id: string;
+    person: RetroPerson | null;
+  }[];
+  // Owners are staff, so one event_people() read fills both (#1693).
+  await fillEventPeople(
+    supabase,
+    eventId,
+    [...rows, ...staffRows],
+    [
+      ["owner_person_id", "owner"],
+      ["person_id", "person"],
+    ],
+  );
+
   return {
     data: {
-      items: (items.data ?? []) as unknown as EventRetroItem[],
+      items: rows,
       canWrite: canWrite.data === true,
       canManage: hasPermission(permissions, "events", "manage"),
       userId: userResult.user.id,
       locked: event.data?.report_status === "submitted",
-      owners: ((staff.data ?? []) as unknown as { person: RetroPerson }[]).map(
-        (row) => row.person,
-      ),
+      owners: staffRows.flatMap((row) => (row.person ? [row.person] : [])),
     },
   };
 }

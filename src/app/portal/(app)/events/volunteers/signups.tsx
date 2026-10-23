@@ -27,6 +27,7 @@ export function AddVolunteerForm({
   shifts,
   roleTypes,
   onPersonCreated,
+  allowCreatePerson = true,
   onSubmit,
   onCancel,
 }: {
@@ -34,6 +35,8 @@ export function AddVolunteerForm({
   shifts: EventShift[];
   roleTypes: RoleType[];
   onPersonCreated: (person: PickedPerson) => void;
+  /** False hides "+ Create new person" for a caller who cannot write the directory (#1693). */
+  allowCreatePerson?: boolean;
   onSubmit: (
     personId: string,
     formData: FormData,
@@ -89,6 +92,7 @@ export function AddVolunteerForm({
             selected={selectedPerson}
             onSelect={setSelectedPerson}
             onPersonCreated={onPersonCreated}
+            allowCreate={allowCreatePerson}
             newPersonRole="is_volunteer"
           />
         </Field>

@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseChecklistItemForm } from "./checklist-form";
 import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 
 export type EventChecklistItem = {
   id: string;
@@ -42,7 +43,11 @@ export async function listEventChecklistItemsAction(
   if (error) {
     return { error: "Could not load the checklist. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventChecklistItem[] };
+  const rows = (data ?? []) as unknown as EventChecklistItem[];
+  await fillEventPeople(supabase, eventId, rows, [
+    ["owner_person_id", "owner"],
+  ]);
+  return { data: rows };
 }
 
 export async function createEventChecklistItemAction(

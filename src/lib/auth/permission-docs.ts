@@ -65,6 +65,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
       "Anyone on the public site, with no grant, sees a public, published event's public photos and videos while the organization's Public event gallery is on -- never who uploaded them, their filenames or anything about a hidden one.",
       "A per-event access grant (Administration: Manage gives one) reaches the same things on one event without this permission, but only in the areas it names -- Details & logistics, Staff, Registrations, Media, Impact & retro, and the sensitive Expenses, Revenue, Sponsors & pricing, Giveaway & goods and Incidents once the organization offers them -- at View or Manage. It never creates or deletes an event, writes to the donation, sales or inventory ledgers, changes an organization-wide setting, reads an event's report, or emails registrants on the organization's behalf (messages, reminders, answer requests, carpool assignments).",
       "Someone holding grants and no role is a guest in the portal: they see Events alone, listing only their granted events, and on each one only the cards its areas cover, editable only on a Manage grant.",
+      "A grant does not open People. Its holder sees the names of the people on its event's rows in the areas it covers -- staff, volunteers, sponsors, prize donors, the lead, owners -- with the email and phone those cards already show, and nothing else of their records. Their pickers offer only people already on the event, and they cannot create a person.",
     ],
     excludes: [
       {

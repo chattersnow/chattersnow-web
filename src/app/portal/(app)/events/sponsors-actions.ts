@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseSponsorForm } from "./sponsor-form";
 import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 
 export type EventSponsorPerson = {
   id: string;
@@ -100,13 +101,17 @@ export async function listEventSponsorsAction(
     EventSponsorItem[]
   >;
 
+  const rows = (sponsors.data ?? []) as unknown as EventSponsor[];
+  await fillEventPeople(supabase, eventId, rows, [
+    ["person_id", "person"],
+    ["follow_up_owner_person_id", "follow_up_owner"],
+  ]);
+
   return {
-    data: ((sponsors.data ?? []) as unknown as EventSponsor[]).map(
-      (sponsor) => ({
-        ...sponsor,
-        items: itemsBySponsor[sponsor.id] ?? [],
-      }),
-    ),
+    data: rows.map((sponsor) => ({
+      ...sponsor,
+      items: itemsBySponsor[sponsor.id] ?? [],
+    })),
   };
 }
 
