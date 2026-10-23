@@ -34,6 +34,7 @@ import { EventSalesTab } from "./event-sales-tab";
 import { GiveawayTab } from "./giveaway-tab";
 import { ResultsTab } from "./results-tab";
 import { MediaTab } from "./media-tab";
+import { AccessTab } from "./access-tab";
 import { AddChecklistItemDialog } from "./add-checklist-item-dialog";
 import { LogIncidentDialog } from "./log-incident-dialog";
 import { AddDiscountCodesDialog } from "./add-discount-codes-dialog";
@@ -72,6 +73,7 @@ export type TabValue =
   | "sales"
   | "results"
   | "media"
+  | "access"
   | "donations"
   | "cash-donations";
 
@@ -120,9 +122,10 @@ export type TabConfigEntry = {
   /**
    * The per-event access area this card belongs to (#1688): a guest's grant
    * shows the card when it covers this area. The area of the table the card
-   * saves to, so a card a grant shows is one RLS lets it write.
+   * saves to, so a card a grant shows is one RLS lets it write. Omitted for a
+   * card no grant ever shows: Access (#1689).
    */
-  area: EventAccessArea;
+  area?: EventAccessArea;
   /** Reads this card takes from the shared provider rather than fetching. */
   sharedData?: readonly SharedEventResource[];
   /**
@@ -310,6 +313,27 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
         <AddVolunteerDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
         <LogHoursDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
       </>
+    ),
+  },
+  {
+    // Who else has access to this event: per-event grants (#1689). Read by
+    // `events: manage`, changed only by `administration: manage`; the card
+    // decides which from the action's answer. No area, so no grant shows it.
+    value: "access",
+    label: "Access",
+    keywords: ["partner", "guest", "share", "permissions", "invite"],
+    group: "team",
+    kind: "plain",
+    access: [
+      { resource: "events", level: "manage" },
+      { resource: "administration", level: "manage" },
+    ],
+    render: (ctx) => (
+      <AccessTab
+        eventId={ctx.event.id}
+        eventName={ctx.event.name}
+        timeZone={ctx.event.timezone}
+      />
     ),
   },
   {
@@ -714,7 +738,9 @@ export function eventGroups(
     hasPermission(permissions, "events", "view") &&
     (!entry.access || hasAnyPermission(permissions, entry.access));
   const granted = (entry: TabConfigEntry) =>
-    grant !== null && grant.areas.includes(entry.area);
+    grant !== null &&
+    entry.area !== undefined &&
+    grant.areas.includes(entry.area);
 
   return EVENT_GROUPS.map(({ key, label }) => ({
     key,

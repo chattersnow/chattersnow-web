@@ -9,7 +9,7 @@
 // was never sold Finance got an Expenses card and an "Add expense" button that
 // could not work. This file is the guard on that.
 import { describe, expect, test } from "bun:test";
-import type { EventGrant } from "@/lib/auth/event-access";
+import { EVENT_ACCESS_AREAS, type EventGrant } from "@/lib/auth/event-access";
 import type { PermissionLevel, PermissionMap } from "@/lib/auth/permissions";
 import {
   EVENT_GROUPS,
@@ -225,5 +225,26 @@ describe("eventGroups for a guest's grant", () => {
       { event_id: "event-1", level: "view", areas: ["expenses"] },
     ).flatMap((group) => group.tabs);
     expect(sections.find((s) => s.value === "expenses")?.canManage).toBe(true);
+  });
+});
+
+// Who has access to an event is for its coordinators and administrators
+// (#1689); no grant ever shows the card, whatever its areas.
+describe("the Access card", () => {
+  test("events: manage or administration: manage sees it, events: view does not", () => {
+    expect(cards({ events: "manage" })).toContain("access");
+    expect(cards({ events: "view", administration: "manage" })).toContain(
+      "access",
+    );
+    expect(cards({ events: "view" })).not.toContain("access");
+  });
+
+  test("a guest never sees it, even holding every area at manage", () => {
+    const shown = eventGroups(
+      {},
+      {},
+      { event_id: "event-1", level: "manage", areas: [...EVENT_ACCESS_AREAS] },
+    ).flatMap((group) => group.tabs.map((tab) => tab.value));
+    expect(shown).not.toContain("access");
   });
 });

@@ -30,6 +30,40 @@ export const EVENT_ACCESS_AREAS = [
 
 export type EventAccessArea = (typeof EVENT_ACCESS_AREAS)[number];
 
+/** One `event_access_areas` row, with whether this tenant offers it now. */
+export type EventAccessAreaOption = {
+  key: EventAccessArea;
+  label: string;
+  description: string;
+  sensitive: boolean;
+  offered: boolean;
+};
+
+/**
+ * The platform's areas in catalog order, each marked offered or not by the
+ * current tenant (#1689). Null when the catalog cannot be read.
+ */
+export async function getEventAccessAreaOptions(
+  supabase: SupabaseClient,
+): Promise<EventAccessAreaOption[] | null> {
+  const [{ data: areas, error }, { data: offered }] = await Promise.all([
+    supabase
+      .from("event_access_areas")
+      .select("key, label, description, sensitive")
+      .order("sort_order"),
+    supabase.rpc("event_access_offered_areas"),
+  ]);
+  if (error || !areas) return null;
+  const offeredKeys = new Set((offered ?? []) as string[]);
+  return areas.map((area) => ({
+    key: area.key as EventAccessArea,
+    label: area.label as string,
+    description: area.description as string,
+    sensitive: area.sensitive as boolean,
+    offered: offeredKeys.has(area.key as string),
+  }));
+}
+
 /** One row of `my_granted_events()`: only the areas the tenant offers now. */
 export type EventGrant = {
   event_id: string;

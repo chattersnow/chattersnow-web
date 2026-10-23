@@ -7461,6 +7461,70 @@ export type Database = {
           },
         ];
       };
+      pending_event_access_grants: {
+        Row: {
+          areas: string[];
+          created_at: string;
+          created_by: string | null;
+          email: string;
+          event_id: string;
+          id: string;
+          invited_at: string | null;
+          level: string;
+          tenant_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          areas: string[];
+          created_at?: string;
+          created_by?: string | null;
+          email: string;
+          event_id: string;
+          id?: string;
+          invited_at?: string | null;
+          level: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          areas?: string[];
+          created_at?: string;
+          created_by?: string | null;
+          email?: string;
+          event_id?: string;
+          id?: string;
+          invited_at?: string | null;
+          level?: string;
+          tenant_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pending_event_access_grants_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "pending_event_access_grants_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pending_event_access_grants_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pending_role_grants: {
         Row: {
           claimed_at: string | null;
@@ -11519,6 +11583,13 @@ export type Database = {
           welcome_completed_at: string;
         }[];
       };
+      event_access_account_name: {
+        Args: { p_user_id: string };
+        Returns: {
+          email: string;
+          name: string;
+        }[];
+      };
       event_access_ids: {
         Args: { p_min_level: string; p_parent?: string; p_table_name: string };
         Returns: string[];
@@ -11527,6 +11598,10 @@ export type Database = {
       event_access_rank: {
         Args: { p_event_id: string; p_table_name: string };
         Returns: number;
+      };
+      event_access_tenant_offered_areas: {
+        Args: { p_tenant_id: string };
+        Returns: string[];
       };
       event_carpool_assignment_recipients: {
         Args: { p_event_id: string };
@@ -11991,6 +12066,21 @@ export type Database = {
         Returns: {
           email: string;
           full_name: string;
+          user_id: string;
+        }[];
+      };
+      list_event_access: {
+        Args: { p_event_id: string };
+        Returns: {
+          areas: string[];
+          created_at: string;
+          email: string;
+          granted_by_name: string;
+          id: string;
+          kind: string;
+          level: string;
+          name: string;
+          updated_at: string;
           user_id: string;
         }[];
       };
@@ -13332,6 +13422,10 @@ export type Database = {
       set_donation_import_mapping: {
         Args: { p_mapping: Json };
         Returns: undefined;
+      };
+      set_event_access_offered_areas: {
+        Args: { p_areas: string[] };
+        Returns: string[];
       };
       set_event_carpool_passengers: {
         Args: { p_car_id: string; p_registration_ids: string[] };

@@ -24,7 +24,7 @@ import { AUTO_REPLIES } from "@/lib/notifications/auto-replies";
  *     (`staff_message`), addressed to an inbox rather than a person
  *     (`ops_report`), or part of an account flow nobody can switch off.
  *
- * Those seven keys are written out as literals rather than imported from the
+ * Those eight keys are written out as literals rather than imported from the
  * senders that define them, because three of those senders are `server-only`
  * and this module is on the path of a plain URL-parsing test. The spellings
  * are pinned against the real constants in delivery-log-labels.test.ts, which
@@ -38,6 +38,7 @@ const UNREGISTERED_KIND_LABELS: Record<string, string> = {
   notification_email_confirmation: "Notification address confirmation",
   notification_email_changed: "Notification address changed notice",
   auto_reply_test: "Automatic reply test send",
+  event_access_granted: "Event access given",
 };
 
 /**
