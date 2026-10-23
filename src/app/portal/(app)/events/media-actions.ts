@@ -15,6 +15,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import {
   EVENT_MEDIA_BUCKET,
   EVENT_MEDIA_RETENTION_PRESETS,
@@ -99,7 +100,11 @@ export async function getEventMediaAction(
   eventId: string,
 ): Promise<{ data: EventMediaState } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_media",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const [
@@ -225,10 +230,9 @@ export async function deleteEventMediaAction(
     "You must be signed in to delete photos and videos.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
+  const permissionError = await checkEventAccess(
     supabase,
-    "events",
-    "manage",
+    { table: "event_media", level: "manage" },
     "You don't have permission to delete this event's photos and videos.",
   );
   if (permissionError) return permissionError;
@@ -283,10 +287,9 @@ export async function setEventMediaPublicAction(
     "You must be signed in to change what the public gallery shows.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
+  const permissionError = await checkEventAccess(
     supabase,
-    "events",
-    "manage",
+    { table: "event_media", level: "manage", eventId },
     "You don't have permission to change what this event's public gallery shows.",
   );
   if (permissionError) return permissionError;

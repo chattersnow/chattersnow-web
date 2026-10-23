@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseSponsorForm } from "./sponsor-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type EventSponsorPerson = {
@@ -70,7 +70,11 @@ export async function listEventSponsorsAction(
   eventId: string,
 ): Promise<{ data: EventSponsor[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_sponsors",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   // The items live in `inventory_items`, which is gated on inventory:view --
@@ -117,7 +121,11 @@ export async function createEventSponsorAction(
     "You must be signed in to add a sponsor.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_sponsors",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   if (!personId) {
@@ -171,7 +179,10 @@ export async function updateEventSponsorAction(
     "You must be signed in to update a sponsor.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_sponsors",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseSponsorForm(formData);
@@ -222,7 +233,10 @@ export async function setEventSponsorFollowUpDoneAction(
     "You must be signed in to update a sponsor follow-up.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_sponsors",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -247,7 +261,10 @@ export async function deleteEventSponsorAction(
     "You must be signed in to remove a sponsor.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_sponsors",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase.rpc("delete_event_sponsor", { p_id: id });

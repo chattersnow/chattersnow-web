@@ -57,6 +57,7 @@ type PaletteGroup = { value: string; items: PaletteItem[] };
 function pageItems(
   permissions: PermissionMap,
   lexicon: Lexicon,
+  guest: boolean,
 ): PaletteItem[] {
   const items: PaletteItem[] = [];
   // One entry per destination. The nav tree cross-lists a page under more than
@@ -72,7 +73,7 @@ function pageItems(
     seen.add(item.value);
     items.push(item);
   };
-  for (const section of visibleNavItems(permissions, lexicon)) {
+  for (const section of visibleNavItems(permissions, lexicon, { guest })) {
     if (!section.subItems) {
       push({
         value: `page:${section.href}`,
@@ -148,10 +149,13 @@ function matches(item: PaletteItem, query: string) {
 
 export function CommandPalette({
   permissions,
+  guest = false,
   lexicon = DEFAULT_VOCABULARY,
   currentPerson,
 }: {
   permissions: PermissionMap;
+  /** Per-event grants only (#1688): Events is the one page offered. */
+  guest?: boolean;
   /** This tenant's words, so the palette offers a section by the name
    *  the sidebar shows it under (#896). */
   lexicon?: Lexicon;
@@ -172,8 +176,8 @@ export function CommandPalette({
 
   const canSeePeople = hasPermission(permissions, "people", "view");
   const pages = React.useMemo(
-    () => pageItems(permissions, lexicon),
-    [permissions, lexicon],
+    () => pageItems(permissions, lexicon, guest),
+    [permissions, lexicon, guest],
   );
   // The same six the sidebar offers, filtered by the same gates. `detail` is
   // deliberately empty: the "Actions" group label already says what these are,

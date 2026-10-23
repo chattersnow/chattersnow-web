@@ -248,7 +248,12 @@ export function EventDetailView(props: {
   device: DeviceClass;
   event: EventRow;
   programs: Program[];
-  canManage: boolean;
+  /**
+   * `events: manage`, which deleting an event still takes (#1687). What each
+   * card may edit is `EventSection.canManage`, since a guest's grant may
+   * manage some areas and not others (#1688).
+   */
+  canDelete: boolean;
   deleteBlockers: string[];
   /**
    * The rail's groups and cards for this reader, resolved from the permission
@@ -275,7 +280,7 @@ function EventDetailContent({
   device,
   event,
   programs,
-  canManage,
+  canDelete,
   deleteBlockers,
   groups,
   initialCard,
@@ -285,7 +290,12 @@ function EventDetailContent({
   device: DeviceClass;
   event: EventRow;
   programs: Program[];
-  canManage: boolean;
+  /**
+   * `events: manage`, which deleting an event still takes (#1687). What each
+   * card may edit is `EventSection.canManage`, since a guest's grant may
+   * manage some areas and not others (#1688).
+   */
+  canDelete: boolean;
   deleteBlockers: string[];
   groups: EventGroup[];
   initialCard: TabValue;
@@ -314,6 +324,10 @@ function EventDetailContent({
 
   const entry = entryFor(card);
   const title = cardTitle(card, entry.label);
+  // Per card since #1688: a guest's grant may manage some areas of the event
+  // and not others.
+  const canManageCard =
+    sections.find((section) => section.value === card)?.canManage ?? false;
   const editToggle = entry.kind === "form" || SELF_MANAGED_EDIT_TABS.has(card);
   const TabCard = editToggle ? EditableTabCard : PlainTabCard;
 
@@ -336,7 +350,7 @@ function EventDetailContent({
             <VisibilityBadge visibility={event.visibility} />
           </div>
         </div>
-        {canManage && (
+        {canDelete && (
           <DeleteEventButton
             eventId={event.id}
             eventName={event.name}
@@ -375,7 +389,7 @@ function EventDetailContent({
             title={title}
             event={event}
             programs={programs}
-            canManage={canManage}
+            canManage={canManageCard}
           />
         </EventSharedDataProvider>
       </div>

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import {
   GIVEAWAY_RULES_ANSWERS,
   GIVEAWAY_RULES_SECTIONS,
@@ -58,7 +58,10 @@ async function loadEditorState(
   giveawayId: string,
 ): Promise<{ data: GiveawayRulesEditorState } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_rules",
+    level: "view",
+  });
   if (permissionError) return permissionError;
 
   const state = await getGiveawayRulesState(supabase, giveawayId);
@@ -116,7 +119,10 @@ export async function saveGiveawayRulesAction(
   input: { oddsBasis: string; overrides: Record<string, string[]> },
 ): Promise<GiveawayRulesActionResult> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_rules",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   if (!isOddsBasis(input.oddsBasis)) {
@@ -162,7 +168,10 @@ export async function publishGiveawayRulesAction(
   giveawayId: string,
 ): Promise<GiveawayRulesActionResult> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_rules",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const state = await getGiveawayRulesState(supabase, giveawayId);

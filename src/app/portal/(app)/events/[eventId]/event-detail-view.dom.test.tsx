@@ -227,6 +227,21 @@ const ALL_GROUPS = eventGroups(
   ),
 );
 
+// The same cards for a reader with `events: view` and the rest, so every card
+// is listed and none of them may be edited (#1688: edit access is per card).
+const VIEW_ONLY_GROUPS = eventGroups(
+  Object.fromEntries(
+    [
+      "events",
+      "finance",
+      "event_expenses",
+      "event_revenue",
+      "sales",
+      "inventory_reports",
+    ].map((resource) => [resource, "view" as const]),
+  ),
+);
+
 /** The section rail (#1008), which replaced the two strips of tabs. */
 function rail() {
   return within(screen.getByRole("navigation", { name: "Event sections" }));
@@ -253,7 +268,7 @@ function renderView(
       device="desktop"
       event={makeEvent()}
       programs={[]}
-      canManage={true}
+      canDelete={true}
       deleteBlockers={[]}
       groups={ALL_GROUPS}
       initialCard="overview"
@@ -401,7 +416,7 @@ describe("EventDetailView", () => {
   });
 
   test("hides create actions without manage access", () => {
-    renderView({ canManage: false });
+    renderView({ canDelete: false, groups: VIEW_ONLY_GROUPS });
 
     fireEvent.click(railRow("Volunteers"));
 
@@ -411,7 +426,7 @@ describe("EventDetailView", () => {
   });
 
   test("hides edit controls without manage access", () => {
-    renderView({ canManage: false });
+    renderView({ canDelete: false, groups: VIEW_ONLY_GROUPS });
 
     expect(
       screen.queryByRole("button", { name: "Edit event details" }),

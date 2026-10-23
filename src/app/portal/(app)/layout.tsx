@@ -10,6 +10,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { hasNoRole, isEventGuest } from "@/lib/auth/event-access";
 import {
   getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
@@ -143,7 +144,10 @@ export default async function PortalAppLayout({
   }
 
   const permissions = await getCurrentUserPermissions(supabase);
-  if (!Object.values(permissions).some((level) => level !== "none")) {
+  // A guest holds no role, only per-event grants (#1688). They get the portal
+  // with Events alone; an account with neither is refused as before.
+  const guest = await isEventGuest(supabase, permissions);
+  if (hasNoRole(permissions) && !guest) {
     redirect("/portal/login?error=no_access");
   }
 
@@ -328,6 +332,7 @@ export default async function PortalAppLayout({
       surfaceAtRoot("portal", (await headers()).get("host") ?? ""),
     ),
     permissions,
+    guest,
     lexicon,
     branding,
     currentPerson,

@@ -9,21 +9,32 @@ const GROUPS: EventGroup[] = [
     key: "overview",
     label: "Overview",
     tabs: [
-      { value: "overview", label: "Event details", keywords: [] },
+      {
+        value: "overview",
+        canManage: true,
+        label: "Event details",
+        keywords: [],
+      },
       {
         value: "planning",
+        canManage: true,
         label: "Registration & planning",
         keywords: ["budget", "capacity"],
       },
-      { value: "checklist", label: "Checklist", keywords: [] },
+      { value: "checklist", canManage: true, label: "Checklist", keywords: [] },
     ],
   },
   {
     key: "operations",
     label: "Operations",
     tabs: [
-      { value: "logistics", label: "Logistics", keywords: ["venue"] },
-      { value: "incidents", label: "Incidents", keywords: [] },
+      {
+        value: "logistics",
+        canManage: true,
+        label: "Logistics",
+        keywords: ["venue"],
+      },
+      { value: "incidents", canManage: true, label: "Incidents", keywords: [] },
     ],
   },
 ];

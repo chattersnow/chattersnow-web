@@ -54,6 +54,14 @@ describe("visibleNavItems", () => {
   });
 });
 
+describe("visibleNavItems for a guest (#1688)", () => {
+  test("offers Events alone, without Dashboard", () => {
+    expect(
+      visibleNavItems({}, undefined, { guest: true }).map((item) => item.value),
+    ).toEqual(["events"]);
+  });
+});
+
 describe("Finance section", () => {
   test("the three Sales pages are reachable on sales:manage alone (#907, #908)", () => {
     // event_coordinator's shape: sales:manage with finance:none. The section

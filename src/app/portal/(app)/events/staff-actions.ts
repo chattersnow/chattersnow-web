@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseEventStaffForm } from "./staff-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type EventStaffPerson = {
@@ -28,7 +28,11 @@ export async function listEventStaffAction(
   eventId: string,
 ): Promise<{ data: EventStaffMember[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -57,7 +61,11 @@ export async function createEventStaffAction(
     "You must be signed in to add staff.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to link." };
@@ -96,7 +104,10 @@ export async function updateEventStaffAction(
     "You must be signed in to update a staff assignment.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseEventStaffForm(formData);
@@ -125,7 +136,10 @@ export async function deleteEventStaffAction(
     "You must be signed in to remove staff.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase.from("event_staff").delete().eq("id", id);

@@ -9,6 +9,7 @@
 // was never sold Finance got an Expenses card and an "Add expense" button that
 // could not work. This file is the guard on that.
 import { describe, expect, test } from "bun:test";
+import type { EventGrant } from "@/lib/auth/event-access";
 import type { PermissionLevel, PermissionMap } from "@/lib/auth/permissions";
 import {
   EVENT_GROUPS,
@@ -173,5 +174,56 @@ describe("eventGroups", () => {
         expect(keyword.trim()).not.toBe("");
       }
     }
+  });
+});
+
+// A guest holds no role, only a grant on the event (#1688): the cards are the
+// ones its areas cover, and only a `manage` grant edits them.
+describe("eventGroups for a guest's grant", () => {
+  const NO_ROLE: PermissionMap = {};
+
+  function guestSections(level: "view" | "manage", areas: EventGrant["areas"]) {
+    return eventGroups(
+      NO_ROLE,
+      { carpoolsEnabled: true },
+      { event_id: "event-1", level, areas },
+    ).flatMap((group) => group.tabs);
+  }
+
+  test("shows exactly the cards in the granted areas", () => {
+    const shown = guestSections("view", ["details", "registrations"]).map(
+      (section) => section.value,
+    );
+    expect(shown).toEqual(
+      TAB_CONFIG.filter(
+        (entry) => entry.area === "details" || entry.area === "registrations",
+      ).map((entry) => entry.value),
+    );
+    expect(shown).not.toContain("expenses");
+    expect(shown).not.toContain("staff");
+  });
+
+  test("a view grant edits nothing, a manage grant edits its cards", () => {
+    expect(
+      guestSections("view", ["details"]).some((section) => section.canManage),
+    ).toBe(false);
+    expect(
+      guestSections("manage", ["details"]).every(
+        (section) => section.canManage,
+      ),
+    ).toBe(true);
+  });
+
+  test("no grant and no role shows nothing", () => {
+    expect(eventGroups(NO_ROLE)).toEqual([]);
+  });
+
+  test("a role holder's cards keep the role's edit level beside a grant", () => {
+    const sections = eventGroups(
+      without("event_expenses"),
+      {},
+      { event_id: "event-1", level: "view", areas: ["expenses"] },
+    ).flatMap((group) => group.tabs);
+    expect(sections.find((s) => s.value === "expenses")?.canManage).toBe(true);
   });
 });

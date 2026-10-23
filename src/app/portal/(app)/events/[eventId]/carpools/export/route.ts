@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { loadEventCarpools } from "@/lib/portal/event-carpools";
 import {
   carpoolsCsv,
@@ -20,7 +20,11 @@ export async function GET(
 ) {
   const { eventId } = await context.params;
   const supabase = await createSupabaseServerClient();
-  const denied = await checkPermission(supabase, "events", "manage");
+  const denied = await checkEventAccess(supabase, {
+    table: "event_carpool_cars",
+    level: "manage",
+    eventId,
+  });
   if (denied) {
     return NextResponse.json({ error: denied.error }, { status: 403 });
   }

@@ -6,6 +6,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { getMyEventGrant } from "@/lib/auth/event-access";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import type { EventRow } from "../event-badges";
@@ -66,8 +67,13 @@ export default async function EventDetailPage({
     Array.isArray(value) ? value[0] : value;
 
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
-  const canManage = hasPermission(permissions, "events", "manage");
+  const [permissions, grant] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getMyEventGrant(supabase, eventId),
+  ]);
+  // Deleting an event stays role-only (#1687): a grant edits its cards, not
+  // the event's existence.
+  const canDelete = hasPermission(permissions, "events", "manage");
 
   const { data: eventRow, error } = await supabase
     .from("events")
@@ -113,9 +119,11 @@ export default async function EventDetailPage({
   // Resolved here rather than in the client view, so a card whose section this
   // reader has no access to -- or whose module this tenant was never sold
   // (#903) -- is absent from the payload rather than hidden in it.
-  const groups = eventGroups(permissions, {
-    carpoolsEnabled: event.carpools_enabled ?? false,
-  });
+  const groups = eventGroups(
+    permissions,
+    { carpoolsEnabled: event.carpools_enabled ?? false },
+    grant,
+  );
 
   // Which section the rail opens on, resolved here so a card this reader has
   // no access to is never the answer. `?tab=` is the parameter the rail keeps
@@ -151,7 +159,7 @@ export default async function EventDetailPage({
     // What, if anything, stops this event from being deleted -- so the delete
     // dialog can name it instead of only failing on submit. Only managers see
     // the affordance, so only they need the check.
-    canManage
+    canDelete
       ? supabase.rpc("event_delete_blockers", { p_id: eventId })
       : Promise.resolve({ data: null }),
     // The two phase-strip signals that don't live on the event row. Both are
@@ -191,7 +199,7 @@ export default async function EventDetailPage({
         device={device}
         event={event}
         programs={programs}
-        canManage={canManage}
+        canDelete={canDelete}
         deleteBlockers={deleteBlockers ?? []}
         groups={groups}
         initialCard={initialCard}

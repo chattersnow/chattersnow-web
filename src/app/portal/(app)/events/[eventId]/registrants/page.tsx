@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  getCurrentUserPermissions,
-  hasPermission,
-} from "@/lib/auth/permissions";
+import { getCurrentUserPermissions } from "@/lib/auth/permissions";
+import { getMyEventGrant, reachesEventArea } from "@/lib/auth/event-access";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { RegistrantsPage } from "./registrants-page";
@@ -30,9 +28,20 @@ export default async function EventRegistrantsPage({
 }) {
   const { eventId } = await params;
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
-  if (!hasPermission(permissions, "events", "view")) notFound();
-  const canManage = hasPermission(permissions, "events", "manage");
+  const [permissions, grant] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getMyEventGrant(supabase, eventId),
+  ]);
+  // A guest's grant reaches this page through its Registrations area (#1688).
+  if (!reachesEventArea(permissions, grant, "registrations", "view")) {
+    notFound();
+  }
+  const canManage = reachesEventArea(
+    permissions,
+    grant,
+    "registrations",
+    "manage",
+  );
 
   const { data: event, error } = await supabase
     .from("events")

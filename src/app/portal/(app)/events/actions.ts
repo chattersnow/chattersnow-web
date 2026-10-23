@@ -16,6 +16,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 import { REGISTRATION_QUESTION_ERROR_MESSAGES } from "@/lib/registration-questions";
 import {
@@ -130,7 +131,11 @@ export async function updateEventAttendanceAction(
     "You must be signed in to update attendance.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "events",
+    level: "manage",
+    eventId: id,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseEventAttendanceForm(formData);
@@ -164,7 +169,11 @@ export async function updateEventAction(
     "You must be signed in to update an event.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "events",
+    level: "manage",
+    eventId: id,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseEventForm(formData);
@@ -234,7 +243,11 @@ export async function updateEventPlanningAction(
     "You must be signed in to update planning details.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "events",
+    level: "manage",
+    eventId: id,
+  });
   if (permissionError) return permissionError;
 
   // The deadline is validated against the event's stored dates rather than
@@ -378,7 +391,11 @@ export async function updateEventReportAction(
     "You must be signed in to update the event report.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "events",
+    level: "manage",
+    eventId: id,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseEventReportForm(formData);
@@ -431,7 +448,11 @@ export async function submitEventReportAction(
     "You must be signed in to submit the event report.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "events",
+    level: "manage",
+    eventId: id,
+  });
   if (permissionError) return permissionError;
 
   // The RPC freezes the report's figures in report_snapshot as it submits

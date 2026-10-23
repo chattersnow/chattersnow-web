@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantLexicon } from "@/lib/tenant-lexicon";
 import {
@@ -8,6 +9,7 @@ import {
   hasAnyPermission,
 } from "@/lib/auth/permissions";
 import { resolveCurrentPersonId } from "@/lib/auth/current-person";
+import { isEventGuest } from "@/lib/auth/event-access";
 import { deviceClass } from "@/lib/portal/device";
 import {
   getUpcomingSummary,
@@ -59,6 +61,10 @@ export default async function PortalHomePage({
   const deniedArea = deniedAreaFrom(await searchParams);
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
+  // A guest has no dashboard: nothing on it is theirs to read. Their landing
+  // page is their granted events (#1688), and every refused navigation lands
+  // here on its way there.
+  if (await isEventGuest(supabase, permissions)) redirect("/portal/events");
 
   const canSeeUpcoming = hasPermission(permissions, "events", "view");
   const canSeeFinancial = hasAnyPermission(permissions, [

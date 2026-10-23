@@ -23,6 +23,11 @@ export type PortalShellProps = {
    */
   serviceWorkerScope: string;
   permissions: PermissionMap;
+  /**
+   * No tenant role, only per-event grants (#1688): the nav and the palette
+   * offer Events and nothing else.
+   */
+  guest: boolean;
   lexicon: Lexicon;
   branding: Branding;
   currentPerson: EnsuredPerson | null;
