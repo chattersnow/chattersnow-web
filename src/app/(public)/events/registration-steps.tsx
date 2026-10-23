@@ -12,6 +12,7 @@ import { flushSync } from "react-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { trackRegistration } from "@/lib/analytics/registration-events";
 import { useCloseRegistration } from "./event-registration-disclosure";
 import { REGISTRATION_STEPS, type RegistrationStep } from "./registration-step";
 
@@ -73,6 +74,7 @@ const LEGENDS: Record<RegistrationStep, string> = {
  * first step, then Next or "Complete registration".
  */
 export function RegistrationSteps({
+  eventId,
   about,
   event,
   review,
@@ -83,6 +85,8 @@ export function RegistrationSteps({
   submitVariant = "default",
   eventLegend = LEGENDS.event,
 }: {
+  /** The event being registered for, which every funnel event names (#1480). */
+  eventId: string;
   /** "About you": the questions about the registrant. */
   about: ReactNode;
   /** "This event": the questions about this attendance and the party. */
@@ -136,6 +140,10 @@ export function RegistrationSteps({
   /** Shows `next` and hands it focus, so a screen reader hears its legend. */
   function goTo(next: RegistrationStep) {
     flushSync(() => setStep(next));
+    trackRegistration("registration_step_viewed", {
+      event_id: eventId,
+      step: next,
+    });
     const target = stepRefs.current[next];
     target?.focus({ preventScroll: true });
     target?.scrollIntoView({ block: "start" });
@@ -182,6 +190,7 @@ export function RegistrationSteps({
       return;
     }
 
+    trackRegistration("registration_submitted", { event_id: eventId });
     onSubmit();
   }
 

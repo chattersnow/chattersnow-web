@@ -216,7 +216,10 @@ function EventDetailBody({
           ) : !registrationWindow.open ? (
             <p className="app-muted text-sm">{registrationWindow.reason}</p>
           ) : (
-            <EventRegistrationDisclosure eventName={event.name}>
+            <EventRegistrationDisclosure
+              eventId={event.id}
+              eventName={event.name}
+            >
               {viewer?.kind === "linked" ? (
                 <MyEventRegistrationForm
                   eventId={event.id}

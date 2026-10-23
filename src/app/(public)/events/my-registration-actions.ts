@@ -36,13 +36,14 @@ import {
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { publicEventPath } from "./event-path";
 import {
+  registrationErrorCode,
   registrationErrorStep,
   type RegistrationStep,
 } from "./registration-step";
 
-/** `step` as on `RegisterForEventResult` (#1403). */
+/** `step` and `code` as on `RegisterForEventResult` (#1403, #1480). */
 export type RegisterMyselfResult =
-  | { error: string; step: RegistrationStep }
+  | { error: string; step: RegistrationStep; code?: string }
   | { success: true; registrationId: string };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -199,6 +200,7 @@ export async function registerMyselfForEventAction(
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
       step: registrationErrorStep(error.message),
+      code: registrationErrorCode(error.message),
     };
   }
 

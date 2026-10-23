@@ -72,6 +72,7 @@ const ALL_ON: CollectionSurface = {
   volunteerHours: true,
   volunteerScreening: true,
   googleSignIn: true,
+  formAnalytics: true,
 };
 
 const ALL_OFF: CollectionSurface = {
@@ -84,6 +85,7 @@ const ALL_OFF: CollectionSurface = {
   volunteerHours: false,
   volunteerScreening: false,
   googleSignIn: false,
+  formAnalytics: false,
 };
 
 export function renderLegalDocuments(surfaces: CollectionSurface): string {

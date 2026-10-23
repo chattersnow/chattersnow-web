@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect } from "react";
+import { setRegistrationCapture } from "@/lib/analytics/registration-events";
+import { POSTHOG_PROXY_PATH } from "@/lib/analytics/form-analytics";
+
+/**
+ * PostHog on the public site, for form funnels only (#1480).
+ *
+ * Mounted by the public layout and only when `formAnalyticsConfig()` says so,
+ * so a tenant without the module, a preview deploy, CI and local runs never
+ * render it -- and `posthog-js` is imported here, dynamically, so none of them
+ * download it either.
+ *
+ * Every option below is a promise the privacy policy makes:
+ *
+ *   - `cookieless_mode: "always"` -- no cookie, localStorage or
+ *     sessionStorage, ever. PostHog counts a visitor from a daily hash of IP,
+ *     user agent and host instead. The PostHog project must have Cookieless
+ *     tracking switched on, or these events are discarded.
+ *   - `person_profiles: "never"`, and `identify()` is never called, even for a
+ *     visitor signed in to `/my`.
+ *   - nothing captured implicitly: no autocapture, replay, heatmaps, dead
+ *     clicks, exceptions, page-leave, surveys or flags. Registration forms
+ *     hold names, phone numbers and, on some tenants, a minor's contacts; the
+ *     only events are page views and the named funnel events.
+ *
+ * `before_send` drops anything sent from `/portal`. On a host that serves the
+ * portal from the same origin (the demo), a client-side navigation out of the
+ * public site would otherwise leave this instance counting portal page views.
+ */
+export function FormAnalytics({
+  apiKey,
+  tenant,
+}: {
+  apiKey: string;
+  tenant: string;
+}) {
+  useEffect(() => {
+    let cancelled = false;
+    void import("posthog-js").then(({ default: posthog }) => {
+      if (cancelled) return;
+      posthog.init(apiKey, {
+        api_host: POSTHOG_PROXY_PATH,
+        ui_host: "https://us.posthog.com",
+        cookieless_mode: "always",
+        persistence: "memory",
+        person_profiles: "never",
+        autocapture: false,
+        rageclick: false,
+        capture_pageview: "history_change",
+        capture_pageleave: false,
+        capture_dead_clicks: false,
+        capture_exceptions: false,
+        capture_performance: false,
+        enable_heatmaps: false,
+        disable_session_recording: true,
+        disable_surveys: true,
+        disable_product_tours: true,
+        disable_conversations: true,
+        disable_web_experiments: true,
+        advanced_disable_flags: true,
+        before_send: (event) =>
+          window.location.pathname.startsWith("/portal") ? null : event,
+      });
+      posthog.register({ tenant });
+      setRegistrationCapture((event, properties) => {
+        posthog.capture(event, properties);
+      });
+    });
+    return () => {
+      cancelled = true;
+      setRegistrationCapture(null);
+    };
+  }, [apiKey, tenant]);
+
+  return null;
+}

@@ -83,6 +83,12 @@ export type CollectionSurface = {
    * day the button becomes configurable, the policy follows it from here.
    */
   googleSignIn: boolean;
+  /**
+   * Whether the public site sends PostHog its form funnel (#1480): the
+   * `form_analytics` module. Not a form of its own, so it adds a sentence and a
+   * subprocessor rather than a "what we collect" bullet.
+   */
+  formAnalytics: boolean;
 };
 
 /**
@@ -107,6 +113,7 @@ export const SURFACE_GATES: Readonly<
   constituentAccounts: { slot: null, module: "constituent_accounts" },
   volunteerHours: { slot: null, module: "volunteers" },
   volunteerScreening: { slot: null, module: "volunteers" },
+  formAnalytics: { slot: null, module: "form_analytics" },
 };
 
 /**
@@ -150,6 +157,7 @@ export function collectionSurface(
     volunteerHours: live("volunteerHours", visibility, modules),
     volunteerScreening: live("volunteerScreening", visibility, modules),
     googleSignIn: true,
+    formAnalytics: live("formAnalytics", visibility, modules),
   };
 }
 
@@ -202,6 +210,10 @@ export const SURFACE_LABELS: Readonly<
   googleSignIn: {
     subject: "Google sign-in",
     collects: "signing in with Google",
+  },
+  formAnalytics: {
+    subject: "Form analytics",
+    collects: "form analytics with PostHog",
   },
 };
 

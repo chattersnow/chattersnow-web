@@ -27,6 +27,7 @@ import {
 } from "@/lib/notifications/registration-answer-self-links";
 import { ALREADY_REGISTERED_LINK_SENT } from "@/lib/registration-answer-requests";
 import {
+  registrationErrorCode,
   registrationErrorStep,
   registrationFieldStep,
   type RegistrationStep,
@@ -34,10 +35,11 @@ import {
 
 /**
  * `step` says which step of the form the error belongs to (#1403, #1413), so
- * a reader on the last step can be sent back to the field.
+ * a reader on the last step can be sent back to the field. `code` is the RPC's
+ * refusal, for the funnel (#1480); absent where the form parser refused.
  */
 export type RegisterForEventResult =
-  | { error: string; step: RegistrationStep }
+  | { error: string; step: RegistrationStep; code?: string }
   | {
       success: true;
       registrationId: string;
@@ -183,6 +185,7 @@ export async function registerForEventAction(
         ERROR_MESSAGES[error.message] ??
         "Could not save your registration. Please try again.",
       step: registrationErrorStep(error.message),
+      code: registrationErrorCode(error.message),
     };
   }
 

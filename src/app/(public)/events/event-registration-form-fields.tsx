@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { registerForEventAction } from "./event-registration-actions";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
+import { trackRegistration } from "@/lib/analytics/registration-events";
 import {
   attendedBeforeRows,
   contactSummaryRows,
@@ -296,7 +297,17 @@ export function EventRegistrationForm({
       const result = await registerForEventAction(eventId, formData);
       if ("error" in result) {
         setError({ message: result.error, step: result.step });
+        trackRegistration("registration_failed", {
+          event_id: eventId,
+          step: result.step,
+          error_code: result.code ?? "INVALID_FORM",
+        });
         return;
+      }
+      // A filled honeypot "succeeds" with an id that has no row behind it,
+      // so a bot is not counted as a registration (#1480).
+      if (!company) {
+        trackRegistration("registration_completed", { event_id: eventId });
       }
       setAnswersPath(result.answersPath);
       setRegistrationId(result.registrationId);
@@ -348,6 +359,7 @@ export function EventRegistrationForm({
 
   return (
     <RegistrationSteps
+      eventId={eventId}
       error={error}
       isPending={isPending}
       onSubmit={handleSubmit}

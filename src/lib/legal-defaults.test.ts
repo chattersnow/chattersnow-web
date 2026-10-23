@@ -42,6 +42,7 @@ const NOTHING: CollectionSurface = {
   volunteerHours: false,
   volunteerScreening: false,
   googleSignIn: false,
+  formAnalytics: false,
 };
 
 const ORG: LegalOrgContext = {
@@ -355,6 +356,20 @@ describe("the collection surface", () => {
     expect(readable("legal.privacy", withSurfaces(NOTHING))).not.toContain(
       "Signing in with Google",
     );
+  });
+
+  // #1480: a tenant's visitors are counted by PostHog only with the module,
+  // and the policy names it exactly then.
+  test("PostHog is named only where form analytics is on", () => {
+    const on = readable("legal.privacy");
+    expect(on).toContain("PostHog — counts page views");
+    expect(on).toContain("and PostHog to count how many people start");
+    const off = readable(
+      "legal.privacy",
+      withSurfaces({ ...EVERYTHING, formAnalytics: false }),
+    );
+    expect(off).not.toContain("PostHog");
+    expect(off).toContain("We use Vercel Web Analytics to count page views.");
   });
 
   // The opposite of Google: an error report has no surface behind it, so the
