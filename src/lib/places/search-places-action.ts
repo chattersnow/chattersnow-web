@@ -2,13 +2,20 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export type PlaceOption = { id: string; kind: string; label: string };
+export type PlaceOption = {
+  id: string;
+  kind: string;
+  label: string;
+  /** The alias that found it, where its label did not: "Ironbound" (#1700). */
+  matched?: string;
+};
 
 export type PlaceSearchGranularity = "locality" | "neighborhood" | "area";
 
 /**
  * The place autocomplete (#1699), for both registration forms, the portal's
- * registrant dialogs and the service area picker.
+ * registrant dialogs and the service area picker. Five digits are a ZIP, and
+ * find the places it covers (#1700).
  *
  * On the server rather than straight from the browser so the tenant's service
  * area is read where the request host resolves it -- the browser's own
@@ -45,5 +52,7 @@ export async function searchPlacesAction(
     p_area: area,
   });
   if (error || !data) return [];
-  return data.map(({ id, kind, label }) => ({ id, kind, label }));
+  return data.map(({ id, kind, label, matched }) =>
+    matched ? { id, kind, label, matched } : { id, kind, label },
+  );
 }

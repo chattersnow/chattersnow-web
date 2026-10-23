@@ -8245,6 +8245,32 @@ export type Database = {
           },
         ];
       };
+      place_zips: {
+        Row: {
+          place_id: string;
+          share: number;
+          zip: string;
+        };
+        Insert: {
+          place_id: string;
+          share: number;
+          zip: string;
+        };
+        Update: {
+          place_id?: string;
+          share?: number;
+          zip?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "place_zips_place_id_fkey";
+            columns: ["place_id"];
+            isOneToOne: false;
+            referencedRelation: "places";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       places: {
         Row: {
           aliases: string[];
@@ -13491,6 +13517,7 @@ export type Database = {
           in_area: boolean;
           kind: string;
           label: string;
+          matched: string;
         }[];
       };
       seed_demo_tenant: {
