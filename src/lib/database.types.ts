@@ -3827,6 +3827,8 @@ export type Database = {
           max_value: number | null;
           min_value: number | null;
           options: Json;
+          place_allow_other: boolean;
+          place_granularity: string | null;
           prompt: string;
           required: boolean;
           shares_contact: boolean;
@@ -3846,6 +3848,8 @@ export type Database = {
           max_value?: number | null;
           min_value?: number | null;
           options?: Json;
+          place_allow_other?: boolean;
+          place_granularity?: string | null;
           prompt: string;
           required?: boolean;
           shares_contact?: boolean;
@@ -3865,6 +3869,8 @@ export type Database = {
           max_value?: number | null;
           min_value?: number | null;
           options?: Json;
+          place_allow_other?: boolean;
+          place_granularity?: string | null;
           prompt?: string;
           required?: boolean;
           shares_contact?: boolean;
@@ -8239,6 +8245,65 @@ export type Database = {
           },
         ];
       };
+      places: {
+        Row: {
+          aliases: string[];
+          area_ids: string[];
+          county_name: string | null;
+          id: string;
+          kind: string;
+          label: string;
+          name: string;
+          parent_id: string | null;
+          place_type: string | null;
+          population: number | null;
+          search_text: string;
+          source: string;
+          source_id: string;
+          state_code: string;
+        };
+        Insert: {
+          aliases?: string[];
+          area_ids?: string[];
+          county_name?: string | null;
+          id: string;
+          kind: string;
+          label: string;
+          name: string;
+          parent_id?: string | null;
+          place_type?: string | null;
+          population?: number | null;
+          source: string;
+          source_id: string;
+          state_code: string;
+          search_text?: never;
+        };
+        Update: {
+          aliases?: string[];
+          area_ids?: string[];
+          county_name?: string | null;
+          id?: string;
+          kind?: string;
+          label?: string;
+          name?: string;
+          parent_id?: string | null;
+          place_type?: string | null;
+          population?: number | null;
+          source?: string;
+          source_id?: string;
+          state_code?: string;
+          search_text?: never;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "places_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "places";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       plan_modules: {
         Row: {
           enabled: boolean;
@@ -10650,6 +10715,8 @@ export type Database = {
           max_value: number | null;
           min_value: number | null;
           options: Json | null;
+          place_allow_other: boolean | null;
+          place_granularity: string | null;
           prompt: string | null;
           required: boolean | null;
           show_if: Json | null;
@@ -10938,6 +11005,7 @@ export type Database = {
         Row: {
           asks_about_minors: boolean | null;
           requires_instagram: boolean | null;
+          service_area: string[] | null;
         };
         Relationships: [];
       };
@@ -12452,6 +12520,8 @@ export type Database = {
           max_value: number;
           min_value: number;
           options: Json;
+          place_allow_other: boolean;
+          place_granularity: string;
           prompt: string;
           question_id: string;
           required: boolean;
@@ -12572,6 +12642,15 @@ export type Database = {
       person_self_edit_snapshot: {
         Args: { p: Database["public"]["Tables"]["people"]["Row"] };
         Returns: Json;
+      };
+      place_answer_kinds: {
+        Args: { p_granularity: string };
+        Returns: string[];
+      };
+      place_key_id: { Args: { p_key: string }; Returns: string };
+      place_search_text: {
+        Args: { p_aliases: string[]; p_label: string; p_name: string };
+        Returns: string;
       };
       platform_export_tenant: { Args: { p_tenant_id: string }; Returns: Json };
       platform_list_tenant_modules: {
@@ -12907,6 +12986,7 @@ export type Database = {
         Returns: Json;
       };
       registration_requires_instagram: { Args: never; Returns: boolean };
+      registration_service_area: { Args: never; Returns: Json };
       reject_event_expense: {
         Args: { p_id: string; p_reason: string };
         Returns: {
@@ -13404,6 +13484,15 @@ export type Database = {
         Returns: undefined;
       };
       save_site_content_drafts: { Args: { p_entries: Json }; Returns: number };
+      search_places: {
+        Args: { p_area?: string[]; p_granularity: string; p_query: string };
+        Returns: {
+          id: string;
+          in_area: boolean;
+          kind: string;
+          label: string;
+        }[];
+      };
       seed_demo_tenant: {
         Args: {
           p_actor_person_id: string;
@@ -13637,6 +13726,10 @@ export type Database = {
         Args: { p_enabled: boolean };
         Returns: undefined;
       };
+      set_registration_service_area: {
+        Args: { p_place_ids: string[] };
+        Returns: undefined;
+      };
       set_registrations_group_chat: {
         Args: {
           p_added: boolean;
@@ -13853,6 +13946,10 @@ export type Database = {
       tenant_requires_instagram: {
         Args: { p_tenant_id: string };
         Returns: boolean;
+      };
+      tenant_service_area: {
+        Args: { p_tenant_id: string };
+        Returns: string[];
       };
       trigger_retention_run: { Args: { p_dry_run?: boolean }; Returns: string };
       unassign_numbered_inventory_tag: {
