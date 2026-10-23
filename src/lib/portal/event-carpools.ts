@@ -5,6 +5,11 @@ import type {
   CarpoolPerson,
   EventCarpools,
 } from "@/lib/event-carpools";
+import {
+  toCarpoolAssignment,
+  type CarpoolAssignment,
+  type CarpoolAssignmentRecipient,
+} from "@/lib/carpool-assignment";
 
 /**
  * The event's carpool plan (#1649), read at `events: view` under RLS. Null
@@ -92,4 +97,58 @@ export async function loadEventCarpools(
       };
     }),
   };
+}
+
+/** One person in a car, as "Email carpool assignments" would reach them. */
+export type CarpoolAssignmentRow = CarpoolAssignmentRecipient & {
+  name: string;
+  email: string;
+  personId: string | null;
+  car: CarpoolAssignment;
+  signature: string;
+};
+
+/**
+ * Everyone in a car on the event with the card they would be sent (#1651),
+ * through `event_carpool_assignment_recipients()` at `events: manage`. Null
+ * where the read is refused or fails -- carpools off, or no permission -- which
+ * the board shows as nothing to send.
+ */
+export async function loadCarpoolAssignmentRows(
+  supabase: SupabaseClient,
+  eventId: string,
+): Promise<CarpoolAssignmentRow[] | null> {
+  const { data, error } = await supabase.rpc(
+    "event_carpool_assignment_recipients",
+    { p_event_id: eventId },
+  );
+  if (error) return null;
+  return (
+    (data ?? []) as {
+      registration_id: string;
+      name: string | null;
+      email: string | null;
+      person_id: string | null;
+      card: unknown;
+      signature: string;
+      changed: boolean;
+    }[]
+  ).flatMap((row) => {
+    const car = toCarpoolAssignment(row.card);
+    const email = row.email?.trim() ?? "";
+    return car
+      ? [
+          {
+            registrationId: row.registration_id,
+            name: (row.name ?? "").trim(),
+            email,
+            hasEmail: email.length > 0,
+            personId: row.person_id,
+            car,
+            signature: row.signature,
+            changed: row.changed,
+          },
+        ]
+      : [];
+  });
 }

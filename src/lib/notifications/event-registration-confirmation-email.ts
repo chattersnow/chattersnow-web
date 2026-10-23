@@ -21,6 +21,10 @@ import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 import { formatCodeWithPin } from "@/lib/discount-codes";
 import { CHANGE_ANSWERS_LINK_LABEL } from "@/lib/registration-answer-requests";
 import { REGISTRATION_CONTACT_HEADING } from "@/lib/registration-contact";
+import {
+  carpoolCostNoticeHtml,
+  carpoolCostNoticeText,
+} from "@/lib/notifications/carpool-cost-notice-email";
 
 /**
  * The confirmation a registrant gets after signing up for a public event
@@ -116,6 +120,11 @@ export type EventRegistrationConfirmation = {
    * or a link that could not be issued -- renders nothing.
    */
   answersLink?: { url: string; expiresAt: string } | null;
+  /**
+   * The tenant's carpool cost-split notice (#1650), on an event that organizes
+   * carpools. Omitted or empty -- every other event -- renders nothing.
+   */
+  carpoolNotice?: readonly string[];
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -150,6 +159,7 @@ export function renderEventRegistrationConfirmationEmail(
   const calendarNote =
     "A calendar file is attached, so you can add it to your own calendar.";
   const answersLink = confirmation.answersLink ?? null;
+  const carpoolNotice = confirmation.carpoolNotice ?? [];
   const answersLinkNote = answersLink
     ? `Plans changed? You can change your answers until ${inEventZone(answersLink.expiresAt, confirmation.timeZone)}. The link is just for you, so please don't forward it.`
     : "";
@@ -177,6 +187,7 @@ export function renderEventRegistrationConfirmationEmail(
     words.greeting,
     details,
     answersText,
+    carpoolCostNoticeText(carpoolNotice),
     answersLink
       ? `${CHANGE_ANSWERS_LINK_LABEL}: ${answersLink.url}\n${answersLinkNote}`
       : "",
@@ -212,6 +223,7 @@ export function renderEventRegistrationConfirmationEmail(
     copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
     `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${rowsHtml}\n  </ul>`,
     answersHtml,
+    carpoolCostNoticeHtml(carpoolNotice),
     answersLink
       ? [
           `  <p style="margin: 0 0 4px;"><a href="${escapeHtml(answersLink.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(CHANGE_ANSWERS_LINK_LABEL)}</a></p>`,

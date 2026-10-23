@@ -94,6 +94,7 @@ function EventDetailBody({
   requiresInstagram,
   minorAccompaniment,
   photoConsent,
+  carpoolCostNotice,
   registrationOptions,
   registrationQuestions,
   riderProfile,
@@ -128,6 +129,8 @@ function EventDetailBody({
    * exactly what it rendered before #599 shipped.
    */
   photoConsent: string[];
+  /** The carpool cost-split notice (#1650), empty unless the event organizes carpools. */
+  carpoolCostNotice: string[];
   /** The event's registration question (#1407), or null. */
   registrationOptions: RegistrationOptionsQuestion | null;
   /** The event's registration questions (#1501), empty for most events. */
@@ -226,6 +229,7 @@ function EventDetailBody({
                   adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  carpoolCostNotice={carpoolCostNotice}
                   registrationOptions={registrationOptions}
                   registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
@@ -246,6 +250,7 @@ function EventDetailBody({
                   adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  carpoolCostNotice={carpoolCostNotice}
                   registrationOptions={registrationOptions}
                   registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
@@ -299,6 +304,11 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
   // component for the reason the waiver is: a block of tenant prose has no
   // business in the browser bundle of the tenants that have none.
   const photoConsent = content.paragraphs("events.photo_consent");
+  // #1650. The cost-split notice, off the same read, and only on an event
+  // that organizes carpools: everywhere else the form says nothing about them.
+  const carpoolCostNotice = event.carpools_enabled
+    ? content.paragraphs("events.carpool_cost_notice")
+    : [];
   // The event's own registration question (#1407). Only where registration
   // is on at all, so the events that take none pay no query for it.
   const registrationOptions = event.registration_enabled
@@ -426,6 +436,7 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             requiresInstagram={requiresInstagram}
             minorAccompaniment={minorAccompaniment}
             photoConsent={photoConsent}
+            carpoolCostNotice={carpoolCostNotice}
             registrationOptions={registrationOptions}
             registrationQuestions={registrationQuestions}
             riderProfile={riderProfile}

@@ -2056,6 +2056,25 @@ export const SITE_CONTENT_SLOTS: readonly ContentSlot[] = [
     default: [],
   },
   {
+    key: "events.carpool_cost_notice",
+    page: "events",
+    section: "events:registration",
+    label: "Carpool cost notice",
+    description:
+      "How carpool costs are shared, shown on events that organize carpools: on the registration form, its review step and confirmation email, and wherever a registrant sees their car. It is a notice, not a question: there is no box and nothing is recorded about having read it. Keep the sentence saying the people in a car see each other's first name and Instagram handle, since that is what registrants are told before they share a car.",
+    type: "paragraphs",
+    // Unlike `events.photo_consent`, a default the platform can write (#1650):
+    // carpool costs are split in the car and settled with the driver, and the
+    // organization never collects them, because the software stores no amount
+    // (#1649). The last sentence is a fact about the software too -- the
+    // assignment card shows car-mates exactly a first name and a handle
+    // (#1651). In the organization's own voice, and with no "agree" or
+    // "consent" in it: #1318 decided that a public form accepts nothing.
+    default: [
+      "Carpool costs like gas, tolls and parking are split among everyone in the car. Please talk with your driver about your share — we don't collect or set carpool payments. The people in your car will see your first name and Instagram handle so you can coordinate.",
+    ],
+  },
+  {
     key: "events.media_upload_rights",
     page: "events",
     section: "events:media_uploads",

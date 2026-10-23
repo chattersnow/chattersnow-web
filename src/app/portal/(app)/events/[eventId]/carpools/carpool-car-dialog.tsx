@@ -202,6 +202,9 @@ export function CarpoolCarDialog({
                 value={leavingFrom}
                 onChange={(event) => setLeavingFrom(event.target.value)}
               />
+              <FieldDescription>
+                The people in this car see this with their assignment.
+              </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor={`${idPrefix}-notes`}>Notes</FieldLabel>

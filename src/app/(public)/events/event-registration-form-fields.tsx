@@ -35,6 +35,7 @@ import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmati
 import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
 import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { CarpoolCostNotice } from "@/components/carpool-cost-notice";
 import { waiverAcceptanceLabel } from "@/lib/photo-consent";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
 import { RegistrationQuestionsFields } from "@/components/registration-questions-fields";
@@ -98,6 +99,7 @@ export function EventRegistrationForm({
   adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
+  carpoolCostNotice = [],
   registrationOptions = null,
   registrationQuestions = [],
   riderProfile = null,
@@ -162,6 +164,12 @@ export function EventRegistrationForm({
    * from the registrant's own registration page.
    */
   photoConsent?: string[];
+  /**
+   * The carpool cost-split notice (#1650), shown under the event's questions
+   * and again on the review step. Empty -- every event that does not organize
+   * carpools -- renders nothing. Notice only: no box, nothing sent back.
+   */
+  carpoolCostNotice?: string[];
   /**
    * The event's registration question (#1407). Null for an event that asks
    * none, which leaves this form exactly as it was.
@@ -501,6 +509,7 @@ export function EventRegistrationForm({
             onChange={setAnswerDraft}
             disabled={isPending}
           />
+          <CarpoolCostNotice paragraphs={carpoolCostNotice} />
           <Field>
             <FieldLabel htmlFor="registration-notes">Notes</FieldLabel>
             <Textarea
@@ -547,6 +556,7 @@ export function EventRegistrationForm({
               of what is being accepted -- which is exactly the confusion the
               two shapes have to avoid (#686). */}
           <PhotoConsentNotice paragraphs={photoConsent} />
+          <CarpoolCostNotice paragraphs={carpoolCostNotice} />
 
           {/* After the notice and beside the button, which is the order the
               artwork submission form argues for and for the same reason: the

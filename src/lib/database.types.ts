@@ -2651,6 +2651,59 @@ export type Database = {
           },
         ];
       };
+      event_carpool_assignment_emails: {
+        Row: {
+          emailed_at: string;
+          event_id: string;
+          registration_id: string;
+          signature: string;
+          tenant_id: string;
+        };
+        Insert: {
+          emailed_at?: string;
+          event_id: string;
+          registration_id: string;
+          signature: string;
+          tenant_id?: string;
+        };
+        Update: {
+          emailed_at?: string;
+          event_id?: string;
+          registration_id?: string;
+          signature?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_carpool_assignment_emails_event_fkey";
+            columns: ["tenant_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_assignment_emails_registration_fkey";
+            columns: ["tenant_id", "registration_id"];
+            isOneToOne: false;
+            referencedRelation: "event_registrations";
+            referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "event_carpool_assignment_emails_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "public_tenant";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_carpool_assignment_emails_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_carpool_cars: {
         Row: {
           created_at: string;
@@ -10421,6 +10474,7 @@ export type Database = {
         Row: {
           adults_only: boolean | null;
           capacity: number | null;
+          carpools_enabled: boolean | null;
           description: string | null;
           ends_at: string | null;
           flier_url: string | null;
@@ -10435,6 +10489,7 @@ export type Database = {
         Insert: {
           adults_only?: boolean | null;
           capacity?: number | null;
+          carpools_enabled?: boolean | null;
           description?: string | null;
           ends_at?: string | null;
           flier_url?: string | null;
@@ -10449,6 +10504,7 @@ export type Database = {
         Update: {
           adults_only?: boolean | null;
           capacity?: number | null;
+          carpools_enabled?: boolean | null;
           description?: string | null;
           ends_at?: string | null;
           flier_url?: string | null;
@@ -11068,6 +11124,10 @@ export type Database = {
         Args: { p_registration_id: string };
         Returns: undefined;
       };
+      carpool_assignment_card: {
+        Args: { p_registration_id: string };
+        Returns: Json;
+      };
       carpool_car_event: { Args: { p_car_id: string }; Returns: string };
       carpool_event_guard: { Args: { p_event_id: string }; Returns: string };
       carpool_registration_guard: {
@@ -11320,6 +11380,19 @@ export type Database = {
           first_seen_at: string;
           last_release_seen: string;
           welcome_completed_at: string;
+        }[];
+      };
+      event_carpool_assignment_recipients: {
+        Args: { p_event_id: string };
+        Returns: {
+          card: Json;
+          changed: boolean;
+          email: string;
+          emailed_at: string;
+          name: string;
+          person_id: string;
+          registration_id: string;
+          signature: string;
         }[];
       };
       event_carpool_markers: {
@@ -12033,6 +12106,10 @@ export type Database = {
         }[];
       };
       my_public_person_id: { Args: never; Returns: string };
+      my_registration_carpool: {
+        Args: { p_registration_id: string };
+        Returns: Json;
+      };
       my_registration_contact: {
         Args: { p_registration_id: string };
         Returns: {
@@ -12512,6 +12589,10 @@ export type Database = {
         Returns: string;
       };
       registration_asks_about_minors: { Args: never; Returns: boolean };
+      registration_carpool_by_token: {
+        Args: { p_ip_address: unknown; p_token_hash: string };
+        Returns: Json;
+      };
       registration_option_defaults: {
         Args: { p_tenant_id: string };
         Returns: Json;
