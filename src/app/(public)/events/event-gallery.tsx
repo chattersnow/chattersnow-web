@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -20,23 +20,28 @@ const MediaLightbox = dynamic(
  * plays them (#1605). Renders nothing when there is nothing public.
  *
  * On the event page it previews the newest photos and ends with a link to the
- * whole gallery (`allPhotosHref`); the gallery page passes none.
+ * whole gallery (`allPhotosHref`); the gallery page passes none, and shows one
+ * page of photos with its pager under the grid (#1683). The lightbox steps
+ * through the page on screen.
  */
 export function EventGallery({
   eventName,
   media,
   allPhotosHref,
+  pager,
   headingId = "event-gallery",
 }: {
   eventName: string;
   media: PublicEventMedia;
   allPhotosHref?: string;
+  /** Rendered under the photo grid: the gallery page's pager. */
+  pager?: ReactNode;
   headingId?: string;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   if (!hasPublicEventMedia(media)) return null;
-  const { photos, videos, photoCount } = media;
+  const { photos, videos, photoCount, photoOffset } = media;
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-4">
@@ -49,7 +54,7 @@ export function EventGallery({
           {photos.map((photo, index) => {
             const alt = publicEventPhotoAlt(
               eventName,
-              index,
+              photoOffset + index,
               photoCount,
               photo.caption,
             );
@@ -74,6 +79,8 @@ export function EventGallery({
           })}
         </ul>
       )}
+
+      {photos.length > 0 && pager}
 
       {videos.length > 0 && (
         <div className="flex flex-col gap-3">
@@ -117,7 +124,7 @@ export function EventGallery({
             url: photo.url,
             alt: publicEventPhotoAlt(
               eventName,
-              index,
+              photoOffset + index,
               photoCount,
               photo.caption,
             ),

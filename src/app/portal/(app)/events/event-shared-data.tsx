@@ -7,7 +7,8 @@ import {
   type EventRegistrantsData,
 } from "./registrants-actions";
 import { getEventImpactDerivedAction } from "./impact-derived-actions";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import { type PersonListItem } from "../people/actions";
+import { listEventPeopleAction } from "./event-people-actions";
 import type { EventImpactDerived } from "@/lib/portal/impact-metrics";
 import { useTabData, type TabData } from "@/hooks/use-tab-data";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
@@ -106,8 +107,9 @@ export function EventSharedDataProvider({
     wants("impactDerived"),
   );
   const fetchedPeople = useTabData<PersonListItem[]>(
-    () => listPeopleAction(),
-    [],
+    // The directory, or for a guest the people already on the event (#1693).
+    () => listEventPeopleAction(eventId),
+    [eventId],
     wants("people"),
   );
 

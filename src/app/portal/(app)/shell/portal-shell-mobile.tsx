@@ -33,6 +33,7 @@ import type { PortalShellProps } from "./shell-props";
 export function PortalShellMobile({
   serviceWorkerScope,
   permissions,
+  guest,
   lexicon,
   branding,
   currentPerson,
@@ -85,6 +86,7 @@ export function PortalShellMobile({
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <CommandPalette
             permissions={permissions}
+            guest={guest}
             lexicon={lexicon}
             currentPerson={currentPerson}
           />
@@ -111,7 +113,7 @@ export function PortalShellMobile({
           </LexiconProvider>
         </BrandLogoProvider>
       </main>
-      <MobileNav permissions={permissions} lexicon={lexicon} />
+      <MobileNav permissions={permissions} guest={guest} lexicon={lexicon} />
       {welcomeOwed && (
         <WelcomeDialog key="welcome" initialOpen permissions={permissions} />
       )}

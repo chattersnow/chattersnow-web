@@ -60,6 +60,17 @@
  * seed has none. Their RLS is owner-only on top of the tenant predicate, which
  * `src/lib/inventory-distribution-draft.integration.test.ts` asserts directly.
  *
+ * `event_access_grants` (#1686) is absent for the same reason: a grant exists
+ * only once an administrator gives a guest access to an event, which the seed
+ * never does. Its isolation -- a grant in another tenant reaching nothing --
+ * is asserted directly in `src/lib/auth/event-access.integration.test.ts`.
+ *
+ * `pending_event_access_grants` (#1689) is absent for the same reason: an
+ * invite exists only once an administrator invites an address to an event,
+ * and is deleted when it is claimed. Its writes are administrator-only and
+ * its address rule (#759) is asserted directly in
+ * `src/app/portal/(app)/events/access-management.integration.test.ts`.
+ *
  * A table added later with a `tenant_id` column belongs here too. The catalog
  * side of that -- its policies carrying the tenant predicate, its foreign
  * keys being composite -- is asserted by `tenant_isolation_gaps()` regardless

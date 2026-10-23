@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AddStaffForm } from "./staff-tab";
 import { createEventStaffAction } from "./staff-actions";
 import { type PickedPerson } from "../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../people/actions";
+import { type PersonListItem } from "../people/actions";
+import { listEventPeopleAction } from "./event-people-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { PortalFormPopup } from "@/components/portal/portal-form-surface";
@@ -20,13 +21,16 @@ export function AddStaffDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [people, setPeople] = useState<PersonListItem[]>([]);
+  const [canCreatePerson, setCanCreatePerson] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
+    listEventPeopleAction(eventId).then((result) => {
+      if ("error" in result) return;
+      setPeople(result.data);
+      setCanCreatePerson(result.canCreate);
     });
-  }, [open]);
+  }, [open, eventId]);
 
   function handlePersonCreated(person: PickedPerson) {
     setPeople((prev) => [...prev, person]);
@@ -51,6 +55,7 @@ export function AddStaffDialog({
         description="Assign someone to work this event in a paid or formally-scheduled capacity."
       >
         <AddStaffForm
+          allowCreatePerson={canCreatePerson}
           people={people}
           onPersonCreated={handlePersonCreated}
           onSubmit={(personId, formData) =>

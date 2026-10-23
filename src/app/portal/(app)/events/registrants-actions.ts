@@ -10,6 +10,7 @@ import {
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 import {
   checkInRegistrant,
@@ -410,7 +411,11 @@ export async function listEventRegistrationOptionsAction(
   eventId: string,
 ): Promise<{ data: PortalRegistrationOptions | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registration_options",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
   return { data: await loadRegistrationOptions(supabase, eventId, []) };
 }
@@ -463,7 +468,11 @@ export async function listEventRegistrationQuestionsAction(
   eventId: string,
 ): Promise<{ data: RegistrationQuestion[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registration_questions",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
   return { data: await loadRegistrationQuestions(supabase, eventId) };
 }
@@ -490,7 +499,11 @@ export async function listEventRegistrantsAction(
   eventId: string,
 ): Promise<{ data: EventRegistrantsData } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const permissions = await getCurrentUserPermissions(supabase);
@@ -804,7 +817,10 @@ export async function setRegistrantRiderProfileAction(
     "You must be signed in to edit a rider profile.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
   // Carries the rider_profile module (#1408); the RPC checks both again.
   const riderError = await checkPermission(
@@ -858,7 +874,11 @@ export async function addRegistrantAction(
     "You must be signed in to add a registrant.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
 
   if (!Number.isInteger(partySize) || partySize < 1) {
@@ -936,7 +956,11 @@ export async function createWalkInCheckInAction(
     "You must be signed in to check in a walk-in.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
 
   if (!Number.isInteger(partySize) || partySize < 1) {
@@ -1085,7 +1109,10 @@ export async function setRegistrationAnswersAction(
     "You must be signed in to edit a registration.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase.rpc("set_registration_answers", {
@@ -1131,7 +1158,10 @@ export async function setRegistrationContactAction(
     "You must be signed in to edit a registration.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase.rpc("set_registration_contact", {

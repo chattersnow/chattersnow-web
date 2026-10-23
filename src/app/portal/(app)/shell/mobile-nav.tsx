@@ -59,9 +59,12 @@ const ACCOUNT_ROW_CLASS =
 
 export function MobileNav({
   permissions,
+  guest = false,
   lexicon = DEFAULT_VOCABULARY,
 }: {
   permissions: PermissionMap;
+  /** Per-event grants only (#1688): Events and nothing else. */
+  guest?: boolean;
   lexicon?: Lexicon;
 }) {
   const router = useRouter();
@@ -85,7 +88,7 @@ export function MobileNav({
     setOpenSection(activeSection);
   }
 
-  const items = visibleNavItems(permissions, lexicon);
+  const items = visibleNavItems(permissions, lexicon, { guest });
   const tabs = primaryNavItems(items);
 
   return (

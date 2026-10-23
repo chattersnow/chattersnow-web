@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import * as PeopleActions from "../people/actions";
 import * as RegistrantsActions from "./registrants-actions";
 import * as ImpactDerivedActions from "./impact-derived-actions";
 import { TabRefreshProvider, useTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 
-const listPeopleActionMock = mock(async () => ({ data: [] }));
+const listEventPeopleActionMock = mock(async () => ({
+  data: [],
+  canCreate: false,
+}));
 const listEventRegistrantsActionMock = mock(async () => ({ data: [] }));
 const getEventImpactDerivedActionMock = mock(async () => ({
   data: {
@@ -24,9 +26,8 @@ const getEventImpactDerivedActionMock = mock(async () => ({
   },
 }));
 
-mock.module("../people/actions", () => ({
-  ...PeopleActions,
-  listPeopleAction: listPeopleActionMock,
+mock.module("./event-people-actions", () => ({
+  listEventPeopleAction: listEventPeopleActionMock,
 }));
 mock.module("./registrants-actions", () => ({
   ...RegistrantsActions,
@@ -96,7 +97,7 @@ function renderPhase(
 
 describe("EventSharedDataProvider", () => {
   beforeEach(() => {
-    listPeopleActionMock.mockClear();
+    listEventPeopleActionMock.mockClear();
     listEventRegistrantsActionMock.mockClear();
     getEventImpactDerivedActionMock.mockClear();
   });
@@ -106,7 +107,7 @@ describe("EventSharedDataProvider", () => {
 
     expect(listEventRegistrantsActionMock).toHaveBeenCalledTimes(1);
     expect(getEventImpactDerivedActionMock).not.toHaveBeenCalled();
-    expect(listPeopleActionMock).not.toHaveBeenCalled();
+    expect(listEventPeopleActionMock).not.toHaveBeenCalled();
   });
 
   test("a registrants toolbar action refreshes the derived figures too", async () => {
@@ -158,7 +159,7 @@ describe("EventSharedDataProvider", () => {
     await user.click(screen.getByRole("button", { name: "notify sponsors" }));
 
     await waitFor(() => {
-      expect(listPeopleActionMock).toHaveBeenCalledTimes(2);
+      expect(listEventPeopleActionMock).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildPublicEventMedia,
+  PUBLIC_EVENT_MEDIA_REUSE_SECONDS,
+  PUBLIC_EVENT_MEDIA_TTL_SECONDS,
   hasPublicEventMedia,
+  publicEventMediaReuseBucket,
   publicEventMediaToSign,
   publicEventPhotoAlt,
   type PublicEventMediaRow,
@@ -25,14 +28,43 @@ describe("public event gallery", () => {
   const rows = [photos[0], video, photos[1], photos[2]];
 
   test("a preview signs the newest photos and every video, counting all photos", () => {
-    const picked = publicEventMediaToSign(rows, 2);
+    const picked = publicEventMediaToSign(rows, { offset: 0, limit: 2 });
     expect(picked.photos).toEqual([photos[0], photos[1]]);
     expect(picked.videos).toEqual([video]);
     expect(picked.photoCount).toBe(3);
   });
 
-  test("no limit is the whole gallery", () => {
-    expect(publicEventMediaToSign(rows, null).photos).toHaveLength(3);
+  test("a later page signs its own photos and leaves the videos to page one", () => {
+    const picked = publicEventMediaToSign(rows, { offset: 2, limit: 2 });
+    expect(picked.photos).toEqual([photos[2]]);
+    expect(picked.videos).toEqual([]);
+    expect(picked.photoCount).toBe(3);
+  });
+
+  test("a page past the end signs nothing but still counts", () => {
+    const picked = publicEventMediaToSign(rows, { offset: 20, limit: 20 });
+    expect(picked.photos).toEqual([]);
+    expect(picked.photoCount).toBe(3);
+  });
+
+  test("the page's offset travels with it, for alt text", () => {
+    const urls = new Map([[photos[2].path, "https://s/2"]]);
+    expect(
+      buildPublicEventMedia(rows, { offset: 2, limit: 2 }, urls).photoOffset,
+    ).toBe(2);
+  });
+
+  test("a reused URL always has at least the reuse window left", () => {
+    const start = Date.UTC(2026, 9, 23, 12, 0, 0);
+    const windowMs = PUBLIC_EVENT_MEDIA_REUSE_SECONDS * 1000;
+    expect(publicEventMediaReuseBucket(start)).toBe(start);
+    expect(publicEventMediaReuseBucket(start + windowMs - 1)).toBe(start);
+    expect(publicEventMediaReuseBucket(start + windowMs)).toBe(
+      start + windowMs,
+    );
+    expect(
+      PUBLIC_EVENT_MEDIA_TTL_SECONDS - PUBLIC_EVENT_MEDIA_REUSE_SECONDS,
+    ).toBeGreaterThanOrEqual(PUBLIC_EVENT_MEDIA_REUSE_SECONDS);
   });
 
   test("what did not sign is left out, and the count stands", () => {
@@ -40,7 +72,7 @@ describe("public event gallery", () => {
       [photos[0].path, "https://s/0"],
       [video.path, "https://s/v"],
     ]);
-    const media = buildPublicEventMedia(rows, null, urls);
+    const media = buildPublicEventMedia(rows, { offset: 0, limit: 20 }, urls);
     expect(media.photos).toEqual([
       { id: photos[0].id, url: "https://s/0", caption: null },
     ]);
@@ -53,7 +85,9 @@ describe("public event gallery", () => {
 
   test("nothing signed is nothing to show", () => {
     expect(
-      hasPublicEventMedia(buildPublicEventMedia(rows, null, new Map())),
+      hasPublicEventMedia(
+        buildPublicEventMedia(rows, { offset: 0, limit: 20 }, new Map()),
+      ),
     ).toBe(false);
   });
 

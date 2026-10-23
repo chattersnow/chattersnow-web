@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseEventStaffForm } from "./staff-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople, sortByPersonName } from "@/lib/events/event-people";
 
 export type EventStaffPerson = {
   id: string;
@@ -28,13 +29,17 @@ export async function listEventStaffAction(
   eventId: string,
 ): Promise<{ data: EventStaffMember[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("event_staff")
     .select(
-      "id, event_id, person_id, role, notes, person:people!inner(id, name, email, phone)",
+      "id, event_id, person_id, role, notes, person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("person(name)", { ascending: true, nullsFirst: false })
@@ -43,7 +48,15 @@ export async function listEventStaffAction(
   if (error) {
     return { error: "Could not load staff. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventStaffMember[] };
+  // A plain embed, not `!inner`: a guest cannot read `people`, and an inner
+  // join would drop their rows rather than leave the names to fill (#1693).
+  const rows = (data ?? []) as unknown as EventStaffMember[];
+  if (
+    await fillEventPeople(supabase, eventId, rows, [["person_id", "person"]])
+  ) {
+    sortByPersonName(rows);
+  }
+  return { data: rows };
 }
 
 export async function createEventStaffAction(
@@ -57,7 +70,11 @@ export async function createEventStaffAction(
     "You must be signed in to add staff.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to link." };
@@ -96,7 +113,10 @@ export async function updateEventStaffAction(
     "You must be signed in to update a staff assignment.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseEventStaffForm(formData);
@@ -125,7 +145,10 @@ export async function deleteEventStaffAction(
     "You must be signed in to remove staff.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_staff",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase.from("event_staff").delete().eq("id", id);

@@ -17,6 +17,7 @@ import {
   type CarpoolAssignmentAudience,
 } from "@/lib/carpool-assignment";
 import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import {
   actionError,
   fromGuard,
@@ -43,7 +44,11 @@ async function callCarpool<T>(
   fallback: string,
 ): Promise<{ success: true; data: T | null } | ActionFailure> {
   const supabase = await createSupabaseServerClient();
-  const denied = await checkPermission(supabase, "events", "manage");
+  const denied = await checkEventAccess(supabase, {
+    table: "event_carpool_cars",
+    level: "manage",
+    eventId,
+  });
   if (denied) return fromGuard("forbidden", denied);
 
   const { data, error } = await call(supabase);

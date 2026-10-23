@@ -7,8 +7,9 @@ import {
   parseGiveawayPrizeForm,
   parseGiveawayWinnerForm,
 } from "./giveaway-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 
 export type GiveawayWinner = {
   id: string;
@@ -96,7 +97,11 @@ export async function getEventGiveawayAction(
   eventId: string,
 ): Promise<{ data: Giveaway | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -123,6 +128,9 @@ export async function getEventGiveawayAction(
 
   const giveaway = (data as unknown as Giveaway) ?? null;
   if (!giveaway) return { data: null };
+  await fillEventPeople(supabase, eventId, giveaway.giveaway_prizes, [
+    ["donor_person_id", "donor"],
+  ]);
 
   // giveaway_prizes RLS is scoped to events:*, but inventory_items/
   // monetary_donations are scoped to inventory:*/finance:* -- an
@@ -172,7 +180,11 @@ export async function upsertEventGiveawayAction(
     "You must be signed in to update the giveaway.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseGiveawayForm(formData);
@@ -212,7 +224,10 @@ export async function createGiveawayPrizeAction(
     "You must be signed in to add a prize.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseGiveawayPrizeForm(formData);
@@ -253,7 +268,10 @@ export async function updateGiveawayPrizeAction(
     "You must be signed in to edit a prize.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseGiveawayPrizeForm(formData);
@@ -296,7 +314,11 @@ export async function listAvailableGiveawaySourcesAction(
   | { error: string }
 > {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase.rpc(
@@ -325,7 +347,10 @@ export async function deleteGiveawayPrizeAction(
     "You must be signed in to remove a prize.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   // Goes through the RPC so a linked inventory item is released back to
@@ -351,7 +376,10 @@ export async function upsertGiveawayWinnerAction(
     "You must be signed in to record a winner.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaways",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseGiveawayWinnerForm(formData);

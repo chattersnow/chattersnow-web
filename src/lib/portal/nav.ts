@@ -950,6 +950,12 @@ export function navGroups<T extends { group?: string }>(
 }
 
 /**
+ * The only sections a guest -- no tenant role, per-event grants only (#1688)
+ * -- is shown. Every other section's route guard refuses them on its own.
+ */
+export const GUEST_SECTIONS: readonly string[] = ["events"];
+
+/**
  * The nav tree reduced to what `permissions` can actually reach: sections with
  * no reachable sub-item are dropped, unreachable sub-items are removed, and a
  * section's href is rewritten to its first reachable sub-item.
@@ -957,12 +963,17 @@ export function navGroups<T extends { group?: string }>(
 export function visibleNavItems(
   permissions: PermissionMap,
   lexicon: Lexicon = DEFAULT_VOCABULARY,
+  { guest = false }: { guest?: boolean } = {},
 ): NavItem[] {
   const reachable = (sub: NavSubItem) =>
     hasAnyPermission(permissions, sub.access) &&
     (!sub.alsoRequires || hasAnyPermission(permissions, sub.alsoRequires));
 
   return NAV_ITEMS.filter((item) => {
+    // A guest holds no role, only per-event grants (#1688), so the map would
+    // hide Events too and leave Dashboard -- the one page with nothing for
+    // them. Their section list is fixed instead.
+    if (guest) return GUEST_SECTIONS.includes(item.value);
     if (item.subItems) return item.subItems.some(reachable);
     return !item.access || hasAnyPermission(permissions, item.access);
   }).map((item) => {

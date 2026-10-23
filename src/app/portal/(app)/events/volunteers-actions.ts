@@ -6,8 +6,9 @@ import {
   parseVolunteerForm,
   parseEventVolunteerHoursForm,
 } from "./volunteers-form";
-import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople, sortByPersonName } from "@/lib/events/event-people";
 
 export type EventVolunteerPerson = {
   id: string;
@@ -35,13 +36,17 @@ export async function listEventVolunteersAction(
   eventId: string,
 ): Promise<{ data: EventVolunteer[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_volunteers",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
     .from("event_volunteers")
     .select(
-      "id, event_id, person_id, shift_id, role, volunteer_role_type_id, role_type:volunteer_role_types(name), notes, person:people!inner(id, name, email, phone)",
+      "id, event_id, person_id, shift_id, role, volunteer_role_type_id, role_type:volunteer_role_types(name), notes, person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("person(name)", { ascending: true, nullsFirst: false })
@@ -50,7 +55,14 @@ export async function listEventVolunteersAction(
   if (error) {
     return { error: "Could not load volunteers. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventVolunteer[] };
+  // Plain embed for the same reason as the staff list (#1693).
+  const rows = (data ?? []) as unknown as EventVolunteer[];
+  if (
+    await fillEventPeople(supabase, eventId, rows, [["person_id", "person"]])
+  ) {
+    sortByPersonName(rows);
+  }
+  return { data: rows };
 }
 
 export async function createEventVolunteerAction(
@@ -64,7 +76,11 @@ export async function createEventVolunteerAction(
     "You must be signed in to add a volunteer.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_volunteers",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to link." };
@@ -104,7 +120,10 @@ export async function updateEventVolunteerShiftAction(
     "You must be signed in to change a shift assignment.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_volunteers",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase
@@ -130,7 +149,10 @@ export async function deleteEventVolunteerAction(
     "You must be signed in to remove a volunteer.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_volunteers",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase
@@ -166,11 +188,12 @@ export async function listEventVolunteerHoursAction(
   eventId: string,
 ): Promise<{ data: EventVolunteerHours[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(
-    supabase,
-    "event_volunteer_hours",
-    "view",
-  );
+  const permissionError = await checkEventAccess(supabase, {
+    table: "volunteer_hours",
+    level: "view",
+    eventId,
+    role: [{ resource: "event_volunteer_hours", level: "view" }],
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -184,7 +207,9 @@ export async function listEventVolunteerHoursAction(
   if (error) {
     return { error: "Could not load volunteer hours. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventVolunteerHours[] };
+  const rows = (data ?? []) as unknown as EventVolunteerHours[];
+  await fillEventPeople(supabase, eventId, rows, [["person_id", "person"]]);
+  return { data: rows };
 }
 
 export async function createEventVolunteerHoursAction(
@@ -198,10 +223,15 @@ export async function createEventVolunteerHoursAction(
     "You must be signed in to log hours.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkAnyPermission(supabase, [
-    { resource: "event_volunteer_hours", level: "manage" },
-    { resource: "volunteer_hours_logging", level: "manage" },
-  ]);
+  const permissionError = await checkEventAccess(supabase, {
+    table: "volunteer_hours",
+    level: "manage",
+    eventId,
+    role: [
+      { resource: "event_volunteer_hours", level: "manage" },
+      { resource: "volunteer_hours_logging", level: "manage" },
+    ],
+  });
   if (permissionError) return permissionError;
   if (!personId) {
     return { error: "Select or create a person to log hours for." };
@@ -252,11 +282,11 @@ export async function deleteEventVolunteerHoursAction(
     "You must be signed in to remove a logged hours entry.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
-    supabase,
-    "event_volunteer_hours",
-    "manage",
-  );
+  const permissionError = await checkEventAccess(supabase, {
+    table: "volunteer_hours",
+    level: "manage",
+    role: [{ resource: "event_volunteer_hours", level: "manage" }],
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase

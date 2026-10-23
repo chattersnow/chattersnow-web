@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseLogisticsForm } from "./logistics-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type EventLogistics = {
@@ -24,7 +24,11 @@ export async function getEventLogisticsAction(
   eventId: string,
 ): Promise<{ data: EventLogistics | null } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_logistics",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -52,7 +56,11 @@ export async function upsertEventLogisticsAction(
   );
   if ("error" in userResult) return userResult;
   const { user } = userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_logistics",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseLogisticsForm(formData);

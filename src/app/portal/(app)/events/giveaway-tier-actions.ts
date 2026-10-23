@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 import type { GiveawayActionResult } from "./giveaway-actions";
 import {
   summarizeTicketSales,
@@ -91,7 +92,10 @@ export async function getGiveawayTierConfigAction(
   giveawayId: string,
 ): Promise<{ data: GiveawayTierConfig } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_tiers",
+    level: "view",
+  });
   if (permissionError) return permissionError;
 
   const [tiers, grants, rules, buckets, packages, totals, sales, saleGrants] =
@@ -175,7 +179,10 @@ async function requireManage(): Promise<
     "You must be signed in to update the giveaway.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_tiers",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
   return { supabase };
 }
@@ -484,7 +491,10 @@ export async function listGiveawayTicketSalesAction(
   giveawayId: string,
 ): Promise<{ data: GiveawayTicketSale[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_ticket_sales",
+    level: "view",
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -498,7 +508,20 @@ export async function listGiveawayTicketSalesAction(
   if (error) {
     return { error: "Could not load ticket sales. Please try again." };
   }
-  return { data: (data ?? []) as unknown as GiveawayTicketSale[] };
+  const rows = (data ?? []) as unknown as GiveawayTicketSale[];
+  if (rows.some((row) => row.purchaser_person_id && !row.purchaser)) {
+    const { data: giveaway } = await supabase
+      .from("giveaways")
+      .select("event_id")
+      .eq("id", giveawayId)
+      .maybeSingle();
+    if (giveaway) {
+      await fillEventPeople(supabase, giveaway.event_id as string, rows, [
+        ["purchaser_person_id", "purchaser"],
+      ]);
+    }
+  }
+  return { data: rows };
 }
 
 export async function deleteGiveawayTicketSaleAction(

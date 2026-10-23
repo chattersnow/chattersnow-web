@@ -74,6 +74,8 @@ export function Pagination({
   pageSize = PAGE_SIZE,
   pageParam = "page",
   perPageHrefFor,
+  perPageOptions = PAGE_SIZE_OPTIONS,
+  perPageLabel,
 }: {
   page: number;
   totalPages: number;
@@ -90,6 +92,10 @@ export function Pagination({
    * all, and page 4 of 9 is nothing in particular once the page holds 25.
    */
   perPageHrefFor?: (perPage: number) => string;
+  /** The sizes on offer; the portal's lists keep the shared default. */
+  perPageOptions?: readonly number[];
+  /** Names what a page holds, e.g. "Photos per page". */
+  perPageLabel?: string;
 }) {
   const { action, hidden } = formTargetFrom(hrefFor(page), pageParam);
   const jumpId = `page-jump-${pageParam}`;
@@ -106,7 +112,8 @@ export function Pagination({
         {perPageHrefFor && (
           <RowsPerPageNav
             value={pageSize}
-            options={PAGE_SIZE_OPTIONS.map((option) => ({
+            label={perPageLabel}
+            options={perPageOptions.map((option) => ({
               value: option,
               href: perPageHrefFor(option),
             }))}
@@ -130,6 +137,10 @@ export function Pagination({
               Go to page
             </label>
             <Input
+              // Remounted per page: an uncontrolled input whose default
+              // value changes after a navigation trips a Base UI warning and
+              // keeps showing the old page.
+              key={page}
               id={jumpId}
               name={pageParam}
               type="number"
@@ -247,21 +258,23 @@ export function RowsPerPageSelect({
   value,
   onChange,
   options = PAGE_SIZE_OPTIONS,
+  label = "Rows per page",
 }: {
   value: number;
   onChange: (value: number) => void;
   options?: readonly number[];
+  label?: string;
 }) {
   return (
     <div className="flex items-center gap-2">
       <span aria-hidden="true" className="app-muted text-sm">
-        Rows per page
+        {label}
       </span>
       <Select
         value={String(value)}
         onValueChange={(next) => onChange(Number(next))}
       >
-        <SelectTrigger size="sm" aria-label="Rows per page" className="w-20">
+        <SelectTrigger size="sm" aria-label={label} className="w-20">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

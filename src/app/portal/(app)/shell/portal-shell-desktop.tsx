@@ -43,6 +43,7 @@ import type { PortalShellProps } from "./shell-props";
 export async function PortalShellDesktop({
   serviceWorkerScope,
   permissions,
+  guest,
   lexicon,
   branding,
   currentPerson,
@@ -89,7 +90,11 @@ export async function PortalShellDesktop({
               quickActionsCookie ? quickActionsCookie === "true" : undefined
             }
           />
-          <PortalNav permissions={permissions} lexicon={lexicon} />
+          <PortalNav
+            permissions={permissions}
+            guest={guest}
+            lexicon={lexicon}
+          />
         </SidebarContent>
         <SidebarFooter>
           {/* Not in PortalNav: that list is permission-scoped module nav,
@@ -133,6 +138,7 @@ export async function PortalShellDesktop({
             )}
             <CommandPalette
               permissions={permissions}
+              guest={guest}
               lexicon={lexicon}
               currentPerson={currentPerson}
             />
