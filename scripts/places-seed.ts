@@ -1,7 +1,6 @@
 // Builds the `places` seed migration (#1699) from public data.
 //
-//   bun run places:seed            # writes supabase/migrations/<VERSION>_places_seed.sql
-//   bun run places:seed --cache D  # keep the downloads in D between runs
+//   bun run places:seed   # writes supabase/migrations/<VERSION>_places_seed.sql
 //
 // Sources (all public domain or NYC Open Data terms; vintages recorded in
 // docs/spec/events.md, "Registration questions"):
@@ -15,12 +14,11 @@
 //
 // Nothing is fetched at runtime by the app: the output is a migration, so
 // every database gets the same rows from `supabase db push` / `db reset`. The
-// row logic is in scripts/places/build.ts.
+// row logic is in scripts/places/build.ts. The downloads are held in memory
+// and never written to disk: the only file this writes is the migration.
 
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { parseArgs } from "node:util";
+import { writeFileSync } from "node:fs";
+import { unzipSync } from "fflate";
 import {
   SOURCES,
   buildPlaces,
@@ -44,35 +42,22 @@ const NTA =
 // it; a different count means a source changed under us.
 const NJ_MUNICIPALITIES = 564;
 
-const { values: args } = parseArgs({
-  options: { cache: { type: "string" } },
-});
-const cache = args.cache ?? join(tmpdir(), "coven-places-seed");
-mkdirSync(cache, { recursive: true });
-
-async function download(url: string, file: string): Promise<string> {
-  const path = join(cache, file);
-  if (!existsSync(path)) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    writeFileSync(path, Buffer.from(await response.arrayBuffer()));
-  }
-  return path;
+async function download(url: string): Promise<Uint8Array> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 async function gazetteer(kind: string): Promise<string[][]> {
-  const zip = await download(
-    `${GAZETTEER}/2025_Gaz_${kind}_national.zip`,
-    `2025_Gaz_${kind}_national.zip`,
-  );
-  const result = Bun.spawnSync(["unzip", "-p", zip]);
-  if (result.exitCode !== 0) throw new Error(`unzip ${zip} failed`);
-  return pipeTable(result.stdout.toString("utf8"));
+  const url = `${GAZETTEER}/2025_Gaz_${kind}_national.zip`;
+  const entries = Object.values(unzipSync(await download(url)));
+  if (entries.length !== 1) throw new Error(`${url}: expected one file`);
+  return pipeTable(new TextDecoder("utf-8").decode(entries[0]));
 }
 
 async function codes(file: string): Promise<string[][]> {
   return pipeTable(
-    readFileSync(await download(`${CODES}/${file}`, file), "utf8"),
+    new TextDecoder("utf-8").decode(await download(`${CODES}/${file}`)),
   );
 }
 
@@ -93,9 +78,11 @@ async function load(): Promise<BuildInput> {
     gazetteer("place"),
     codes("national_place_by_county2020.txt"),
   ]);
-  const ntaPath = await download(NTA, "nta2020.json");
-  const populationPath = await download(POPULATION, "sub-est2024.csv");
-  const ntas = JSON.parse(readFileSync(ntaPath, "utf8")) as {
+  const [ntaBytes, populationBytes] = await Promise.all([
+    download(NTA),
+    download(POPULATION),
+  ]);
+  const ntas = JSON.parse(new TextDecoder("utf-8").decode(ntaBytes)) as {
     nta2020: string;
     ntaname: string;
     boroname: string;
@@ -136,7 +123,7 @@ async function load(): Promise<BuildInput> {
       borough: nta.boroname,
       ntaType: nta.ntatype,
     })),
-    populations: populations(readFileSync(populationPath, "latin1")),
+    populations: populations(new TextDecoder("latin1").decode(populationBytes)),
   };
 }
 

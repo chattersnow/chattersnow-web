@@ -8273,10 +8273,10 @@ export type Database = {
           parent_id?: string | null;
           place_type?: string | null;
           population?: number | null;
+          search_text?: string;
           source: string;
           source_id: string;
           state_code: string;
-          search_text?: never;
         };
         Update: {
           aliases?: string[];
@@ -8289,10 +8289,10 @@ export type Database = {
           parent_id?: string | null;
           place_type?: string | null;
           population?: number | null;
+          search_text?: string;
           source?: string;
           source_id?: string;
           state_code?: string;
-          search_text?: never;
         };
         Relationships: [
           {
@@ -13947,10 +13947,7 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: boolean;
       };
-      tenant_service_area: {
-        Args: { p_tenant_id: string };
-        Returns: string[];
-      };
+      tenant_service_area: { Args: { p_tenant_id: string }; Returns: string[] };
       trigger_retention_run: { Args: { p_dry_run?: boolean }; Returns: string };
       unassign_numbered_inventory_tag: {
         Args: { p_item_id: string };
