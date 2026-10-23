@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { formAnalyticsConfig } from "@/lib/analytics/form-analytics";
 
 const PRODUCTION = {
-  NEXT_PUBLIC_VERCEL_ENV: "production",
+  VERCEL_ENV: "production",
   NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
 };
 const ON = { form_analytics: true };
@@ -15,12 +15,29 @@ describe("formAnalyticsConfig", () => {
     });
   });
 
+  test("ignores the build-time-only NEXT_PUBLIC_VERCEL_ENV", () => {
+    // Vercel sets the NEXT_PUBLIC_ copy only during the build, so the server
+    // rendering the layout sees VERCEL_ENV alone.
+    expect(
+      formAnalyticsConfig(ON, "demo", {
+        VERCEL_ENV: "production",
+        NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+      }),
+    ).not.toBeNull();
+    expect(
+      formAnalyticsConfig(ON, "demo", {
+        NEXT_PUBLIC_VERCEL_ENV: "production",
+        NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+      }),
+    ).toBeNull();
+  });
+
   test("off anywhere but production", () => {
     for (const env of ["preview", "development", undefined]) {
       expect(
         formAnalyticsConfig(ON, "demo", {
           ...PRODUCTION,
-          NEXT_PUBLIC_VERCEL_ENV: env,
+          VERCEL_ENV: env,
         }),
       ).toBeNull();
     }
@@ -29,7 +46,7 @@ describe("formAnalyticsConfig", () => {
   test("off without a key or a tenant", () => {
     expect(
       formAnalyticsConfig(ON, "demo", {
-        NEXT_PUBLIC_VERCEL_ENV: "production",
+        VERCEL_ENV: "production",
       }),
     ).toBeNull();
     expect(formAnalyticsConfig(ON, null, PRODUCTION)).toBeNull();

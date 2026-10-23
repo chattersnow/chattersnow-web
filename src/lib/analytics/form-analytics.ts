@@ -16,10 +16,12 @@ export const POSTHOG_PROXY_PATH = "/ph";
  *
  * All three must hold:
  *
- *   - **production only.** `NEXT_PUBLIC_VERCEL_ENV` is set by Vercel alone,
- *     so preview deploys, CI and local runs send nothing -- the lesson of
+ *   - **production only.** `VERCEL_ENV` is set by Vercel alone, so preview
+ *     deploys, CI and local runs send nothing -- the lesson of
  *     `src/instrumentation-client.ts`, where CI sent Sentry 113k events in
- *     three days.
+ *     three days. Not `NEXT_PUBLIC_VERCEL_ENV`: Vercel derives that copy only
+ *     at build time, so the server rendering this layout never sees it, and
+ *     PostHog never loaded in production.
  *   - **a project key.** `NEXT_PUBLIC_POSTHOG_KEY`, set in Vercel Production.
  *   - **the tenant's module.** Off by default: a tenant's privacy policy has to
  *     name PostHog before its visitors are counted, and the platform default
@@ -33,7 +35,7 @@ export function formAnalyticsConfig(
   tenant: string | null | undefined,
   env: Record<string, string | undefined> = process.env,
 ): { apiKey: string; tenant: string } | null {
-  if (env.NEXT_PUBLIC_VERCEL_ENV !== "production") return null;
+  if (env.VERCEL_ENV !== "production") return null;
   const apiKey = env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!apiKey || !tenant) return null;
   if (!(FORM_ANALYTICS_MODULE in modules)) return null;
