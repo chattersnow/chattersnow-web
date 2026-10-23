@@ -277,6 +277,12 @@ export type EventRegistrant = {
   group_chat_added_at: string | null;
   group_chat_added_by_name: string | null;
   /**
+   * When this registration was sent the event reminder (#1652), by the hourly
+   * job or "Send reminder now". Absent on rows built elsewhere, such as the
+   * door's.
+   */
+  reminder_sent_at?: string | null;
+  /**
    * The single-use codes this registration holds, each with the partner's
    * PIN (#1589). Read at `events: view`, like the codes table. Absent on
    * rows built elsewhere, such as the door's.
@@ -666,7 +672,7 @@ async function loadGroupChat(
 // `option_counts`, `answers` and `discount_codes` are embeds, not columns of
 // this table (#1407, #1501, #1589).
 const REGISTRANT_COLUMNS =
-  "id, event_id, name, email, phone, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, group_chat_added_at, group_chat_added_by, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
+  "id, event_id, name, email, phone, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail, pronouns, party_size, notes, created_at, person_id, checked_in_at, attended_before, waiver_accepted_at, waiver_version, party_includes_minor, adults_only_confirmed_at, answers_changed_at, group_chat_added_at, group_chat_added_by, reminder_sent_at, cancelled_at, cancellation_reason, cancellation_note, photo_consent, photo_consent_at, photo_consent_text, option_counts:event_registration_option_counts(option_id, label, quantity, sort_order), answers:event_registration_answers(question_id, prompt_as_shown, answer_text, sort_order, value), answer_request:event_registration_answer_requests(requested_at, answered_at, source), discount_codes(code, pin)";
 
 const RIDER_COLUMNS =
   "riding_discipline_at_event, ski_experience_level_at_event, snowboard_experience_level_at_event, person:people(riding_discipline, ski_experience_level, snowboard_experience_level, preferred_mountain)";

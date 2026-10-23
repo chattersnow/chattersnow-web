@@ -51,8 +51,11 @@ export type RecordedOutboundMessage = {
    */
   batchId?: string | null;
   status: OutboundMessageStatus;
-  /** The staffer's auth.users id, passed in because auth.uid() is null here. */
-  sentBy: string;
+  /**
+   * The staffer's auth.users id, passed in because auth.uid() is null here.
+   * Null for a send no one pressed: the event reminder's job (#1652).
+   */
+  sentBy: string | null;
 };
 
 export async function recordOutboundMessage(

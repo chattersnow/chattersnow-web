@@ -83,6 +83,7 @@ export function RecordMessages({
                   {outboundMessageSenderLabel(
                     message.kind,
                     actorDisplayName(sender(message), "a staff member"),
+                    message.sent_by !== null,
                   )}
                   {" · "}
                   <ViewerTime iso={message.created_at} fallbackZone="UTC" />
