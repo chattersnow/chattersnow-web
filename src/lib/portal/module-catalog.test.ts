@@ -301,9 +301,18 @@ describe("every resource belongs to a module", () => {
     expect(unknown).toEqual([]);
   });
 
+  // Modules that gate something on the public site and nothing in the portal,
+  // so there is no portal resource to gate anybody out of. `form_analytics`
+  // (#1480) decides whether a tenant's visitors are counted by PostHog; it is
+  // read from `public_tenant_modules` by the public layout and by the privacy
+  // policy, and no permission check could mean anything for it.
+  const PUBLIC_SITE_ONLY = new Set(["form_analytics"]);
+
   test("no module is empty", () => {
     const used = new Set(mapping.values());
-    const empty = [...catalog.keys()].filter((key) => !used.has(key)).sort();
+    const empty = [...catalog.keys()]
+      .filter((key) => !used.has(key) && !PUBLIC_SITE_ONLY.has(key))
+      .sort();
     expect(
       empty,
       `Modules with no resources: ${empty.join(", ")}. A module nobody can be gated out of is a row in a table, not a product.`,
