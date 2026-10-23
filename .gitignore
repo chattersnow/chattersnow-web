@@ -48,7 +48,8 @@ next-env.d.ts
 # that has only what is in the repository: the demo reset (#604), which
 # .github/workflows/demo-reset.yml runs on a schedule, and the tenant CLI
 # (#795), which package.json aliases as `tenant:*` and docs/tenants.md tells
-# an operator to run. test/scripts-hygiene.test.ts fails the unit suite when
+# an operator to run, and the places seed builder (#1699), which
+# `places:seed` runs to regenerate a committed migration. test/scripts-hygiene.test.ts fails the unit suite when
 # a package.json alias or a runbook names a scripts/ file that is not
 # allowlisted below, so the next one cannot ship uncommitted (#799).
 scripts/*
@@ -56,6 +57,8 @@ scripts/*
 !scripts/demo-reset.ts
 !scripts/tenant/
 !scripts/tenant-cli.ts
+!scripts/places/
+!scripts/places-seed.ts
 
 # playwright
 /test-results/
