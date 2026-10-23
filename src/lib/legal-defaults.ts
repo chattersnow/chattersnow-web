@@ -80,7 +80,7 @@ export type LegalOrgContext = {
  * Printed on every document here. Bump it in the same commit as any change to
  * the prose below: a stale date on a legal page is worse than none.
  */
-export const PLATFORM_LEGAL_LAST_UPDATED = "October 6, 2026";
+export const PLATFORM_LEGAL_LAST_UPDATED = "October 23, 2026";
 
 type Prose = (org: LegalOrgContext) => string[];
 
@@ -240,6 +240,9 @@ const PRIVACY: DocumentProse = {
         bullets([
           `**Supabase** — hosts our database and handles ${org.surfaces.constituentAccounts ? "sign-in" : "portal sign-in"}.`,
           "**Vercel** — hosts this website and provides the aggregate traffic counts we use to see which pages get visited.",
+          // The `form_analytics` module (#1480); see "cookies-and-analytics".
+          org.surfaces.formAnalytics &&
+            "**PostHog** — counts page views and how far people get through our forms, in aggregate. It receives no names, contact details or form answers.",
           "**Resend** — delivers the email this site sends, such as a confirmation or a reply to something you submitted.",
           // Unconditional, unlike Google below: errors happen on every page of
           // every deployment, and there is no per-tenant switch to read. The
@@ -258,9 +261,15 @@ const PRIVACY: DocumentProse = {
       "We use reasonable administrative, technical, and organizational safeguards to protect what you give us: information travels to the site over an encrypted connection, portal accounts are individual rather than shared, and access to each kind of record is limited to the roles that need it and enforced by the database itself.",
       "No website or database is perfectly secure, and we can't promise otherwise. If a breach ever affects your information, we'll tell you and the authorities we're required to tell, as promptly as we can.",
     ],
-    "cookies-and-analytics": () => [
+    "cookies-and-analytics": ({ surfaces }) => [
       "The public site sets no cookies of its own. The one cookie we do set is the session cookie that keeps the people running the organization signed in to the operations portal, and it's only set once someone signs in.",
-      "We use Vercel Web Analytics to count page views. It reports visits in aggregate, sets no cookies and stores nothing on your device, and doesn't follow you across other websites. We don't run Google Analytics or any advertising analytics on this site.",
+      // Keep in step with the PostHog options in
+      // src/components/analytics/form-analytics.tsx (#1480): cookieless, no
+      // person profiles, nothing captured but page views and named events
+      // whose properties are allowlisted in src/lib/analytics.
+      surfaces.formAnalytics
+        ? "We use Vercel Web Analytics to count page views, and PostHog to count how many people start and finish our forms, such as event registration, so we can see where a form is hard to finish. Both report in aggregate, set no cookies, store nothing on your device and don't follow you across other websites. Neither receives your name, your contact details or anything you type into a form. We don't run Google Analytics or any advertising analytics on this site."
+        : "We use Vercel Web Analytics to count page views. It reports visits in aggregate, sets no cookies and stores nothing on your device, and doesn't follow you across other websites. We don't run Google Analytics or any advertising analytics on this site.",
     ],
     "other-sites": () => [
       "We link out to partner organizations, sponsors, venues, and our own social accounts. Once you follow one of those links you're on someone else's site, and what they collect is covered by their privacy policy, not this one — worth a read before you hand them anything. The same goes for any ticketing or payment service we may use in the future; if we add one, we'll name it here first.",

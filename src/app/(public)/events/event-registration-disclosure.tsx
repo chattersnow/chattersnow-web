@@ -12,6 +12,7 @@ import {
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { trackRegistration } from "@/lib/analytics/registration-events";
 
 /** Fields, in document order, ignoring the honeypot and anything hidden. */
 const FIRST_FIELD_SELECTOR =
@@ -46,9 +47,11 @@ export function useCloseRegistration() {
  * away what has been typed.
  */
 export function EventRegistrationDisclosure({
+  eventId,
   eventName,
   children,
 }: {
+  eventId: string;
   eventName: string;
   children: ReactNode;
 }) {
@@ -88,7 +91,10 @@ export function EventRegistrationDisclosure({
           variant="rainbow"
           aria-expanded={false}
           aria-controls={panelId}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            trackRegistration("registration_opened", { event_id: eventId });
+          }}
           className="w-full sm:w-fit"
         >
           Register

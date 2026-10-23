@@ -8,7 +8,13 @@ import { BrandStyle } from "@/components/brand-style";
 import { InstagramLink } from "@/components/instagram-link";
 import { SkipLink } from "@/components/skip-link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getPageVisibility, hiddenSlots } from "@/lib/page-visibility";
+import {
+  getPageVisibility,
+  getPublicTenantModules,
+  hiddenSlots,
+} from "@/lib/page-visibility";
+import { formAnalyticsConfig } from "@/lib/analytics/form-analytics";
+import { FormAnalytics } from "@/components/analytics/form-analytics";
 import { NOT_FOUND_TITLE, getPublicSite } from "@/lib/public-site";
 import { isSlotVisible, visibleGroups } from "@/lib/public-nav";
 import type { Lexicon } from "@/lib/lexicon";
@@ -125,16 +131,19 @@ export default async function PublicLayout({
     createSupabaseServerClient(),
     headers(),
   ]);
-  const [visibility, site, publication, accountEnabled] = await Promise.all([
-    getPageVisibility(supabase),
-    getPublicSite(supabase),
-    getLegalPublication(supabase),
-    // Whether the tenant offers accounts, not whether this visitor has one:
-    // that is read in the browser (#1467), so this layout renders the same for
-    // every visitor to a host and the CDN may hold its pages. Free here --
-    // getPageVisibility already reads the same cached module map.
-    constituentAreaEnabled(),
-  ]);
+  const [visibility, site, publication, accountEnabled, modules] =
+    await Promise.all([
+      getPageVisibility(supabase),
+      getPublicSite(supabase),
+      getLegalPublication(supabase),
+      // Whether the tenant offers accounts, not whether this visitor has one:
+      // that is read in the browser (#1467), so this layout renders the same for
+      // every visitor to a host and the CDN may hold its pages. Free here --
+      // getPageVisibility already reads the same cached module map.
+      constituentAreaEnabled(),
+      // Cached: getPageVisibility above has already read the same map.
+      getPublicTenantModules(supabase),
+    ]);
   // The public site is the one surface that belongs to a host rather than to a
   // session, so a host no tenant claims has nothing to serve (#795 Phase 4).
   // Before this, such a request rendered the platform defaults -- which meant a
@@ -160,12 +169,19 @@ export default async function PublicLayout({
   const host = requestHeaders.get("host") ?? "";
   const installable = Boolean(await publicManifestPath(host));
   const { name, branding, content, lexicon } = site;
+  // Form funnels (#1480). Here, never in the root layout, so the portal is
+  // never tracked; null on every deploy but production and on any tenant
+  // without the module.
+  const analytics = formAnalyticsConfig(modules, site.tenant?.slug);
   const contactEmail = content.text("org.email_general");
   const supportLabel = `Support ${content.text("org.short_name")}`;
 
   return (
     <AccountNavProvider enabled={accountEnabled}>
       <BrandStyle branding={branding} />
+      {analytics && (
+        <FormAnalytics apiKey={analytics.apiKey} tenant={analytics.tenant} />
+      )}
       {/* The supporter app's half of the PWA (#1171). Mounted at the top of
           the public tree, the way the portal's shells mount it at the top of
           theirs, so a navigation inside the site does not re-register it.
