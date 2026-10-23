@@ -63,6 +63,7 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
     notes: [
       "A registrant cancels their own registration from their account or the event page with no grant at all, until the event starts. That path reaches only their own registration and records the reason as can't attend; staff cancel, with a reason, and undo from the Registrants tab at Manage.",
       "Anyone on the public site, with no grant, sees a public, published event's public photos and videos while the organization's Public event gallery is on -- never who uploaded them, their filenames or anything about a hidden one.",
+      "A per-event access grant (Administration: Manage gives one) reaches the same things on one event without this permission, but only in the areas it names -- Details & logistics, Staff, Registrations, Media, Impact & retro, and the sensitive Expenses, Revenue, Sponsors & pricing, Giveaway & goods and Incidents once the organization offers them -- at View or Manage. It never creates or deletes an event, writes to the donation, sales or inventory ledgers, changes an organization-wide setting, or reads an event's report.",
     ],
     excludes: [
       {

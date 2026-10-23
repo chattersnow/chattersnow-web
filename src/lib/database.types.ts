@@ -11519,6 +11519,10 @@ export type Database = {
           welcome_completed_at: string;
         }[];
       };
+      event_access_ids: {
+        Args: { p_min_level: string; p_parent?: string; p_table_name: string };
+        Returns: string[];
+      };
       event_access_offered_areas: { Args: never; Returns: string[] };
       event_access_rank: {
         Args: { p_event_id: string; p_table_name: string };
@@ -11796,6 +11800,10 @@ export type Database = {
           p_role_name?: string;
         };
         Returns: string;
+      };
+      has_any_event_access: {
+        Args: { p_min_level: string; p_table_name: string };
+        Returns: boolean;
       };
       has_event_access: {
         Args: { p_event_id: string; p_min_level: string; p_table_name: string };
