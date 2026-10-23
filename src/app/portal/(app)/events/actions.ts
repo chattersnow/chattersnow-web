@@ -281,6 +281,9 @@ export async function updateEventPlanningAction(
     groupChatLabel,
     carpoolsEnabled,
     carpoolSeatsQuestionId,
+    reminderEnabled,
+    reminderDaysBefore,
+    reminderIntro,
   } = parsed.data;
 
   const { error } = await supabase
@@ -308,6 +311,13 @@ export async function updateEventPlanningAction(
       ...(carpoolSeatsQuestionId === undefined
         ? {}
         : { carpool_seats_question_id: carpoolSeatsQuestionId }),
+      ...(reminderEnabled === null
+        ? {}
+        : { reminder_enabled: reminderEnabled }),
+      ...(reminderDaysBefore === null
+        ? {}
+        : { reminder_days_before: reminderDaysBefore }),
+      ...(reminderIntro === undefined ? {} : { reminder_intro: reminderIntro }),
     })
     .eq("id", id);
 

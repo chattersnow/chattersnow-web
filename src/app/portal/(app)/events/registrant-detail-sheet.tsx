@@ -7,6 +7,7 @@ import { RegistrantMessageActions } from "./registrant-message-actions";
 import { RegistrantAnswers } from "./registrant-answers";
 import { RegistrantContact } from "./registrant-contact";
 import { RegistrantGroupChat } from "./registrant-group-chat";
+import { RegistrantReminder } from "./registrant-reminder";
 import type { EventGroupChat } from "@/lib/registration-group-chat";
 import {
   carpoolAssignments,
@@ -288,6 +289,12 @@ export function RegistrantDetailSheet({
                 onSaved={onAnswersSaved}
               />
             )}
+            <RegistrantReminder
+              registrant={registrant}
+              canManage={canManage}
+              orgEmailEnabled={orgEmailEnabled}
+              onSent={onSent}
+            />
             {carpools && (
               <ReadOnlyField label="Carpool" htmlFor="registrant-carpool">
                 <Link

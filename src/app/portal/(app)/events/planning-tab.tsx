@@ -54,6 +54,18 @@ import {
   groupChatLabel,
 } from "@/lib/registration-group-chat";
 import {
+  DEFAULT_REMINDER_INTRO,
+  REMINDER_DAYS_DEFAULT,
+  REMINDER_DAYS_MAX,
+  REMINDER_DAYS_MIN,
+  REMINDER_INTRO_MAX_LENGTH,
+  reminderIntro,
+} from "@/lib/event-reminders";
+import {
+  ReminderPreviewButton,
+  ReminderStatusLine,
+} from "./event-reminder-settings";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -106,6 +118,13 @@ function formStateFor(event: EventRow) {
     groupChatLabel: event.group_chat_label ?? "",
     carpoolsEnabled: event.carpools_enabled ?? false,
     carpoolSeatsQuestionId: event.carpool_seats_question_id ?? "",
+    reminderEnabled: event.reminder_enabled ?? false,
+    reminderDaysBefore: String(
+      event.reminder_days_before ?? REMINDER_DAYS_DEFAULT,
+    ),
+    // Prefilled with the platform default, so staff edit words rather than
+    // write them from nothing; saved unchanged, it is stored as null.
+    reminderIntro: reminderIntro(event.reminder_intro),
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
     registrationOptions: registrationOptionsDraft(
@@ -223,6 +242,9 @@ export function PlanningTab({
     formData.set("groupChatLabel", form.groupChatLabel);
     formData.set("carpoolsEnabled", form.carpoolsEnabled ? "on" : "off");
     formData.set("carpoolSeatsQuestionId", form.carpoolSeatsQuestionId);
+    formData.set("reminderEnabled", form.reminderEnabled ? "on" : "off");
+    formData.set("reminderDaysBefore", form.reminderDaysBefore);
+    formData.set("reminderIntro", form.reminderIntro);
     // Only when changed, so saving a budget does not rewrite every option
     // (and the audit log with it).
     const baselineOptions = formStateFor(event).registrationOptions;
@@ -334,6 +356,25 @@ export function PlanningTab({
           {form.groupChatEnabled
             ? `On · ${groupChatLabel(form.groupChatLabel)}`
             : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Reminder email"
+          htmlFor="planning-reminderEnabled"
+        >
+          {form.reminderEnabled ? (
+            <>
+              <span className="block">
+                On · {reminderDaysText(form.reminderDaysBefore)} before
+              </span>
+              <ReminderStatusLine
+                eventId={event.id}
+                timeZone={event.timezone}
+                version={reminderVersion(event)}
+              />
+            </>
+          ) : (
+            "Off"
+          )}
         </ReadOnlyField>
         <ReadOnlyField
           label="Confirmation email note"
@@ -568,6 +609,76 @@ export function PlanningTab({
           </Field>
         )}
 
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-reminderEnabled">
+              Reminder email
+            </FieldLabel>
+            <FieldDescription>
+              Emails everyone registered the event details, their carpool and a
+              fresh link to change their answers, once, at 9:00 in the
+              event&apos;s time zone. People who register after it goes are not
+              sent one.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-reminderEnabled"
+            checked={form.reminderEnabled}
+            onCheckedChange={(checked) => update("reminderEnabled", checked)}
+          />
+        </Field>
+
+        {form.reminderEnabled && (
+          <>
+            <Field>
+              <FieldLabel htmlFor="planning-reminderDaysBefore">
+                Days before the event
+              </FieldLabel>
+              <Input
+                id="planning-reminderDaysBefore"
+                type="number"
+                min={REMINDER_DAYS_MIN}
+                max={REMINDER_DAYS_MAX}
+                step={1}
+                value={form.reminderDaysBefore}
+                onChange={(changeEvent) =>
+                  update("reminderDaysBefore", changeEvent.target.value)
+                }
+              />
+              <ReminderStatusLine
+                eventId={event.id}
+                timeZone={event.timezone}
+                version={reminderVersion(event)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="planning-reminderIntro">
+                Reminder intro
+              </FieldLabel>
+              <Textarea
+                id="planning-reminderIntro"
+                rows={3}
+                maxLength={REMINDER_INTRO_MAX_LENGTH}
+                placeholder={DEFAULT_REMINDER_INTRO}
+                value={form.reminderIntro}
+                onChange={(changeEvent) =>
+                  update("reminderIntro", changeEvent.target.value)
+                }
+              />
+              <FieldDescription>
+                The opening paragraph, above the event details. Left blank, it
+                reads the default.
+              </FieldDescription>
+              <div>
+                <ReminderPreviewButton
+                  eventId={event.id}
+                  intro={form.reminderIntro}
+                />
+              </div>
+            </Field>
+          </>
+        )}
+
         <Field>
           <FieldLabel htmlFor="planning-confirmationNote">
             Confirmation email note
@@ -611,6 +722,20 @@ export function PlanningTab({
       </FieldGroup>
     </form>
   );
+}
+
+function reminderDaysText(days: string): string {
+  return days === "1" ? "1 day" : `${days} days`;
+}
+
+/** What moves the reminder's send time or recipients, to read its status again. */
+function reminderVersion(event: EventRow): string {
+  return [
+    event.starts_at,
+    event.timezone,
+    event.reminder_enabled,
+    event.reminder_days_before,
+  ].join("|");
 }
 
 /** The read-only view of an event's questions (#1501), one per line. */

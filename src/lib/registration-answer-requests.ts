@@ -37,10 +37,15 @@ export const RECENTLY_ASKED_MS = 24 * 60 * 60 * 1000;
 /**
  * Who issued a registration's current link (#1591): staff asking, the
  * registration confirmation and its resends, a second registration attempt
- * with the same address, or the carpool assignment email (#1651).
+ * with the same address, the carpool assignment email (#1651), or the event
+ * reminder (#1652).
  */
 export type AnswerRequestSource =
-  "staff" | "confirmation" | "already_registered" | "carpool_assignment";
+  | "staff"
+  | "confirmation"
+  | "already_registered"
+  | "carpool_assignment"
+  | "reminder";
 
 /** The part of a registration's request the portal reads. */
 export type AnswerRequestStatus = {

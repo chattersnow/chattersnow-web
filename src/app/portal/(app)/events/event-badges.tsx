@@ -63,6 +63,13 @@ export type EventRow = {
   group_chat_enabled?: boolean;
   group_chat_label?: string | null;
   /**
+   * The reminder email (#1652). Loaded by the event detail page, where the
+   * Planning tab edits them.
+   */
+  reminder_enabled?: boolean;
+  reminder_days_before?: number;
+  reminder_intro?: string | null;
+  /**
    * The carpools switch and the question seats come from (#1649). Loaded by
    * the event detail page, where the Planning tab edits them.
    */

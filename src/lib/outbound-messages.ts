@@ -59,6 +59,13 @@ export const GEAR_AS_IS_REQUEST_KIND = "gear_as_is_request";
  */
 export const CARPOOL_ASSIGNMENT_KIND = "carpool_assignment";
 
+/**
+ * The reminder sent before an event (#1652), by the hourly job or by "Send
+ * reminder now". Not a notification kind, for #1502's reason: it is about an
+ * event they signed up for. The org-wide switch governs it.
+ */
+export const EVENT_REMINDER_KIND = "event_reminder";
+
 /** Matching the check constraints on `outbound_messages`. */
 export const MAX_MESSAGE_SUBJECT_LENGTH = 200;
 export const MAX_MESSAGE_BODY_LENGTH = 5000;
@@ -151,7 +158,14 @@ export function outboundMessageStatusLabel(status: string): string {
 export function outboundMessageSenderLabel(
   kind: string,
   senderName: string,
+  /** False for a send nobody pressed: the reminder's hourly job (#1652). */
+  sentByStaff = true,
 ): string {
+  if (kind === EVENT_REMINDER_KIND) {
+    return sentByStaff
+      ? `Event reminder, sent by ${senderName}`
+      : "Event reminder, sent automatically";
+  }
   if (kind === STAFF_MESSAGE_KIND) return `Sent by ${senderName}`;
   if (kind === EVENT_ANNOUNCEMENT_KIND) {
     return `Announcement, sent by ${senderName}`;

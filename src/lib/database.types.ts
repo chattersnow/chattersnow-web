@@ -3810,6 +3810,7 @@ export type Database = {
           preferred_contact_detail: string | null;
           preferred_contact_method: string | null;
           pronouns: string | null;
+          reminder_sent_at: string | null;
           riding_discipline_at_event: string | null;
           ski_experience_level_at_event: string | null;
           snowboard_experience_level_at_event: string | null;
@@ -3850,6 +3851,7 @@ export type Database = {
           preferred_contact_detail?: string | null;
           preferred_contact_method?: string | null;
           pronouns?: string | null;
+          reminder_sent_at?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
           snowboard_experience_level_at_event?: string | null;
@@ -3890,6 +3892,7 @@ export type Database = {
           preferred_contact_detail?: string | null;
           preferred_contact_method?: string | null;
           pronouns?: string | null;
+          reminder_sent_at?: string | null;
           riding_discipline_at_event?: string | null;
           ski_experience_level_at_event?: string | null;
           snowboard_experience_level_at_event?: string | null;
@@ -4489,6 +4492,9 @@ export type Database = {
           registration_deadline: string | null;
           registration_enabled: boolean;
           registration_options_prompt: string | null;
+          reminder_days_before: number;
+          reminder_enabled: boolean;
+          reminder_intro: string | null;
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
@@ -4532,6 +4538,9 @@ export type Database = {
           registration_deadline?: string | null;
           registration_enabled?: boolean;
           registration_options_prompt?: string | null;
+          reminder_days_before?: number;
+          reminder_enabled?: boolean;
+          reminder_intro?: string | null;
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
@@ -4575,6 +4584,9 @@ export type Database = {
           registration_deadline?: string | null;
           registration_enabled?: boolean;
           registration_options_prompt?: string | null;
+          reminder_days_before?: number;
+          reminder_enabled?: boolean;
+          reminder_intro?: string | null;
           report_reopen_reason?: string | null;
           report_reopened_at?: string | null;
           report_reopened_by?: string | null;
@@ -11171,6 +11183,10 @@ export type Database = {
           tenant_id: string;
         }[];
       };
+      claim_event_reminders: {
+        Args: { p_limit: number; p_tenant_id: string };
+        Returns: string[];
+      };
       claim_pending_role_grants: { Args: never; Returns: number };
       complete_my_welcome: {
         Args: { p_current_release?: string };
@@ -11448,6 +11464,46 @@ export type Database = {
       };
       event_media_uploads_enabled: { Args: never; Returns: boolean };
       event_public_gallery_enabled: { Args: never; Returns: boolean };
+      event_reminder_due_tenants: { Args: never; Returns: string[] };
+      event_reminder_message: {
+        Args: { p_registration_id: string };
+        Returns: {
+          car: Json;
+          carpools_enabled: boolean;
+          email: string;
+          ends_at: string;
+          event_id: string;
+          event_name: string;
+          location: string;
+          name: string;
+          person_id: string;
+          registration_id: string;
+          reminder_intro: string;
+          starts_at: string;
+          tenant_id: string;
+          timezone: string;
+        }[];
+      };
+      event_reminder_send_at: {
+        Args: {
+          p_days_before: number;
+          p_starts_at: string;
+          p_timezone: string;
+        };
+        Returns: string;
+      };
+      event_reminder_status: {
+        Args: { p_event_id: string };
+        Returns: {
+          recipients: number;
+          send_at: string;
+          sent: number;
+        }[];
+      };
+      event_reminders_sent_since: {
+        Args: { p_since: string };
+        Returns: number;
+      };
       event_report_rows: {
         Args: {
           p_event_id: string;
@@ -12714,6 +12770,9 @@ export type Database = {
           registration_deadline: string | null;
           registration_enabled: boolean;
           registration_options_prompt: string | null;
+          reminder_days_before: number;
+          reminder_enabled: boolean;
+          reminder_intro: string | null;
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;
@@ -13340,6 +13399,10 @@ export type Database = {
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
       site_content_approver_count: { Args: never; Returns: number };
+      stamp_event_reminder: {
+        Args: { p_registration_id: string };
+        Returns: boolean;
+      };
       store_distribution_acknowledgement: {
         Args: {
           p_acknowledged: boolean;
@@ -13415,6 +13478,9 @@ export type Database = {
           registration_deadline: string | null;
           registration_enabled: boolean;
           registration_options_prompt: string | null;
+          reminder_days_before: number;
+          reminder_enabled: boolean;
+          reminder_intro: string | null;
           report_reopen_reason: string | null;
           report_reopened_at: string | null;
           report_reopened_by: string | null;

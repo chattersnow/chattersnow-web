@@ -38,6 +38,16 @@ function AnswersChangedBadge({ registrant }: { registrant: EventRegistrant }) {
   );
 }
 
+/** "Reminder sent {date}" (#1652), once the event reminder has gone. */
+function ReminderSentBadge({ registrant }: { registrant: EventRegistrant }) {
+  if (!registrant.reminder_sent_at) return null;
+  return (
+    <StatusBadge tone="neutral" className="mt-1 font-normal">
+      {`Reminder sent ${formatInstantDate(registrant.reminder_sent_at)}`}
+    </StatusBadge>
+  );
+}
+
 /**
  * What the door has to know about a party before it is through the door,
  * rendered under the name on the event card, the registrants page and its
@@ -84,6 +94,7 @@ export function RegistrantBadges({
       )}
       <AnswerRequestBadge registrant={registrant} />
       <AnswersChangedBadge registrant={registrant} />
+      <ReminderSentBadge registrant={registrant} />
     </>
   );
 }
