@@ -51,6 +51,14 @@ export const REGISTRATION_ANSWERS_REQUEST_KIND = "registration_answers_request";
  */
 export const GEAR_AS_IS_REQUEST_KIND = "gear_as_is_request";
 
+/**
+ * A registrant's carpool assignment -- their car, driver and car-mates --
+ * emailed by staff from the carpool board (#1651). Not a notification kind,
+ * for #1502's reason: it is about an event they signed up for. The org-wide
+ * switch governs it.
+ */
+export const CARPOOL_ASSIGNMENT_KIND = "carpool_assignment";
+
 /** Matching the check constraints on `outbound_messages`. */
 export const MAX_MESSAGE_SUBJECT_LENGTH = 200;
 export const MAX_MESSAGE_BODY_LENGTH = 5000;
@@ -153,6 +161,9 @@ export function outboundMessageSenderLabel(
   }
   if (kind === GEAR_AS_IS_REQUEST_KIND) {
     return `Request to acknowledge as-is, sent by ${senderName}`;
+  }
+  if (kind === CARPOOL_ASSIGNMENT_KIND) {
+    return `Carpool assignment, sent by ${senderName}`;
   }
   return `Receipt, resent by ${senderName}`;
 }

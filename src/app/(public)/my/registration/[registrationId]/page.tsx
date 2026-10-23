@@ -10,6 +10,8 @@ import {
   type RegistrationQuestion,
 } from "@/lib/registration-questions";
 import { RegistrationContactCard } from "@/app/(public)/events/registration-contact-card";
+import { CarpoolAssignmentCard } from "@/components/carpool-assignment-card";
+import { toRegistrantCarpool } from "@/lib/carpool-assignment";
 import { PhotoConsentCard } from "./photo-consent-card";
 import { RegistrationAnswersCard } from "./registration-answers-card";
 import { RegistrationOptionsCard } from "./registration-options-card";
@@ -133,7 +135,21 @@ export default async function MyRegistrationPage({
       editable={contact.editable}
     />
   ) : null;
-  const { content } = await getPublicSite(supabase);
+  // #1651. Their car, driver and car-mates, on an event that organizes
+  // carpools. Same person resolution, so somebody else's id renders nothing.
+  const { data: carpoolData } = await supabase.rpc("my_registration_carpool", {
+    p_registration_id: registrationId,
+  });
+  const carpool = toRegistrantCarpool(carpoolData);
+  const site = await getPublicSite(supabase);
+  const { content } = site;
+  const carpoolCard = carpool ? (
+    <CarpoolAssignmentCard
+      carpool={carpool}
+      orgName={site.name ?? "the organizers"}
+      notice={content.paragraphs("events.carpool_cost_notice")}
+    />
+  ) : null;
 
   return (
     <ClaimHandoff
@@ -142,8 +158,13 @@ export default async function MyRegistrationPage({
       record={{ kind: "registration", id: registrationId }}
       personId={personId}
       after={
-        contactCard || optionsCard || answersCard || photo?.asked ? (
+        carpoolCard ||
+        contactCard ||
+        optionsCard ||
+        answersCard ||
+        photo?.asked ? (
           <div className="flex flex-col gap-6">
+            {carpoolCard}
             {contactCard}
             {optionsCard}
             {answersCard}

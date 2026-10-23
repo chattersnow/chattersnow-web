@@ -1,7 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { checkUser } from "@/lib/auth/current-user";
+import { getRequestOrigin } from "@/lib/request-origin";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { RECORD_MESSAGE_ERRORS } from "@/lib/notifications/record-message";
+import { MAX_ANNOUNCEMENT_RECIPIENTS } from "@/lib/event-announcements";
+import { sendCarpoolAssignments } from "@/lib/notifications/carpool-assignments";
+import { loadCarpoolAssignmentRows } from "@/lib/portal/event-carpools";
+import {
+  CARPOOL_ASSIGNMENT_ERRORS,
+  resolveCarpoolAssignmentRecipients,
+  type CarpoolAssignmentAudience,
+} from "@/lib/carpool-assignment";
 import { checkPermission } from "@/lib/auth/permissions";
 import {
   actionError,
@@ -122,4 +136,91 @@ export async function setCarpoolPassengerPaidAction(input: {
     "Could not update the payment. Please try again.",
   );
   return "error" in result ? result : { success: true };
+}
+
+/**
+ * "Email carpool assignments" (#1651): each person in a car -- or only those
+ * whose car changed since they were last emailed -- gets their card, the
+ * cost-split notice and a fresh answers link.
+ *
+ * Shaped like askForMissingAnswersAction(): who is mailed is resolved here,
+ * under the caller's session and by the same function the dialog counted
+ * with, so the number shown is the number sent and the browser never names a
+ * recipient. The mail goes in after(); each outcome lands in that
+ * registrant's message history. Capped like an announcement, and an unsent
+ * remainder stays "changed", so sending again picks it up.
+ */
+export async function emailCarpoolAssignmentsAction(input: {
+  eventId: string;
+  batchId: string;
+  audience: CarpoolAssignmentAudience;
+}): Promise<Result<{ recipients: number }>> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(supabase);
+  if ("error" in userResult) {
+    return actionError("unauthenticated", userResult.error);
+  }
+  const denied = await checkPermission(supabase, "events", "manage");
+  if (denied) return fromGuard("forbidden", denied);
+
+  const [event, rows] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, name, tenant_id, timezone, carpools_enabled")
+      .eq("id", input.eventId)
+      .maybeSingle<{
+        id: string;
+        name: string;
+        tenant_id: string;
+        timezone: string;
+        carpools_enabled: boolean;
+      }>(),
+    loadCarpoolAssignmentRows(supabase, input.eventId),
+  ]);
+  if (event.error) {
+    return actionError("server_error", CARPOOL_ASSIGNMENT_ERRORS.FAILED);
+  }
+  if (!event.data) {
+    return actionError("conflict", CARPOOL_ERROR_MESSAGES.EVENT_NOT_FOUND);
+  }
+  if (!event.data.carpools_enabled) {
+    return actionError("conflict", CARPOOL_ERROR_MESSAGES.CARPOOLS_DISABLED);
+  }
+  if (!rows) {
+    return actionError("server_error", CARPOOL_ASSIGNMENT_ERRORS.FAILED);
+  }
+
+  const recipients = resolveCarpoolAssignmentRecipients(
+    rows,
+    input.audience,
+  ).recipients.slice(0, MAX_ANNOUNCEMENT_RECIPIENTS);
+  if (recipients.length === 0) {
+    return actionError("conflict", CARPOOL_ASSIGNMENT_ERRORS.NO_RECIPIENTS);
+  }
+  if (!(await getOrgEmailEnabled(supabase))) {
+    return actionError("conflict", RECORD_MESSAGE_ERRORS.EMAIL_OFF);
+  }
+
+  const batch = {
+    tenantId: event.data.tenant_id,
+    eventId: event.data.id,
+    eventName: event.data.name,
+    timeZone: event.data.timezone,
+    batchId: input.batchId,
+    recipients,
+    sentBy: userResult.user.id,
+    // Read before after(), for the announcement's reason.
+    fallbackOrigin: await getRequestOrigin(),
+  };
+  const admin = createSupabaseAdminClient();
+  after(async () => {
+    try {
+      await sendCarpoolAssignments(admin, batch);
+    } catch (error) {
+      console.error("[carpool-assignment] the batch threw", error);
+    }
+  });
+
+  revalidatePath(carpoolsHref(input.eventId));
+  return { success: true, recipients: recipients.length };
 }

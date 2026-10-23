@@ -8,6 +8,8 @@ import type {
   EventRegistrant,
   EventRegistrantsData,
 } from "../../registrants-actions";
+import { EmailCarpoolAssignmentsDialog } from "./email-carpool-assignments-dialog";
+import type { CarpoolAssignmentRecipient } from "@/lib/carpool-assignment";
 import {
   deleteCarpoolCarAction,
   moveCarpoolPassengerAction,
@@ -110,6 +112,8 @@ export function CarpoolBoard({
   timezone,
   canManage,
   data,
+  assignmentRecipients = null,
+  emailDisabledReason,
 }: {
   eventId: string;
   eventName: string;
@@ -117,6 +121,13 @@ export function CarpoolBoard({
   timezone: string;
   canManage: boolean;
   data: EventRegistrantsData;
+  /**
+   * Everyone in a car, for "Email carpool assignments" (#1651). Null without
+   * `events: manage`, which offers no button.
+   */
+  assignmentRecipients?: readonly CarpoolAssignmentRecipient[] | null;
+  /** Set when org email is switched off. */
+  emailDisabledReason?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -315,6 +326,13 @@ export function CarpoolBoard({
             >
               Download carpools (CSV)
             </Button>
+          )}
+          {canManage && assignmentRecipients && cars.length > 0 && (
+            <EmailCarpoolAssignmentsDialog
+              eventId={eventId}
+              recipients={assignmentRecipients}
+              disabledReason={emailDisabledReason}
+            />
           )}
         </div>
       </div>

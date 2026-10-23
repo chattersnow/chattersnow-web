@@ -9,6 +9,9 @@ import {
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { listEventRegistrantsAction } from "../../registrants-actions";
+import { loadCarpoolAssignmentRows } from "@/lib/portal/event-carpools";
+import { getOrgEmailEnabled } from "@/lib/notifications/settings";
+import { RECORD_MESSAGE_ERRORS } from "@/lib/notifications/record-message";
 import { CarpoolBoard } from "./carpool-board";
 
 export const metadata: Metadata = { title: "Carpools" };
@@ -88,6 +91,15 @@ export default async function EventCarpoolsPage({
     );
   }
 
+  // #1651. Who "Email carpool assignments" would reach: only the counts
+  // reach the browser, never the cards.
+  const [assignmentRows, emailEnabled] = canManage
+    ? await Promise.all([
+        loadCarpoolAssignmentRows(supabase, event.id),
+        getOrgEmailEnabled(supabase),
+      ])
+    : [null, false];
+
   return (
     <>
       {breadcrumbs}
@@ -98,6 +110,16 @@ export default async function EventCarpoolsPage({
         timezone={event.timezone}
         canManage={canManage}
         data={registrants.data}
+        assignmentRecipients={
+          assignmentRows?.map(({ registrationId, hasEmail, changed }) => ({
+            registrationId,
+            hasEmail,
+            changed,
+          })) ?? null
+        }
+        emailDisabledReason={
+          emailEnabled ? undefined : RECORD_MESSAGE_ERRORS.EMAIL_OFF
+        }
       />
     </>
   );
