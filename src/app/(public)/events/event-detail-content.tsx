@@ -17,12 +17,22 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPublicSite } from "@/lib/public-site";
 import type { PublicRiderProfile } from "@/lib/rider-profile";
 import { getPublicRiderProfile } from "@/lib/rider-profile-settings";
-import { getPublicAsksAboutMinors } from "@/lib/registration-settings";
+import {
+  getPublicAsksAboutMinors,
+  getPublicRequiresInstagram,
+} from "@/lib/registration-settings";
 import { loadEventWaiver } from "./event-waiver-data";
 import { EventWaiver } from "./event-waiver";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import { eventProgramsLabel, type PublicEvent } from "./event-card";
 import { EventFlierFull } from "./event-flier";
+import { EventGallery } from "./event-gallery";
+import { loadPublicEventMedia } from "./event-media-data";
+import { publicEventPhotosPath } from "./event-path";
+import {
+  PUBLIC_EVENT_PHOTO_PREVIEW,
+  hasPublicEventMedia,
+} from "@/lib/public-event-gallery";
 import { EventRegistrationDisclosure } from "./event-registration-disclosure";
 import { checkRegistrationWindow } from "./event-registration-form";
 import { EventRegistrationForm } from "./event-registration-form-fields";
@@ -81,8 +91,10 @@ function EventDetailBody({
   waiver,
   waiverBlock,
   asksAboutMinors,
+  requiresInstagram,
   minorAccompaniment,
   photoConsent,
+  carpoolCostNotice,
   registrationOptions,
   registrationQuestions,
   riderProfile,
@@ -106,6 +118,8 @@ function EventDetailBody({
    * written none, which is the state every tenant starts in.
    */
   asksAboutMinors: boolean;
+  /** Whether a handle, or a contact in its place, is required (#1647). */
+  requiresInstagram: boolean;
   minorAccompaniment: string[];
   /**
    * This organization's photos-and-video paragraphs (#599, #1376), shown as a
@@ -115,6 +129,8 @@ function EventDetailBody({
    * exactly what it rendered before #599 shipped.
    */
   photoConsent: string[];
+  /** The carpool cost-split notice (#1650), empty unless the event organizes carpools. */
+  carpoolCostNotice: string[];
   /** The event's registration question (#1407), or null. */
   registrationOptions: RegistrationOptionsQuestion | null;
   /** The event's registration questions (#1501), empty for most events. */
@@ -209,9 +225,11 @@ function EventDetailBody({
                   waiverBlock={waiverBlock}
                   waiverOnFile={viewer.waiverOnFile}
                   asksAboutMinors={asksAboutMinors}
+                  requiresInstagram={requiresInstagram}
                   adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  carpoolCostNotice={carpoolCostNotice}
                   registrationOptions={registrationOptions}
                   registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
@@ -228,9 +246,11 @@ function EventDetailBody({
                   waiver={waiver}
                   waiverBlock={waiverBlock}
                   asksAboutMinors={asksAboutMinors}
+                  requiresInstagram={requiresInstagram}
                   adultsOnly={event.adults_only ?? false}
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
+                  carpoolCostNotice={carpoolCostNotice}
                   registrationOptions={registrationOptions}
                   registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
@@ -284,6 +304,11 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
   // component for the reason the waiver is: a block of tenant prose has no
   // business in the browser bundle of the tenants that have none.
   const photoConsent = content.paragraphs("events.photo_consent");
+  // #1650. The cost-split notice, off the same read, and only on an event
+  // that organizes carpools: everywhere else the form says nothing about them.
+  const carpoolCostNotice = event.carpools_enabled
+    ? content.paragraphs("events.carpool_cost_notice")
+    : [];
   // The event's own registration question (#1407). Only where registration
   // is on at all, so the events that take none pay no query for it.
   const registrationOptions = event.registration_enabled
@@ -305,6 +330,10 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
     event.registration_enabled && !event.adults_only
       ? await getPublicAsksAboutMinors(supabase)
       : !event.adults_only;
+  // #1647. Only where there is a registration form, like the setting above.
+  const requiresInstagram = event.registration_enabled
+    ? await getPublicRequiresInstagram(supabase)
+    : false;
   const waiverBlock = waiver ? (
     <EventWaiver
       doc={waiver.content}
@@ -312,6 +341,15 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
       headingId="event-waiver-title"
     />
   ) : null;
+
+  // Its public photos and videos (#1654), the newest photos only; the rest
+  // are a link away. Read on every request, so a hidden photo is gone from
+  // the next one.
+  const media = await loadPublicEventMedia(
+    event.id,
+    PUBLIC_EVENT_PHOTO_PREVIEW,
+  );
+  const photosHref = publicEventPhotosPath(event.id);
 
   const flierUrl = resolveImageUrl(event.flier_url);
   const hasFlier = isRenderableImageSrc(flierUrl);
@@ -370,6 +408,18 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             <p className="app-muted mt-4 text-sm sm:text-base">
               {formatWhen(event)}
             </p>
+            {hasPublicEventMedia(media) && (
+              <p className="mt-2 text-sm">
+                <Link
+                  href={photosHref}
+                  className="underline underline-offset-4"
+                >
+                  {media.photoCount > 0
+                    ? `Photos (${media.photoCount})`
+                    : `Videos (${media.videos.length})`}
+                </Link>
+              </p>
+            )}
           </section>
           <EventDetailBody
             event={event}
@@ -383,12 +433,23 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             }
             waiverBlock={waiverBlock}
             asksAboutMinors={asksAboutMinors}
+            requiresInstagram={requiresInstagram}
             minorAccompaniment={minorAccompaniment}
             photoConsent={photoConsent}
+            carpoolCostNotice={carpoolCostNotice}
             registrationOptions={registrationOptions}
             registrationQuestions={registrationQuestions}
             riderProfile={riderProfile}
           />
+          {hasPublicEventMedia(media) && (
+            <div className="mt-12">
+              <EventGallery
+                eventName={event.name}
+                media={media}
+                allPhotosHref={photosHref}
+              />
+            </div>
+          )}
         </div>
       </div>
     </>

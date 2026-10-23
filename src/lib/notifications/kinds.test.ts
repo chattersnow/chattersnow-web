@@ -13,6 +13,7 @@ import {
 } from "./kinds";
 import {
   EVENT_ANNOUNCEMENT_KIND,
+  EVENT_REMINDER_KIND,
   REGISTRATION_ANSWERS_REQUEST_KIND,
   STAFF_MESSAGE_KIND,
 } from "@/lib/outbound-messages";
@@ -120,6 +121,8 @@ describe("the registry", () => {
     // the gate an announcement obeys, and the composer says so.
     expect(isNotificationKind(EVENT_ANNOUNCEMENT_KIND)).toBe(false);
     expect(notificationKindDefault(EVENT_ANNOUNCEMENT_KIND)).toBe(false);
+    expect(isNotificationKind(EVENT_REMINDER_KIND)).toBe(false);
+    expect(notificationKindDefault(EVENT_REMINDER_KIND)).toBe(false);
   });
 
   test("registration_answers_request is not a kind either (#1502)", () => {

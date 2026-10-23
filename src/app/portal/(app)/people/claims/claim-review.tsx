@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -39,9 +39,12 @@ const TIER_COPY: Record<
 export function ClaimReview({
   claimId,
   candidates,
+  claimActions,
 }: {
   claimId: string;
   candidates: ClaimCandidate[];
+  /** Claim / Unclaim / Assign to… (#1671), beside the decision. */
+  claimActions?: ReactNode;
 }) {
   const router = useRouter();
   // Never preselected, not even a lone verified-email match. Approving hands
@@ -156,6 +159,7 @@ export function ClaimReview({
           {busy === "reject" ? <Spinner /> : null}
           Reject
         </Button>
+        {claimActions}
       </div>
     </div>
   );

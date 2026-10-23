@@ -345,7 +345,7 @@ describe("gear request item edits", () => {
     // Give the requester an account, as an approved claim would.
     const { data: header } = await service
       .from("gear_requests")
-      .select("person:people(id, email)")
+      .select("person:people!gear_requests_tenant_id_person_id_fkey(id, email)")
       .eq("id", request.id)
       .single();
     const person = header?.person as unknown as { id: string; email: string };

@@ -19,6 +19,7 @@ import { AdultsOnlyConfirmationField } from "@/components/adults-only-confirmati
 import { ADULTS_ONLY_CONFIRMED_FIELD } from "@/lib/adults-only";
 import { MINORS_ASKED_FIELD } from "@/lib/minors";
 import { PhotoConsentNotice } from "@/components/photo-consent-notice";
+import { CarpoolCostNotice } from "@/components/carpool-cost-notice";
 import { waiverAcceptanceLabel } from "@/lib/photo-consent";
 import { RegistrationOptionCountsField } from "@/components/registration-option-counts-field";
 import { RegistrationQuestionsFields } from "@/components/registration-questions-fields";
@@ -37,13 +38,24 @@ import {
   type OptionCounts,
   type RegistrationOptionsQuestion,
 } from "@/lib/registration-options";
+import { InstagramOrContactFields } from "@/components/instagram-or-contact-fields";
+import {
+  contactError,
+  contactValuesFrom,
+  setContactFields,
+  type ContactValues,
+} from "@/lib/registration-contact";
 import { MY_PATH_PREFIX } from "@/lib/constituent/paths";
 import type { MyContactDetails } from "@/lib/constituent/contact";
 import { registerMyselfForEventAction } from "./my-registration-actions";
 import type { WaiverOnFile } from "./my-registration";
 import type { RegistrationStep } from "./registration-step";
 import { RegistrationSteps } from "./registration-steps";
-import { attendedBeforeRows, eventSummaryRows } from "./registration-summary";
+import {
+  attendedBeforeRows,
+  contactSummaryRows,
+  eventSummaryRows,
+} from "./registration-summary";
 import {
   EMPTY_RIDING,
   RidingFields,
@@ -78,9 +90,11 @@ export function MyEventRegistrationForm({
   waiverBlock = null,
   waiverOnFile = null,
   asksAboutMinors = true,
+  requiresInstagram = false,
   adultsOnly = false,
   minorAccompaniment = [],
   photoConsent = [],
+  carpoolCostNotice = [],
   registrationOptions = null,
   registrationQuestions = [],
   riderProfile = null,
@@ -111,6 +125,11 @@ export function MyEventRegistrationForm({
    */
   asksAboutMinors?: boolean;
   /**
+   * Whether this organization requires an Instagram handle (#1647), as on the
+   * anonymous form.
+   */
+  requiresInstagram?: boolean;
+  /**
    * Whether the event is adults only (#1417): step 2 asks for the
    * confirmation, as on the anonymous form.
    */
@@ -128,6 +147,12 @@ export function MyEventRegistrationForm({
    * to tell somebody less.
    */
   photoConsent?: string[];
+  /**
+   * The carpool cost-split notice (#1650), shown under the event's questions
+   * and again on the review step. Empty -- every event that does not organize
+   * carpools -- renders nothing. Notice only: no box, nothing sent back.
+   */
+  carpoolCostNotice?: string[];
   /**
    * The event's registration question (#1407). Null for an event that asks
    * none, which leaves this form exactly as it was.
@@ -147,8 +172,10 @@ export function MyEventRegistrationForm({
 }) {
   const [phone, setPhone] = useState(person.phone ?? "");
   const [pronouns, setPronouns] = useState(person.pronouns ?? "");
-  const [instagramHandle, setInstagramHandle] = useState(
-    person.instagram_handle ?? "",
+  // #1647. The handle starts from their record, as it always has; the
+  // no-Instagram contact is about this registration and starts empty.
+  const [contact, setContact] = useState<ContactValues>(() =>
+    contactValuesFrom({ instagram_handle: person.instagram_handle }),
   );
   const [partySize, setPartySize] = useState("1");
   // Empty until they say otherwise (#1259). Deliberately not seeded from
@@ -198,6 +225,12 @@ export function MyEventRegistrationForm({
   function handleSubmit() {
     setError(null);
 
+    const contactProblem = contactError(contact, requiresInstagram);
+    if (contactProblem) {
+      setError({ message: contactProblem, step: "about" });
+      return;
+    }
+
     if (registrationOptions) {
       const message = optionCountsError(optionCounts, Number(partySize));
       if (message) {
@@ -223,7 +256,7 @@ export function MyEventRegistrationForm({
     formData.set("notes", notes);
     formData.set("phone", phone);
     formData.set("pronouns", pronouns);
-    formData.set("instagramHandle", instagramHandle);
+    setContactFields(formData, contact, requiresInstagram);
     formData.set("attendedBefore", attendedBefore);
     if (asksAboutMinors) {
       formData.set(MINORS_ASKED_FIELD, "on");
@@ -273,10 +306,13 @@ export function MyEventRegistrationForm({
   }
 
   // Something to agree to or be told, or the agreement already on file. With
-  // neither -- a tenant with no agreement and no photo paragraphs -- the last
-  // step is the summary alone.
+  // neither -- a tenant with no agreement, no photo paragraphs and no carpool
+  // notice -- the last step is the summary alone.
   const hasReview =
-    waiver !== null || photoConsent.some((paragraph) => paragraph.trim());
+    waiver !== null ||
+    [...photoConsent, ...carpoolCostNotice].some((paragraph) =>
+      paragraph.trim(),
+    );
 
   return (
     <RegistrationSteps
@@ -314,16 +350,14 @@ export function MyEventRegistrationForm({
             />
           </Field>
 
-          <Field>
-            <FieldLabel htmlFor="my-registration-instagram">
-              Instagram
-            </FieldLabel>
-            <Input
-              id="my-registration-instagram"
-              value={instagramHandle}
-              onChange={(event) => setInstagramHandle(event.target.value)}
-            />
-          </Field>
+          <InstagramOrContactFields
+            idPrefix="my-registration"
+            values={contact}
+            onChange={setContact}
+            required={requiresInstagram}
+            disabled={isPending}
+            instagramLabel="Instagram"
+          />
 
           {/* The same question the anonymous form asks, in the same words, from
                 the same component (#1259). This reader is the one place the ticket
@@ -413,6 +447,7 @@ export function MyEventRegistrationForm({
             onChange={setAnswerDraft}
             disabled={isPending}
           />
+          <CarpoolCostNotice paragraphs={carpoolCostNotice} />
 
           <Field>
             <FieldLabel htmlFor="my-registration-notes">
@@ -435,9 +470,7 @@ export function MyEventRegistrationForm({
           ...(pronouns.trim()
             ? [{ label: "Pronouns", value: pronouns.trim() }]
             : []),
-          ...(instagramHandle.trim()
-            ? [{ label: "Instagram", value: instagramHandle.trim() }]
-            : []),
+          ...contactSummaryRows(contact, requiresInstagram),
           ...attendedBeforeRows(attendedBefore),
         ],
         event: eventSummaryRows({
@@ -463,6 +496,7 @@ export function MyEventRegistrationForm({
                 and the waiver's box below it is the only control taking
                 anything (#1376). */}
             <PhotoConsentNotice paragraphs={photoConsent} />
+            <CarpoolCostNotice paragraphs={carpoolCostNotice} />
 
             {/* Immediately above the button that acts on it, the same placement
                 the anonymous form uses. This form carries no privacy notice --

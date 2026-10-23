@@ -75,7 +75,7 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
     audience: "staff",
     label: "Daily task reminders",
     description:
-      "A morning summary of the meeting action items assigned to you that are overdue or due within a week.",
+      "A morning summary of the meeting action items and event tasks assigned to you that are overdue or due within a week.",
   },
   {
     key: "volunteer_application",

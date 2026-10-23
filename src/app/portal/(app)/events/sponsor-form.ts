@@ -3,6 +3,7 @@ import { INTENDED_USES } from "@/lib/inventory";
 
 const SUPPORT_TYPES = ["cash", "in_kind", "both", "other"] as const;
 const FOLLOW_UP_STATUSES = ["not_started", "in_progress", "done"] as const;
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Support types whose contribution is goods rather than money, and so the ones
  *  that carry items. `cash` and `other` never do. */
@@ -25,6 +26,8 @@ export type SponsorFormData = {
   notes: string | null;
   follow_up_status: string;
   follow_up_notes: string | null;
+  follow_up_owner_person_id: string | null;
+  follow_up_due_date: string | null;
   items: SponsorItemData[];
 };
 
@@ -105,6 +108,10 @@ export function parseSponsorForm(
     formData.get("followUpStatus") ?? "not_started",
   );
   const followUpNotes = String(formData.get("followUpNotes") ?? "").trim();
+  const followUpOwner = String(
+    formData.get("followUpOwnerPersonId") ?? "",
+  ).trim();
+  const followUpDueDate = String(formData.get("followUpDueDate") ?? "").trim();
 
   if (!SUPPORT_TYPES.includes(supportType as (typeof SUPPORT_TYPES)[number])) {
     return { error: "Select a valid support type." };
@@ -115,6 +122,12 @@ export function parseSponsorForm(
     )
   ) {
     return { error: "Select a valid follow-up status." };
+  }
+  if (followUpDueDate && !DATE_ONLY.test(followUpDueDate)) {
+    return {
+      error: "Enter a valid follow-up due date.",
+      field: "followUpDueDate",
+    };
   }
 
   let contributionValue: number | null = null;
@@ -141,6 +154,8 @@ export function parseSponsorForm(
       notes: notes || null,
       follow_up_status: followUpStatus,
       follow_up_notes: followUpNotes || null,
+      follow_up_owner_person_id: followUpOwner || null,
+      follow_up_due_date: followUpDueDate || null,
       items: keepItems ? items.data : [],
     },
   };

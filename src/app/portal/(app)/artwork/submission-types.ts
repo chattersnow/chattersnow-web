@@ -1,3 +1,5 @@
+import type { Claimant } from "@/components/portal/queue-claims";
+
 /**
  * URL parameter the notification email (#870) links one submission with.
  *
@@ -44,6 +46,8 @@ export type ArtworkSubmission = {
   call: { id: string; title: string } | null;
   event: { id: string; name: string } | null;
   images: ArtworkSubmissionImage[];
+  /** Who is working the submission (#1670). */
+  claimant: Claimant;
 };
 
 /**

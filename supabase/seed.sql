@@ -2430,3 +2430,46 @@ values ('b1b1b1b1-0000-4000-8000-000000000003', 1,
 update public.publications
 set status = 'published'
 where id in ('b1b1b1b1-0000-4000-8000-000000000001', 'b1b1b1b1-0000-4000-8000-000000000002');
+
+-- Owners and due dates on event tasks (#1660). The bulk seed above writes
+-- checklist items and sponsor follow-ups with neither, and stays that way so
+-- its random() sequence -- and every row after it -- is unchanged. This pass
+-- then gives about two in three of them an owner from the portal accounts and
+-- a due date near the event, deterministically by row order, so the Events
+-- open-work list has owned, unowned, dated and overdue rows to show.
+with owners as (
+  select p.id, row_number() over (order by p.email) - 1 as i, count(*) over () as n
+  from public.people p
+  where p.auth_user_id is not null
+),
+items as (
+  select ci.id, e.starts_at,
+         row_number() over (order by e.starts_at, ci.title, ci.is_done, ci.id) - 1 as i
+  from public.event_checklist_items ci
+  join public.events e on e.id = ci.event_id
+)
+update public.event_checklist_items ci
+set owner_person_id = case when items.i % 3 <> 2 then owners.id end,
+    due_date = (items.starts_at - (items.i % 5) * interval '1 day')::date
+from items
+join owners on owners.i = items.i % owners.n
+where ci.id = items.id;
+
+with owners as (
+  select p.id, row_number() over (order by p.email) - 1 as i, count(*) over () as n
+  from public.people p
+  where p.auth_user_id is not null
+),
+sponsors as (
+  select es.id, e.starts_at,
+         row_number() over (order by e.starts_at, es.person_id) - 1 as i
+  from public.event_sponsors es
+  join public.events e on e.id = es.event_id
+  where es.follow_up_status <> 'done'
+)
+update public.event_sponsors es
+set follow_up_owner_person_id = case when sponsors.i % 3 <> 2 then owners.id end,
+    follow_up_due_date = (sponsors.starts_at + ((sponsors.i % 4) + 1) * interval '7 days')::date
+from sponsors
+join owners on owners.i = sponsors.i % owners.n
+where es.id = sponsors.id;

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkPermission } from "@/lib/auth/permissions";
+import { claimClearFor } from "@/lib/queue-claims";
 import { checkUser } from "@/lib/auth/current-user";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -45,7 +46,8 @@ export async function updateContactMessageStatusAction(
 
   const { error } = await supabase
     .from("contact_messages")
-    .update({ status })
+    // Resolving a message clears its claim in the same write (#1668).
+    .update({ status, ...claimClearFor("contact_messages", status) })
     .eq("id", id);
 
   if (error) {

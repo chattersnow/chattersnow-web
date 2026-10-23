@@ -5,6 +5,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseParticipationHoursForm } from "./hours-form";
 import { checkPermission, checkAnyPermission } from "@/lib/auth/permissions";
 import { checkUser } from "@/lib/auth/current-user";
+import {
+  CLAIM_FK,
+  applyClaimFilter,
+  type ClaimFilter,
+} from "@/lib/queue-claims";
+import type { Claimant } from "@/components/portal/queue-claims";
 
 export type VolunteerHoursPerson = { id: string; name: string | null };
 export type VolunteerHoursEvent = { id: string; name: string } | null;
@@ -202,6 +208,8 @@ export type PendingVolunteerHours = {
   person: VolunteerHoursPerson;
   event: VolunteerHoursEvent;
   volunteer_role_type: VolunteerHoursRoleType;
+  /** Who is working the submission (#1669). */
+  claimant: Claimant;
 };
 
 /**
@@ -214,20 +222,26 @@ export type PendingVolunteerHours = {
  * an impact figure or a reimbursement. Confirming one is what writes the
  * `volunteer_hours` row.
  */
-export async function listPendingVolunteerHoursAction(): Promise<
-  { data: PendingVolunteerHours[] } | { error: string }
-> {
+export async function listPendingVolunteerHoursAction(
+  claimFilter: ClaimFilter = { kind: "all" },
+  myPersonId: string | null = null,
+): Promise<{ data: PendingVolunteerHours[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
   const permissionError = await checkPermission(supabase, "volunteers", "view");
   if (permissionError) return permissionError;
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("volunteer_hour_submissions")
     .select(
-      "id, hours, logged_date, notes, created_at, person:people(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)",
+      `id, hours, logged_date, notes, created_at, person:people!volunteer_hour_submissions_person_in_tenant(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name), claimant:people!${CLAIM_FK.volunteer_hours}(id, name, preferred_name)`,
     )
     .eq("status", "pending")
     .order("logged_date", { ascending: false });
+  const { data, error } = await applyClaimFilter(
+    query,
+    claimFilter,
+    myPersonId,
+  );
 
   if (error) {
     return { error: "Could not load self-logged hours. Please try again." };

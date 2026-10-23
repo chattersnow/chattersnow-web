@@ -23,6 +23,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
 import { useActionToast } from "@/components/portal/action-toast";
+import { TaskFilterBar } from "@/components/portal/task-table";
+import {
+  matchesTaskOwnerAndDue,
+  taskOwnerOptions,
+  type TaskFilterContext,
+  type TaskFilters,
+} from "@/lib/portal/task-list";
 import {
   PortalDataTable,
   type PortalDataTableColumn,
@@ -89,13 +96,44 @@ export function AnnualRequirementsChecklist({
   requirements,
   people,
   canManage,
+  filters,
+  filterContext,
 }: {
   requirements: AnnualRequirement[];
   people: PersonListItem[];
   canManage: boolean;
+  /** Owner and due, from the URL (#1659). Status is the checklist's own. */
+  filters: TaskFilters;
+  filterContext: TaskFilterContext;
 }) {
   const completeCount = useMemo(
     () => requirements.filter((r) => r.status === "done").length,
+    [requirements],
+  );
+
+  // The count above stays the whole checklist's; the filters narrow the rows.
+  const visibleRequirements = useMemo(
+    () =>
+      requirements.filter((requirement) =>
+        matchesTaskOwnerAndDue(
+          {
+            owner: requirement.responsible,
+            dueDate: requirement.due_date,
+            isDone: requirement.status === "done",
+          },
+          filters,
+          filterContext,
+        ),
+      ),
+    [requirements, filters, filterContext],
+  );
+  const owners = useMemo(
+    () =>
+      taskOwnerOptions(
+        requirements.map((requirement) => ({
+          owner: requirement.responsible,
+        })),
+      ),
     [requirements],
   );
 
@@ -155,6 +193,9 @@ export function AnnualRequirementsChecklist({
           {completeCount} of {requirements.length} complete
         </p>
         {canManage && <NewRequirementDialog people={people} />}
+        <div className="basis-full">
+          <TaskFilterBar filters={filters} owners={owners} showStatus={false} />
+        </div>
       </div>
 
       {requirements.length === 0 ? (
@@ -177,11 +218,11 @@ export function AnnualRequirementsChecklist({
         // brings to it -- so it sorts and pages like every other list.
         <PortalDataTable
           columns={columns}
-          rows={requirements}
+          rows={visibleRequirements}
           getRowKey={(requirement) => requirement.id}
           // The query orders by due date, soonest first.
           defaultSort={{ key: "due_date", dir: "asc" }}
-          emptyMessage="No annual requirements to show."
+          emptyMessage="No annual requirements match these filters."
         />
       )}
     </div>

@@ -6,6 +6,10 @@ import { answerRowsToAnswers } from "@/lib/registration-questions";
 import { ANSWER_LINK_INVALID } from "@/lib/registration-answer-requests";
 import { lookUpAnswerLink } from "./answer-link";
 import { AnswersForm } from "./answers-form";
+import { RegistrationContactCard } from "@/app/(public)/events/registration-contact-card";
+import { CarpoolAssignmentCard } from "@/components/carpool-assignment-card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getPublicSite } from "@/lib/public-site";
 
 export const metadata: Metadata = {
   title: "Your registration answers",
@@ -54,6 +58,9 @@ export default async function RegistrationAnswersPage({
   }
 
   const { link } = lookup;
+  const site = link.carpool
+    ? await getPublicSite(await createSupabaseServerClient())
+    : null;
   return (
     <PageShell>
       <Heading>{link.eventName}</Heading>
@@ -62,8 +69,29 @@ export default async function RegistrationAnswersPage({
           {link.firstName ? `Hi ${link.firstName}, ` : ""}
           {link.questions.length > 0
             ? "here are this event's questions. Answer what you can and save — you can come back to this link to change an answer until the event ends."
-            : "this event has no questions to answer any more. There's nothing to do here."}
+            : link.contact
+              ? "you can change how we reach you here until the event ends."
+              : link.carpool
+                ? "here's your carpool for this event. Come back to this link to see any changes."
+                : "this event has no questions to answer any more. There's nothing to do here."}
         </p>
+        {/* #1651. First, since for most registrants on a carpool event this
+            link is the only place they see their car. */}
+        {link.carpool && site ? (
+          <CarpoolAssignmentCard
+            carpool={link.carpool}
+            orgName={site.name ?? "the organizers"}
+            notice={site.content.paragraphs("events.carpool_cost_notice")}
+          />
+        ) : null}
+        {/* #1647. Only the cards that apply: an event with no questions on a
+            tenant that requires a handle shows this one alone. */}
+        {link.contact ? (
+          <RegistrationContactCard
+            target={{ kind: "link", token }}
+            contact={link.contact}
+          />
+        ) : null}
         {link.questions.length > 0 ? (
           <AnswersForm
             token={token}

@@ -57,11 +57,12 @@ export type PermissionDoc = {
 export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   // ---------------------------------------------------------------- Events
   events: {
-    view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18, each registration's answers to the event's registration questions, and whether it has been asked for or has given answers by emailed link. Also the event's retro on its Results card, and the open action items carried forward from earlier events in the same program on its Checklist card. Someone at this level who is also on the event's staff roster adds to its retro, edits and removes their own items, and marks their own action items done. Also the photos and videos on an event's Media card, viewed, played and downloaded (one at a time or the photos as a .zip) through short-lived links, with who uploaded each, how much storage the event's and the organization's media take up, and how many of the event's registrants objected to being photographed; someone on the event's staff roster uploads them too, while the organization has Event media uploads on. Also what the Calendar reads to show events alongside calendar items.",
+    view: "Open the Events section and read an event's details, schedule, sponsors, giveaway, attendance, logistics and volunteer sign-ups, including which registrations said their party includes someone under 18, each registration's answers to the event's registration questions, and whether it has been asked for or has given answers by emailed link. Also the event's retro on its Results card, and the open action items carried forward from earlier events in the same program on its Checklist card. Someone at this level who is also on the event's staff roster adds to its retro, edits and removes their own items, and marks their own action items done. Also the photos and videos on an event's Media card, viewed, played and downloaded (one at a time or the photos as a .zip) through short-lived links, with who uploaded each, how much storage the event's and the organization's media take up, and how many of the event's registrants objected to being photographed; someone on the event's staff roster uploads them too, while the organization has Event media uploads on. Also which of those photos and videos show in the event's public gallery, and the gallery's link to copy. Also what the Calendar reads to show events alongside calendar items. Also an event's Carpools section, where it organizes carpools: each car's driver, seats, leaving-from and notes, its passengers, and which of them have paid their driver, with who marked it and when -- and the Carpool column and line on its registrants.",
     manage:
-      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, the questions registration asks (including copying them from another event), discount codes, sponsors, giveaway tiers and logistics. That includes an event's shared discount code and the partner PINs that go with codes — readable, like the codes themselves, at Events view — and the percentage off each registration option a code covers, and the options' prices on the Planning tab. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page. Also an event's registration questions, editing a registration's answers to them, and the registrants tab's Download answers (CSV), which carries a registrant's email and phone only where they ticked the event's consent question for sharing them, and their Instagram handle on every row. Also emailing registrants a link to fill in missing answers (Ask for missing answers, and Ask for answers on one registrant), which works without an account for that one registration's answers until the event ends. Also uploading an event's flier to the site's photos. Also adding to any event's retro without being on its staff roster, and editing, removing or closing anyone's retro item. Also uploading photos and videos to any event's Media card without being on its staff roster, and deleting them from it, and turning the organization's Event media uploads on or off from the Media button on the Events page. Also creating, listing and revoking an event's upload links on its Media card, each of which lets whoever holds it upload photos and videos to that one event without an account until it expires or is revoked. Also submitting an event's report, which freezes the Money, Goods, Sponsors, Team and Operations figures on its Results card as they stand -- all of them, including sections the submitter cannot read, which stay hidden from them.",
+      "Create and edit events and everything filed on one: staff and volunteer assignments, shifts, registrants and their messages, cancelling a registration and undoing it, the questions registration asks (including copying them from another event), discount codes, sponsors, giveaway tiers and logistics. That includes an event's shared discount code and the partner PINs that go with codes — readable, like the codes themselves, at Events view — and the percentage off each registration option a code covers, and the options' prices on the Planning tab. Also the accompanying adult and emergency contact a party with someone under 18 gives — those four are readable at this level and no lower, in the database as well as on screen — and whether public registration asks about under-18s at all, from the Registration button on the Events page. Also an event's registration questions, editing a registration's answers to them, and the registrants tab's Download answers (CSV), which carries a registrant's email and phone only where they ticked the event's consent question for sharing them, and their Instagram handle on every row. Also emailing registrants a link to fill in missing answers (Ask for missing answers, and Ask for answers on one registrant), which works without an account for that one registration's answers until the event ends. Also uploading an event's flier to the site's photos. Also adding to any event's retro without being on its staff roster, and editing, removing or closing anyone's retro item. Also uploading photos and videos to any event's Media card without being on its staff roster, and deleting them from it, and turning the organization's Event media uploads on or off from the Media button on the Events page. Also showing or hiding each photo and video in the event's public gallery on its Media card -- photos are public as they are uploaded and videos are not -- and turning the organization's Public event gallery on or off from the same Media button. Also creating, listing and revoking an event's upload links on its Media card, each of which lets whoever holds it upload photos and videos to that one event without an account until it expires or is revoked. Also turning Organize carpools on or off on an event's Planning section and choosing the question seats come from, and on its Carpools section adding, editing and deleting cars, putting registrants in them and moving them between cars, ticking whether each passenger has paid their driver (no amount is stored), and Download carpools (CSV), which carries email, phone and the preferred contact detail under the same consent rule as Download answers. Also submitting an event's report, which freezes the Money, Goods, Sponsors, Team and Operations figures on its Results card as they stand -- all of them, including sections the submitter cannot read, which stay hidden from them.",
     notes: [
       "A registrant cancels their own registration from their account or the event page with no grant at all, until the event starts. That path reaches only their own registration and records the reason as can't attend; staff cancel, with a reason, and undo from the Registrants tab at Manage.",
+      "Anyone on the public site, with no grant, sees a public, published event's public photos and videos while the organization's Public event gallery is on -- never who uploaded them, their filenames or anything about a hidden one.",
     ],
     excludes: [
       {
@@ -170,8 +171,9 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   artwork_submissions: {
     view: "Open the Artwork section: the open calls for community artwork and the submissions that have come in.",
     manage:
-      "Create and edit calls, and review, accept, decline and write to submissions.",
+      "Create and edit calls, and review, accept, decline and write to submissions, and claim a pending submission, release a claim or assign it to someone else.",
     notes: [
+      "Claiming a queue item for yourself and assigning it to someone else are checked separately by set_queue_item_claim(); today both need Manage. A claim clears when the item is resolved (#1668).",
       "Its own resource rather than part of Events because the reviewers are usually a comms or programming group rather than whoever runs the event.",
     ],
   },
@@ -197,7 +199,10 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   inventory: {
     view: "Open the Inventory section: the item catalog, categories, requests, donations and distribution records, an item's history with who recorded each step (the donor is named only to a reader who can also read donations), print the labels of items that already have a tag code, and scan a tag to open its item. On Items → Codes: list, filter and reprint every tag code, mark a code written to an NFC tag, and read a code's history.",
     manage:
-      "Edit the item catalog and categories, give items their tag codes, create and assign numbered codes, retire a code whose tag is damaged or lost, or an item's old tag code once it has a numbered code — for one item or a selection on the Items list — and restore a retired code, record, correct and delete donation intake and distribution movements, read the in-kind items donated at an event on its Donations card, and work an open gear request: move it through its statuses, add or remove the items it holds, and edit its notes; and on a fulfilled request, return an item that was not actually handed over to the shelf.",
+      "Edit the item catalog and categories, give items their tag codes, create and assign numbered codes, retire a code whose tag is damaged or lost, or an item's old tag code once it has a numbered code — for one item or a selection on the Items list — and restore a retired code, record, correct and delete donation intake and distribution movements, read the in-kind items donated at an event on its Donations card, and work an open gear request: move it through its statuses, add or remove the items it holds, and edit its notes, and claim it, release a claim or assign it to someone else; and on a fulfilled request, return an item that was not actually handed over to the shelf.",
+    notes: [
+      "Claiming a queue item for yourself and assigning it to someone else are checked separately by set_queue_item_claim(); today both need Manage. A claim clears when the item is resolved (#1668).",
+    ],
     excludes: [
       { key: "inventory_reports", covers: "valuation and reporting" },
       {
@@ -385,12 +390,14 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   },
   constituent_claims: {
     view: "See the queue of website accounts asking to be linked to a person in the directory, on People → Claims and on the Users page.",
-    manage: "Approve or reject a claim, and link or unlink an account by hand.",
+    manage:
+      "Approve or reject a claim, link or unlink an account by hand, and claim a pending account claim for yourself, release it or assign it to someone else.",
     excludes: [
       { key: "people", covers: "the directory the claim points into" },
       { key: "administration", covers: "portal user accounts and their roles" },
     ],
     notes: [
+      "Claiming a queue item for yourself and assigning it to someone else are checked separately by set_queue_item_claim(); today both need Manage. A claim clears when the item is resolved (#1668).",
       "Belongs to the Constituent Accounts module. It is seeded to the Admin role only, on purpose -- widen it once somebody other than an administrator is actually working the queue.",
     ],
   },
@@ -399,7 +406,10 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   volunteers: {
     view: "Open the Volunteers section: role types, applications and participation.",
     manage:
-      "Edit volunteer role types, decide on applications, and record participation for anyone.",
+      "Edit volunteer role types, decide on applications, record participation for anyone, and claim an open application or self-logged hours, release a claim or assign it to someone else.",
+    notes: [
+      "Claiming a queue item for yourself and assigning it to someone else are checked separately by set_queue_item_claim(); today both need Manage. A claim clears when the item is resolved (#1668).",
+    ],
     excludes: [
       {
         key: "volunteer_hours_logging",
@@ -529,7 +539,11 @@ export const PERMISSION_DOCS: Record<string, PermissionDoc> = {
   // -------------------------------------------------------- Communications
   communications: {
     view: "Open the Messages section and read what the public contact form has sent in.",
-    manage: "Reply to a message, change its status and assign it.",
+    manage:
+      "Reply to a message, change its status, and claim it, release a claim or assign it to someone else.",
+    notes: [
+      "Claiming a queue item for yourself and assigning it to someone else are checked separately by set_queue_item_claim(); today both need Manage. A claim clears when the item is resolved (#1668).",
+    ],
     excludes: [
       {
         key: "system_settings",

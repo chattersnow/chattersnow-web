@@ -451,7 +451,7 @@ type RequesterRow = {
 };
 
 const REQUESTER_SELECT =
-  "tenant_id, person_id, requester:people(name, preferred_name, email)";
+  "tenant_id, person_id, requester:people!gear_requests_tenant_id_person_id_fkey(name, preferred_name, email)";
 
 /**
  * Write to the person who made this request.
@@ -619,7 +619,7 @@ export async function resendGearRequestConfirmationAction(
 
 /** What both asks read about a request; `as_is_request` is its link, if any. */
 const AS_IS_CANDIDATE_SELECT =
-  "id, status, person_id, as_is_acknowledged_at, requester:people(name, preferred_name, email), as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at)";
+  "id, status, person_id, as_is_acknowledged_at, requester:people!gear_requests_tenant_id_person_id_fkey(name, preferred_name, email), as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at)";
 
 type AsIsCandidateRow = Omit<AsIsRequestCandidate, "as_is_request"> & {
   tenant_id: string;

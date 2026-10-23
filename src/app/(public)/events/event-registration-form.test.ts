@@ -134,6 +134,9 @@ describe("parseEventRegistrationForm", () => {
         email: "jane@example.com",
         phone: "555-1234",
         instagram_handle: "jane.doe",
+        has_no_instagram: null,
+        preferred_contact_method: null,
+        preferred_contact_detail: null,
         pronouns: "she/her",
         party_size: 3,
         notes: "Bringing kids",
@@ -318,7 +321,7 @@ describe("parseEventRegistrationForm", () => {
       ),
     ).toEqual({
       error:
-        "Instagram handle can only contain letters, numbers, periods, and underscores.",
+        "An Instagram handle can only contain letters, numbers, periods and underscores.",
       field: "instagramHandle",
     });
   });

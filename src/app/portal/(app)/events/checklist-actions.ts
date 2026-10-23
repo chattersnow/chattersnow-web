@@ -13,6 +13,9 @@ export type EventChecklistItem = {
   is_done: boolean;
   completed_at: string | null;
   created_at: string;
+  owner_person_id: string | null;
+  due_date: string | null;
+  owner: { id: string; name: string | null } | null;
 };
 
 export type ChecklistActionResult = { error: string } | { success: true };
@@ -26,14 +29,16 @@ export async function listEventChecklistItemsAction(
 
   const { data, error } = await supabase
     .from("event_checklist_items")
-    .select("id, event_id, title, is_done, completed_at, created_at")
+    .select(
+      "id, event_id, title, is_done, completed_at, created_at, owner_person_id, due_date, owner:people!event_checklist_items_owner_in_tenant(id, name)",
+    )
     .eq("event_id", eventId)
     .order("created_at", { ascending: true });
 
   if (error) {
     return { error: "Could not load the checklist. Please try again." };
   }
-  return { data: (data ?? []) as EventChecklistItem[] };
+  return { data: (data ?? []) as unknown as EventChecklistItem[] };
 }
 
 export async function createEventChecklistItemAction(
@@ -57,6 +62,11 @@ export async function createEventChecklistItemAction(
     .insert({ event_id: eventId, ...parsed.data });
 
   if (error) {
+    // The owner is tenant-checked by a composite foreign key, so a person from
+    // another organization fails as a foreign-key violation.
+    if (error.code === "23503") {
+      return { error: "Pick an owner from this organization's people." };
+    }
     return { error: "Could not add the checklist item. Please try again." };
   }
 

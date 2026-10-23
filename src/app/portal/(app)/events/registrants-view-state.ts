@@ -25,6 +25,11 @@ export type RegistrantsView = {
   checkedIn: "in" | "out" | null;
   /** Only registrations with a required question left blank (#1502). */
   missing: boolean;
+  /**
+   * `added` / `not-added` to the event's group chat (#1648); null for both.
+   * Filters nothing on an event with the switch off.
+   */
+  groupChat: "added" | "not-added" | null;
   /** Any of these, not all: a door shift asks "who needs a second look". */
   flags: RegistrantFlag[];
   /**
@@ -68,6 +73,7 @@ const KEYS = {
   option: "option",
   checkedIn: "checkedIn",
   missing: "missing",
+  groupChat: "chat",
   flags: "flags",
   answers: "ans",
   columns: "cols",
@@ -84,11 +90,14 @@ export function parseRegistrantsView(
   const sortKey = params.get(KEYS.sort);
   const perPage = params.get(KEYS.perPage);
   const columns = params.get(KEYS.columns);
+  const groupChat = params.get(KEYS.groupChat);
   return {
     q: params.get(KEYS.q) ?? "",
     option: params.get(KEYS.option) || null,
     checkedIn: checkedIn === "in" || checkedIn === "out" ? checkedIn : null,
     missing: params.get(KEYS.missing) === "1",
+    groupChat:
+      groupChat === "added" || groupChat === "not-added" ? groupChat : null,
     flags: (params.get(KEYS.flags) ?? "")
       .split(",")
       .filter((flag): flag is RegistrantFlag =>
@@ -136,6 +145,7 @@ export function registrantsViewParams(
   put(KEYS.option, next.option);
   put(KEYS.checkedIn, next.checkedIn);
   put(KEYS.missing, next.missing ? "1" : null);
+  put(KEYS.groupChat, next.groupChat);
   put(KEYS.flags, next.flags.length > 0 ? next.flags.join(",") : null);
   const answers = Object.entries(next.answers);
   put(
@@ -169,6 +179,7 @@ export function isFiltered(view: RegistrantsView): boolean {
     view.option !== null ||
     view.checkedIn !== null ||
     view.missing ||
+    view.groupChat !== null ||
     view.flags.length > 0 ||
     Object.keys(view.answers).length > 0
   );
@@ -229,6 +240,9 @@ export function filterRegistrants(
       (!view.missing ||
         !asksRequired ||
         isMissingRequired(registrant, questions)) &&
+      (view.groupChat === null ||
+        (view.groupChat === "added") ===
+          (registrant.group_chat_added_at !== null)) &&
       (view.flags.length === 0 ||
         view.flags.some((flag) => hasFlag(registrant, flag))) &&
       Object.entries(view.answers).every(([questionId, value]) => {

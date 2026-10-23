@@ -16,14 +16,15 @@ import {
   parseAnswersField,
   type RegistrationAnswers,
 } from "@/lib/registration-questions";
-
-const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
+import {
+  parseRegistrationContact,
+  type RegistrationContact,
+} from "@/lib/registration-contact";
 
 export type EventRegistrationFormData = {
   name: string;
   email: string;
   phone: string | null;
-  instagram_handle: string | null;
   pronouns: string | null;
   party_size: number;
   notes: string | null;
@@ -82,7 +83,12 @@ export type EventRegistrationFormData = {
    * Written to the person, not the registration.
    */
   riding: RiderProfileFormData | null;
-} & MinorContacts;
+} & MinorContacts &
+  /**
+   * The Instagram handle, or the no-Instagram contact where the tenant
+   * requires one (#1647). The RPC reads the setting itself either way.
+   */
+  RegistrationContact;
 
 export function parseEventRegistrationForm(
   formData: FormData,
@@ -90,9 +96,6 @@ export function parseEventRegistrationForm(
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
-  const instagramHandle = String(formData.get("instagramHandle") ?? "")
-    .trim()
-    .replace(/^@/, "");
   const pronouns = parsePronouns(formData.get("pronouns"));
   const notes = String(formData.get("notes") ?? "").trim();
   const partySizeRaw = String(formData.get("partySize") ?? "").trim();
@@ -114,13 +117,8 @@ export function parseEventRegistrationForm(
   if (!email || !email.includes("@"))
     return { error: "A valid email is required.", field: "email" };
   if ("error" in pronouns) return { ...pronouns, field: "pronouns" };
-  if (instagramHandle && !INSTAGRAM_HANDLE_PATTERN.test(instagramHandle)) {
-    return {
-      error:
-        "Instagram handle can only contain letters, numbers, periods, and underscores.",
-      field: "instagramHandle",
-    };
-  }
+  const contact = parseRegistrationContact(formData);
+  if ("error" in contact) return contact;
 
   const party_size = partySizeRaw ? Number(partySizeRaw) : 1;
   if (!Number.isInteger(party_size) || party_size < 1) {
@@ -139,10 +137,10 @@ export function parseEventRegistrationForm(
   return {
     data: {
       ...minors.data,
+      ...contact.data,
       name,
       email,
       phone: phone || null,
-      instagram_handle: instagramHandle || null,
       pronouns: pronouns.pronouns,
       party_size,
       notes: notes || null,

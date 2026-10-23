@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { GROUP_CHAT_LABEL_MAX_LENGTH } from "@/lib/registration-group-chat";
+import {
+  DEFAULT_REMINDER_INTRO,
+  REMINDER_INTRO_MAX_LENGTH,
+} from "@/lib/event-reminders";
 import {
   parseEventAttendanceForm,
   parseEventForm,
@@ -187,6 +192,13 @@ describe("parseEventPlanningForm", () => {
         budgetAmount: null,
         // Not sent either, so left as it was.
         confirmationNote: undefined,
+        groupChatEnabled: null,
+        groupChatLabel: undefined,
+        carpoolsEnabled: null,
+        carpoolSeatsQuestionId: undefined,
+        reminderEnabled: null,
+        reminderDaysBefore: null,
+        reminderIntro: undefined,
       },
     });
   });
@@ -214,6 +226,77 @@ describe("parseEventPlanningForm", () => {
       parse({ confirmationNote: "x".repeat(CONFIRMATION_NOTE_MAX_LENGTH + 1) }),
     ).toEqual({
       error: `Confirmation email note must be ${CONFIRMATION_NOTE_MAX_LENGTH} characters or fewer.`,
+    });
+  });
+
+  test("reads the carpools switch and the seats question (#1649)", () => {
+    const parse = (fields: Record<string, string>) =>
+      parseEventPlanningForm(formData(fields), eventDates);
+    expect(
+      parse({ carpoolsEnabled: "on", carpoolSeatsQuestionId: " q-1 " }),
+    ).toMatchObject({
+      data: { carpoolsEnabled: true, carpoolSeatsQuestionId: "q-1" },
+    });
+    // Blank is "typed for each car".
+    expect(
+      parse({ carpoolsEnabled: "off", carpoolSeatsQuestionId: "" }),
+    ).toMatchObject({
+      data: { carpoolsEnabled: false, carpoolSeatsQuestionId: null },
+    });
+  });
+
+  test("reads the group chat switch and its label (#1648)", () => {
+    const parse = (fields: Record<string, string>) =>
+      parseEventPlanningForm(formData(fields), eventDates);
+    expect(
+      parse({ groupChatEnabled: "on", groupChatLabel: "  Instagram chat " }),
+    ).toMatchObject({
+      data: { groupChatEnabled: true, groupChatLabel: "Instagram chat" },
+    });
+    expect(
+      parse({ groupChatEnabled: "off", groupChatLabel: "  " }),
+    ).toMatchObject({
+      data: { groupChatEnabled: false, groupChatLabel: null },
+    });
+    expect(
+      parse({ groupChatLabel: "x".repeat(GROUP_CHAT_LABEL_MAX_LENGTH + 1) }),
+    ).toEqual({
+      error: `Group chat name must be ${GROUP_CHAT_LABEL_MAX_LENGTH} characters or fewer.`,
+    });
+  });
+
+  test("reads the reminder switch, days and intro (#1652)", () => {
+    const parse = (fields: Record<string, string>) =>
+      parseEventPlanningForm(formData(fields), eventDates);
+    expect(
+      parse({
+        reminderEnabled: "on",
+        reminderDaysBefore: "3",
+        reminderIntro: "  See you on the hill. ",
+      }),
+    ).toMatchObject({
+      data: {
+        reminderEnabled: true,
+        reminderDaysBefore: 3,
+        reminderIntro: "See you on the hill.",
+      },
+    });
+    // The prefilled default, saved unchanged, and a blank both store null.
+    expect(
+      parse({ reminderEnabled: "off", reminderIntro: DEFAULT_REMINDER_INTRO }),
+    ).toMatchObject({ data: { reminderEnabled: false, reminderIntro: null } });
+    expect(parse({ reminderIntro: "  " })).toMatchObject({
+      data: { reminderIntro: null },
+    });
+    for (const days of ["0", "15", "2.5", "two"]) {
+      expect(parse({ reminderDaysBefore: days })).toEqual({
+        error: "Reminder days must be a whole number from 1 to 14.",
+      });
+    }
+    expect(
+      parse({ reminderIntro: "x".repeat(REMINDER_INTRO_MAX_LENGTH + 1) }),
+    ).toEqual({
+      error: `Reminder intro must be ${REMINDER_INTRO_MAX_LENGTH} characters or fewer.`,
     });
   });
 

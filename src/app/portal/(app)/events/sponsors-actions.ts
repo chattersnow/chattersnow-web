@@ -38,6 +38,9 @@ export type EventSponsor = {
   notes: string | null;
   follow_up_status: string;
   follow_up_notes: string | null;
+  follow_up_owner_person_id: string | null;
+  follow_up_due_date: string | null;
+  follow_up_owner: { id: string; name: string | null } | null;
   donation_id: string | null;
   monetary_donation_id: string | null;
   person: EventSponsorPerson;
@@ -45,6 +48,14 @@ export type EventSponsor = {
 };
 
 export type SponsorActionResult = { error: string } | { success: true };
+
+/** The follow-up owner is tenant-checked by a composite foreign key, so a
+ *  person from another organization fails with a foreign-key violation. */
+function ownerMessage(error: { code?: string }): string | null {
+  return error.code === "23503"
+    ? "Pick a follow-up owner from this organization's people."
+    : null;
+}
 
 /** `delete_sponsor_inventory_items` refuses to remove an item a giveaway prize
  *  or a distribution already claims, and names it. That is the one sponsor
@@ -70,7 +81,7 @@ export async function listEventSponsorsAction(
     supabase
       .from("event_sponsors")
       .select(
-        "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, follow_up_status, follow_up_notes, donation_id, monetary_donation_id, person:people(id, name, email, phone)",
+        "id, event_id, person_id, support_type, in_kind_description, contribution_value, is_public, notes, follow_up_status, follow_up_notes, follow_up_owner_person_id, follow_up_due_date, donation_id, monetary_donation_id, person:people!event_sponsors_person_id_fkey(id, name, email, phone), follow_up_owner:people!event_sponsors_follow_up_owner_in_tenant(id, name)",
       )
       .eq("event_id", eventId),
     supabase.rpc("list_event_sponsor_items", { p_event_id: eventId }),
@@ -125,6 +136,11 @@ export async function createEventSponsorAction(
     p_notes: parsed.data.notes,
     p_follow_up_status: parsed.data.follow_up_status,
     p_follow_up_notes: parsed.data.follow_up_notes,
+    // Omitted rather than null, which the generated types do not admit for a
+    // defaulted argument; the default is null, so an omitted one clears it.
+    p_follow_up_owner_person_id:
+      parsed.data.follow_up_owner_person_id ?? undefined,
+    p_follow_up_due_date: parsed.data.follow_up_due_date ?? undefined,
     p_items: parsed.data.items,
   });
 
@@ -135,7 +151,10 @@ export async function createEventSponsorAction(
           "This person is already linked to this event as a sponsor. Edit their existing entry instead.",
       };
     }
-    return { error: "Could not save the sponsor. Please try again." };
+    return {
+      error:
+        ownerMessage(error) ?? "Could not save the sponsor. Please try again.",
+    };
   }
 
   revalidatePath("/portal/events");
@@ -166,6 +185,11 @@ export async function updateEventSponsorAction(
     p_notes: parsed.data.notes,
     p_follow_up_status: parsed.data.follow_up_status,
     p_follow_up_notes: parsed.data.follow_up_notes,
+    // Omitted rather than null, which the generated types do not admit for a
+    // defaulted argument; the default is null, so an omitted one clears it.
+    p_follow_up_owner_person_id:
+      parsed.data.follow_up_owner_person_id ?? undefined,
+    p_follow_up_due_date: parsed.data.follow_up_due_date ?? undefined,
     p_items: parsed.data.items,
   });
 
@@ -173,8 +197,41 @@ export async function updateEventSponsorAction(
     return {
       error:
         allocationMessage(error) ??
+        ownerMessage(error) ??
         "Could not update the sponsor. Please try again.",
     };
+  }
+
+  revalidatePath("/portal/events");
+  return { success: true };
+}
+
+/**
+ * Mark a sponsor's follow-up done, or reopen it, from the Events list's
+ * Outstanding tasks (#1661). Only the status moves: `update_event_sponsor`
+ * replaces the whole sponsorship and re-syncs its donated items, which a
+ * checkbox must not risk. `event_sponsors` update is events:manage under RLS.
+ */
+export async function setEventSponsorFollowUpDoneAction(
+  id: string,
+  done: boolean,
+): Promise<SponsorActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const userResult = await checkUser(
+    supabase,
+    "You must be signed in to update a sponsor follow-up.",
+  );
+  if ("error" in userResult) return userResult;
+  const permissionError = await checkPermission(supabase, "events", "manage");
+  if (permissionError) return permissionError;
+
+  const { data, error } = await supabase
+    .from("event_sponsors")
+    .update({ follow_up_status: done ? "done" : "in_progress" })
+    .eq("id", id)
+    .select("id");
+  if (error || !data?.length) {
+    return { error: "Could not update the follow-up. Please try again." };
   }
 
   revalidatePath("/portal/events");

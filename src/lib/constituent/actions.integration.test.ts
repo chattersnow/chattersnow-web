@@ -587,7 +587,7 @@ describe("logging your own hours", () => {
     const { data, error } = await adminClient
       .from("volunteer_hour_submissions")
       .select(
-        "id, hours, logged_date, notes, created_at, person:people(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)",
+        "id, hours, logged_date, notes, created_at, person:people!volunteer_hour_submissions_person_in_tenant(id, name), event:events(id, name), volunteer_role_type:volunteer_role_types(id, name)",
       )
       .eq("person_id", alice.personId)
       .eq("status", "pending");

@@ -15,6 +15,9 @@ const REGISTRANT: EventRegistrant = {
   email: "jamie@example.test",
   phone: "555-0100",
   instagram_handle: "jamie.rides",
+  has_no_instagram: null,
+  preferred_contact_method: null,
+  preferred_contact_detail: null,
   pronouns: "they/them",
   party_size: 3,
   notes: "Bringing a friend who skis.",
@@ -36,6 +39,8 @@ const REGISTRANT: EventRegistrant = {
   answers: [],
   answer_request: null,
   answers_changed_at: null,
+  group_chat_added_at: null,
+  group_chat_added_by_name: null,
   rider: null,
   minorContacts: null,
 };

@@ -202,6 +202,26 @@ const RPC_ERRORS: Record<
       "This event is adults only (18+). Send adults_only_confirmed once the person has confirmed everyone in their party is 18 or over.",
     field: "adults_only_confirmed",
   },
+  // #1647. Only on an organization that requires a handle; every other
+  // organization ignores the three no-Instagram fields.
+  INSTAGRAM_OR_CONTACT_REQUIRED: {
+    code: "invalid_request",
+    message:
+      "This organization requires an Instagram handle. Send instagram_handle, or has_no_instagram with preferred_contact_method and (except for email) preferred_contact_detail.",
+    field: "instagram_handle",
+  },
+  INSTAGRAM_HANDLE_INVALID: {
+    code: "invalid_request",
+    message:
+      "instagram_handle can only contain letters, numbers, periods and underscores.",
+    field: "instagram_handle",
+  },
+  PREFERRED_CONTACT_INVALID: {
+    code: "invalid_request",
+    message:
+      "preferred_contact_method must be one of text, call, email, whatsapp or other, and preferred_contact_detail at most 200 characters.",
+    field: "preferred_contact_method",
+  },
   // #1366. Names where to find the document, because the website's own wording
   // -- "tick the box" -- is advice a headless caller cannot act on. It names
   // the endpoint rather than a version: GET /legal reports each document's

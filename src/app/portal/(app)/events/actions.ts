@@ -277,6 +277,13 @@ export async function updateEventPlanningAction(
     adultsOnly,
     budgetAmount,
     confirmationNote,
+    groupChatEnabled,
+    groupChatLabel,
+    carpoolsEnabled,
+    carpoolSeatsQuestionId,
+    reminderEnabled,
+    reminderDaysBefore,
+    reminderIntro,
   } = parsed.data;
 
   const { error } = await supabase
@@ -292,10 +299,35 @@ export async function updateEventPlanningAction(
       ...(confirmationNote === undefined
         ? {}
         : { confirmation_note: confirmationNote }),
+      ...(groupChatEnabled === null
+        ? {}
+        : { group_chat_enabled: groupChatEnabled }),
+      ...(groupChatLabel === undefined
+        ? {}
+        : { group_chat_label: groupChatLabel }),
+      ...(carpoolsEnabled === null
+        ? {}
+        : { carpools_enabled: carpoolsEnabled }),
+      ...(carpoolSeatsQuestionId === undefined
+        ? {}
+        : { carpool_seats_question_id: carpoolSeatsQuestionId }),
+      ...(reminderEnabled === null
+        ? {}
+        : { reminder_enabled: reminderEnabled }),
+      ...(reminderDaysBefore === null
+        ? {}
+        : { reminder_days_before: reminderDaysBefore }),
+      ...(reminderIntro === undefined ? {} : { reminder_intro: reminderIntro }),
     })
     .eq("id", id);
 
   if (error) {
+    // #1649. The trigger standing in for a foreign key.
+    if (error.message === "CARPOOL_SEATS_QUESTION_INVALID") {
+      return {
+        error: "Seats can only come from a number question on this event.",
+      };
+    }
     return { error: "Could not update planning details. Please try again." };
   }
 

@@ -13,10 +13,8 @@ import {
 } from "@/lib/conduct";
 import { getOrgTimeZone } from "@/lib/org-timezone";
 import { todayInZone } from "@/lib/time";
+import { withUnclaimedFilter, withUnclaimedSuffix } from "@/lib/queue-claims";
 import { getMissingCoverageSeriesForYear } from "@/app/portal/(app)/calendar/queries";
-import { deriveEventPhaseTasks } from "@/app/portal/(app)/events/phase-status";
-import type { EventTaskKind } from "@/app/portal/(app)/events/phase-status";
-import type { EventRow } from "@/app/portal/(app)/events/event-badges";
 
 /**
  * How loudly an attention item should ask.
@@ -252,6 +250,41 @@ export async function getCalendarCoverageReminderSummary(
 
 type TodaysEventRow = EventWindow & { id: string; name: string };
 
+type QueueCounts = { total: number; unclaimed: number };
+
+/** Items waiting in one queue, and how many of them nobody has claimed (#1668). */
+async function countQueue(
+  supabase: SupabaseClient,
+  table: string,
+  status: string,
+): Promise<QueueCounts> {
+  const waiting = () =>
+    supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .eq("status", status);
+  const [all, unclaimed] = await Promise.all([
+    waiting(),
+    waiting().is("claimed_by_person_id", null),
+  ]);
+  return { total: all.count ?? 0, unclaimed: unclaimed.count ?? 0 };
+}
+
+function queueItem(
+  key: string,
+  label: string,
+  href: string,
+  { total, unclaimed }: QueueCounts,
+): PendingApprovalItem {
+  return {
+    key,
+    label: withUnclaimedSuffix(label, total, unclaimed),
+    count: total,
+    href: withUnclaimedFilter(href, total, unclaimed),
+    severity: "info",
+  };
+}
+
 /**
  * Ops-inbox items (issue #173): new volunteer applications, new contact
  * messages, and event registrations still awaiting check-in for events
@@ -268,6 +301,10 @@ type TodaysEventRow = EventWindow & { id: string; name: string };
  * that event's Registrants tab -- a single item pointing at the generic
  * events list forced staff to hunt for the right event themselves, even
  * though the query already knows exactly which one(s) need attention.
+ *
+ * Each queue also says how many of its items nobody has claimed (#1668), and
+ * its link narrows to those (`claimed=none`) when some are claimed. Check-ins
+ * are worked at the door, not claimed, and keep their plain count.
  */
 export async function getOpsInboxSummary(
   supabase: SupabaseClient,
@@ -288,18 +325,16 @@ export async function getOpsInboxSummary(
   // it -- so unlike a reserved item, which stays reserved for as long as the
   // hold does, the count actually goes down as the queue is worked.
   if (options.canSeeGearRequests) {
-    const { count } = await supabase
-      .from("gear_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "gear_requests_new",
-        label: "New item requests",
-        count: count ?? 0,
-        href: "/portal/inventory/requests?status=new",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "gear_requests", "new");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "gear_requests_new",
+          "New item requests",
+          "/portal/inventory/requests?status=new",
+          counts,
+        ),
+      );
     }
   }
 
@@ -309,18 +344,16 @@ export async function getOpsInboxSummary(
   // constituent_accounts module gate with it -- so on a tenant without the
   // area this is zero for everyone rather than needing a check of its own.
   if (options.canSeePersonClaims) {
-    const { count } = await supabase
-      .from("person_claims")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "person_claims_pending",
-        label: "Account claims",
-        count: count ?? 0,
-        href: "/portal/people/claims",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "person_claims", "pending");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "person_claims_pending",
+          "Account claims",
+          "/portal/people/claims",
+          counts,
+        ),
+      );
     }
   }
 
@@ -330,69 +363,73 @@ export async function getOpsInboxSummary(
   // scoping like the rest: the select policy on volunteer_hour_submissions
   // admits volunteers:view in the caller's own tenant.
   if (options.canSeeVolunteerHourSubmissions) {
-    const { count } = await supabase
-      .from("volunteer_hour_submissions")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "volunteer_hour_submissions_pending",
-        label: "Self-logged hours",
-        count: count ?? 0,
-        href: "/portal/volunteers/participation",
-        severity: "info",
-      });
+    const counts = await countQueue(
+      supabase,
+      "volunteer_hour_submissions",
+      "pending",
+    );
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "volunteer_hour_submissions_pending",
+          "Self-logged hours",
+          "/portal/volunteers/participation",
+          counts,
+        ),
+      );
     }
   }
 
   if (options.canSeeVolunteerApplications) {
-    const { count } = await supabase
-      .from("volunteer_applications")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "volunteer_applications_new",
-        label: "New volunteer applications",
-        count: count ?? 0,
-        href: "/portal/volunteers/applications?status=new",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "volunteer_applications", "new");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "volunteer_applications_new",
+          "New volunteer applications",
+          "/portal/volunteers/applications?status=new",
+          counts,
+        ),
+      );
     }
   }
 
   if (options.canSeeContactMessages) {
-    const { count } = await supabase
-      .from("contact_messages")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "new");
-    if ((count ?? 0) > 0) {
-      items.push({
-        key: "contact_messages_new",
-        label: "New messages",
-        count: count ?? 0,
-        href: "/portal/communications?status=new",
-        severity: "info",
-      });
+    const counts = await countQueue(supabase, "contact_messages", "new");
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "contact_messages_new",
+          "New messages",
+          "/portal/communications?status=new",
+          counts,
+        ),
+      );
     }
   }
 
   if (options.canSeeArtworkSubmissions) {
-    // Through the RPC rather than a head count, because it is the same number
+    // Through the RPCs rather than head counts, because it is the same number
     // the dashboard and any later report must agree on, and the permission
-    // check lives inside it.
-    const { data: pendingArtwork } = await supabase.rpc(
-      "count_pending_artwork_submissions",
-    );
-    const count = pendingArtwork ?? 0;
-    if (count > 0) {
-      items.push({
-        key: "artwork_submissions_pending",
-        label: "Artwork to review",
-        count,
-        href: "/portal/artwork?status=pending",
-        severity: "info",
-      });
+    // check lives inside them.
+    const [{ data: pendingArtwork }, { data: unclaimedArtwork }] =
+      await Promise.all([
+        supabase.rpc("count_pending_artwork_submissions"),
+        supabase.rpc("count_unclaimed_pending_artwork_submissions"),
+      ]);
+    const counts = {
+      total: pendingArtwork ?? 0,
+      unclaimed: unclaimedArtwork ?? 0,
+    };
+    if (counts.total > 0) {
+      items.push(
+        queueItem(
+          "artwork_submissions_pending",
+          "Artwork to review",
+          "/portal/artwork?status=pending",
+          counts,
+        ),
+      );
     }
   }
 
@@ -535,178 +572,6 @@ export async function getAccessManagementAttentionSummary(
         severity: "urgent",
       });
     }
-  }
-
-  return { items };
-}
-
-type EventTaskRow = Pick<
-  EventRow,
-  | "id"
-  | "name"
-  | "starts_at"
-  | "event_lead_id"
-  | "capacity"
-  | "budget_amount"
-  | "attendance_count"
-  | "report_status"
->;
-
-type OpenChecklistItemRow = {
-  id: string;
-  event_id: string;
-  title: string;
-  events: { name: string; starts_at: string };
-};
-
-// Defined alongside the rules that produce them, in events/phase-status.ts, so
-// the dashboard and the event page's section rail share one task vocabulary.
-export type { EventTaskKind };
-
-/**
- * One open piece of event work. Unlike `PendingApprovalItem` (a flat,
- * pre-formatted line for the portal shell's attention list), this keeps the
- * event identity separate from the task text so callers can group by event --
- * the events list sheet groups, the dashboard only counts.
- */
-export type EventTaskItem = {
-  key: string;
-  eventId: string;
-  eventName: string;
-  eventStartsAt: string;
-  kind: EventTaskKind;
-  taskLabel: string;
-  href: string;
-};
-
-export type EventTaskSummary = { items: EventTaskItem[] };
-
-export type EventTaskGroup = {
-  eventId: string;
-  eventName: string;
-  eventStartsAt: string;
-  tasks: EventTaskItem[];
-};
-
-const TASK_KIND_ORDER: Record<EventTaskKind, number> = {
-  planning: 0,
-  attendance: 1,
-  report: 2,
-  retro: 3,
-  retro_actions: 4,
-  checklist: 5,
-};
-
-/**
- * Collapses the flat task list into one group per event, oldest start date
- * first so the most overdue work sits at the top of the sheet. Within a group,
- * tasks read in event-lifecycle order regardless of which query produced them
- * (checklist items are appended after all phase tasks by `getEventTaskSummary`).
- */
-export function groupEventTasksByEvent(
-  items: EventTaskItem[],
-): EventTaskGroup[] {
-  const groups = new Map<string, EventTaskGroup>();
-
-  for (const item of items) {
-    let group = groups.get(item.eventId);
-    if (!group) {
-      group = {
-        eventId: item.eventId,
-        eventName: item.eventName,
-        eventStartsAt: item.eventStartsAt,
-        tasks: [],
-      };
-      groups.set(item.eventId, group);
-    }
-    group.tasks.push(item);
-  }
-
-  for (const group of groups.values()) {
-    group.tasks.sort(
-      (a, b) => TASK_KIND_ORDER[a.kind] - TASK_KIND_ORDER[b.kind],
-    );
-  }
-
-  return [...groups.values()].sort(
-    (a, b) =>
-      new Date(a.eventStartsAt).getTime() - new Date(b.eventStartsAt).getTime(),
-  );
-}
-
-/**
- * Backs the dashboard's "Outstanding tasks" count (home/page.tsx) and the
- * events list's Outstanding tasks sheet (events/outstanding-tasks-sheet.tsx),
- * which groups these items per event. Combines two sources of open work:
- *  - phase-derived tasks, using the same per-phase status logic that drives
- *    the event detail page's Planning/During/After badges (see
- *    events/phase-status.ts) -- an event whose phase isn't "done" yet is an
- *    open task. Scoped to draft/published events, since cancelled/archived
- *    events are done by definition even if a phase was never filled in. A
- *    past published event stays in scope (#1609): its open work is the
- *    after-report, which `report_status` tracks.
- *  - free-form event_checklist_items rows with is_done = false, from the
- *    event detail page's Checklist tab -- not scoped by event status, since
- *    a manually-added item (e.g. "send thank-you emails") can legitimately
- *    outlive the event itself.
- */
-export async function getEventTaskSummary(
-  supabase: SupabaseClient,
-  options: { canManageEvents: boolean },
-  nowIso: string = new Date().toISOString(),
-): Promise<EventTaskSummary> {
-  if (!options.canManageEvents) return { items: [] };
-
-  const { data: events } = await supabase
-    .from("events")
-    .select(
-      "id, name, starts_at, event_lead_id, capacity, budget_amount, attendance_count, report_status",
-    )
-    .in("status", ["draft", "published"]);
-
-  const now = new Date(nowIso);
-  const items: EventTaskItem[] = [];
-
-  for (const row of (events ?? []) as EventTaskRow[]) {
-    // planning/during/after only read the fields selected above, so this
-    // narrower row can stand in for the full EventRow they're typed against.
-    const event = row as unknown as EventRow;
-    const base = {
-      eventId: row.id,
-      eventName: row.name,
-      eventStartsAt: row.starts_at,
-    };
-
-    // includeRetro is left off here: the retro rules belong on the event
-    // page's section rail, but switching them on for the dashboard would add
-    // an outstanding task to every past event the day they ship.
-    for (const task of deriveEventPhaseTasks(event, {}, now)) {
-      items.push({
-        ...base,
-        key: `event_${task.kind}_${row.id}`,
-        kind: task.kind,
-        taskLabel: task.taskLabel,
-        href: `/portal/events/${row.id}?tab=${task.tab}`,
-      });
-    }
-  }
-
-  const { data: checklistItems } = await supabase
-    .from("event_checklist_items")
-    .select("id, event_id, title, events!inner(name, starts_at)")
-    .eq("is_done", false);
-
-  for (const row of (checklistItems ??
-    []) as unknown as OpenChecklistItemRow[]) {
-    items.push({
-      key: `event_checklist_${row.id}`,
-      eventId: row.event_id,
-      eventName: row.events.name,
-      eventStartsAt: row.events.starts_at,
-      kind: "checklist",
-      taskLabel: row.title,
-      href: `/portal/events/${row.event_id}?tab=checklist`,
-    });
   }
 
   return { items };

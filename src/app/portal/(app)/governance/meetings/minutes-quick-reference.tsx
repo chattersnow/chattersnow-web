@@ -63,6 +63,8 @@ type QuickReferenceProps = {
   onAddActionItem: () => void;
   /** Flushes the autosave, then jumps to the overview's decisions section. */
   onViewDecisions: () => void;
+  /** Bumped by the editor when a decision is recorded inline, to refetch. */
+  decisionsVersion: number;
 };
 
 function SectionHeading({
@@ -155,6 +157,7 @@ export function MinutesQuickReferenceBody({
   actionItems,
   onAddActionItem,
   onViewDecisions,
+  decisionsVersion,
 }: QuickReferenceProps) {
   const [isSaving, startSave] = useTransition();
 
@@ -167,7 +170,7 @@ export function MinutesQuickReferenceBody({
   );
   const { data: decisions } = useTabData<Decision[]>(
     () => listDecisionsAction(meetingId),
-    [meetingId],
+    [meetingId, decisionsVersion],
   );
   const { data: previousMeeting } = useTabData<PreviousMeetingMinutes | null>(
     () => getPreviousMeetingMinutesAction(meetingId, meetingDate),

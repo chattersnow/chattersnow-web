@@ -9,10 +9,13 @@ import { isOrgEmailEnabled } from "@/lib/notifications/settings";
 import { renderTaskDigest } from "@/lib/notifications/task-digest-email";
 import {
   dedupeKeyFor,
+  digestHref,
+  eventGroup,
   groupForDigest,
-  type ActionItemRow,
+  meetingGroup,
   type DigestPerson,
   type DigestRecipient,
+  type DigestSourceRow,
 } from "@/lib/notifications/task-digest";
 
 /**
@@ -25,7 +28,10 @@ import {
  * Runs on the service-role client, which bypasses RLS. Everything this file
  * does about tenants -- reading the switch per tenant, grouping per tenant,
  * writing tenant_id explicitly -- is therefore load-bearing rather than
- * defensive: there is no policy underneath it to catch a mistake.
+ * defensive: there is no policy underneath it to catch a mistake. Every source
+ * below reads `tenant_id` off the task row itself, and each owner column is a
+ * composite foreign key onto `people (tenant_id, id)`, so a task and its owner
+ * are always in the same tenant.
  */
 
 export const TASK_DIGEST_KIND = "task_digest";
@@ -55,7 +61,7 @@ export async function runTaskDigest(
     failed: 0,
   };
 
-  const rows = await fetchOpenActionItems(admin);
+  const rows = await fetchOpenTasks(admin);
   if (rows.length === 0) return summary;
 
   const people = await fetchRecipients(
@@ -67,16 +73,6 @@ export async function runTaskDigest(
   const recipients = groupForDigest(rows, people, now);
   summary.considered = recipients.length;
   if (recipients.length === 0) return summary;
-
-  const meetingDates = await fetchMeetingDates(
-    admin,
-    unique(recipients.flatMap((r) => r.items.map((item) => item.meetingId))),
-  );
-  for (const recipient of recipients) {
-    for (const item of recipient.items) {
-      item.meetingDate = meetingDates.get(item.meetingId) ?? null;
-    }
-  }
 
   const optedIn = await fetchOptedIn(
     admin,
@@ -152,22 +148,161 @@ async function deliver(
   else summary.failed += 1;
 }
 
+/**
+ * Every open, owned task across the sources, in parallel. A source that fails
+ * to read is logged and left out rather than sinking the others: a digest
+ * missing its checklist items is better than no digest at all.
+ */
+async function fetchOpenTasks(
+  admin: SupabaseClient,
+): Promise<DigestSourceRow[]> {
+  const sources = await Promise.all([
+    fetchOpenActionItems(admin),
+    fetchOpenChecklistItems(admin),
+    fetchOpenRetroActions(admin),
+    fetchOpenSponsorFollowUps(admin),
+  ]);
+  return sources.flat();
+}
+
+type EventRef = { id: string; name: string; starts_at: string };
+const EVENT_FIELDS = "event:events!inner(id, name, starts_at)";
+
 async function fetchOpenActionItems(
   admin: SupabaseClient,
-): Promise<ActionItemRow[]> {
+): Promise<DigestSourceRow[]> {
   const { data, error } = await admin
     .from("governance_meeting_action_items")
-    .select("id, tenant_id, description, due_date, owner_person_id, meeting_id")
+    .select(
+      "id, tenant_id, description, due_date, owner_person_id, meeting:governance_meetings!inner(id, meeting_date, meeting_type)",
+    )
     .eq("status", "open");
 
   if (error) {
     console.error("[task-digest] could not read action items", error);
     return [];
   }
-  return (data ?? []).map((row) => ({
-    ...row,
-    meeting_date: null,
-  })) as ActionItemRow[];
+  type Row = {
+    id: string;
+    tenant_id: string;
+    description: string;
+    due_date: string | null;
+    owner_person_id: string;
+    meeting: { id: string; meeting_date: string; meeting_type: string };
+  };
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    kind: "action_item",
+    id: row.id,
+    tenant_id: row.tenant_id,
+    owner_person_id: row.owner_person_id,
+    title: row.description,
+    due_date: row.due_date,
+    href: digestHref("action_item", row.meeting.id),
+    group: meetingGroup(row.meeting),
+  }));
+}
+
+async function fetchOpenChecklistItems(
+  admin: SupabaseClient,
+): Promise<DigestSourceRow[]> {
+  const { data, error } = await admin
+    .from("event_checklist_items")
+    .select(`id, tenant_id, title, due_date, owner_person_id, ${EVENT_FIELDS}`)
+    .eq("is_done", false)
+    .not("owner_person_id", "is", null);
+
+  if (error) {
+    console.error("[task-digest] could not read checklist items", error);
+    return [];
+  }
+  type Row = {
+    id: string;
+    tenant_id: string;
+    title: string;
+    due_date: string | null;
+    owner_person_id: string;
+    event: EventRef;
+  };
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    kind: "checklist",
+    id: row.id,
+    tenant_id: row.tenant_id,
+    owner_person_id: row.owner_person_id,
+    title: row.title,
+    due_date: row.due_date,
+    href: digestHref("checklist", row.event.id),
+    group: eventGroup(row.event),
+  }));
+}
+
+/** Retro actions carry no due date, so they ride along on Mondays only. */
+async function fetchOpenRetroActions(
+  admin: SupabaseClient,
+): Promise<DigestSourceRow[]> {
+  const { data, error } = await admin
+    .from("event_retro_items")
+    .select(`id, tenant_id, body, owner_person_id, ${EVENT_FIELDS}`)
+    .eq("kind", "action")
+    .eq("status", "open")
+    .not("owner_person_id", "is", null);
+
+  if (error) {
+    console.error("[task-digest] could not read retro actions", error);
+    return [];
+  }
+  type Row = {
+    id: string;
+    tenant_id: string;
+    body: string;
+    owner_person_id: string;
+    event: EventRef;
+  };
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    kind: "retro_action",
+    id: row.id,
+    tenant_id: row.tenant_id,
+    owner_person_id: row.owner_person_id,
+    title: row.body,
+    due_date: null,
+    href: digestHref("retro_action", row.event.id),
+    group: eventGroup(row.event),
+  }));
+}
+
+async function fetchOpenSponsorFollowUps(
+  admin: SupabaseClient,
+): Promise<DigestSourceRow[]> {
+  const { data, error } = await admin
+    .from("event_sponsors")
+    .select(
+      `id, tenant_id, follow_up_due_date, follow_up_owner_person_id, person:people!event_sponsors_person_id_fkey(name), ${EVENT_FIELDS}`,
+    )
+    .neq("follow_up_status", "done")
+    .not("follow_up_owner_person_id", "is", null);
+
+  if (error) {
+    console.error("[task-digest] could not read sponsor follow-ups", error);
+    return [];
+  }
+  type Row = {
+    id: string;
+    tenant_id: string;
+    follow_up_due_date: string | null;
+    follow_up_owner_person_id: string;
+    person: { name: string | null } | null;
+    event: EventRef;
+  };
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    kind: "sponsor_follow_up",
+    id: row.id,
+    tenant_id: row.tenant_id,
+    owner_person_id: row.follow_up_owner_person_id,
+    // The Events list's wording, so the two name the task the same way.
+    title: `Follow up with ${row.person?.name ?? "sponsor"}`,
+    due_date: row.follow_up_due_date,
+    href: digestHref("sponsor_follow_up", row.event.id),
+    group: eventGroup(row.event),
+  }));
 }
 
 /**
@@ -193,28 +328,6 @@ async function fetchRecipients(
     return [];
   }
   return (data ?? []) as DigestPerson[];
-}
-
-async function fetchMeetingDates(
-  admin: SupabaseClient,
-  meetingIds: string[],
-): Promise<Map<string, string | null>> {
-  const dates = new Map<string, string | null>();
-  if (meetingIds.length === 0) return dates;
-
-  const { data, error } = await admin
-    .from("governance_meetings")
-    .select("id, meeting_date")
-    .in("id", meetingIds);
-
-  if (error) {
-    console.error("[task-digest] could not read meeting dates", error);
-    return dates;
-  }
-  for (const row of data ?? []) {
-    dates.set(row.id as string, (row.meeting_date as string | null) ?? null);
-  }
-  return dates;
 }
 
 /** The set of (tenant, person) pairs that have opted in to this kind. */

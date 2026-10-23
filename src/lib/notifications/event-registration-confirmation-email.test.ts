@@ -151,6 +151,27 @@ describe("renderEventRegistrationConfirmationEmail", () => {
     );
   });
 
+  test("says how the organization will reach them (#1647)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      contact: "Text message · 555-0142",
+    });
+    expect(text).toContain("  How we'll reach you: Text message · 555-0142");
+    expect(html).toContain(
+      "<strong>How we&#39;ll reach you:</strong> Text message · 555-0142",
+    );
+  });
+
+  test("a registration nobody asked renders exactly as before (#1647)", () => {
+    const before = renderEventRegistrationConfirmationEmail(base);
+    const after = renderEventRegistrationConfirmationEmail({
+      ...base,
+      contact: null,
+    });
+    expect(after.text).toBe(before.text);
+    expect(after.html).toBe(before.html);
+  });
+
   test("a shared code with no PIN is the code alone (#1589)", () => {
     const { text } = renderEventRegistrationConfirmationEmail({
       ...base,
@@ -453,5 +474,30 @@ describe("the tenant's shell (#1238)", () => {
     const { text, html } = renderEventRegistrationConfirmationEmail(base);
     expect(text).not.toContain("Change your answers");
     expect(html).not.toContain("Change your answers");
+  });
+
+  test("tells a carpool event's registrant how costs are split (#1650)", () => {
+    const { text, html } = renderEventRegistrationConfirmationEmail({
+      ...base,
+      carpoolNotice: ["Costs are split in the car & settled with the driver."],
+    });
+    expect(text).toContain(
+      "Carpool costs:\nCosts are split in the car & settled with the driver.",
+    );
+    expect(html).toContain("<strong>Carpool costs</strong>");
+    expect(html).toContain("split in the car &amp; settled");
+    // Notice, never a request to accept anything.
+    expect(text).not.toMatch(/agree|consent/i);
+  });
+
+  test("says nothing about carpools on any other event (#1650)", () => {
+    for (const carpoolNotice of [undefined, [], ["  "]]) {
+      const { text, html } = renderEventRegistrationConfirmationEmail({
+        ...base,
+        carpoolNotice,
+      });
+      expect(text).not.toContain("Carpool");
+      expect(html).not.toContain("Carpool");
+    }
   });
 });

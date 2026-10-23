@@ -1,3 +1,6 @@
+import type { Claimant } from "@/components/portal/queue-claims";
+import { CLAIM_FK } from "@/lib/queue-claims";
+
 /**
  * URL parameter the notification email (#742) links one message with.
  *
@@ -19,4 +22,9 @@ export type ContactMessage = {
   message: string;
   status: ContactMessageStatus;
   created_at: string;
+  /** Who is working the message (#1670). */
+  claimant: Claimant;
 };
+
+/** The columns a `ContactMessage` is read with. */
+export const CONTACT_MESSAGE_SELECT = `id, name, email, topic, message, status, created_at, claimant:people!${CLAIM_FK.contact_messages}(id, name, preferred_name)`;

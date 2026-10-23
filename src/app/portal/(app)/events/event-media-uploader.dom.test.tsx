@@ -81,6 +81,28 @@ describe("EventMediaUploader", () => {
     expect(within(row("beach.jpg")).getByText("Uploaded")).toBeTruthy();
     expect(mintMock.mock.calls[0][0]).toBe("event-1");
     expect(recordMock).toHaveBeenCalledWith("t/e/beach.jpg", "beach.jpg");
+    // Once the burst settles, not straight away (#1653).
+    expect(onUploaded).not.toHaveBeenCalled();
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1), {
+      timeout: 2000,
+    });
+  });
+
+  test("a batch of photos reloads the list once, not once each", async () => {
+    const onUploaded = mock(() => {});
+    render(<EventMediaUploader eventId="event-1" onUploaded={onUploaded} />);
+    await pick(
+      ["a.jpg", "b.jpg", "c.jpg"].map(
+        (name) => new File(["x"], name, { type: "image/jpeg" }),
+      ),
+    );
+    await waitFor(() =>
+      expect(row("c.jpg").getAttribute("data-status")).toBe("done"),
+    );
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1), {
+      timeout: 2000,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     expect(onUploaded).toHaveBeenCalledTimes(1);
   });
 

@@ -19,6 +19,7 @@ import { SponsorsTab } from "./sponsors-tab";
 import { StaffTab } from "./staff-tab";
 import { AttendanceTab } from "./attendance-tab";
 import { RegistrantsTab } from "./registrants-tab";
+import { CarpoolsTab } from "./carpools-tab";
 import { DiscountCodesTab } from "./discount-codes-tab";
 import { DonationsTab } from "./donations-tab";
 import { CashDonationsTab } from "./cash-donations-tab";
@@ -59,6 +60,7 @@ export type TabValue =
   | "sponsors"
   | "attendance"
   | "registrants"
+  | "carpools"
   | "discount-codes"
   | "distributions"
   | "incidents"
@@ -125,6 +127,11 @@ export type TabConfigEntry = {
    * the word.
    */
   keywords?: readonly string[];
+  /**
+   * A per-event switch the card is listed under (#1649): off, the event has
+   * no such section at all, the way a card this reader may not see has none.
+   */
+  shownWhen?: keyof EventGroupOptions;
   render: (ctx: TabRenderContext) => ReactNode;
   /**
    * Create actions for this card, rendered in its own `CardHeader`. Only
@@ -179,6 +186,8 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     label: "Checklist",
     group: "overview",
     kind: "plain",
+    // The add dialog's owner picker.
+    sharedData: ["people"],
     render: (ctx) => <ChecklistTab eventId={ctx.event.id} mode={ctx.mode} />,
     toolbarActions: (ctx) => (
       <AddChecklistItemDialog eventId={ctx.eventId} onSaved={ctx.onSaved} />
@@ -203,6 +212,23 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     ),
     toolbarActions: (ctx) => (
       <RegistrantsToolbar eventId={ctx.eventId} onSaved={ctx.onSaved} />
+    ),
+  },
+  {
+    // #1649. Only on an event with Organize carpools on; the board itself is
+    // its own page, which this card links to.
+    value: "carpools",
+    label: "Carpools",
+    keywords: ["rides", "drivers", "cars", "passengers", "transport"],
+    group: "guests",
+    kind: "plain",
+    shownWhen: "carpoolsEnabled",
+    sharedData: ["registrants"],
+    render: (ctx) => (
+      <CarpoolsTab
+        eventId={ctx.event.id}
+        registrants={ctx.shared.registrants}
+      />
     ),
   },
   {
@@ -632,14 +658,23 @@ export type EventGroup = {
  * no cards drops out entirely -- Money does, for a tenant without Finance --
  * since a heading with nothing under it would be worse than one heading fewer.
  */
-export function eventGroups(permissions: PermissionMap): EventGroup[] {
+export type EventGroupOptions = {
+  /** `events.carpools_enabled` (#1649). */
+  carpoolsEnabled?: boolean;
+};
+
+export function eventGroups(
+  permissions: PermissionMap,
+  options: EventGroupOptions = {},
+): EventGroup[] {
   return EVENT_GROUPS.map(({ key, label }) => ({
     key,
     label,
     tabs: TAB_CONFIG.filter(
       (entry) =>
         entry.group === key &&
-        (!entry.access || hasAnyPermission(permissions, entry.access)),
+        (!entry.access || hasAnyPermission(permissions, entry.access)) &&
+        (!entry.shownWhen || options[entry.shownWhen] === true),
     ).map((entry) => ({
       value: entry.value,
       label: cardTitle(entry.value, entry.label),

@@ -5,14 +5,23 @@ const revalidatePathMock = mock(() => {});
 mock.module("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 class QueryStub {
+  /** The claim filter calls made on the query, in order. */
+  claimCalls: [string, string, unknown][] = [];
   constructor(private result: { data?: unknown; error?: unknown }) {}
+  is(column: string, value: unknown) {
+    this.claimCalls.push(["is", column, value]);
+    return this;
+  }
   select() {
     return this;
   }
   order() {
     return this;
   }
-  eq() {
+  eq(column?: string, value?: unknown) {
+    if (column === "claimed_by_person_id") {
+      this.claimCalls.push(["eq", column, value]);
+    }
     return this;
   }
   insert() {
@@ -56,6 +65,7 @@ const {
   createVolunteerHoursAction,
   deleteVolunteerHoursAction,
   listVolunteerHoursAction,
+  listPendingVolunteerHoursAction,
   listEventOptionsAction,
 } = await import("./actions");
 
@@ -227,6 +237,45 @@ describe("listVolunteerHoursAction", () => {
     expect(await listVolunteerHoursAction()).toEqual({
       error: "You don't have permission to perform this action.",
     });
+  });
+});
+
+describe("listPendingVolunteerHoursAction claim filter (#1669)", () => {
+  const me = "33333333-3333-4333-8333-333333333333";
+  const other = "44444444-4444-4444-8444-444444444444";
+
+  async function claimCallsFor(
+    ...args: Parameters<typeof listPendingVolunteerHoursAction>
+  ) {
+    const fake = fakeSupabase({ result: { data: [], error: null } });
+    currentSupabase = fake.client;
+    expect(await listPendingVolunteerHoursAction(...args)).toEqual({
+      data: [],
+    });
+    const query = fake.from.mock.results[0].value as QueryStub;
+    return query.claimCalls;
+  }
+
+  test("no filter narrows nothing", async () => {
+    expect(await claimCallsFor()).toEqual([]);
+  });
+
+  test("unclaimed asks for a null claimant", async () => {
+    expect(await claimCallsFor({ kind: "none" }, me)).toEqual([
+      ["is", "claimed_by_person_id", null],
+    ]);
+  });
+
+  test("mine is the caller's own person", async () => {
+    expect(await claimCallsFor({ kind: "mine" }, me)).toEqual([
+      ["eq", "claimed_by_person_id", me],
+    ]);
+  });
+
+  test("a person is that person", async () => {
+    expect(
+      await claimCallsFor({ kind: "person", personId: other }, me),
+    ).toEqual([["eq", "claimed_by_person_id", other]]);
   });
 });
 

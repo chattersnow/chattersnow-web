@@ -12,6 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { formatInstantDate, personDisplayName } from "@/lib/format";
+import { QueueClaimFilterField } from "@/components/portal/queue-claim-filter";
+import {
+  ClaimRowActions,
+  ClaimedByCell,
+  type Claimant,
+} from "@/components/portal/queue-claims";
+import { getQueueClaimContext } from "@/lib/portal/queue-claim-context";
+import {
+  CLAIM_FILTER_PARAM,
+  CLAIM_FK,
+  applyClaimFilter,
+  parseClaimFilter,
+} from "@/lib/queue-claims";
 import { claimCandidatesAction } from "./actions";
 import { ClaimReview } from "./claim-review";
 
@@ -59,6 +72,11 @@ type ClaimRow = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_note: string | null;
+  /**
+   * Which staff member is handling it (#1671). Staff-only: the claimant's own
+   * reads on /my select named columns and never these.
+   */
+  claimant: Claimant;
 };
 
 /**
@@ -88,7 +106,10 @@ export default async function PersonClaimsPage({
   // The people layout only requires people:view. Deciding who gets to read a
   // person's giving history is its own permission.
   await requirePermission(supabase, "constituent_claims", "view", "People");
-  const permissions = await getCurrentUserPermissions(supabase);
+  const [permissions, claimContext] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getQueueClaimContext(supabase),
+  ]);
   const canReview = hasPermission(permissions, "constituent_claims", "manage");
 
   const params = await searchParams;
@@ -100,20 +121,24 @@ export default async function PersonClaimsPage({
     ? (statusParam as string)
     : "pending";
   const showingQueue = statusFilter === "pending";
+  // The ops inbox links here with `claimed=none` when some pending claims are
+  // already being handled (#1668).
+  const claimFilter = parseClaimFilter(params[CLAIM_FILTER_PARAM]);
 
   let query = supabase
     .from("person_claims")
     .select(
-      "id, stated_name, stated_email, stated_phone, stated_instagram_handle, note, status, created_at, claimed_person_id, reviewed_by, reviewed_at, review_note",
+      `id, stated_name, stated_email, stated_phone, stated_instagram_handle, note, status, created_at, claimed_person_id, reviewed_by, reviewed_at, review_note, claimant:people!${CLAIM_FK.person_claims}(id, name, preferred_name)`,
     )
     // Oldest first while this is a queue -- the one waiting longest is the one
     // to do next. Newest first once it is a history, where the last decision is
     // the one being looked for.
     .order("created_at", { ascending: showingQueue });
   if (statusFilter !== "all") query = query.eq("status", statusFilter);
+  query = applyClaimFilter(query, claimFilter, claimContext.myPersonId);
 
   const { data: claims } = await query;
-  const rows = (claims ?? []) as ClaimRow[];
+  const rows = (claims ?? []) as unknown as ClaimRow[];
 
   // Candidates are a proposal about an undecided claim, so a decided row asks
   // for none -- which also keeps the N+1 on the queue, where it was.
@@ -214,6 +239,11 @@ export default async function PersonClaimsPage({
             ))}
           </select>
         </div>
+        <QueueClaimFilterField
+          filter={claimFilter}
+          staff={claimContext.staff}
+          selectClassName={selectClassName}
+        />
         <Button type="submit" variant="secondary" size="sm">
           Apply
         </Button>
@@ -223,9 +253,11 @@ export default async function PersonClaimsPage({
         <Empty>
           <EmptyHeader>
             <EmptyTitle>
-              {showingQueue
-                ? "Nothing waiting"
-                : `No ${filterLabel.toLowerCase()} claims`}
+              {claimFilter.kind !== "all"
+                ? "No claims match these filters"
+                : showingQueue
+                  ? "Nothing waiting"
+                  : `No ${filterLabel.toLowerCase()} claims`}
             </EmptyTitle>
           </EmptyHeader>
         </Empty>
@@ -275,16 +307,39 @@ export default async function PersonClaimsPage({
                   )}
 
                   {claim.status === "pending" ? (
-                    canReview ? (
-                      <ClaimReview
-                        claimId={claim.id}
-                        candidates={candidates[index]}
-                      />
-                    ) : (
-                      <p className="app-muted text-sm">
-                        Waiting for someone who can review claims.
+                    <>
+                      {/* Only while pending: a decision clears the claim. */}
+                      <p className="text-sm">
+                        <span className="app-muted">Claimed by: </span>
+                        <ClaimedByCell claimant={claim.claimant} />
                       </p>
-                    )
+                      {canReview ? (
+                        <ClaimReview
+                          claimId={claim.id}
+                          candidates={candidates[index]}
+                          claimActions={
+                            // Both of the queue's claim permissions are
+                            // constituent_claims:manage today;
+                            // set_queue_item_claim() checks them separately.
+                            <ClaimRowActions
+                              queue="person_claims"
+                              itemId={claim.id}
+                              itemLabel={`Claim from ${claim.stated_name}`}
+                              claimant={claim.claimant}
+                              myPersonId={claimContext.myPersonId}
+                              canClaim={canReview}
+                              canAssign={canReview}
+                              resolved={false}
+                              staff={claimContext.staff}
+                            />
+                          }
+                        />
+                      ) : (
+                        <p className="app-muted text-sm">
+                          Waiting for someone who can review claims.
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                       <div>

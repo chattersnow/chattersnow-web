@@ -9,6 +9,11 @@ import {
   toRegistrationQuestion,
   type RegistrationQuestion,
 } from "@/lib/registration-questions";
+import type { RegistrationContact } from "@/lib/registration-contact";
+import {
+  toRegistrantCarpool,
+  type RegistrantCarpool,
+} from "@/lib/carpool-assignment";
 
 /** What a live answers link opens (#1502). Nothing about the registrant but a first name. */
 export type AnswerLink = {
@@ -19,6 +24,17 @@ export type AnswerLink = {
   questions: RegistrationQuestion[];
   /** The raw stored values, keyed as `answerRowsToAnswers()` reads them. */
   answerRows: { question_id: string; value: unknown }[];
+  /**
+   * The handle or no-Instagram contact on file (#1647), or null where the
+   * organization does not require one. Never carries the detail: the RPC
+   * leaves the number or address out, so a forwarded link cannot show it.
+   */
+  contact: RegistrationContact | null;
+  /**
+   * The registrant's car on an event that organizes carpools (#1651), with
+   * `car` null until they are placed in one; null on every other event.
+   */
+  carpool: RegistrantCarpool | null;
 };
 
 export type AnswerLinkLookup =
@@ -33,6 +49,11 @@ type RawLink = {
     question_id: string;
     value: unknown;
   })[];
+  contact: {
+    instagram_handle: string | null;
+    has_no_instagram: boolean | null;
+    preferred_contact_method: string | null;
+  } | null;
 };
 
 /**
@@ -50,13 +71,20 @@ export async function lookUpAnswerLink(
   if (!isConfirmationToken(token)) return { error: "invalid" };
 
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc(
-    "get_registration_answer_request",
-    {
-      p_token_hash: hashConfirmationToken(token),
-      p_ip_address: await getClientIp(),
-    },
-  );
+  const tokenHash = hashConfirmationToken(token);
+  const ipAddress = await getClientIp();
+  const [{ data, error }, carpool] = await Promise.all([
+    supabase.rpc("get_registration_answer_request", {
+      p_token_hash: tokenHash,
+      p_ip_address: ipAddress,
+    }),
+    // #1651. Its own read, refused for the same tokens; a failure here only
+    // costs the page its carpool card.
+    supabase.rpc("registration_carpool_by_token", {
+      p_token_hash: tokenHash,
+      p_ip_address: ipAddress,
+    }),
+  ]);
 
   if (error) {
     return {
@@ -80,6 +108,10 @@ export async function lookUpAnswerLink(
         question_id: row.question_id,
         value: row.value,
       })),
+      contact: raw.contact
+        ? { ...raw.contact, preferred_contact_detail: null }
+        : null,
+      carpool: carpool.error ? null : toRegistrantCarpool(carpool.data),
     },
   };
 }

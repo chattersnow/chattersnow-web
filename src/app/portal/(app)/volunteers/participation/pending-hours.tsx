@@ -6,10 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActionToast } from "@/components/portal/action-toast";
 import { formatCalendarDate, personDisplayName } from "@/lib/format";
+import type { ClaimStaffMember } from "@/lib/portal/queue-claim-context";
+import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
 import {
   reviewVolunteerHoursAction,
   type PendingVolunteerHours,
 } from "./actions";
+
+type ClaimProps = {
+  canManage: boolean;
+  myPersonId: string | null;
+  staff: ClaimStaffMember[];
+};
 
 /**
  * The review queue for hours volunteers logged themselves (#1165).
@@ -23,8 +34,16 @@ import {
  * explain, wait for them to resubmit -- reads as a rejection of the person
  * rather than of a number. What they claimed stays on the submission either
  * way.
+ *
+ * Who is working each entry (#1669) is a line under it rather than a column,
+ * for the same reason the queue is a list.
  */
-function PendingRow({ entry }: { entry: PendingVolunteerHours }) {
+function PendingRow({
+  entry,
+  canManage,
+  myPersonId,
+  staff,
+}: { entry: PendingVolunteerHours } & ClaimProps) {
   const router = useRouter();
   const { isPending, run } = useActionToast();
   const [hours, setHours] = useState(String(entry.hours));
@@ -63,8 +82,26 @@ function PendingRow({ entry }: { entry: PendingVolunteerHours }) {
             {entry.notes}
           </p>
         ) : null}
+        <p className="mt-1 text-xs">
+          <span className="app-muted">Claimed by: </span>
+          <ClaimedByCell claimant={entry.claimant} />
+        </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Both of the queue's claim permissions are volunteers:manage today;
+            set_queue_item_claim() checks them separately. Only pending
+            entries are listed, so none is resolved. */}
+        <ClaimRowActions
+          queue="volunteer_hours"
+          itemId={entry.id}
+          itemLabel={`Hours from ${name}`}
+          claimant={entry.claimant}
+          myPersonId={myPersonId}
+          canClaim={canManage}
+          canAssign={canManage}
+          resolved={false}
+          staff={staff}
+        />
         <Input
           aria-label={`Hours for ${name}`}
           className="w-20"
@@ -94,13 +131,14 @@ function PendingRow({ entry }: { entry: PendingVolunteerHours }) {
 
 export function PendingHours({
   entries,
+  ...claimProps
 }: {
   entries: PendingVolunteerHours[];
-}) {
+} & ClaimProps) {
   return (
     <ul className="flex flex-col">
       {entries.map((entry) => (
-        <PendingRow key={entry.id} entry={entry} />
+        <PendingRow key={entry.id} entry={entry} {...claimProps} />
       ))}
     </ul>
   );

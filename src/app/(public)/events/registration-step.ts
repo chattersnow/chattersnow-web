@@ -2,6 +2,7 @@ import { ADULTS_ONLY_CONFIRMATION_REQUIRED_CODE } from "@/lib/adults-only";
 import { MINOR_CONTACTS_REQUIRED_CODE } from "@/lib/minors";
 import { REGISTRATION_OPTION_ERROR_CODES } from "@/lib/registration-options";
 import { REGISTRATION_ANSWER_ERROR_CODES } from "@/lib/registration-questions";
+import { REGISTRATION_CONTACT_ERROR_CODES } from "@/lib/registration-contact";
 
 /**
  * The three steps of a registration form (#1413), at every width: the
@@ -25,6 +26,8 @@ const ABOUT_ERROR_CODES = new Set([
   "ALREADY_REGISTERED",
   "NAME_REQUIRED",
   "PRONOUNS_TOO_LONG",
+  // #1647. The handle, or the contact in its place, is asked here.
+  ...REGISTRATION_CONTACT_ERROR_CODES,
 ]);
 
 /** RPC error codes about something typed on "This event" ("Your riding"). */

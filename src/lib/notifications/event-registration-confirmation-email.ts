@@ -20,6 +20,11 @@ import type { RenderedEmail } from "@/lib/notifications/rendered-email";
 import { DATE_TIME_WITH_ZONE, formatDateTimeInZone } from "@/lib/time";
 import { formatCodeWithPin } from "@/lib/discount-codes";
 import { CHANGE_ANSWERS_LINK_LABEL } from "@/lib/registration-answer-requests";
+import { REGISTRATION_CONTACT_HEADING } from "@/lib/registration-contact";
+import {
+  carpoolCostNoticeHtml,
+  carpoolCostNoticeText,
+} from "@/lib/notifications/carpool-cost-notice-email";
 
 /**
  * The confirmation a registrant gets after signing up for a public event
@@ -46,9 +51,11 @@ import { CHANGE_ANSWERS_LINK_LABEL } from "@/lib/registration-answer-requests";
  * reason the gear confirmation omits the postal address: they typed both a
  * minute ago, and a copy sitting in a mailbox is one more copy outside the
  * retention clock. Someone adding a field here should have an answer for that.
- * The registration answers (#1501) are the one exception, and the answer is
+ * The registration answers (#1501) are one exception, and the answer is
  * that they are what the organizer acts on, so a party has to be able to
- * check them. They leave the mailbox's copy to the same judgement the tenant
+ * check them. "How we'll reach you" (#1647) is the other, for the same
+ * reason: it is the one way the organization will try, and a mistyped number
+ * is worth catching while it can still be changed from the link below. They leave the mailbox's copy to the same judgement the tenant
  * made in asking: a question nobody needed should not be asked.
  *
  * Every time reads in the *event's* own timezone with the zone named (#1057).
@@ -102,11 +109,22 @@ export type EventRegistrationConfirmation = {
    */
   sharedCode?: { code: string; pin: string | null } | null;
   /**
+   * How the organization will reach them (#1647): "@handle", or the contact
+   * they gave in its place, formatted by formatRegistrationContact(). Omitted
+   * or null -- every tenant that does not require a handle -- renders no row.
+   */
+  contact?: string | null;
+  /**
    * The registrant's own answers link (#1591), absolute and token included,
    * and when it stops working. Omitted or null -- an event with no questions,
    * or a link that could not be issued -- renders nothing.
    */
   answersLink?: { url: string; expiresAt: string } | null;
+  /**
+   * The tenant's carpool cost-split notice (#1650), on an event that organizes
+   * carpools. Omitted or empty -- every other event -- renders nothing.
+   */
+  carpoolNotice?: readonly string[];
   eventId: string;
   /** The tenant's own origin, from tenantMailContext(). */
   siteUrl: string;
@@ -141,6 +159,7 @@ export function renderEventRegistrationConfirmationEmail(
   const calendarNote =
     "A calendar file is attached, so you can add it to your own calendar.";
   const answersLink = confirmation.answersLink ?? null;
+  const carpoolNotice = confirmation.carpoolNotice ?? [];
   const answersLinkNote = answersLink
     ? `Plans changed? You can change your answers until ${inEventZone(answersLink.expiresAt, confirmation.timeZone)}. The link is just for you, so please don't forward it.`
     : "";
@@ -168,6 +187,7 @@ export function renderEventRegistrationConfirmationEmail(
     words.greeting,
     details,
     answersText,
+    carpoolCostNoticeText(carpoolNotice),
     answersLink
       ? `${CHANGE_ANSWERS_LINK_LABEL}: ${answersLink.url}\n${answersLinkNote}`
       : "",
@@ -203,6 +223,7 @@ export function renderEventRegistrationConfirmationEmail(
     copyParagraphHtml(words.intro, "margin: 0 0 8px;"),
     `  <ul style="margin: 0 0 20px; padding-left: 20px;">\n${rowsHtml}\n  </ul>`,
     answersHtml,
+    carpoolCostNoticeHtml(carpoolNotice),
     answersLink
       ? [
           `  <p style="margin: 0 0 4px;"><a href="${escapeHtml(answersLink.url)}" style="color: ${palette.link}; font-weight: 600; text-decoration: underline;">${escapeHtml(CHANGE_ANSWERS_LINK_LABEL)}</a></p>`,
@@ -271,6 +292,9 @@ function detailRows(
   }
   if (confirmation.sharedCode) {
     rows.push(["Discount code", formatCodeWithPin(confirmation.sharedCode)]);
+  }
+  if (confirmation.contact) {
+    rows.push([REGISTRATION_CONTACT_HEADING, confirmation.contact]);
   }
   return rows;
 }

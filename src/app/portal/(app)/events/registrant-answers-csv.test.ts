@@ -91,9 +91,9 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,Leaving from,Answers changed,Instagram",
-      'Jamie Rivera,2,Need a ride,"Burlington, VT",,jamie.rides',
-      "Sam Lee,1,,,,jamie.rides",
+      "Name,Party size,Getting there,Leaving from,Answers changed,Instagram,Preferred contact",
+      'Jamie Rivera,2,Need a ride,"Burlington, VT",,jamie.rides,',
+      "Sam Lee,1,,,,jamie.rides,",
     ]);
     expect(csv).not.toContain("jamie@example.test");
     expect(csv).not.toContain("555-0100");
@@ -122,11 +122,52 @@ describe("registrantAnswersCsv", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,OK to share my contact details with our partner,Answers changed,Instagram,Email,Phone",
-      "Jamie Rivera,2,,Yes,,jamie.rides,jamie@example.test,555-0100",
-      "Declined,2,,No,,declined.ig,,",
-      "Never asked,2,,,,jamie.rides,,",
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Answers changed,Instagram,Preferred contact,Email,Phone,Contact detail",
+      "Jamie Rivera,2,,Yes,,jamie.rides,,jamie@example.test,555-0100,",
+      "Declined,2,,No,,declined.ig,,,,",
+      "Never asked,2,,,,jamie.rides,,,,",
     ]);
+  });
+
+  test("the preferred contact method on every row, its detail only where sharing was ticked (#1647)", () => {
+    const noInstagram = {
+      instagram_handle: null,
+      preferred_contact_method: "text",
+      preferred_contact_detail: "555-0142",
+    };
+    const csv = registrantAnswersCsv(
+      [SHARE],
+      [
+        registration({
+          ...noInstagram,
+          answers: [{ question_id: SHARE.id, answer_text: "Yes", value: true }],
+        }),
+        registration({
+          ...noInstagram,
+          name: "Declined",
+          answers: [{ question_id: SHARE.id, answer_text: "No", value: false }],
+        }),
+      ],
+    );
+    expect(lines(csv).slice(1)).toEqual([
+      "Jamie Rivera,2,Yes,,,Text message,jamie@example.test,555-0100,555-0142",
+      "Declined,2,No,,,Text message,,,",
+    ]);
+  });
+
+  test("no contact detail at all without a sharing question (#1647)", () => {
+    const csv = registrantAnswersCsv(
+      [GETTING_THERE],
+      [
+        registration({
+          instagram_handle: null,
+          preferred_contact_method: "whatsapp",
+          preferred_contact_detail: "555-0142",
+        }),
+      ],
+    );
+    expect(lines(csv)[1]).toBe("Jamie Rivera,2,,,,WhatsApp");
+    expect(csv).not.toContain("555-0142");
   });
 
   test("when the registrant last changed their answers, blank where they never have (#1591)", () => {
@@ -138,8 +179,8 @@ describe("registrantAnswersCsv", () => {
       ],
     );
     expect(lines(csv).slice(1)).toEqual([
-      "Jamie Rivera,2,,2026-10-12T15:04:05.000Z,jamie.rides",
-      "Sam Lee,2,,,jamie.rides",
+      "Jamie Rivera,2,,2026-10-12T15:04:05.000Z,jamie.rides,",
+      "Sam Lee,2,,,jamie.rides,",
     ]);
   });
 
@@ -224,9 +265,9 @@ describe("registrantAnswersCsv rider columns", () => {
     );
 
     expect(lines(csv)).toEqual([
-      "Name,Party size,Getting there,OK to share my contact details with our partner,Answers changed,Rides,Ski level,Snowboard level,Instagram,Email,Phone",
-      "Jamie Rivera,2,,Yes,,Both,Advanced,Beginner,jamie.rides,jamie@example.test,555-0100",
-      "Sam Lee,1,,,,,,,jamie.rides,,",
+      "Name,Party size,Getting there,OK to share my contact details with our partner,Answers changed,Rides,Ski level,Snowboard level,Instagram,Preferred contact,Email,Phone,Contact detail",
+      "Jamie Rivera,2,,Yes,,Both,Advanced,Beginner,jamie.rides,,jamie@example.test,555-0100,",
+      "Sam Lee,1,,,,,,,jamie.rides,,,,",
     ]);
   });
 
@@ -236,7 +277,7 @@ describe("registrantAnswersCsv rider columns", () => {
       [registration({ rider: RIDER })],
     );
     expect(lines(csv)[0]).toBe(
-      "Name,Party size,Getting there,Answers changed,Instagram",
+      "Name,Party size,Getting there,Answers changed,Instagram,Preferred contact",
     );
     expect(csv).not.toContain("Advanced");
   });

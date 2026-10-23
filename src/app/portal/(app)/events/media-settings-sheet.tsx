@@ -31,6 +31,7 @@ import {
 import {
   updateEventMediaRetentionAction,
   updateEventMediaUploadsEnabledAction,
+  updateEventPublicGalleryEnabledAction,
 } from "./media-actions";
 
 /** Select values are strings; this one stands for null. */
@@ -41,20 +42,24 @@ function retentionValue(days: number | null): string {
 }
 
 /**
- * This organization's event media settings (#1606, #1608), a sheet beside
- * Registration's and for its reason: two settings that shape one feature do
+ * This organization's event media settings (#1606, #1608, #1654), a sheet
+ * beside Registration's and for its reason: settings that shape one feature do
  * not earn a route. Each saves as soon as it changes.
  */
 export function MediaSettingsSheet({
   enabled,
   retentionDays,
+  publicGalleryEnabled,
 }: {
   enabled: boolean;
   /** Null keeps media indefinitely. */
   retentionDays: number | null;
+  publicGalleryEnabled: boolean;
 }) {
   const router = useRouter();
   const [checked, setChecked] = useState(enabled);
+  const [galleryChecked, setGalleryChecked] = useState(publicGalleryEnabled);
+  const [isGalleryPending, startGalleryTransition] = useTransition();
   const [retention, setRetention] = useState(retentionValue(retentionDays));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -70,6 +75,7 @@ export function MediaSettingsSheet({
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
       setChecked(enabled);
+      setGalleryChecked(publicGalleryEnabled);
       setRetention(retentionValue(retentionDays));
       setError(null);
     }
@@ -115,6 +121,24 @@ export function MediaSettingsSheet({
     });
   }
 
+  function handleGalleryChange(next: boolean) {
+    setError(null);
+    setGalleryChecked(next);
+    startGalleryTransition(async () => {
+      const outcome = await runAction(
+        () => updateEventPublicGalleryEnabledAction(next),
+        {
+          success: next
+            ? "The public event gallery is on."
+            : "The public event gallery is off.",
+          onError: setError,
+          onSuccess: () => router.refresh(),
+        },
+      );
+      if (!outcome.ok) setGalleryChecked(!next);
+    });
+  }
+
   return (
     <Sheet onOpenChange={handleOpenChange}>
       <SheetTrigger render={<Button type="button" variant="outline" />}>
@@ -151,6 +175,37 @@ export function MediaSettingsSheet({
                 disabled={isPending}
                 aria-labelledby="event-media-uploads-label"
                 aria-describedby="event-media-uploads-help"
+              />
+            </div>
+          </div>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p
+                id="event-public-gallery-label"
+                className="text-sm font-medium"
+              >
+                Public event gallery
+              </p>
+              <p
+                id="event-public-gallery-help"
+                className="app-muted mt-1 text-sm"
+              >
+                Shows each public event&rsquo;s photos on its page on the public
+                site, with a link to share. Photos are public as soon as they
+                are uploaded; videos only once someone marks them public on the
+                event&rsquo;s Media card, where any photo can be hidden again.
+                Turning it off takes the gallery off the site; nothing is
+                deleted.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {isGalleryPending && <Spinner className="size-4" />}
+              <Switch
+                checked={galleryChecked}
+                onCheckedChange={handleGalleryChange}
+                disabled={isGalleryPending}
+                aria-labelledby="event-public-gallery-label"
+                aria-describedby="event-public-gallery-help"
               />
             </div>
           </div>
@@ -192,9 +247,10 @@ export function MediaSettingsSheet({
             </div>
             <p id="event-media-retention-help" className="app-muted text-sm">
               After this, an event&rsquo;s photos and videos are deleted for
-              good. Each event&rsquo;s Media card lists what will be deleted in
-              the next {EVENT_MEDIA_EXPIRY_WARNING_DAYS} days so it can be
-              downloaded first, and nothing is deleted sooner than{" "}
+              good, and leave the public gallery with them. Each event&rsquo;s
+              Media card lists what will be deleted in the next{" "}
+              {EVENT_MEDIA_EXPIRY_WARNING_DAYS} days so it can be downloaded
+              first, and nothing is deleted sooner than{" "}
               {EVENT_MEDIA_EXPIRY_WARNING_DAYS} days after this setting changes
               or a file is uploaded.
             </p>

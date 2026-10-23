@@ -103,6 +103,16 @@ describe("the site content registry", () => {
     // tenant's behalf. Blank means the box is never rendered and all three
     // columns stay null, which is where almost every tenant stays.
     expect(DEFAULT_SITE_CONTENT.paragraphs("events.photo_consent")).toEqual([]);
+    // The carpool cost-split notice is the opposite case (#1650): every line
+    // of its default is a fact about the software -- no amount is stored, and
+    // car-mates see a first name and a handle -- so the platform writes it,
+    // in the organization's voice and without asking anyone to agree.
+    const carpool = DEFAULT_SITE_CONTENT.paragraphs(
+      "events.carpool_cost_notice",
+    );
+    expect(carpool).toHaveLength(1);
+    expect(carpool[0]).toContain("first name and Instagram handle");
+    expect(carpool[0]).not.toMatch(/agree|consent/i);
     // Likewise what an organization does with a photographer's uploads
     // (#1620): the uploader agrees to these words, so only a tenant writes them.
     expect(

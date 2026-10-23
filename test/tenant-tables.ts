@@ -37,6 +37,18 @@
  * `public_event_registration_questions` in the isolation suite and directly in
  * `src/lib/registration-questions.integration.test.ts`.
  *
+ * `event_carpool_cars` and `event_carpool_passengers` (#1649) are absent for
+ * the same reason: a car exists only once staff turn on an event's carpools
+ * and add one, which the seed never does. Their isolation -- a car, a
+ * registration and an event from another tenant -- is asserted directly in
+ * `src/app/portal/(app)/events/carpools.integration.test.ts`.
+ *
+ * `event_carpool_assignment_emails` (#1651) is absent for the same reason: a
+ * row exists only once staff email a car its assignments. It has no policies
+ * and no grants -- only SECURITY DEFINER functions and the service role reach
+ * it -- which
+ * `src/app/(public)/events/carpool-assignment.integration.test.ts` asserts.
+ *
  * `event_registration_answer_requests` (#1502) is absent for the same reason:
  * a row exists only once staff email a registrant a link, which the seed never
  * does. Its isolation -- including a link from another tenant -- is asserted

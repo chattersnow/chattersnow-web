@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useStickyStatusFilter } from "./use-sticky-status-filter";
+import {
+  useStickyFilter,
+  useStickyStatusFilter,
+} from "./use-sticky-status-filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { FiltersSheet } from "@/components/filters-sheet";
 import { Input } from "@/components/ui/input";
@@ -29,15 +32,29 @@ import {
 } from "@/lib/outbound-messages";
 import { contactTopicLabel } from "@/lib/contact-topics";
 import { useLexicon } from "@/components/lexicon-context";
-import { formatInstantDate } from "@/lib/format";
+import { formatInstantDate, personDisplayName } from "@/lib/format";
 import { EmptyState } from "@/components/portal/empty-state";
+import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
+import type { ClaimStaffMember } from "@/lib/portal/queue-claim-context";
+import {
+  isResolvedStatus,
+  matchesClaimFilter,
+  parseClaimFilter,
+} from "@/lib/queue-claims";
 
 const FILTER_ALL = "all";
+const NO_STAFF: ClaimStaffMember[] = [];
 
 export function MessagesTable({
   messages,
   canManage,
   initialStatusFilter = null,
+  initialClaimFilter = null,
+  myPersonId = null,
+  staff = NO_STAFF,
   linkedMessageId = null,
   recordMessages = NO_RECORD_MESSAGES,
   replyTo = null,
@@ -46,6 +63,15 @@ export function MessagesTable({
   messages: ContactMessage[];
   canManage: boolean;
   initialStatusFilter?: ContactMessageStatus | null;
+  /**
+   * The `?claimed=` the page was opened with (#1670), as `none`, `mine` or a
+   * person id; null for no filter.
+   */
+  initialClaimFilter?: string | null;
+  /** The caller's own person record, for "Mine" and Claim. */
+  myPersonId?: string | null;
+  /** Who a message can be assigned to or filtered by. */
+  staff?: ClaimStaffMember[];
   /** The `?message=` a notification email (#742) linked with, if any. */
   linkedMessageId?: string | null;
   /**
@@ -64,6 +90,20 @@ export function MessagesTable({
     setStatus: setStatusFilter,
     isVisible,
   } = useStickyStatusFilter(messages, initialStatusFilter);
+  // Sticky like status, and for the same reason: claiming a message from the
+  // Unclaimed view (the ops inbox's link) would otherwise drop the row, and
+  // its open sheet with it.
+  const {
+    value: claimFilter,
+    setValue: setClaimFilter,
+    isVisible: isClaimVisible,
+  } = useStickyFilter(messages, initialClaimFilter, (message, value) =>
+    matchesClaimFilter(
+      message.claimant?.id ?? null,
+      parseClaimFilter(value),
+      myPersonId,
+    ),
+  );
 
   // Not memoized: isVisible closes over useStickyStatusFilter's internal
   // sticky-id state, which can change via a same-render state update (see
@@ -72,7 +112,7 @@ export function MessagesTable({
   // render is cheap.
   const query = search.trim().toLowerCase();
   const visibleMessages = messages.filter((message) => {
-    if (!isVisible(message)) return false;
+    if (!isVisible(message) || !isClaimVisible(message)) return false;
     if (
       query &&
       !message.name.toLowerCase().includes(query) &&
@@ -85,7 +125,26 @@ export function MessagesTable({
   const activeFilterCount = [
     search.trim() !== "",
     statusFilter !== null,
+    claimFilter !== null,
   ].filter(Boolean).length;
+
+  const claimOptions = [
+    { value: FILTER_ALL, label: "All" },
+    { value: "none", label: "Unclaimed" },
+    { value: "mine", label: "Mine" },
+    ...staff.map((person) => ({
+      value: person.id,
+      label: personDisplayName(person),
+    })),
+  ];
+  // A person who has since lost portal access can still be the filter in a
+  // shared link; keep them selectable rather than silently showing "All".
+  if (
+    claimFilter !== null &&
+    !claimOptions.some((option) => option.value === claimFilter)
+  ) {
+    claimOptions.push({ value: claimFilter, label: "Someone else" });
+  }
 
   const lexicon = useLexicon();
   const columns = useMemo<PortalDataTableColumn<ContactMessage>[]>(
@@ -132,25 +191,54 @@ export function MessagesTable({
         ),
       },
       {
+        key: "claimed_by",
+        label: "Claimed by",
+        hideBelow: "sm",
+        sortValue: (message) =>
+          message.claimant ? personDisplayName(message.claimant, "") : null,
+        render: (message) => <ClaimedByCell claimant={message.claimant} />,
+      },
+      {
         key: "actions",
         label: "Actions",
         srOnlyLabel: true,
         headClassName: "w-0",
-        render: (message) => (
-          <MessageDetailsSheet
-            message={message}
-            canManage={canManage}
-            messages={recordMessages.byRecord[message.id] ?? []}
-            messageActors={recordMessages.actors}
-            replyTo={replyTo}
-            orgEmailEnabled={orgEmailEnabled}
-            defaultOpen={message.id === linkedMessageId}
-          />
-        ),
+        render: (message) => {
+          // Both of the queue's claim permissions are communications:manage
+          // today; set_queue_item_claim() checks them separately.
+          const claim = {
+            queue: "contact_messages" as const,
+            itemId: message.id,
+            itemLabel: `Message from ${message.name}`,
+            claimant: message.claimant,
+            myPersonId,
+            canClaim: canManage,
+            canAssign: canManage,
+            resolved: isResolvedStatus("contact_messages", message.status),
+            staff,
+          };
+          return (
+            <span className="inline-flex items-center justify-end gap-1">
+              <ClaimRowActions {...claim} />
+              <MessageDetailsSheet
+                message={message}
+                canManage={canManage}
+                claim={claim}
+                messages={recordMessages.byRecord[message.id] ?? []}
+                messageActors={recordMessages.actors}
+                replyTo={replyTo}
+                orgEmailEnabled={orgEmailEnabled}
+                defaultOpen={message.id === linkedMessageId}
+              />
+            </span>
+          );
+        },
       },
     ],
     [
       canManage,
+      myPersonId,
+      staff,
       linkedMessageId,
       lexicon,
       recordMessages,
@@ -219,6 +307,30 @@ export function MessagesTable({
                     className="capitalize"
                   >
                     {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="app-muted text-xs font-semibold uppercase tracking-[0.1em]">
+              Claimed by
+            </span>
+            <Select
+              value={claimFilter ?? FILTER_ALL}
+              items={claimOptions}
+              onValueChange={(value) =>
+                setClaimFilter(!value || value === FILTER_ALL ? null : value)
+              }
+            >
+              <SelectTrigger aria-label="Filter by who claimed it">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {claimOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -34,6 +34,9 @@ function registrant(
     email: "jamie@example.test",
     phone: null,
     instagram_handle: null,
+    has_no_instagram: null,
+    preferred_contact_method: null,
+    preferred_contact_detail: null,
     pronouns: null,
     party_size: 1,
     notes: null,
@@ -55,6 +58,8 @@ function registrant(
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: null,
     rider: {
       riding_discipline_at_event: null,

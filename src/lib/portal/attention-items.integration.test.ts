@@ -16,7 +16,6 @@ import {
 import {
   getAccessManagementAttentionSummary,
   getCalendarCoverageReminderSummary,
-  getEventTaskSummary,
   getOpsInboxSummary,
   getPendingApprovalsSummary,
 } from "./attention-items";
@@ -171,22 +170,15 @@ describe("attention summaries for unprivileged actors (integration)", () => {
         })
       ).items.length,
     ).toBeGreaterThan(0);
-    expect(
-      (await getEventTaskSummary(adminClient, { canManageEvents: true })).items
-        .length,
-    ).toBeGreaterThan(0);
 
     for (const { name, client } of await unprivilegedActors()) {
       // The volunteer role holds volunteers:view and events:view, so its ops
-      // inbox and event tasks both get a case of their own below.
+      // inbox gets a case of its own below. Event tasks moved to
+      // event-open-work.integration.test.ts (#1661).
       if (name !== "volunteer") {
         expect({
           actor: name,
           ...(await getOpsInboxSummary(client, ALL_FLAGS_ON)),
-        }).toEqual({ actor: name, ...EMPTY });
-        expect({
-          actor: name,
-          ...(await getEventTaskSummary(client, { canManageEvents: true })),
         }).toEqual({ actor: name, ...EMPTY });
       }
 
@@ -229,18 +221,6 @@ describe("attention summaries for unprivileged actors (integration)", () => {
     expect(
       result.items.some((item) => item.key === "artwork_submissions_pending"),
     ).toBe(false);
-
-    // Event tasks are read at events:view too, so forcing canManageEvents on
-    // does surface them for this role. Pinned rather than endorsed: the
-    // dashboard derives that flag from events:manage, which volunteer does
-    // not hold, so this is the page gate doing the work and not RLS.
-    const tasks = await getEventTaskSummary(volunteer, {
-      canManageEvents: true,
-    });
-    expect(tasks.items.length).toBeGreaterThan(0);
-    expect(
-      (await getEventTaskSummary(volunteer, { canManageEvents: false })).items,
-    ).toEqual([]);
   });
 
   test("the calendar coverage reminder stays empty without content_calendar access", async () => {

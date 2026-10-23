@@ -46,10 +46,24 @@ import {
   quoteOrValue,
   totalPagesFor,
 } from "@/lib/pagination";
+import { QueueClaimFilterField } from "@/components/portal/queue-claim-filter";
+import {
+  ClaimRowActions,
+  ClaimedByCell,
+} from "@/components/portal/queue-claims";
+import { getQueueClaimContext } from "@/lib/portal/queue-claim-context";
+import {
+  CLAIM_FILTER_PARAM,
+  applyClaimFilter,
+  claimFilterValue,
+  isResolvedStatus,
+  parseClaimFilter,
+} from "@/lib/queue-claims";
 import { VolunteerApplicationDetailsSheet } from "./application-details-sheet";
 import { VolunteerApplicationStatusBadge } from "./application-badges";
 import {
   APPLICATION_PARAM,
+  VOLUNTEER_APPLICATION_SELECT,
   VOLUNTEER_APPLICATION_STATUSES,
   type VolunteerApplication,
   type VolunteerApplicationStatus,
@@ -104,7 +118,10 @@ export default async function VolunteerApplicationsPage({
   searchParams,
 }: ApplicationsPageProps) {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const [permissions, claimContext] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getQueueClaimContext(supabase),
+  ]);
   const canManage = hasPermission(permissions, "volunteers", "manage");
   // Screening is its own resource (#1360), so a volunteers manager does not
   // see this section and a screening holder who is not a volunteers manager
@@ -125,6 +142,9 @@ export default async function VolunteerApplicationsPage({
   const statusRaw = raw("status");
   const statusFilter: VolunteerApplicationStatus | "all" =
     isVolunteerApplicationStatus(statusRaw) ? statusRaw : "all";
+  // The ops inbox links here with `claimed=none` when some applications are
+  // already claimed (#1668).
+  const claimFilter = parseClaimFilter(params[CLAIM_FILTER_PARAM]);
 
   const sortParam = raw("sort");
   const sort: SortColumn = isSortColumn(sortParam) ? sortParam : "created_at";
@@ -135,10 +155,7 @@ export default async function VolunteerApplicationsPage({
 
   let query = supabase
     .from("volunteer_applications")
-    .select(
-      "id, person_id, name, email, phone, pronouns, role_interest, availability, status, created_at",
-      { count: "exact" },
-    )
+    .select(VOLUNTEER_APPLICATION_SELECT, { count: "exact" })
     .order(sort, { ascending: dir === "asc" })
     .order("id", { ascending: true });
 
@@ -149,10 +166,12 @@ export default async function VolunteerApplicationsPage({
   if (statusFilter !== "all") {
     query = query.eq("status", statusFilter);
   }
+  query = applyClaimFilter(query, claimFilter, claimContext.myPersonId);
 
   const { offset, to } = pageRange(page, perPage);
   const { data: applications, error, count } = await query.range(offset, to);
-  const applicationRows = (applications ?? []) as VolunteerApplication[];
+  const applicationRows = (applications ??
+    []) as unknown as VolunteerApplication[];
 
   // A notification email (#742) links straight at one application. The list is
   // filtered, sorted and paginated, so there is no guarantee that row is on
@@ -171,12 +190,11 @@ export default async function VolunteerApplicationsPage({
     // ordinary list, not on an error page.
     const { data: linked } = await supabase
       .from("volunteer_applications")
-      .select(
-        "id, person_id, name, email, phone, pronouns, role_interest, availability, status, created_at",
-      )
+      .select(VOLUNTEER_APPLICATION_SELECT)
       .eq("id", linkedApplicationId)
       .maybeSingle();
-    linkedApplication = (linked as VolunteerApplication | null) ?? null;
+    linkedApplication =
+      (linked as unknown as VolunteerApplication | null) ?? null;
   }
 
   // What has been said to each applicant on this page, in one query rather
@@ -234,6 +252,20 @@ export default async function VolunteerApplicationsPage({
     orgEmailEnabled,
   });
 
+  // Both of the queue's claim permissions are volunteers:manage today;
+  // set_queue_item_claim() checks them separately.
+  const claimProps = (application: VolunteerApplication) => ({
+    queue: "volunteer_applications" as const,
+    itemId: application.id,
+    itemLabel: `Application from ${application.name}`,
+    claimant: application.claimant,
+    myPersonId: claimContext.myPersonId,
+    canClaim: canManage,
+    canAssign: canManage,
+    resolved: isResolvedStatus("volunteer_applications", application.status),
+    staff: claimContext.staff,
+  });
+
   const screeningProps = (personId: string | null) => ({
     canViewScreening,
     screenings: personId ? (screenings.byPerson[personId] ?? []) : [],
@@ -243,6 +275,9 @@ export default async function VolunteerApplicationsPage({
   const filterParams = new URLSearchParams();
   if (search) filterParams.set("search", search);
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
+  if (claimFilter.kind !== "all") {
+    filterParams.set(CLAIM_FILTER_PARAM, claimFilterValue(claimFilter));
+  }
   // On filterParams rather than in each href, so sorting and paging both
   // carry the reader's choice without either having to remember to.
   if (perPage !== PAGE_SIZE) filterParams.set("perPage", String(perPage));
@@ -275,10 +310,13 @@ export default async function VolunteerApplicationsPage({
   }
 
   const totalPages = totalPagesFor(count, perPage);
-  const hasActiveFilters = !!search || statusFilter !== "all";
-  const activeFilterCount = [!!search, statusFilter !== "all"].filter(
-    Boolean,
-  ).length;
+  const activeFilters = [
+    !!search,
+    statusFilter !== "all",
+    claimFilter.kind !== "all",
+  ];
+  const hasActiveFilters = activeFilters.some(Boolean);
+  const activeFilterCount = activeFilters.filter(Boolean).length;
 
   return (
     <>
@@ -344,6 +382,14 @@ export default async function VolunteerApplicationsPage({
                     </select>
                   </div>
 
+                  <QueueClaimFilterField
+                    filter={claimFilter}
+                    staff={claimContext.staff}
+                    selectClassName={selectClassName}
+                    className="flex flex-col gap-1"
+                    labelClassName="app-muted text-xs font-semibold uppercase tracking-[0.1em]"
+                  />
+
                   <div className="flex flex-wrap items-center gap-2">
                     <FilterSubmitButton />
                     {hasActiveFilters && (
@@ -392,6 +438,9 @@ export default async function VolunteerApplicationsPage({
                             />
                           </TableHead>
                         ))}
+                        {/* Not sortable: the order would be by person id,
+                            which means nothing. Filter by it instead. */}
+                        <TableHead hideBelow="sm">Claimed by</TableHead>
                         <TableHead className="w-0">
                           <span className="sr-only">Actions</span>
                         </TableHead>
@@ -424,16 +473,23 @@ export default async function VolunteerApplicationsPage({
                               status={application.status}
                             />
                           </TableCell>
+                          <TableCell hideBelow="sm">
+                            <ClaimedByCell claimant={application.claimant} />
+                          </TableCell>
                           <TableCell>
-                            <VolunteerApplicationDetailsSheet
-                              application={application}
-                              canManage={canManage}
-                              {...messageProps(application.id)}
-                              {...screeningProps(application.person_id)}
-                              defaultOpen={
-                                application.id === linkedApplicationId
-                              }
-                            />
+                            <span className="inline-flex items-center justify-end gap-1">
+                              <ClaimRowActions {...claimProps(application)} />
+                              <VolunteerApplicationDetailsSheet
+                                application={application}
+                                canManage={canManage}
+                                claim={claimProps(application)}
+                                {...messageProps(application.id)}
+                                {...screeningProps(application.person_id)}
+                                defaultOpen={
+                                  application.id === linkedApplicationId
+                                }
+                              />
+                            </span>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -447,6 +503,7 @@ export default async function VolunteerApplicationsPage({
               <VolunteerApplicationDetailsSheet
                 application={linkedApplication}
                 canManage={canManage}
+                claim={claimProps(linkedApplication)}
                 {...messageProps(linkedApplication.id)}
                 {...screeningProps(linkedApplication.person_id)}
                 defaultOpen

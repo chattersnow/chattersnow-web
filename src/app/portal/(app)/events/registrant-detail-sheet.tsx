@@ -5,6 +5,17 @@ import { ArrowLeft, Ban, Check, Snowflake, Undo2 } from "lucide-react";
 import type { EventRegistrant } from "./registrants-actions";
 import { RegistrantMessageActions } from "./registrant-message-actions";
 import { RegistrantAnswers } from "./registrant-answers";
+import { RegistrantContact } from "./registrant-contact";
+import { RegistrantGroupChat } from "./registrant-group-chat";
+import { RegistrantReminder } from "./registrant-reminder";
+import type { EventGroupChat } from "@/lib/registration-group-chat";
+import {
+  carpoolAssignments,
+  carpoolLine,
+  carpoolsHref,
+  type EventCarpools,
+} from "@/lib/event-carpools";
+import Link from "next/link";
 import { RegistrantBadges } from "./registrant-badges";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 import { Button } from "@/components/ui/button";
@@ -39,7 +50,6 @@ import {
   ridingDisciplineLabel,
 } from "@/lib/rider-profile";
 import { formatDateTime } from "@/lib/format";
-import { instagramUrl } from "@/components/instagram-link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -91,6 +101,8 @@ export function RegistrantDetailSheet({
   photoConsentInForce,
   optionsPrompt = null,
   registrationQuestions = [],
+  groupChat = null,
+  carpools = null,
   onClosed,
   onSent,
   onAnswersSaved,
@@ -107,6 +119,10 @@ export function RegistrantDetailSheet({
   replyTo: string | null;
   orgEmailEnabled: boolean;
   canManage: boolean;
+  /** The event's group chat (#1648); null when its switch is off. */
+  groupChat?: EventGroupChat;
+  /** The event's carpool plan (#1649); null when its switch is off. */
+  carpools?: EventCarpools;
   /**
    * Whether this organization takes a participant waiver today (#686), which
    * is what separates "we never asked" from "this registration predates the
@@ -258,20 +274,40 @@ export function RegistrantDetailSheet({
             <ReadOnlyField label="Phone" htmlFor="registrant-phone">
               {registrant.phone || "—"}
             </ReadOnlyField>
-            <ReadOnlyField label="Instagram" htmlFor="registrant-instagram">
-              {registrant.instagram_handle ? (
-                <a
-                  href={instagramUrl(registrant.instagram_handle)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4"
+            {/* #1647. The handle, or the contact given in its place, and
+                where staff change either. */}
+            <RegistrantContact
+              registrant={registrant}
+              canManage={canManage}
+              onSaved={onAnswersSaved}
+            />
+            {groupChat && (
+              <RegistrantGroupChat
+                registrant={registrant}
+                groupChat={groupChat}
+                canManage={canManage}
+                onSaved={onAnswersSaved}
+              />
+            )}
+            <RegistrantReminder
+              registrant={registrant}
+              canManage={canManage}
+              orgEmailEnabled={orgEmailEnabled}
+              onSent={onSent}
+            />
+            {carpools && (
+              <ReadOnlyField label="Carpool" htmlFor="registrant-carpool">
+                <Link
+                  href={carpoolsHref(registrant.event_id)}
+                  className="underline-offset-2 hover:underline"
                 >
-                  @{registrant.instagram_handle}
-                </a>
-              ) : (
-                "—"
-              )}
-            </ReadOnlyField>
+                  {carpoolLine(
+                    carpoolAssignments(carpools.cars).get(registrant.id) ??
+                      null,
+                  )}
+                </Link>
+              </ReadOnlyField>
+            )}
             <ReadOnlyField label="Party size" htmlFor="registrant-party-size">
               {registrant.party_size}
             </ReadOnlyField>

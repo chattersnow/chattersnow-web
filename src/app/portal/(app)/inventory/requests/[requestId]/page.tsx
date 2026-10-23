@@ -37,7 +37,7 @@ import type { AddableItem } from "./add-request-item-dialog";
 const ADDABLE_LIMIT = 500;
 
 const REQUEST_SELECT =
-  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, as_is_method, as_is_typed_name, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, occurred_at, created_at, inventory_item:inventory_items(id, description, size, status, photo_url, category_label:inventory_categories(label)))";
+  "id, status, delivery_method, ship_name, ship_line1, ship_line2, ship_city, ship_region, ship_postal_code, ship_country, payment_method, notes, quoted_amount, quoted_at, paid_at, fulfilled_at, cancelled_at, created_at, as_is_acknowledged_at, as_is_text, as_is_method, as_is_typed_name, as_is_request:gear_request_acknowledgement_requests(requested_at, acknowledged_at), requester:people!gear_requests_tenant_id_person_id_fkey(id, name, preferred_name, email, phone, instagram_handle), movements:inventory_movements(id, movement_type, occurred_at, created_at, inventory_item:inventory_items(id, description, size, status, photo_url, category_label:inventory_categories(label)))";
 
 function requestTitle(row: GearRequestDetailRow | null): string {
   return row
@@ -54,7 +54,9 @@ export async function generateMetadata({
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("gear_requests")
-    .select("id, requester:people(name, preferred_name, email)")
+    .select(
+      "id, requester:people!gear_requests_tenant_id_person_id_fkey(name, preferred_name, email)",
+    )
     .eq("id", requestId)
     .maybeSingle();
   return {

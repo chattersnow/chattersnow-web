@@ -1,4 +1,11 @@
 import type { ParseResult } from "@/lib/forms";
+import { GROUP_CHAT_LABEL_MAX_LENGTH } from "@/lib/registration-group-chat";
+import {
+  REMINDER_DAYS_MAX,
+  REMINDER_DAYS_MIN,
+  REMINDER_INTRO_MAX_LENGTH,
+  storedReminderIntro,
+} from "@/lib/event-reminders";
 
 const VISIBILITIES = ["public", "private"] as const;
 // No `completed` (#1609): whether an event is over is read off its dates.
@@ -97,6 +104,26 @@ export type EventPlanningFormData = {
    * (stored as null).
    */
   confirmationNote: string | null | undefined;
+  /**
+   * #1648. The switch and its label, under `adultsOnly`'s null-when-absent
+   * rule; a blank label is stored as null, which reads "Group chat".
+   */
+  groupChatEnabled: boolean | null;
+  groupChatLabel: string | null | undefined;
+  /**
+   * #1649. The carpools switch under the same null-when-absent rule, and the
+   * number question seats come from: undefined when not sent, null for none.
+   */
+  carpoolsEnabled: boolean | null;
+  carpoolSeatsQuestionId: string | null | undefined;
+  /**
+   * #1652. The reminder switch and its days under the same null-when-absent
+   * rule, and its intro: undefined when not sent, null for blank or the
+   * platform default.
+   */
+  reminderEnabled: boolean | null;
+  reminderDaysBefore: number | null;
+  reminderIntro: string | null | undefined;
 };
 
 /** AUTO_REPLY_PARAGRAPH_MAX_LENGTH, the paragraphs either side of it. */
@@ -122,6 +149,61 @@ export function parseEventPlanningForm(
     adultsOnlyRaw === null
       ? null
       : adultsOnlyRaw === "on" || adultsOnlyRaw === "true";
+  const groupChatEnabledRaw = formData.get("groupChatEnabled");
+  const groupChatEnabled =
+    groupChatEnabledRaw === null
+      ? null
+      : groupChatEnabledRaw === "on" || groupChatEnabledRaw === "true";
+  const groupChatLabelRaw = formData.get("groupChatLabel");
+  const groupChatLabel =
+    groupChatLabelRaw === null
+      ? undefined
+      : String(groupChatLabelRaw).trim() || null;
+  if (groupChatLabel && groupChatLabel.length > GROUP_CHAT_LABEL_MAX_LENGTH) {
+    return {
+      error: `Group chat name must be ${GROUP_CHAT_LABEL_MAX_LENGTH} characters or fewer.`,
+    };
+  }
+  const carpoolsEnabledRaw = formData.get("carpoolsEnabled");
+  const carpoolsEnabled =
+    carpoolsEnabledRaw === null
+      ? null
+      : carpoolsEnabledRaw === "on" || carpoolsEnabledRaw === "true";
+  const carpoolSeatsRaw = formData.get("carpoolSeatsQuestionId");
+  const carpoolSeatsQuestionId =
+    carpoolSeatsRaw === null
+      ? undefined
+      : String(carpoolSeatsRaw).trim() || null;
+  const reminderEnabledRaw = formData.get("reminderEnabled");
+  const reminderEnabled =
+    reminderEnabledRaw === null
+      ? null
+      : reminderEnabledRaw === "on" || reminderEnabledRaw === "true";
+  const reminderDaysRaw = formData.get("reminderDaysBefore");
+  let reminderDaysBefore: number | null = null;
+  if (reminderDaysRaw !== null) {
+    const parsed = Number(String(reminderDaysRaw).trim());
+    if (
+      !Number.isInteger(parsed) ||
+      parsed < REMINDER_DAYS_MIN ||
+      parsed > REMINDER_DAYS_MAX
+    ) {
+      return {
+        error: `Reminder days must be a whole number from ${REMINDER_DAYS_MIN} to ${REMINDER_DAYS_MAX}.`,
+      };
+    }
+    reminderDaysBefore = parsed;
+  }
+  const reminderIntroRaw = formData.get("reminderIntro");
+  const reminderIntro =
+    reminderIntroRaw === null
+      ? undefined
+      : storedReminderIntro(String(reminderIntroRaw));
+  if (reminderIntro && reminderIntro.length > REMINDER_INTRO_MAX_LENGTH) {
+    return {
+      error: `Reminder intro must be ${REMINDER_INTRO_MAX_LENGTH} characters or fewer.`,
+    };
+  }
   const budgetAmountRaw = String(formData.get("budgetAmount") ?? "").trim();
   const confirmationNoteRaw = formData.get("confirmationNote");
   const confirmationNote =
@@ -190,6 +272,13 @@ export function parseEventPlanningForm(
       adultsOnly,
       budgetAmount,
       confirmationNote,
+      groupChatEnabled,
+      groupChatLabel,
+      carpoolsEnabled,
+      carpoolSeatsQuestionId,
+      reminderEnabled,
+      reminderDaysBefore,
+      reminderIntro,
     },
   };
 }

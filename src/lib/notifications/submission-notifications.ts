@@ -24,7 +24,9 @@ import {
   renderVolunteerApplicationEmail,
 } from "@/lib/notifications/submission-emails";
 import { renderGearRequestConfirmationEmail } from "@/lib/notifications/gear-request-confirmation-email";
+import { formatRegistrationContact } from "@/lib/registration-contact";
 import { renderEventRegistrationConfirmationEmail } from "@/lib/notifications/event-registration-confirmation-email";
+import { loadCarpoolCostNotice } from "@/lib/notifications/carpool-cost-notice";
 import type { IssuedAnswersLink } from "@/lib/notifications/registration-answer-self-links";
 import { publicEventAnswersPath } from "@/app/(public)/events/event-path";
 import { renderVolunteerApplicationConfirmationEmail } from "@/lib/notifications/volunteer-application-confirmation-email";
@@ -616,7 +618,7 @@ type GearRequestRow = {
 };
 
 const GEAR_REQUEST_SELECT =
-  "id, tenant_id, person_id, delivery_method, payment_method, requester:people(name, preferred_name, email)";
+  "id, tenant_id, person_id, delivery_method, payment_method, requester:people!gear_requests_tenant_id_person_id_fkey(name, preferred_name, email)";
 
 /**
  * Staff side of a gear request (#1032): the inventory managers hear that
@@ -955,6 +957,10 @@ type EventRegistrationRow = {
   name: string | null;
   email: string | null;
   party_size: number | null;
+  instagram_handle: string | null;
+  has_no_instagram: boolean | null;
+  preferred_contact_method: string | null;
+  preferred_contact_detail: string | null;
 };
 
 type ConfirmationEventRow = {
@@ -964,10 +970,11 @@ type ConfirmationEventRow = {
   location: string | null;
   timezone: string;
   confirmation_note: string | null;
+  carpools_enabled: boolean;
 };
 
 const EVENT_REGISTRATION_SELECT =
-  "id, tenant_id, event_id, person_id, name, email, party_size";
+  "id, tenant_id, event_id, person_id, name, email, party_size, instagram_handle, has_no_instagram, preferred_contact_method, preferred_contact_detail";
 
 /**
  * The registrant's own confirmation (#1068), shaped like the gear requester's
@@ -1073,7 +1080,7 @@ export async function sendEventRegistrationConfirmation(
       admin
         .from("events")
         .select(
-          "name, starts_at, ends_at, location, timezone, confirmation_note",
+          "name, starts_at, ends_at, location, timezone, confirmation_note, carpools_enabled",
         )
         .eq("id", data.event_id)
         .eq("tenant_id", data.tenant_id)
@@ -1128,6 +1135,11 @@ export async function sendEventRegistrationConfirmation(
   }
   if (!event.data) return "skipped";
   const registered = event.data;
+  // #1650. Only on an event that organizes carpools, so every other
+  // confirmation costs no read.
+  const carpoolNotice = registered.carpools_enabled
+    ? await loadCarpoolCostNotice(admin, data.tenant_id)
+    : [];
 
   return deliverEmail(admin, {
     tenantId: data.tenant_id,
@@ -1162,12 +1174,19 @@ export async function sendEventRegistrationConfirmation(
           ),
           note: registered.confirmation_note,
           sharedCode: sharedCode.data ?? null,
+          // #1647. Only where it was asked: null on every tenant that does
+          // not require a handle, which renders no row.
+          contact:
+            data.has_no_instagram === null
+              ? null
+              : formatRegistrationContact(data),
           answersLink: options.answersLink
             ? {
                 url: `${mail.origin.replace(/\/+$/, "")}${publicEventAnswersPath(data.event_id, options.answersLink.token)}`,
                 expiresAt: options.answersLink.expiresAt,
               }
             : null,
+          carpoolNotice,
           eventId: data.event_id,
           siteUrl: mail.origin,
           branding: mail.branding,

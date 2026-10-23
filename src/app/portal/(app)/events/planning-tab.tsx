@@ -48,6 +48,57 @@ import {
   type QuestionDraft,
 } from "./registration-questions-draft";
 import { QUESTION_KIND_LABELS } from "@/lib/registration-questions";
+import {
+  DEFAULT_GROUP_CHAT_LABEL,
+  GROUP_CHAT_LABEL_MAX_LENGTH,
+  groupChatLabel,
+} from "@/lib/registration-group-chat";
+import {
+  DEFAULT_REMINDER_INTRO,
+  REMINDER_DAYS_DEFAULT,
+  REMINDER_DAYS_MAX,
+  REMINDER_DAYS_MIN,
+  REMINDER_INTRO_MAX_LENGTH,
+  reminderIntro,
+} from "@/lib/event-reminders";
+import {
+  ReminderPreviewButton,
+  ReminderStatusLine,
+} from "./event-reminder-settings";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const NO_SEATS_QUESTION = "__typed__";
+
+function carpoolsSummary(
+  event: EventRow,
+  enabled: boolean,
+  seatsQuestionId: string,
+): string {
+  if (!enabled) return "Off";
+  const question = seatsQuestionChoices(event).find(
+    (row) => row.id === seatsQuestionId,
+  );
+  return question ? `On · seats from “${question.prompt}”` : "On";
+}
+
+/**
+ * #1649. The saved, live `number` questions a new car's seats can come from.
+ * Saved only: the pointer names a stored row, so a question added in this same
+ * edit can be picked after it is saved.
+ */
+function seatsQuestionChoices(event: EventRow) {
+  return (event.registration_questions ?? []).filter(
+    (question) =>
+      question.kind === "number" &&
+      !(question as { archived_at?: string | null }).archived_at,
+  );
+}
 
 function toDatetimeLocalValue(iso: string | null) {
   // The browser's zone, so the prefill and the save agree (#1063).
@@ -63,6 +114,17 @@ function formStateFor(event: EventRow) {
     autoAssignDiscountCodes: event.auto_assign_discount_codes,
     adultsOnly: event.adults_only ?? false,
     confirmationNote: event.confirmation_note ?? "",
+    groupChatEnabled: event.group_chat_enabled ?? false,
+    groupChatLabel: event.group_chat_label ?? "",
+    carpoolsEnabled: event.carpools_enabled ?? false,
+    carpoolSeatsQuestionId: event.carpool_seats_question_id ?? "",
+    reminderEnabled: event.reminder_enabled ?? false,
+    reminderDaysBefore: String(
+      event.reminder_days_before ?? REMINDER_DAYS_DEFAULT,
+    ),
+    // Prefilled with the platform default, so staff edit words rather than
+    // write them from nothing; saved unchanged, it is stored as null.
+    reminderIntro: reminderIntro(event.reminder_intro),
     budgetAmount:
       event.budget_amount === null ? "" : String(event.budget_amount),
     registrationOptions: registrationOptionsDraft(
@@ -176,6 +238,13 @@ export function PlanningTab({
     formData.set("adultsOnly", form.adultsOnly ? "on" : "off");
     formData.set("budgetAmount", form.budgetAmount);
     formData.set("confirmationNote", form.confirmationNote);
+    formData.set("groupChatEnabled", form.groupChatEnabled ? "on" : "off");
+    formData.set("groupChatLabel", form.groupChatLabel);
+    formData.set("carpoolsEnabled", form.carpoolsEnabled ? "on" : "off");
+    formData.set("carpoolSeatsQuestionId", form.carpoolSeatsQuestionId);
+    formData.set("reminderEnabled", form.reminderEnabled ? "on" : "off");
+    formData.set("reminderDaysBefore", form.reminderDaysBefore);
+    formData.set("reminderIntro", form.reminderIntro);
     // Only when changed, so saving a budget does not rewrite every option
     // (and the audit log with it).
     const baselineOptions = formStateFor(event).registrationOptions;
@@ -272,6 +341,40 @@ export function PlanningTab({
         </ReadOnlyField>
         <ReadOnlyField label="Adults only (18+)" htmlFor="planning-adultsOnly">
           {form.adultsOnly ? "On" : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Organize carpools"
+          htmlFor="planning-carpoolsEnabled"
+        >
+          {carpoolsSummary(
+            event,
+            form.carpoolsEnabled,
+            form.carpoolSeatsQuestionId,
+          )}
+        </ReadOnlyField>
+        <ReadOnlyField label="Group chat" htmlFor="planning-groupChatEnabled">
+          {form.groupChatEnabled
+            ? `On · ${groupChatLabel(form.groupChatLabel)}`
+            : "Off"}
+        </ReadOnlyField>
+        <ReadOnlyField
+          label="Reminder email"
+          htmlFor="planning-reminderEnabled"
+        >
+          {form.reminderEnabled ? (
+            <>
+              <span className="block">
+                On · {reminderDaysText(form.reminderDaysBefore)} before
+              </span>
+              <ReminderStatusLine
+                eventId={event.id}
+                timeZone={event.timezone}
+                version={reminderVersion(event)}
+              />
+            </>
+          ) : (
+            "Off"
+          )}
         </ReadOnlyField>
         <ReadOnlyField
           label="Confirmation email note"
@@ -411,6 +514,171 @@ export function PlanningTab({
           />
         </Field>
 
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-groupChatEnabled">
+              This event has a group chat
+            </FieldLabel>
+            <FieldDescription>
+              Adds a column to the registrants list for marking who has been
+              added to the chat. Only staff see it.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-groupChatEnabled"
+            checked={form.groupChatEnabled}
+            onCheckedChange={(checked) => update("groupChatEnabled", checked)}
+          />
+        </Field>
+
+        {form.groupChatEnabled && (
+          <Field>
+            <FieldLabel htmlFor="planning-groupChatLabel">
+              Group chat name
+            </FieldLabel>
+            <Input
+              id="planning-groupChatLabel"
+              maxLength={GROUP_CHAT_LABEL_MAX_LENGTH}
+              placeholder={DEFAULT_GROUP_CHAT_LABEL}
+              value={form.groupChatLabel}
+              onChange={(changeEvent) =>
+                update("groupChatLabel", changeEvent.target.value)
+              }
+            />
+            <FieldDescription>
+              What the registrants list calls it, such as “Instagram group
+              chat”. Optional.
+            </FieldDescription>
+          </Field>
+        )}
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-carpoolsEnabled">
+              Organize carpools
+            </FieldLabel>
+            <FieldDescription>
+              Adds a Carpools section for planning cars, drivers and passengers,
+              and who has paid their driver. Only staff see it.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-carpoolsEnabled"
+            checked={form.carpoolsEnabled}
+            onCheckedChange={(checked) => update("carpoolsEnabled", checked)}
+          />
+        </Field>
+
+        {form.carpoolsEnabled && seatsQuestionChoices(event).length > 0 && (
+          <Field>
+            <FieldLabel htmlFor="planning-carpoolSeatsQuestionId">
+              Seats come from
+            </FieldLabel>
+            <Select
+              value={form.carpoolSeatsQuestionId || NO_SEATS_QUESTION}
+              onValueChange={(value) =>
+                update(
+                  "carpoolSeatsQuestionId",
+                  value === NO_SEATS_QUESTION || value === null
+                    ? ""
+                    : String(value),
+                )
+              }
+            >
+              <SelectTrigger
+                id="planning-carpoolSeatsQuestionId"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SEATS_QUESTION}>
+                  Typed for each car
+                </SelectItem>
+                {seatsQuestionChoices(event).map((question) => (
+                  <SelectItem key={question.id} value={question.id}>
+                    {question.prompt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              A number question whose answer fills in a new car&apos;s seats
+              when its driver is chosen.
+            </FieldDescription>
+          </Field>
+        )}
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="planning-reminderEnabled">
+              Reminder email
+            </FieldLabel>
+            <FieldDescription>
+              Emails everyone registered the event details, their carpool and a
+              fresh link to change their answers, once, at 9:00 in the
+              event&apos;s time zone. People who register after it goes are not
+              sent one.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="planning-reminderEnabled"
+            checked={form.reminderEnabled}
+            onCheckedChange={(checked) => update("reminderEnabled", checked)}
+          />
+        </Field>
+
+        {form.reminderEnabled && (
+          <>
+            <Field>
+              <FieldLabel htmlFor="planning-reminderDaysBefore">
+                Days before the event
+              </FieldLabel>
+              <Input
+                id="planning-reminderDaysBefore"
+                type="number"
+                min={REMINDER_DAYS_MIN}
+                max={REMINDER_DAYS_MAX}
+                step={1}
+                value={form.reminderDaysBefore}
+                onChange={(changeEvent) =>
+                  update("reminderDaysBefore", changeEvent.target.value)
+                }
+              />
+              <ReminderStatusLine
+                eventId={event.id}
+                timeZone={event.timezone}
+                version={reminderVersion(event)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="planning-reminderIntro">
+                Reminder intro
+              </FieldLabel>
+              <Textarea
+                id="planning-reminderIntro"
+                rows={3}
+                maxLength={REMINDER_INTRO_MAX_LENGTH}
+                placeholder={DEFAULT_REMINDER_INTRO}
+                value={form.reminderIntro}
+                onChange={(changeEvent) =>
+                  update("reminderIntro", changeEvent.target.value)
+                }
+              />
+              <FieldDescription>
+                The opening paragraph, above the event details. Left blank, it
+                reads the default.
+              </FieldDescription>
+              <div>
+                <ReminderPreviewButton
+                  eventId={event.id}
+                  intro={form.reminderIntro}
+                />
+              </div>
+            </Field>
+          </>
+        )}
+
         <Field>
           <FieldLabel htmlFor="planning-confirmationNote">
             Confirmation email note
@@ -454,6 +722,20 @@ export function PlanningTab({
       </FieldGroup>
     </form>
   );
+}
+
+function reminderDaysText(days: string): string {
+  return days === "1" ? "1 day" : `${days} days`;
+}
+
+/** What moves the reminder's send time or recipients, to read its status again. */
+function reminderVersion(event: EventRow): string {
+  return [
+    event.starts_at,
+    event.timezone,
+    event.reminder_enabled,
+    event.reminder_days_before,
+  ].join("|");
 }
 
 /** The read-only view of an event's questions (#1501), one per line. */

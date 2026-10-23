@@ -15,6 +15,9 @@ function report(overrides: Partial<OpsReportSource> = {}) {
       shiftCoverageGaps: [],
       newContactMessages: 1,
       newVolunteerApplications: 0,
+      // Everything new is unclaimed unless a test says otherwise.
+      unclaimedContactMessages: overrides.newContactMessages ?? 1,
+      unclaimedVolunteerApplications: overrides.newVolunteerApplications ?? 0,
       inKindDonations: 0,
       monetaryDonations: { count: 0, total: 0 },
       ...overrides,

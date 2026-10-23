@@ -11,18 +11,21 @@ import { formatFileSize } from "@/lib/publications";
 import {
   eventMediaExpiresSoon,
   eventMediaRetentionLabel,
+  keepSignedUrls,
 } from "@/lib/storage/event-media-files";
 import { useRegisterTabRefresh } from "@/hooks/use-tab-refresh";
 import type { TabValue } from "./event-tabs-config";
 import {
   deleteEventMediaAction,
   getEventMediaAction,
+  setEventMediaPublicAction,
   type EventMediaRow,
   type EventMediaState,
 } from "./media-actions";
 import { EventMediaUploader } from "./event-media-uploader";
 import { MediaExpiryNotice } from "./media-expiry-notice";
 import { MediaPhotoGrid } from "./media-photo-grid";
+import { MediaPublicLink } from "./media-public-link";
 import { MediaUploadLinks } from "./media-upload-links";
 import { MediaVideoList } from "./media-video-list";
 
@@ -31,10 +34,24 @@ function storageSize(bytes: number): string {
   return bytes > 0 ? formatFileSize(bytes) : "0 MB";
 }
 
+type HeldMediaState = Omit<EventMediaState, "items"> & {
+  items: (EventMediaRow & { signedAt: number })[];
+};
+
 /**
- * An event's photos and videos (#1606, #1607, #1608): the upload control,
- * while the organization has uploads on and the reader may upload here; the
- * photo-objection notice; what the retention setting deletes soon; then the
+ * What each event's tab last showed, kept across the tab unmounting so coming
+ * back to it shows the same URLs, which the browser already has, rather than
+ * signing and downloading every photo again (#1653). In memory only.
+ */
+const heldByEvent = new Map<
+  string,
+  { state: HeldMediaState; loadedAt: Date }
+>();
+
+/**
+ * An event's photos and videos (#1606, #1607, #1608, #1654): the upload
+ * control, while the organization has uploads on and the reader may upload
+ * here; the photo-objection notice; the public gallery's link; what the retention setting deletes soon; then the
  * photo gallery and the video list; how much storage the event and the
  * organization use, and how long this event's media is kept.
  */
@@ -51,22 +68,37 @@ export function MediaTab({
   eventEndsAt: string | null;
   timeZone: string;
 }) {
-  const [state, setState] = useState<EventMediaState | null>(null);
-  // When `state` was read, which "expires soon" is measured from: a clock read
-  // during render would differ between renders.
-  const [loadedAt, setLoadedAt] = useState<Date | null>(null);
+  // `loadedAt` is when `state` was read, which "expires soon" is measured
+  // from: a clock read during render would differ between renders.
+  const [held, setHeld] = useState(() => heldByEvent.get(eventId) ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Whether a show-or-hide is in flight; one at a time, like delete.
+  const [publishing, setPublishing] = useState(false);
   const [, startTransition] = useTransition();
 
   const load = useCallback(() => {
+    const requestedAt = Date.now();
     getEventMediaAction(eventId).then((result) => {
-      if ("error" in result) setLoadError(result.error);
-      else {
-        setLoadError(null);
-        setState(result.data);
-        setLoadedAt(new Date());
+      if ("error" in result) {
+        setLoadError(result.error);
+        return;
       }
+      setLoadError(null);
+      const prior = heldByEvent.get(eventId);
+      const next = {
+        state: {
+          ...result.data,
+          items: keepSignedUrls(
+            prior?.state.items ?? [],
+            result.data.items,
+            requestedAt,
+          ),
+        },
+        loadedAt: new Date(),
+      };
+      heldByEvent.set(eventId, next);
+      setHeld(next);
     });
   }, [eventId]);
 
@@ -87,6 +119,32 @@ export function MediaTab({
     });
   }
 
+  function handleSetPublic(items: EventMediaRow[], isPublic: boolean) {
+    if (items.length === 0) return;
+    const name =
+      items.length === 1
+        ? items[0].original_filename
+        : `${items.length} ${items.every((item) => item.kind === "photo") ? "photos" : "files"}`;
+    setPublishing(true);
+    startTransition(async () => {
+      await runAction(
+        () =>
+          setEventMediaPublicAction(
+            eventId,
+            items.map((item) => item.id),
+            isPublic,
+          ),
+        {
+          success: isPublic
+            ? `${name} ${items.length === 1 ? "is" : "are"} public.`
+            : `${name} ${items.length === 1 ? "is" : "are"} hidden from the public site.`,
+          onSuccess: load,
+        },
+      );
+      setPublishing(false);
+    });
+  }
+
   if (loadError) {
     return (
       <Alert variant="destructive">
@@ -94,7 +152,8 @@ export function MediaTab({
       </Alert>
     );
   }
-  if (!state || !loadedAt) return <TabLoadingSkeleton />;
+  if (!held) return <TabLoadingSkeleton />;
+  const { state, loadedAt } = held;
 
   const showUploader = state.enabled && state.canUpload;
   // events:manage (canDelete) on top of being allowed to upload at all, which
@@ -116,7 +175,9 @@ export function MediaTab({
             {state.photoObjections === 1
               ? "1 person at this event objected to being photographed"
               : `${state.photoObjections} people at this event objected to being photographed`}{" "}
-            — check photos and footage before sharing them outside the portal.
+            {state.publicGalleryEnabled
+              ? "— photos go on the public site as soon as they are uploaded, so check them now and hide any photo of someone who objected."
+              : "— check photos and footage before sharing them outside the portal."}
           </AlertDescription>
         </Alert>
       )}
@@ -133,6 +194,15 @@ export function MediaTab({
           eventEndsAt={eventEndsAt}
           timeZone={timeZone}
         />
+      )}
+      {state.publicGalleryUrl && (
+        <MediaPublicLink url={state.publicGalleryUrl} />
+      )}
+      {!state.publicGalleryEnabled && state.items.length > 0 && (
+        <p className="app-muted text-sm">
+          The public event gallery is off for this organization, so nothing here
+          is on the public site, whatever it is marked.
+        </p>
       )}
       {state.items.length === 0 ? (
         <EmptyState
@@ -154,6 +224,8 @@ export function MediaTab({
               canDelete={state.canDelete}
               deletingId={deletingId}
               onDelete={handleDelete}
+              publishing={publishing}
+              onSetPublic={handleSetPublic}
             />
           )}
           {videos.length > 0 && (
@@ -163,6 +235,8 @@ export function MediaTab({
               canDelete={state.canDelete}
               deletingId={deletingId}
               onDelete={handleDelete}
+              publishing={publishing}
+              onSetPublic={handleSetPublic}
             />
           )}
         </>

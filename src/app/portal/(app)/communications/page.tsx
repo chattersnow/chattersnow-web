@@ -10,8 +10,15 @@ import {
   NO_RECORD_MESSAGES,
 } from "@/lib/outbound-messages";
 import { loadRecordMessages } from "@/lib/portal/record-messages";
+import { getQueueClaimContext } from "@/lib/portal/queue-claim-context";
+import {
+  CLAIM_FILTER_PARAM,
+  claimFilterValue,
+  parseClaimFilter,
+} from "@/lib/queue-claims";
 import { MessagesTable } from "./messages-table";
 import {
+  CONTACT_MESSAGE_SELECT,
   CONTACT_MESSAGE_STATUSES,
   MESSAGE_PARAM,
   type ContactMessage,
@@ -38,7 +45,10 @@ export default async function CommunicationsPage({
   searchParams,
 }: CommunicationsPageProps) {
   const supabase = await createSupabaseServerClient();
-  const permissions = await getCurrentUserPermissions(supabase);
+  const [permissions, claimContext] = await Promise.all([
+    getCurrentUserPermissions(supabase),
+    getQueueClaimContext(supabase),
+  ]);
   const canManage = hasPermission(permissions, "communications", "manage");
 
   const params = await searchParams;
@@ -48,6 +58,13 @@ export default async function CommunicationsPage({
   )
     ? (statusParam as ContactMessageStatus)
     : null;
+  // The ops inbox links here with `claimed=none` when some new messages are
+  // already claimed (#1668). Applied client-side like the status filter, and
+  // sticky the same way: claiming a message from the Unclaimed view must not
+  // pull it out from under the reader (#1670).
+  const claimFilter = parseClaimFilter(params[CLAIM_FILTER_PARAM]);
+  const initialClaimFilter =
+    claimFilter.kind === "all" ? null : claimFilterValue(claimFilter);
 
   // Which message a notification email (#742) linked at, if any. This list is
   // unpaginated and the deep link carries no status filter, so the row is
@@ -59,10 +76,10 @@ export default async function CommunicationsPage({
 
   const { data: messages, error } = await supabase
     .from("contact_messages")
-    .select("id, name, email, topic, message, status, created_at")
+    .select(CONTACT_MESSAGE_SELECT)
     .order("created_at", { ascending: false });
 
-  const messageRows = (messages ?? []) as ContactMessage[];
+  const messageRows = (messages ?? []) as unknown as ContactMessage[];
 
   // What has been replied to each of these from the portal (#1204), in one
   // query rather than one per sheet. RLS answers with nothing at all without
@@ -108,6 +125,9 @@ export default async function CommunicationsPage({
             messages={messageRows}
             canManage={canManage}
             initialStatusFilter={initialStatusFilter}
+            initialClaimFilter={initialClaimFilter}
+            myPersonId={claimContext.myPersonId}
+            staff={claimContext.staff}
             linkedMessageId={linkedMessageId}
             recordMessages={recordMessages}
             replyTo={(orgMail.data?.reply_to as string | null) ?? null}

@@ -23,6 +23,10 @@ import {
   REGISTRATION_ANSWER_ERROR_MESSAGES,
 } from "@/lib/registration-questions";
 import { parseAttendedBefore } from "@/lib/attended-before";
+import {
+  parseRegistrationContact,
+  REGISTRATION_CONTACT_ERROR_MESSAGES,
+} from "@/lib/registration-contact";
 import { parseRegistrationRiding } from "@/lib/rider-profile-form";
 import {
   MINOR_CONTACTS_REQUIRED_CODE,
@@ -74,6 +78,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   ...REGISTRATION_OPTION_ERROR_MESSAGES,
   // #1501
   ...REGISTRATION_ANSWER_ERROR_MESSAGES,
+  // #1647, as on the anonymous path.
+  ...REGISTRATION_CONTACT_ERROR_MESSAGES,
 };
 
 /**
@@ -119,6 +125,10 @@ export async function registerMyselfForEventAction(
   const answers = parseAnswersField(formData);
   if ("error" in answers) return { error: answers.error, step: "event" };
 
+  // #1647, as on the anonymous path.
+  const contact = parseRegistrationContact(formData);
+  if ("error" in contact) return { error: contact.error, step: "about" };
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("register_myself_for_event", {
     p_event_id: eventId,
@@ -126,7 +136,12 @@ export async function registerMyselfForEventAction(
     p_notes: String(formData.get("notes") ?? ""),
     p_phone: String(formData.get("phone") ?? ""),
     p_pronouns: String(formData.get("pronouns") ?? ""),
-    p_instagram_handle: String(formData.get("instagramHandle") ?? ""),
+    p_instagram_handle: contact.data.instagram_handle ?? "",
+    p_has_no_instagram: contact.data.has_no_instagram ?? undefined,
+    p_preferred_contact_method:
+      contact.data.preferred_contact_method ?? undefined,
+    p_preferred_contact_detail:
+      contact.data.preferred_contact_detail ?? undefined,
     // #1259, and worth being explicit about why it is asked of somebody the
     // organization already has a full record for: the check-in ledger only
     // knows the events this tenant ran on this platform, so "have you been

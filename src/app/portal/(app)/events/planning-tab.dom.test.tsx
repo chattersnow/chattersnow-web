@@ -25,6 +25,25 @@ mock.module("./actions", () => ({
   updateEventPlanningAction: updateEventPlanningActionMock,
 }));
 
+const loadEventReminderStatusActionMock = mock(async () => ({
+  success: true as const,
+  status: {
+    sendAt: new Date(Date.now() + 86_400_000).toISOString(),
+    recipients: 12,
+    sent: 0,
+  },
+}));
+
+mock.module("./reminder-actions", () => ({
+  loadEventReminderStatusAction: loadEventReminderStatusActionMock,
+  previewEventReminderAction: mock(async () => ({
+    success: true,
+    subject: "Reminder",
+    html: "<p>Reminder</p>",
+  })),
+  sendEventReminderNowAction: mock(async () => ({ success: true })),
+}));
+
 const { PlanningTab } = await import("./planning-tab");
 
 function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
@@ -219,5 +238,44 @@ describe("PlanningTab adults only (#1417)", () => {
     expect(
       updateEventPlanningActionMock.mock.calls[0][1].get("adultsOnly"),
     ).toBe("off");
+  });
+});
+
+describe("PlanningTab reminder email (#1652)", () => {
+  beforeEach(() => {
+    updateEventPlanningActionMock.mockClear();
+  });
+
+  test("shows the schedule and saves the days and intro", async () => {
+    const user = userEvent.setup();
+    renderTab(makeEvent({ reminder_enabled: true, reminder_days_before: 2 }));
+
+    const status = await screen.findByTestId("reminder-status");
+    expect(status.textContent).toMatch(
+      /^Scheduled for .*E[DS]T · 12 recipients$/,
+    );
+    const days = screen.getByLabelText("Days before the event");
+    await user.clear(days);
+    await user.type(days, "3");
+    const intro = screen.getByLabelText("Reminder intro");
+    await user.clear(intro);
+    await user.type(intro, "Bring layers");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateEventPlanningActionMock).toHaveBeenCalledTimes(1),
+    );
+    const formData = updateEventPlanningActionMock.mock.calls[0][1];
+    expect(formData.get("reminderEnabled")).toBe("on");
+    expect(formData.get("reminderDaysBefore")).toBe("3");
+    expect(formData.get("reminderIntro")).toBe("Bring layers");
+  });
+
+  test("hides the days and intro while it is off", () => {
+    renderTab(makeEvent({ reminder_enabled: false }));
+    expect(
+      screen.getByRole("switch", { name: "Reminder email" }),
+    ).not.toBeChecked();
+    expect(screen.queryByLabelText("Days before the event")).toBeNull();
   });
 });

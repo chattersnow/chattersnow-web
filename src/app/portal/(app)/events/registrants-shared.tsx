@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { RotateCcw } from "lucide-react";
-import type {
-  EventRegistrant,
-  EventRegistrantsData,
+import { useMemo, useState, useTransition } from "react";
+import { MessageCircleOff, RotateCcw } from "lucide-react";
+import {
+  setRegistrationsGroupChatAction,
+  type EventRegistrant,
+  type EventRegistrantsData,
 } from "./registrants-actions";
+import { runAction } from "@/components/portal/action-toast";
+import { StatusBadge } from "@/components/portal/status-badge";
+import type { EventGroupChat } from "@/lib/registration-group-chat";
 import { RiderProfileDialog } from "./rider-profile-dialog";
 import { CancelRegistrationDialog } from "./cancel-registration-dialog";
 import {
@@ -42,13 +46,26 @@ export function CancelledRegistrations({
   canRestore,
   onRestore,
   isRowPending,
+  groupChat = null,
+  onGroupChatChanged,
 }: {
   cancelled: readonly EventRegistrant[];
   canRestore: boolean;
   onRestore: (registrant: EventRegistrant) => void;
   isRowPending: (registrant: EventRegistrant) => boolean;
+  /**
+   * #1648. A cancelled registration keeps its group chat flag, so this list
+   * is where staff see who to take back out -- and mark it once they have.
+   */
+  groupChat?: EventGroupChat;
+  onGroupChatChanged?: () => void;
 }) {
   const [shown, setShown] = useState(false);
+  const [groupChatPending, startGroupChat] = useTransition();
+  const stillInChat = groupChat
+    ? cancelled.filter((registrant) => registrant.group_chat_added_at !== null)
+        .length
+    : 0;
 
   const columns = useMemo<PortalDataTableColumn<EventRegistrant>[]>(
     () => [
@@ -58,9 +75,16 @@ export function CancelledRegistrations({
         sortValue: (registrant) => registrant.name,
         cellClassName: "max-w-xs font-medium",
         render: (registrant) => (
-          <span className="block truncate" title={registrant.name}>
-            {registrant.name}
-          </span>
+          <>
+            <span className="block truncate" title={registrant.name}>
+              {registrant.name}
+            </span>
+            {groupChat && registrant.group_chat_added_at && (
+              <StatusBadge tone="warning" className="mt-1 font-normal">
+                Still in {groupChat.label}
+              </StatusBadge>
+            )}
+          </>
         ),
       },
       {
@@ -103,22 +127,58 @@ export function CancelledRegistrations({
               headClassName: "w-0",
               cellClassName: "text-right whitespace-nowrap",
               render: (registrant: EventRegistrant) => (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Restore registration for ${registrant.name}`}
-                  disabled={isRowPending(registrant)}
-                  onClick={() => onRestore(registrant)}
-                >
-                  <RotateCcw /> Restore
-                </Button>
+                <>
+                  {groupChat && registrant.group_chat_added_at && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Mark ${registrant.name} removed from ${groupChat.label}`}
+                      disabled={groupChatPending}
+                      onClick={() =>
+                        startGroupChat(async () => {
+                          await runAction(
+                            () =>
+                              setRegistrationsGroupChatAction({
+                                eventId: registrant.event_id,
+                                registrationIds: [registrant.id],
+                                added: false,
+                              }),
+                            {
+                              success: `${registrant.name} marked not in ${groupChat.label}.`,
+                              onSuccess: onGroupChatChanged,
+                            },
+                          );
+                        })
+                      }
+                    >
+                      <MessageCircleOff /> Removed
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Restore registration for ${registrant.name}`}
+                    disabled={isRowPending(registrant)}
+                    onClick={() => onRestore(registrant)}
+                  >
+                    <RotateCcw /> Restore
+                  </Button>
+                </>
               ),
             } satisfies PortalDataTableColumn<EventRegistrant>,
           ]
         : []),
     ],
-    [canRestore, isRowPending, onRestore],
+    [
+      canRestore,
+      isRowPending,
+      onRestore,
+      groupChat,
+      groupChatPending,
+      onGroupChatChanged,
+    ],
   );
 
   if (cancelled.length === 0) return null;
@@ -134,7 +194,8 @@ export function CancelledRegistrations({
           aria-expanded={shown}
           onClick={() => setShown((open) => !open)}
         >
-          {shown ? "Hide" : "Show"} cancelled ({cancelled.length})
+          {shown ? "Hide" : "Show"} cancelled ({cancelled.length}
+          {stillInChat > 0 && ` · ${stillInChat} still in ${groupChat?.label}`})
         </Button>
       </div>
       {shown && (
@@ -233,6 +294,8 @@ export function RegistrantOverlays({
           photoConsentInForce={data?.photoConsentInForce ?? false}
           optionsPrompt={data?.registrationOptions?.prompt ?? null}
           registrationQuestions={data?.registrationQuestions ?? NO_QUESTIONS}
+          groupChat={data?.groupChat ?? null}
+          carpools={data?.carpools ?? null}
           onClosed={onDetailClosed}
           onSent={onRegistrantsChanged}
           onAnswersSaved={onRegistrantsChanged}

@@ -2,6 +2,7 @@ import { isEmailAddress } from "@/lib/email/identity";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { formatDateInZone, formatDateTimeInZone } from "@/lib/time";
 import { DIGEST_TIME_ZONE } from "@/lib/notifications/task-digest";
+import { withUnclaimedFilter, withUnclaimedSuffix } from "@/lib/queue-claims";
 
 /**
  * What goes in the daily leadership ops report, and how it reads (#743).
@@ -77,6 +78,9 @@ export type OpsReportSource = {
   shiftCoverageGaps: ShiftCoverageGap[];
   newContactMessages: number;
   newVolunteerApplications: number;
+  /** Of the new ones, how many nobody has claimed yet (#1668). */
+  unclaimedContactMessages: number;
+  unclaimedVolunteerApplications: number;
   inKindDonations: number;
   monetaryDonations: { count: number; total: number };
 };
@@ -115,6 +119,8 @@ export const OPS_REPORT_SOURCE_MODULES = {
   shiftCoverageGaps: "events",
   newContactMessages: "communications",
   newVolunteerApplications: "volunteers",
+  unclaimedContactMessages: "communications",
+  unclaimedVolunteerApplications: "volunteers",
   inKindDonations: "inventory",
   monetaryDonations: "finance",
 } as const satisfies Record<keyof OpsReportSource, string>;
@@ -316,17 +322,35 @@ function comingUpSection(source: OpsReportSource): OpsReportSection | null {
 function newSinceSection(source: OpsReportSource): OpsReportSection | null {
   const lines: OpsReportLine[] = [];
 
+  // The same unclaimed suffix and `claimed=none` link as the portal's ops
+  // inbox (#1668), so the email and the bell describe a queue the same way.
   if (source.newContactMessages > 0) {
     lines.push({
-      label: plural(source.newContactMessages, "contact message"),
-      href: "/portal/communications?status=new",
+      label: withUnclaimedSuffix(
+        plural(source.newContactMessages, "contact message"),
+        source.newContactMessages,
+        source.unclaimedContactMessages,
+      ),
+      href: withUnclaimedFilter(
+        "/portal/communications?status=new",
+        source.newContactMessages,
+        source.unclaimedContactMessages,
+      ),
       severity: "info",
     });
   }
   if (source.newVolunteerApplications > 0) {
     lines.push({
-      label: plural(source.newVolunteerApplications, "volunteer application"),
-      href: "/portal/volunteers/applications?status=new",
+      label: withUnclaimedSuffix(
+        plural(source.newVolunteerApplications, "volunteer application"),
+        source.newVolunteerApplications,
+        source.unclaimedVolunteerApplications,
+      ),
+      href: withUnclaimedFilter(
+        "/portal/volunteers/applications?status=new",
+        source.newVolunteerApplications,
+        source.unclaimedVolunteerApplications,
+      ),
       severity: "info",
     });
   }

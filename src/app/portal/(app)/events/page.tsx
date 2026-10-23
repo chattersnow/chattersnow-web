@@ -38,7 +38,9 @@ import { getRiderProfileMountains } from "@/lib/rider-profile-settings";
 import {
   getEventMediaRetentionDays,
   getEventMediaUploadsEnabled,
+  getEventPublicGalleryEnabled,
   getRegistrationAsksAboutMinors,
+  getRegistrationRequiresInstagram,
 } from "@/lib/registration-settings";
 import { FilterSubmitButton } from "@/components/filter-submit-button";
 import { LinkPendingPulse } from "@/components/link-pending";
@@ -46,9 +48,11 @@ import { SortHeaderLink } from "@/components/portal/sort-header-link";
 import { listProgramsAction } from "../programs/actions";
 
 import {
-  getEventTaskSummary,
-  groupEventTasksByEvent,
-} from "@/lib/portal/attention-items";
+  EVENT_OPEN_WORK_KINDS,
+  EVENT_OPEN_WORK_PARAM_PREFIX,
+  getEventOpenWork,
+} from "@/lib/portal/event-open-work";
+import { parseTaskFilters } from "@/lib/portal/task-list";
 import { ViewerTime } from "@/components/viewer-time";
 import { EventTimingBadge } from "./event-timing-badge";
 import {
@@ -97,6 +101,9 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "events", "manage");
+  // The route layout already requires events:view; asked so the tasks list
+  // says who it is for. A view-only role sees it without check-off controls.
+  const canViewEvents = hasPermission(permissions, "events", "view");
   const canManageRiderMountains = hasPermission(
     permissions,
     "rider_profiles",
@@ -150,6 +157,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   // part of `filterParams` below -- it isn't a filter on the table, and sort/
   // page links shouldn't carry it and reopen the sheet on every navigation.
   const tasksOpen = raw("tasks") === "open";
+  const taskFilters = parseTaskFilters(
+    params,
+    EVENT_OPEN_WORK_KINDS,
+    EVENT_OPEN_WORK_PARAM_PREFIX,
+  );
   const nowIso = new Date().toISOString();
 
   const filteredEvents = (head = false) => {
@@ -218,11 +230,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     eventTasks,
     riderMountains,
     asksAboutMinors,
+    requiresInstagram,
     mediaUploadsEnabled,
     mediaRetention,
+    publicGalleryEnabled,
   ] = await Promise.all([
     listProgramsAction(),
-    getEventTaskSummary(supabase, { canManageEvents: canManage }, nowIso),
+    canViewEvents
+      ? getEventOpenWork(supabase, taskFilters, {
+          canEdit: canManage,
+          nowIso,
+        })
+      : Promise.resolve(null),
     // The rider profile's mountain list (#1408). rider_profiles carries the
     // rider_profile module, so on a tenant without it nobody pays the read.
     canManageRiderMountains
@@ -232,13 +251,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     canManage
       ? getRegistrationAsksAboutMinors(supabase)
       : Promise.resolve(null),
+    // And its Instagram requirement (#1647), likewise.
+    canManage
+      ? getRegistrationRequiresInstagram(supabase)
+      : Promise.resolve(null),
     // Event media uploads (#1606), likewise.
     canManage ? getEventMediaUploadsEnabled(supabase) : Promise.resolve(null),
     // And how long that media is kept (#1608).
     canManage ? getEventMediaRetentionDays(supabase) : Promise.resolve(null),
+    // And whether it shows on the public site (#1654).
+    canManage ? getEventPublicGalleryEnabled(supabase) : Promise.resolve(null),
   ]);
   const programs = "data" in programsResult ? programsResult.data : [];
-  const taskGroups = groupEventTasksByEvent(eventTasks.items);
 
   const filterParams = new URLSearchParams();
   if (statusFilter !== "all") filterParams.set("status", statusFilter);
@@ -299,10 +323,13 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
       </div>
 
       <div className="rainbow-surface mt-6 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-[var(--line)] p-4 shadow-md">
-        {taskGroups.length > 0 && (
+        {eventTasks && eventTasks.openCount > 0 && (
           <OutstandingTasksSheet
-            groups={taskGroups}
-            totalCount={eventTasks.items.length}
+            rows={eventTasks.rows}
+            filters={taskFilters}
+            owners={eventTasks.owners}
+            today={eventTasks.today}
+            openCount={eventTasks.openCount}
             defaultOpen={tasksOpen}
           />
         )}
@@ -404,15 +431,21 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
         {riderMountains && <RiderMountainsSheet mountains={riderMountains} />}
 
         {asksAboutMinors !== null && (
-          <RegistrationSettingsSheet asksAboutMinors={asksAboutMinors} />
-        )}
-
-        {mediaUploadsEnabled !== null && mediaRetention !== null && (
-          <MediaSettingsSheet
-            enabled={mediaUploadsEnabled}
-            retentionDays={mediaRetention.days}
+          <RegistrationSettingsSheet
+            asksAboutMinors={asksAboutMinors}
+            requiresInstagram={requiresInstagram ?? false}
           />
         )}
+
+        {mediaUploadsEnabled !== null &&
+          mediaRetention !== null &&
+          publicGalleryEnabled !== null && (
+            <MediaSettingsSheet
+              enabled={mediaUploadsEnabled}
+              retentionDays={mediaRetention.days}
+              publicGalleryEnabled={publicGalleryEnabled}
+            />
+          )}
 
         {canManage && <NewEventDialog programs={programs} />}
       </div>

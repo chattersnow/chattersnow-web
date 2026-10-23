@@ -23,6 +23,7 @@ const { EventRegistrationForm } =
   await import("./event-registration-form-fields");
 
 import { PHOTO_CONSENT_HEADING } from "@/lib/photo-consent";
+import { CARPOOL_COST_NOTICE_HEADING } from "@/lib/event-carpools";
 import type { RegistrationQuestion } from "@/lib/registration-questions";
 
 // Structural rather than `typeof userEvent`: the default export and what
@@ -945,5 +946,119 @@ describe("EventRegistrationForm and the event's questions (#1501)", () => {
       // Unticked is an answer: "no".
       share: false,
     });
+  });
+});
+
+describe("EventRegistrationForm and the Instagram requirement (#1647)", () => {
+  beforeEach(() => registerForEventActionMock.mockClear());
+
+  const noInstagram = () =>
+    screen.queryByRole("checkbox", { name: "I don't have Instagram" });
+
+  test("a tenant that does not require it shows the optional handle and nothing else", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+    expect(screen.getByLabelText(/^Instagram handle/)).not.toBeRequired();
+    expect(noInstagram()).toBeNull();
+
+    await fillAboutYou();
+    await sayNoMinors();
+    await submit();
+    const sent = lastSubmission();
+    expect(sent.instagramRequired).toBeUndefined();
+    expect(sent.noInstagram).toBeUndefined();
+  });
+
+  test("required, the handle stops Next until it is given", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" requiresInstagram />);
+    expect(screen.getByLabelText(/^Instagram handle/)).toBeRequired();
+    await fillAboutYou(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByLabelText(/^Instagram handle/)).toBeVisible();
+  });
+
+  test("ticking the box swaps the handle for a preferred contact, posted and shown on review", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" requiresInstagram />);
+    await fillAboutYou(user);
+    await user.type(screen.getByLabelText(/^Instagram handle/), "typed.first");
+    await user.click(noInstagram()!);
+    expect(screen.queryByLabelText(/^Instagram handle/)).toBeNull();
+
+    await user.click(screen.getByLabelText(/Preferred contact method/));
+    await user.click(screen.getByRole("option", { name: "Text message" }));
+    await user.type(screen.getByLabelText(/^Phone number/), "555-0142");
+    await sayNoMinors(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Text message · 555-0142")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Complete registration" }),
+    );
+
+    const sent = lastSubmission();
+    expect(sent).toMatchObject({
+      instagramRequired: "on",
+      noInstagram: "on",
+      preferredContactMethod: "text",
+      preferredContactDetail: "555-0142",
+    });
+    expect(sent.instagramHandle).toBeUndefined();
+  });
+
+  test("email may leave the address blank", async () => {
+    const user = userEvent.setup();
+    render(<EventRegistrationForm eventId="event-1" requiresInstagram />);
+    await fillAboutYou(user);
+    await user.click(noInstagram()!);
+    await user.click(screen.getByLabelText(/Preferred contact method/));
+    await user.click(screen.getByRole("option", { name: "Email" }));
+    expect(screen.getByLabelText(/^Email address/)).not.toBeRequired();
+    await sayNoMinors(user);
+    await submit(user);
+    expect(lastSubmission()).toMatchObject({
+      noInstagram: "on",
+      preferredContactMethod: "email",
+      preferredContactDetail: "",
+    });
+  });
+});
+
+// #1650. Notice, on step 2 under the event's questions and again on the review
+// step -- never a box, and nothing posted about it.
+describe("EventRegistrationForm on a carpool event (#1650)", () => {
+  const NOTICE = ["Costs are split in the car and settled with the driver."];
+
+  beforeEach(() => {
+    registerForEventActionMock.mockClear();
+  });
+
+  test("tells them on This event and again on review, with no box", async () => {
+    render(
+      <EventRegistrationForm eventId="event-1" carpoolCostNotice={NOTICE} />,
+    );
+    await fillAboutYou();
+    await sayNoMinors();
+
+    expect(
+      screen.getByRole("heading", { name: CARPOOL_COST_NOTICE_HEADING }),
+    ).toBeVisible();
+    // Step 2's copy, and the review step's (hidden until reached).
+    expect(screen.getAllByText(NOTICE[0], { exact: true })).toHaveLength(2);
+    expect(screen.queryAllByRole("checkbox", { hidden: true })).toHaveLength(0);
+
+    await submit();
+    for (const key of Object.keys(lastSubmission())) {
+      expect(key).not.toMatch(/carpool/i);
+    }
+  });
+
+  test("says nothing about carpools without a notice", async () => {
+    render(<EventRegistrationForm eventId="event-1" />);
+    expect(
+      screen.queryByRole("heading", {
+        name: CARPOOL_COST_NOTICE_HEADING,
+        hidden: true,
+      }),
+    ).toBeNull();
   });
 });

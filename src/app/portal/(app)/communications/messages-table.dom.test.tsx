@@ -29,6 +29,7 @@ function makeMessage(overrides: Partial<ContactMessage> = {}): ContactMessage {
     message: "Hello!",
     status: "new",
     created_at: "2026-05-01T00:00:00.000Z",
+    claimant: null,
     ...overrides,
   };
 }
@@ -225,5 +226,139 @@ describe("MessagesTable", () => {
 
     expect(screen.getByText("Deep Linked")).toBeInTheDocument();
     expect(screen.queryByText("Other New")).not.toBeInTheDocument();
+  });
+
+  describe("claimed-by filter (#1670)", () => {
+    const ME = "33333333-3333-4333-8333-333333333333";
+    const DANA = "22222222-2222-4222-8222-222222222222";
+    const staff = [
+      {
+        id: DANA,
+        name: "Dana Whitfield",
+        preferred_name: null,
+        email: null,
+        phone: null,
+        auth_user_id: null,
+        has_portal_access: true,
+      },
+    ];
+    const mine = makeMessage({
+      id: "mine",
+      name: "Mine Sender",
+      claimant: { id: ME, name: "Me Myself", preferred_name: null },
+    });
+    const danas = makeMessage({
+      id: "danas",
+      name: "Danas Sender",
+      claimant: { id: DANA, name: "Dana Whitfield", preferred_name: null },
+    });
+    const nobodys = makeMessage({ id: "nobodys", name: "Nobodys Sender" });
+
+    test("?claimed=none from the ops inbox shows only unclaimed messages", () => {
+      render(
+        <MessagesTable
+          messages={[mine, danas, nobodys]}
+          canManage={true}
+          initialStatusFilter="new"
+          initialClaimFilter="none"
+          myPersonId={ME}
+          staff={staff}
+        />,
+      );
+      expect(screen.getByText("Nobodys Sender")).toBeInTheDocument();
+      expect(screen.queryByText("Mine Sender")).not.toBeInTheDocument();
+      expect(screen.queryByText("Danas Sender")).not.toBeInTheDocument();
+    });
+
+    test("a message claimed from the Unclaimed view stays until the filter changes", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(
+        <MessagesTable
+          messages={[danas, nobodys]}
+          canManage={true}
+          initialClaimFilter="none"
+          myPersonId={ME}
+          staff={staff}
+        />,
+      );
+
+      // Claiming it refreshes the page with the message now claimed by me.
+      rerender(
+        <MessagesTable
+          messages={[danas, { ...nobodys, claimant: mine.claimant }]}
+          canManage={true}
+          initialClaimFilter="none"
+          myPersonId={ME}
+          staff={staff}
+        />,
+      );
+      expect(screen.getByText("Nobodys Sender")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /^Filters/ }));
+      await user.click(
+        await screen.findByRole("combobox", {
+          name: "Filter by who claimed it",
+        }),
+      );
+      await user.click(await screen.findByRole("option", { name: "Mine" }));
+      expect(screen.getByText("Nobodys Sender")).toBeInTheDocument();
+      expect(screen.queryByText("Danas Sender")).not.toBeInTheDocument();
+    });
+
+    test("picking a person shows only theirs", async () => {
+      const user = userEvent.setup();
+      render(
+        <MessagesTable
+          messages={[mine, danas, nobodys]}
+          canManage={true}
+          myPersonId={ME}
+          staff={staff}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: /^Filters/ }));
+      await user.click(
+        await screen.findByRole("combobox", {
+          name: "Filter by who claimed it",
+        }),
+      );
+      await user.click(
+        await screen.findByRole("option", { name: "Dana Whitfield" }),
+      );
+      expect(screen.getByText("Danas Sender")).toBeInTheDocument();
+      expect(screen.queryByText("Mine Sender")).not.toBeInTheDocument();
+      expect(screen.queryByText("Nobodys Sender")).not.toBeInTheDocument();
+    });
+
+    test("a view-only reader sees who has each message but no claim controls", () => {
+      render(
+        <MessagesTable
+          messages={[danas, nobodys]}
+          canManage={false}
+          myPersonId={ME}
+          staff={staff}
+        />,
+      );
+      expect(screen.getAllByText("Dana Whitfield").length).toBeGreaterThan(0);
+      expect(screen.getByText("Unclaimed")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^Claim options for/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    test("a communications manager gets the claim controls", () => {
+      render(
+        <MessagesTable
+          messages={[nobodys]}
+          canManage={true}
+          myPersonId={ME}
+          staff={staff}
+        />,
+      );
+      expect(
+        screen.getByRole("button", {
+          name: "Claim options for Message from Nobodys Sender",
+        }),
+      ).toBeInTheDocument();
+    });
   });
 });

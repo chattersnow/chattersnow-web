@@ -7,6 +7,7 @@ import {
   renderWithToaster,
 } from "../../../../../../test/toast-testing";
 import type { Milestone } from "./nonprofit-status-actions";
+import { DEFAULT_TASK_FILTERS, type TaskFilters } from "@/lib/portal/task-list";
 
 const updateStatusMock = mock(
   async (
@@ -30,7 +31,9 @@ mock.module("./nonprofit-status-actions", () => ({
 const actualNavigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
   ...actualNavigation,
-  useRouter: () => ({ refresh: () => {} }),
+  useRouter: () => ({ refresh: () => {}, replace: () => {} }),
+  usePathname: () => "/portal/governance/nonprofit-status",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const { NonprofitStatusChecklist } =
@@ -46,12 +49,21 @@ const milestone: Milestone = {
   owner: null,
 };
 
-function renderChecklist() {
+const TODAY = "2026-10-21";
+const ME = { id: "p-me", name: "Me Myself", email: null, phone: null };
+const OTHER = { id: "p-other", name: "Someone Else", email: null, phone: null };
+
+function renderChecklist(
+  milestones: Milestone[] = [milestone],
+  filters: Partial<TaskFilters> = {},
+) {
   return renderWithToaster(
     <NonprofitStatusChecklist
-      milestones={[milestone]}
+      milestones={milestones}
       people={[]}
       canManage={true}
+      filters={{ ...DEFAULT_TASK_FILTERS, ...filters }}
+      filterContext={{ today: TODAY, currentPersonId: ME.id }}
     />,
   );
 }
@@ -90,5 +102,64 @@ describe("NonprofitStatusChecklist status toggle", () => {
 
     await expectToast("You do not have permission to update milestones.");
     expect(hasToast(`${milestone.description} — Done.`)).toBe(false);
+  });
+});
+
+describe("NonprofitStatusChecklist owner and due filters (#1659)", () => {
+  const mineOverdue: Milestone = {
+    ...milestone,
+    id: "m-mine",
+    description: "Mine and overdue",
+    due_date: "2026-10-01",
+    owner: ME,
+  };
+  const mineDoneLate: Milestone = {
+    ...milestone,
+    id: "m-done",
+    description: "Mine, done late",
+    due_date: "2026-10-01",
+    status: "done",
+    owner: ME,
+  };
+  const othersLater: Milestone = {
+    ...milestone,
+    id: "m-other",
+    description: "Someone else's, later",
+    due_date: "2026-12-01",
+    owner: OTHER,
+  };
+  const all = [mineOverdue, mineDoneLate, othersLater, milestone];
+
+  test("shows every milestone with no filter", () => {
+    renderChecklist(all);
+    for (const m of all) expect(screen.getByText(m.description)).toBeTruthy();
+  });
+
+  test("Mine keeps only the signed-in person's milestones", () => {
+    renderChecklist(all, { owner: "mine" });
+    expect(screen.getByText(mineOverdue.description)).toBeTruthy();
+    expect(screen.getByText(mineDoneLate.description)).toBeTruthy();
+    expect(screen.queryByText(othersLater.description)).toBeNull();
+    expect(screen.queryByText(milestone.description)).toBeNull();
+  });
+
+  test("a named owner keeps only theirs", () => {
+    renderChecklist(all, { owner: OTHER.id });
+    expect(screen.getByText(othersLater.description)).toBeTruthy();
+    expect(screen.queryByText(mineOverdue.description)).toBeNull();
+  });
+
+  test("overdue excludes done and undated milestones", () => {
+    renderChecklist(all, { due: "overdue" });
+    expect(screen.getByText(mineOverdue.description)).toBeTruthy();
+    expect(screen.queryByText(mineDoneLate.description)).toBeNull();
+    expect(screen.queryByText(othersLater.description)).toBeNull();
+    expect(screen.queryByText(milestone.description)).toBeNull();
+  });
+
+  test("says so when nothing matches, and keeps the whole count", () => {
+    renderChecklist([othersLater], { owner: "mine" });
+    expect(screen.getByText("No milestones match these filters")).toBeTruthy();
+    expect(screen.getByText("0 of 1 complete")).toBeTruthy();
   });
 });

@@ -63,6 +63,9 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     email: "somebody@example.test",
     phone: null,
     instagram_handle: null,
+    has_no_instagram: null,
+    preferred_contact_method: null,
+    preferred_contact_detail: null,
     pronouns: null,
     party_size: 1,
     notes: null,
@@ -84,6 +87,8 @@ function registrant(overrides: Partial<EventRegistrant>): EventRegistrant {
     answers: [],
     answer_request: null,
     answers_changed_at: null,
+    group_chat_added_at: null,
+    group_chat_added_by_name: null,
     minorContacts: null,
     rider: null,
     ...overrides,
@@ -96,6 +101,9 @@ const registrants = [
     name: "Christina Fasanello-Okonkwo",
     email: "christina.fasanello.okonkwo@gmail.com",
     instagram_handle: null,
+    has_no_instagram: null,
+    preferred_contact_method: null,
+    preferred_contact_detail: null,
     pronouns: "they/she",
     party_size: 2,
     option_counts: [
@@ -150,6 +158,7 @@ function payload(
     },
     registrationQuestions: [],
     riderMountains: null,
+    groupChat: null,
     ...overrides,
   };
 }

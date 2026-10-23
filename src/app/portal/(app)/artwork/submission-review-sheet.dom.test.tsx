@@ -41,6 +41,11 @@ const SUBMISSION: ArtworkSubmission = {
   call: { id: "call-1", title: "Winter zine" },
   event: null,
   images: [],
+  claimant: {
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "Dana Whitfield",
+    preferred_name: null,
+  },
 };
 
 function renderSheet(
@@ -52,6 +57,17 @@ function renderSheet(
       submission={{ ...SUBMISSION, ...overrides }}
       images={[]}
       canManage={canManage}
+      claim={{
+        queue: "artwork_submissions",
+        itemId: "sub-1",
+        itemLabel: "First Light",
+        claimant: SUBMISSION.claimant,
+        myPersonId: "33333333-3333-4333-8333-333333333333",
+        canClaim: canManage,
+        canAssign: canManage,
+        resolved: false,
+        staff: [],
+      }}
       messages={[]}
       messageActors={[]}
       orgName="Chatter Snow"
@@ -182,5 +198,22 @@ describe("ArtworkSubmissionReviewSheet", () => {
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  test("a view-only reader sees who has it but no claim controls", () => {
+    renderSheet(false);
+    expect(sheet().getByText("Claimed by")).toBeTruthy();
+    expect(sheet().getByText("Dana Whitfield")).toBeTruthy();
+    expect(
+      sheet().queryByRole("button", { name: "Claim options for First Light" }),
+    ).toBeNull();
+  });
+
+  test("an artwork manager gets the claim controls", () => {
+    renderSheet(true);
+    expect(sheet().getByText("Dana Whitfield")).toBeTruthy();
+    expect(
+      sheet().getByRole("button", { name: "Claim options for First Light" }),
+    ).toBeTruthy();
   });
 });

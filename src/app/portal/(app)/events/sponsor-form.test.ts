@@ -59,6 +59,8 @@ describe("parseSponsorForm", () => {
         notes: "Annual sponsor",
         follow_up_status: "not_started",
         follow_up_notes: null,
+        follow_up_owner_person_id: null,
+        follow_up_due_date: null,
         items: [
           {
             id: null,
@@ -77,6 +79,33 @@ describe("parseSponsorForm", () => {
         formData({ supportType: "cash", followUpStatus: "later" }),
       ),
     ).toEqual({ error: "Select a valid follow-up status." });
+  });
+
+  test("parses the follow-up owner and due date", () => {
+    const result = parseSponsorForm(
+      formData({
+        supportType: "cash",
+        followUpOwnerPersonId: "person-1",
+        followUpDueDate: "2026-11-14",
+      }),
+    );
+    expect("data" in result && result.data.follow_up_owner_person_id).toBe(
+      "person-1",
+    );
+    expect("data" in result && result.data.follow_up_due_date).toBe(
+      "2026-11-14",
+    );
+  });
+
+  test("rejects a follow-up due date that is not a date", () => {
+    expect(
+      parseSponsorForm(
+        formData({ supportType: "cash", followUpDueDate: "next week" }),
+      ),
+    ).toEqual({
+      error: "Enter a valid follow-up due date.",
+      field: "followUpDueDate",
+    });
   });
 
   test("parses follow-up fields", () => {

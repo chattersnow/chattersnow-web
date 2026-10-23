@@ -56,6 +56,25 @@ export type EventRow = {
    * Loaded by the event detail page, where the Planning tab edits it.
    */
   confirmation_note?: string | null;
+  /**
+   * The group chat switch and its label (#1648). Loaded by the event detail
+   * page, where the Planning tab edits them.
+   */
+  group_chat_enabled?: boolean;
+  group_chat_label?: string | null;
+  /**
+   * The reminder email (#1652). Loaded by the event detail page, where the
+   * Planning tab edits them.
+   */
+  reminder_enabled?: boolean;
+  reminder_days_before?: number;
+  reminder_intro?: string | null;
+  /**
+   * The carpools switch and the question seats come from (#1649). Loaded by
+   * the event detail page, where the Planning tab edits them.
+   */
+  carpools_enabled?: boolean;
+  carpool_seats_question_id?: string | null;
   registration_options?: {
     id: string;
     label: string;

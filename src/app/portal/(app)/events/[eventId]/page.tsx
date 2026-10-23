@@ -68,39 +68,11 @@ export default async function EventDetailPage({
   const supabase = await createSupabaseServerClient();
   const permissions = await getCurrentUserPermissions(supabase);
   const canManage = hasPermission(permissions, "events", "manage");
-  // Resolved here rather than in the client view, so a card whose section this
-  // reader has no access to -- or whose module this tenant was never sold
-  // (#903) -- is absent from the payload rather than hidden in it.
-  const groups = eventGroups(permissions);
-
-  // Which section the rail opens on, resolved here so a card this reader has
-  // no access to is never the answer. `?tab=` is the parameter the rail keeps
-  // and every deep link already writes; `?card=` and `?phase=` are #958's two
-  // tab levels, read so a bookmark from before the rail still lands where it
-  // meant to (#1008).
-  const visible = groups.flatMap((group) => group.tabs);
-  const named = (raw: string | undefined): TabValue | undefined => {
-    // A card merged into another (#1588) lands on the one it became.
-    const value = raw ? (LEGACY_TAB_VALUES[raw] ?? raw) : raw;
-    if (!value || !isTabValue(value)) return undefined;
-    return visible.some((section) => section.value === value)
-      ? value
-      : undefined;
-  };
-  const legacyPhase = one(query.phase);
-  const initialCard: TabValue =
-    named(one(query.tab)) ??
-    named(one(query.card)) ??
-    (legacyPhase && isPhaseKey(legacyPhase)
-      ? named(LEGACY_PHASE_CARDS[legacyPhase])
-      : undefined) ??
-    visible[0]?.value ??
-    "overview";
 
   const { data: eventRow, error } = await supabase
     .from("events")
     .select(
-      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, confirmation_note, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, price, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, column_label, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
+      "id, name, location, starts_at, ends_at, timezone, visibility, status, attendance_count, attendance_notes, description, capacity, registration_enabled, registration_deadline, auto_assign_discount_codes, adults_only, confirmation_note, group_chat_enabled, group_chat_label, reminder_enabled, reminder_days_before, reminder_intro, carpools_enabled, carpool_seats_question_id, budget_amount, event_lead_id, event_lead:people!events_event_lead_id_fkey(id, name, preferred_name, email, phone), report_status, report_summary, feedback_notes, content_notes, report_submitted_at, report_submitted_by, flier_url, event_programs(program_id), registration_options_prompt, registration_options:event_registration_options(id, label, cap, price, sort_order), registration_questions:event_registration_questions(id, kind, prompt, help, column_label, required, sort_order, options, min_value, max_value, show_if, shares_contact, archived_at)",
     )
     .eq("id", eventId)
     .maybeSingle<RawEventRow>();
@@ -137,6 +109,37 @@ export default async function EventDetailPage({
         return question ? [question] : [];
       }),
   };
+
+  // Resolved here rather than in the client view, so a card whose section this
+  // reader has no access to -- or whose module this tenant was never sold
+  // (#903) -- is absent from the payload rather than hidden in it.
+  const groups = eventGroups(permissions, {
+    carpoolsEnabled: event.carpools_enabled ?? false,
+  });
+
+  // Which section the rail opens on, resolved here so a card this reader has
+  // no access to is never the answer. `?tab=` is the parameter the rail keeps
+  // and every deep link already writes; `?card=` and `?phase=` are #958's two
+  // tab levels, read so a bookmark from before the rail still lands where it
+  // meant to (#1008).
+  const visible = groups.flatMap((group) => group.tabs);
+  const named = (raw: string | undefined): TabValue | undefined => {
+    // A card merged into another (#1588) lands on the one it became.
+    const value = raw ? (LEGACY_TAB_VALUES[raw] ?? raw) : raw;
+    if (!value || !isTabValue(value)) return undefined;
+    return visible.some((section) => section.value === value)
+      ? value
+      : undefined;
+  };
+  const legacyPhase = one(query.phase);
+  const initialCard: TabValue =
+    named(one(query.tab)) ??
+    named(one(query.card)) ??
+    (legacyPhase && isPhaseKey(legacyPhase)
+      ? named(LEGACY_PHASE_CARDS[legacyPhase])
+      : undefined) ??
+    visible[0]?.value ??
+    "overview";
 
   const [
     programsResult,
