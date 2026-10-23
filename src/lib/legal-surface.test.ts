@@ -26,6 +26,7 @@ const NO_MODULES: Record<string, boolean> = {
   inventory: false,
   artwork: false,
   constituent_accounts: false,
+  form_analytics: false,
 };
 
 describe("collectionSurface", () => {
@@ -43,6 +44,7 @@ describe("collectionSurface", () => {
       volunteerHours: true,
       volunteerScreening: true,
       googleSignIn: true,
+      formAnalytics: true,
     });
   });
 
@@ -100,6 +102,7 @@ describe("collectionSurface", () => {
       volunteerHours: false,
       volunteerScreening: false,
       googleSignIn: true,
+      formAnalytics: false,
     });
   });
 
@@ -146,6 +149,7 @@ describe("surfaceKeys", () => {
       volunteerHours: false,
       volunteerScreening: false,
       googleSignIn: true,
+      formAnalytics: false,
     };
     expect(surfaceKeys(surface)).toEqual([
       "contact",
@@ -166,6 +170,7 @@ describe("surfaceKeys", () => {
         volunteerHours: false,
         volunteerScreening: false,
         googleSignIn: false,
+        formAnalytics: false,
       }),
     ).toEqual([]);
   });

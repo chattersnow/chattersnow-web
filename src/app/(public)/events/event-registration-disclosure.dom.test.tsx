@@ -18,7 +18,7 @@ function CancelButton() {
 
 function renderDisclosure() {
   return render(
-    <EventRegistrationDisclosure eventName="Winter Gear Swap">
+    <EventRegistrationDisclosure eventId="event-1" eventName="Winter Gear Swap">
       <form>
         <label htmlFor="first">Name</label>
         <input id="first" />

@@ -58,7 +58,7 @@ describe("the constituent module is off until a tenant asks for it", () => {
     expect(data?.enabled).toBe(false);
   });
 
-  test("and every other module is still on", async () => {
+  test("and every other module but form analytics is still on", async () => {
     const { data, error } = await anonClient()
       .from("public_tenant_modules")
       .select("module_key, enabled");
@@ -67,7 +67,10 @@ describe("the constituent module is off until a tenant asks for it", () => {
     const off = (data ?? [])
       .filter((row) => row.enabled === false)
       .map((row) => row.module_key);
-    expect(off).toEqual([CONSTITUENT_MODULE]);
+    // `form_analytics` (#1480) defaults off too, and stays off locally: it
+    // only ever loads on a production deploy, so seeding it on would change
+    // nothing but the privacy policy's text.
+    expect(off.sort()).toEqual([CONSTITUENT_MODULE, "form_analytics"].sort());
   });
 
   test("it is in the catalog, not merely absent", async () => {

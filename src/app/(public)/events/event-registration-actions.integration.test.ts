@@ -511,6 +511,7 @@ describe("registerForEventAction (integration)", () => {
     expect(result).toEqual({
       error: "Registration is not open for this event.",
       step: "review",
+      code: "REGISTRATION_CLOSED",
     });
     expect(await countEventRegistrations(id, email)).toBe(0);
   });
@@ -530,6 +531,7 @@ describe("registerForEventAction (integration)", () => {
     expect(result).toEqual({
       error: "The registration deadline for this event has passed.",
       step: "review",
+      code: "REGISTRATION_DEADLINE_PASSED",
     });
   });
 
@@ -556,6 +558,7 @@ describe("registerForEventAction (integration)", () => {
     expect(second).toEqual({
       error: "This event has reached capacity.",
       step: "review",
+      code: "EVENT_AT_CAPACITY",
     });
     expect(await countEventRegistrations(id, secondEmail)).toBe(0);
   });
@@ -578,6 +581,7 @@ describe("registerForEventAction (integration)", () => {
     expect(second).toEqual({
       error: "This email is already registered for this event.",
       step: "about",
+      code: "ALREADY_REGISTERED",
     });
     expect(await countEventRegistrations(id, email)).toBe(1);
   });
@@ -620,6 +624,7 @@ describe("registerForEventAction (integration)", () => {
     expect(second).toEqual({
       error: ALREADY_REGISTERED_LINK_SENT,
       step: "about",
+      code: "ALREADY_REGISTERED",
     });
     expect(await countEventRegistrations(id, email)).toBe(1);
 
@@ -644,6 +649,7 @@ describe("registerForEventAction (integration)", () => {
     expect(result).toEqual({
       error: "This event could not be found.",
       step: "review",
+      code: "EVENT_NOT_FOUND",
     });
   });
 
@@ -685,6 +691,7 @@ describe("registerForEventAction (integration)", () => {
     expect(limited).toEqual({
       error: "Too many attempts — please try again in a few minutes.",
       step: "review",
+      code: "RATE_LIMITED",
     });
   });
 
@@ -800,6 +807,7 @@ describe("registerForEventAction under concurrency", () => {
       expect(result).toEqual({
         error: "This event has reached capacity.",
         step: "review",
+        code: "EVENT_AT_CAPACITY",
       });
     }
 

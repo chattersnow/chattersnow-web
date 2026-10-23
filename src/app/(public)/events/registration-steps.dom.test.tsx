@@ -78,7 +78,10 @@ describe("RegistrationSteps (#1413)", () => {
 
     const user = userEvent.setup();
     render(
-      <EventRegistrationDisclosure eventName="Winter Gear Swap">
+      <EventRegistrationDisclosure
+        eventId="event-1"
+        eventName="Winter Gear Swap"
+      >
         <EventRegistrationForm eventId="event-1" />
       </EventRegistrationDisclosure>,
     );

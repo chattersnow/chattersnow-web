@@ -39,6 +39,7 @@ const NO_FORMS: CollectionSurface = {
   volunteerHours: false,
   volunteerScreening: false,
   googleSignIn: false,
+  formAnalytics: false,
 };
 
 const PAGES = [

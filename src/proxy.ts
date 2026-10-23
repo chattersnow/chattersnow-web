@@ -485,6 +485,8 @@ export async function proxy(request: NextRequest) {
  */
 export const CDN_CACHE_CONTROL_HEADER = "Vercel-CDN-Cache-Control";
 
+// `ph/` is PostHog's ingest (#1480), rewritten to PostHog in `vercel.json`.
+// Excluded so an analytics request never costs a proxy invocation (#1467).
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|ph/).*)"],
 };
