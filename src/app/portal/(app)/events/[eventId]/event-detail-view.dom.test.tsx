@@ -31,6 +31,10 @@ mockUrlTabState();
 // The reads the shared provider owns (event-shared-data.tsx) are held by name
 // so the tests below can count how many times reaching a card fetches each one.
 const listPeopleActionMock = mock(async () => ({ data: [] }));
+const listEventPeopleActionMock = mock(async () => ({
+  data: [],
+  canCreate: false,
+}));
 const listEventRegistrantsActionMock = mock(async () => ({ data: [] }));
 const getEventImpactDerivedActionMock = mock(async () => ({
   data: {
@@ -47,6 +51,9 @@ const getEventImpactDerivedActionMock = mock(async () => ({
   },
 }));
 
+mock.module("../event-people-actions", () => ({
+  listEventPeopleAction: listEventPeopleActionMock,
+}));
 mock.module("../../people/actions", () => ({
   ...PeopleActions,
   listPeopleAction: listPeopleActionMock,
@@ -483,7 +490,7 @@ describe("EventDetailView", () => {
 
   describe("shared reads", () => {
     beforeEach(() => {
-      listPeopleActionMock.mockClear();
+      listEventPeopleActionMock.mockClear();
       listEventRegistrantsActionMock.mockClear();
       getEventImpactDerivedActionMock.mockClear();
     });
@@ -493,12 +500,12 @@ describe("EventDetailView", () => {
 
       // Event details shares nothing. The phase provider used to fetch a
       // phase's whole union the moment the phase opened.
-      expect(listPeopleActionMock).not.toHaveBeenCalled();
+      expect(listEventPeopleActionMock).not.toHaveBeenCalled();
       expect(listEventRegistrantsActionMock).not.toHaveBeenCalled();
       expect(getEventImpactDerivedActionMock).not.toHaveBeenCalled();
 
       fireEvent.click(railRow("Registration & planning"));
-      expect(listPeopleActionMock).toHaveBeenCalledTimes(1);
+      expect(listEventPeopleActionMock).toHaveBeenCalledTimes(1);
       expect(listEventRegistrantsActionMock).not.toHaveBeenCalled();
     });
 
@@ -506,18 +513,18 @@ describe("EventDetailView", () => {
       renderView();
 
       fireEvent.click(railRow("Registration & planning"));
-      expect(listPeopleActionMock).toHaveBeenCalledTimes(1);
+      expect(listEventPeopleActionMock).toHaveBeenCalledTimes(1);
 
       // Sponsors wants people too, and it is in the same group.
       fireEvent.click(railRow("Sponsors"));
-      expect(listPeopleActionMock).toHaveBeenCalledTimes(1);
+      expect(listEventPeopleActionMock).toHaveBeenCalledTimes(1);
 
       // Leaving for a card that wants none of it, then coming back, must not
       // refetch: requested resources accumulate rather than following the
       // card. Giveaway wants people as well, from another group entirely.
       fireEvent.click(railRow("Incidents"));
       fireEvent.click(railRow("Giveaway"));
-      expect(listPeopleActionMock).toHaveBeenCalledTimes(1);
+      expect(listEventPeopleActionMock).toHaveBeenCalledTimes(1);
     });
   });
 });
