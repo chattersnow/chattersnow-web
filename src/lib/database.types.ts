@@ -11927,6 +11927,10 @@ export type Database = {
         Args: { p_ip_address: unknown; p_token_hash: string };
         Returns: Json;
       };
+      get_event_place_breakdown: {
+        Args: { p_event_id: string };
+        Returns: Json;
+      };
       get_event_report_data: { Args: { p_event_id: string }; Returns: Json };
       get_finance_report_data: {
         Args: { p_from: string; p_to: string };
@@ -11939,6 +11943,10 @@ export type Database = {
       };
       get_giving_settings: { Args: never; Returns: Json };
       get_program_impact_rollup_data: {
+        Args: { p_program_id: string };
+        Returns: Json;
+      };
+      get_program_place_reach: {
         Args: { p_program_id: string };
         Returns: Json;
       };
@@ -12669,11 +12677,35 @@ export type Database = {
         Args: { p: Database["public"]["Tables"]["people"]["Row"] };
         Returns: Json;
       };
+      place_answer_counts: {
+        Args: { p_event_ids: string[]; p_tenant_id: string };
+        Returns: {
+          place_id: string;
+          place_kind: string;
+          place_label: string;
+          question_id: string;
+          region_id: string;
+          region_kind: string;
+          region_label: string;
+          registrations: number;
+        }[];
+      };
       place_answer_kinds: {
         Args: { p_granularity: string };
         Returns: string[];
       };
       place_key_id: { Args: { p_key: string }; Returns: string };
+      place_regions: {
+        Args: { p_place_ids: string[] };
+        Returns: {
+          place_id: string;
+          place_kind: string;
+          place_label: string;
+          region_id: string;
+          region_kind: string;
+          region_label: string;
+        }[];
+      };
       place_search_text: {
         Args: { p_aliases: string[]; p_label: string; p_name: string };
         Returns: string;
