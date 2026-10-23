@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PortalBreadcrumbs } from "@/components/portal/breadcrumbs";
 import { getTenantModules } from "@/lib/page-visibility";
 import { moduleEnabled } from "@/lib/portal/modules";
+import { getEventAccessAreaOptions } from "@/lib/auth/event-access";
 import { RolesView } from "./roles-view";
 import { listRolesAction } from "../users/actions";
 
@@ -22,6 +23,7 @@ export default async function RolesPage() {
     { data: rolePermissions, error: rolePermissionsError },
     modules,
     { data: moduleRows },
+    eventAccessAreas,
   ] = await Promise.all([
     listRolesAction(),
     supabase
@@ -33,6 +35,8 @@ export default async function RolesPage() {
     // Names for the "Module" line in a resource's explanation sheet (#1324).
     // Not fatal if it fails: the sheet falls back to the module key.
     supabase.from("modules").select("key, label"),
+    // The Event access tab (#1689).
+    getEventAccessAreaOptions(supabase),
   ]);
 
   // FILTERED, not shown-and-inert (#903).
@@ -85,6 +89,9 @@ export default async function RolesPage() {
         rolePermissions={rolePermissions ?? []}
         moduleLabels={moduleLabels}
         matrixFailed={Boolean(resourcesError || rolePermissionsError)}
+        eventAccessAreas={
+          moduleEnabled(modules, "events") ? eventAccessAreas : undefined
+        }
       />
     </>
   );

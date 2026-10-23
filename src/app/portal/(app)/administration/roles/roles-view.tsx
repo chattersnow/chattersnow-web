@@ -7,8 +7,10 @@ import { NewRoleDialog } from "./new-role-dialog";
 import { PermissionsMatrix, type MatrixResource } from "./permissions-matrix";
 import type { RoleRow } from "./role-details-dialog";
 import { RolesTable } from "./roles-table";
+import { EventAccessAreasPanel } from "./event-access-areas-panel";
+import type { EventAccessAreaOption } from "@/lib/auth/event-access";
 
-const TABS = ["roles", "permissions"] as const;
+const TABS = ["roles", "permissions", "event-access"] as const;
 type TabValue = (typeof TABS)[number];
 
 function isTabValue(value: string): value is TabValue {
@@ -30,6 +32,7 @@ export function RolesView({
   rolePermissions,
   moduleLabels,
   matrixFailed,
+  eventAccessAreas,
 }: {
   roles: RoleRow[];
   rolesError: string | null;
@@ -37,6 +40,11 @@ export function RolesView({
   rolePermissions: { role_id: string; resource_id: string; level: string }[];
   moduleLabels: Record<string, string>;
   matrixFailed: boolean;
+  /**
+   * The Event access tab's areas (#1689); undefined hides the tab, for a
+   * tenant without the Events module. Null when they could not be read.
+   */
+  eventAccessAreas?: EventAccessAreaOption[] | null;
 }) {
   const [tab, setTab] = useUrlTabState<TabValue>({
     fallback: "roles",
@@ -53,11 +61,14 @@ export function RolesView({
         <TabsList variant="line" className="flex-wrap">
           <TabsTrigger value="roles">All roles</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          {eventAccessAreas !== undefined && (
+            <TabsTrigger value="event-access">Event access</TabsTrigger>
+          )}
         </TabsList>
         {/* Creating a role is offered from both tabs on purpose: realising a
             role is missing is something that happens while granting access,
             and the Permissions tab is where that happens. */}
-        <NewRoleDialog />
+        {tab !== "event-access" && <NewRoleDialog />}
       </div>
 
       <TabsContent value="roles" className="mt-4">
@@ -93,6 +104,22 @@ export function RolesView({
           />
         )}
       </TabsContent>
+
+      {/* Per-event grants (#1685) are given on each event; what they may
+          cover is chosen here, beside the roles they sit outside of. */}
+      {eventAccessAreas !== undefined && (
+        <TabsContent value="event-access" className="mt-4">
+          {eventAccessAreas === null ? (
+            <Card>
+              <CardContent className="app-muted text-sm">
+                Could not load the event access areas. Please try again.
+              </CardContent>
+            </Card>
+          ) : (
+            <EventAccessAreasPanel areas={eventAccessAreas} />
+          )}
+        </TabsContent>
+      )}
     </Tabs>
   );
 }
