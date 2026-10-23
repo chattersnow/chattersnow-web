@@ -345,10 +345,10 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
   // Its public photos and videos (#1654), the newest photos only; the rest
   // are a link away. Read on every request, so a hidden photo is gone from
   // the next one.
-  const media = await loadPublicEventMedia(
-    event.id,
-    PUBLIC_EVENT_PHOTO_PREVIEW,
-  );
+  const media = await loadPublicEventMedia(event.id, {
+    offset: 0,
+    limit: PUBLIC_EVENT_PHOTO_PREVIEW,
+  });
   const photosHref = publicEventPhotosPath(event.id);
 
   const flierUrl = resolveImageUrl(event.flier_url);
