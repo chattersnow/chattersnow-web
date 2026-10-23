@@ -1,6 +1,7 @@
 // Issue #1688: a guest -- an account with no role and a per-event access grant
 // (#1686, #1687) -- signs in to Events alone, sees only the event it was
-// granted, and on it only the cards its areas cover.
+// granted, and on it only the cards its areas cover. #1693: the people on
+// those cards come back with names, though `people` itself stays shut.
 //
 // Seeds its own account, two events and one grant through the service-role
 // client, the way portal-event-detail.spec.ts does, so parallel projects never
@@ -49,23 +50,45 @@ async function seedGuestFixture(admin: AdminClient) {
   const granted = await insertEvent(`E2E Guest Granted ${suffix}`);
   const ungranted = await insertEvent(`E2E Guest Ungranted ${suffix}`);
 
-  // View only, Details and Registrations: no sensitive area, nothing to edit.
+  // View only, Details, Registrations and Staff: no sensitive area, nothing
+  // to edit.
   const { error: grantError } = await admin.from("event_access_grants").insert({
     tenant_id: granted.tenant_id,
     event_id: granted.id,
     user_id: userId,
     level: "view",
-    areas: ["details", "registrations"],
+    areas: ["details", "registrations", "staff"],
   });
   if (grantError) throw grantError;
+
+  const staffName = `E2E Guest Staff ${suffix}`;
+  const { data: person, error: personError } = await admin
+    .from("people")
+    .insert({
+      tenant_id: granted.tenant_id,
+      name: staffName,
+      source_type: "individual",
+    })
+    .select("id")
+    .single();
+  if (personError) throw personError;
+  const { error: staffError } = await admin.from("event_staff").insert({
+    tenant_id: granted.tenant_id,
+    event_id: granted.id,
+    person_id: person.id,
+    created_by: userId,
+  });
+  if (staffError) throw staffError;
 
   return {
     email,
     password,
     granted,
     ungranted,
+    staffName,
     cleanup: async () => {
       await admin.from("events").delete().in("id", [granted.id, ungranted.id]);
+      await admin.from("people").delete().eq("id", person.id);
       await admin.auth.admin.deleteUser(userId);
     },
   };
@@ -135,7 +158,7 @@ test.describe("Guest portal (#1688)", () => {
       ).toHaveCount(0);
     }
     // Outside the grant's areas, though not sensitive.
-    await expect(rail.getByRole("button", { name: /^Staff/ })).toHaveCount(0);
+    await expect(rail.getByRole("button", { name: /^Media/ })).toHaveCount(0);
 
     // A view grant edits nothing, and no grant deletes an event.
     await expect(
@@ -144,5 +167,10 @@ test.describe("Guest portal (#1688)", () => {
     await expect(
       page.getByRole("button", { name: "Delete event" }),
     ).toHaveCount(0);
+
+    // The Staff card names its staff (#1693): the row is not dropped, and the
+    // name comes back through event_people().
+    await rail.getByRole("button", { name: /^Staff/ }).click();
+    await expect(page.getByText(fixture.staffName)).toBeVisible();
   });
 });

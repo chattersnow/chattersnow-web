@@ -22,6 +22,7 @@ import { eventCardTaskLabels, isPhaseKey } from "../phase-status";
 import { listProgramsAction } from "../../programs/actions";
 import { deviceClass } from "@/lib/portal/device";
 import { EventDetailView } from "./event-detail-view";
+import { fillEventPeople } from "@/lib/events/event-people";
 
 /**
  * The row as PostgREST returns it: program links arrive as an embedded array
@@ -93,6 +94,13 @@ export default async function EventDetailPage({
     );
   }
   if (!eventRow) notFound();
+  // A guest cannot read `people`; the lead comes back through event_people().
+  await fillEventPeople(
+    supabase,
+    eventId,
+    [eventRow],
+    [["event_lead_id", "event_lead"]],
+  );
 
   const {
     event_programs,

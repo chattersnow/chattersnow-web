@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 import type { GiveawayActionResult } from "./giveaway-actions";
 import {
   summarizeTicketSales,
@@ -507,7 +508,20 @@ export async function listGiveawayTicketSalesAction(
   if (error) {
     return { error: "Could not load ticket sales. Please try again." };
   }
-  return { data: (data ?? []) as unknown as GiveawayTicketSale[] };
+  const rows = (data ?? []) as unknown as GiveawayTicketSale[];
+  if (rows.some((row) => row.purchaser_person_id && !row.purchaser)) {
+    const { data: giveaway } = await supabase
+      .from("giveaways")
+      .select("event_id")
+      .eq("id", giveawayId)
+      .maybeSingle();
+    if (giveaway) {
+      await fillEventPeople(supabase, giveaway.event_id as string, rows, [
+        ["purchaser_person_id", "purchaser"],
+      ]);
+    }
+  }
+  return { data: rows };
 }
 
 export async function deleteGiveawayTicketSaleAction(

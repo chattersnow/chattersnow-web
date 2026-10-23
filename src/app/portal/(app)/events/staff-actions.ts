@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseEventStaffForm } from "./staff-form";
 import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople, sortByPersonName } from "@/lib/events/event-people";
 
 export type EventStaffPerson = {
   id: string;
@@ -38,7 +39,7 @@ export async function listEventStaffAction(
   const { data, error } = await supabase
     .from("event_staff")
     .select(
-      "id, event_id, person_id, role, notes, person:people!inner(id, name, email, phone)",
+      "id, event_id, person_id, role, notes, person:people(id, name, email, phone)",
     )
     .eq("event_id", eventId)
     .order("person(name)", { ascending: true, nullsFirst: false })
@@ -47,7 +48,15 @@ export async function listEventStaffAction(
   if (error) {
     return { error: "Could not load staff. Please try again." };
   }
-  return { data: (data ?? []) as unknown as EventStaffMember[] };
+  // A plain embed, not `!inner`: a guest cannot read `people`, and an inner
+  // join would drop their rows rather than leave the names to fill (#1693).
+  const rows = (data ?? []) as unknown as EventStaffMember[];
+  if (
+    await fillEventPeople(supabase, eventId, rows, [["person_id", "person"]])
+  ) {
+    sortByPersonName(rows);
+  }
+  return { data: rows };
 }
 
 export async function createEventStaffAction(

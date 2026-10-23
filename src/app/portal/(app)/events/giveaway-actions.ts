@@ -9,6 +9,7 @@ import {
 } from "./giveaway-form";
 import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
+import { fillEventPeople } from "@/lib/events/event-people";
 
 export type GiveawayWinner = {
   id: string;
@@ -127,6 +128,9 @@ export async function getEventGiveawayAction(
 
   const giveaway = (data as unknown as Giveaway) ?? null;
   if (!giveaway) return { data: null };
+  await fillEventPeople(supabase, eventId, giveaway.giveaway_prizes, [
+    ["donor_person_id", "donor"],
+  ]);
 
   // giveaway_prizes RLS is scoped to events:*, but inventory_items/
   // monetary_donations are scoped to inventory:*/finance:* -- an

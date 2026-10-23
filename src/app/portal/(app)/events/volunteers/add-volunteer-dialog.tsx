@@ -9,7 +9,8 @@ import {
   type RoleType,
 } from "../../volunteers/roles/actions";
 import { type PickedPerson } from "../../people/person-picker";
-import { listPeopleAction, type PersonListItem } from "../../people/actions";
+import { type PersonListItem } from "../../people/actions";
+import { listEventPeopleAction } from "../event-people-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { PortalFormPopup } from "@/components/portal/portal-form-surface";
@@ -25,13 +26,16 @@ export function AddVolunteerDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [people, setPeople] = useState<PersonListItem[]>([]);
+  const [canCreatePerson, setCanCreatePerson] = useState(false);
   const [shifts, setShifts] = useState<EventShift[]>([]);
   const [roleTypes, setRoleTypes] = useState<RoleType[]>([]);
 
   useEffect(() => {
     if (!open) return;
-    listPeopleAction().then((result) => {
-      if (!("error" in result)) setPeople(result.data);
+    listEventPeopleAction(eventId).then((result) => {
+      if ("error" in result) return;
+      setPeople(result.data);
+      setCanCreatePerson(result.canCreate);
     });
     listEventShiftsAction(eventId).then((result) => {
       if (!("error" in result)) setShifts(result.data);
@@ -68,6 +72,7 @@ export function AddVolunteerDialog({
         description="Sign someone up to volunteer at this event."
       >
         <AddVolunteerForm
+          allowCreatePerson={canCreatePerson}
           people={people}
           shifts={shifts}
           roleTypes={roleTypes}

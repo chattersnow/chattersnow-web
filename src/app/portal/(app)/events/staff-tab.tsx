@@ -36,11 +36,14 @@ import type { TabValue } from "./event-tabs-config";
 export function AddStaffForm({
   people,
   onPersonCreated,
+  allowCreatePerson = true,
   onSubmit,
   onCancel,
 }: {
   people: PersonListItem[];
   onPersonCreated: (person: PickedPerson) => void;
+  /** False hides "+ Create new person" for a caller who cannot write the directory (#1693). */
+  allowCreatePerson?: boolean;
   onSubmit: (
     personId: string,
     formData: FormData,
@@ -92,6 +95,7 @@ export function AddStaffForm({
             selected={selectedPerson}
             onSelect={setSelectedPerson}
             onPersonCreated={onPersonCreated}
+            allowCreate={allowCreatePerson}
             newPersonRole="is_staff"
           />
         </Field>
