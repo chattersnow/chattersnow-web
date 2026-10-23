@@ -284,8 +284,8 @@ describe("EventDetailView", () => {
 
     // The whole point of the rail (#1008): every section is readable
     // without opening anything, so finding one is not a memory test. Media
-    // joined Results in #1606.
-    expect(rail().getAllByRole("button")).toHaveLength(20);
+    // joined Results in #1606, Access in #1689.
+    expect(rail().getAllByRole("button")).toHaveLength(21);
     for (const heading of [
       "Overview",
       "Guests",

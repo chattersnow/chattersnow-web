@@ -136,6 +136,12 @@ create policy "pending_event_access_grants delete" on public.pending_event_acces
 insert into public.audited_tables (table_name, pk_column) values
   ('pending_event_access_grants', 'id');
 
+-- The invitation holds an address, and the delete that claims or revokes it
+-- writes that address into old_data -- the same case as pending_role_grants
+-- (20260907150000), registered the same way so the snapshot is cleared.
+insert into public.retention_snapshot_personal_columns (table_name, column_name) values
+  ('pending_event_access_grants', 'email');
+
 create trigger audit_log_row after insert or update or delete
   on public.pending_event_access_grants
   for each row execute function public.audit_log_row();

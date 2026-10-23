@@ -150,6 +150,7 @@ export function AccessTab({
       {
         key: "granted",
         label: "Granted",
+        hideBelow: "sm",
         sortValue: (entry) => entry.created_at,
         cellClassName: "app-muted text-sm",
         render: (entry) => (
