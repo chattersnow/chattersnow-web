@@ -10,7 +10,7 @@ import {
   parseSharedDiscountCodeForm,
   type DiscountCodeCoverage,
 } from "./discount-codes-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type DiscountCodeRegistration = {
@@ -49,7 +49,11 @@ export async function listDiscountCodesAction(
   eventId: string,
 ): Promise<{ data: DiscountCode[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -108,7 +112,11 @@ export async function createDiscountCodesAction(
     "You must be signed in to add discount codes.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseDiscountCodesForm(formData);
@@ -169,7 +177,11 @@ export async function createSharedDiscountCodeAction(
     "You must be signed in to add a shared code.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseSharedDiscountCodeForm(formData);
@@ -227,7 +239,10 @@ export async function updateDiscountCodeAction(
     "You must be signed in to edit a discount code.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseDiscountCodeDetails(formData);
@@ -264,7 +279,10 @@ export async function assignDiscountCodeAction(
     "You must be signed in to assign a discount code.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { data: existing, error: fetchError } = await supabase
@@ -318,7 +336,10 @@ export async function markDiscountCodeSentAction(
     "You must be signed in to mark a discount code as sent.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { data: code, error: fetchError } = await supabase
@@ -365,7 +386,10 @@ export async function deleteDiscountCodeAction(
     "You must be signed in to remove a discount code.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "discount_codes",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase.from("discount_codes").delete().eq("id", id);

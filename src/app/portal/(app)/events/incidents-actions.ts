@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseIncidentForm } from "./incidents-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type EventIncident = {
@@ -21,11 +21,12 @@ export async function listEventIncidentsAction(
   eventId: string,
 ): Promise<{ data: EventIncident[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(
-    supabase,
-    "event_incidents",
-    "view",
-  );
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_incidents",
+    level: "view",
+    eventId,
+    role: [{ resource: "event_incidents", level: "view" }],
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -50,11 +51,12 @@ export async function createEventIncidentAction(
     "You must be signed in to log an incident.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
-    supabase,
-    "event_incidents",
-    "manage",
-  );
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_incidents",
+    level: "manage",
+    eventId,
+    role: [{ resource: "event_incidents", level: "manage" }],
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseIncidentForm(formData);
@@ -81,11 +83,11 @@ export async function deleteEventIncidentAction(
     "You must be signed in to remove an incident.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
-    supabase,
-    "event_incidents",
-    "manage",
-  );
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_incidents",
+    level: "manage",
+    role: [{ resource: "event_incidents", level: "manage" }],
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase

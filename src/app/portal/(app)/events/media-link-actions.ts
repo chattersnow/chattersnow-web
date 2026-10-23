@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { checkUser } from "@/lib/auth/current-user";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { mintConfirmationToken } from "@/lib/notifications/notification-email-token";
 import { qrCodeDataUri } from "@/lib/inventory-label-codes";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -38,7 +38,11 @@ export async function listEventMediaUploadLinksAction(
   eventId: string,
 ): Promise<{ links: UploadLinkRow[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_media_upload_links",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase.rpc("event_media_upload_link_list", {
@@ -78,10 +82,9 @@ export async function createEventMediaUploadLinkAction(
     "You must be signed in to create upload links.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
+  const permissionError = await checkEventAccess(
     supabase,
-    "events",
-    "manage",
+    { table: "event_media_upload_links", level: "manage", eventId },
     "You don't have permission to create upload links for this event.",
   );
   if (permissionError) return permissionError;
@@ -147,10 +150,9 @@ export async function revokeEventMediaUploadLinkAction(
     "You must be signed in to revoke upload links.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
+  const permissionError = await checkEventAccess(
     supabase,
-    "events",
-    "manage",
+    { table: "event_media_upload_links", level: "manage" },
     "You don't have permission to revoke upload links.",
   );
   if (permissionError) return permissionError;

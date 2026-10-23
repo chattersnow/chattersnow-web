@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseChecklistItemForm } from "./checklist-form";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 export type EventChecklistItem = {
@@ -24,7 +24,11 @@ export async function listEventChecklistItemsAction(
   eventId: string,
 ): Promise<{ data: EventChecklistItem[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_checklist_items",
+    level: "view",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase
@@ -51,7 +55,11 @@ export async function createEventChecklistItemAction(
     "You must be signed in to add a checklist item.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_checklist_items",
+    level: "manage",
+    eventId,
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseChecklistItemForm(formData);
@@ -84,7 +92,10 @@ export async function toggleEventChecklistItemAction(
     "You must be signed in to update a checklist item.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_checklist_items",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase
@@ -114,7 +125,10 @@ export async function deleteEventChecklistItemAction(
     "You must be signed in to remove a checklist item.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_checklist_items",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
 
   const { error } = await supabase

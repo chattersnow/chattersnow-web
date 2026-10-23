@@ -7,7 +7,7 @@
 // row and affects nothing (measured in the Phase 0 spike). The
 // `checkPermission` call below is what turns that silence into a message.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 import {
   actionError,
@@ -26,7 +26,10 @@ export async function checkInRegistrant(
     "You must be signed in to check in a registrant.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase
@@ -53,7 +56,10 @@ export async function undoCheckIn(
     "You must be signed in to undo a check-in.",
   );
   if ("error" in userResult) return fromGuard("unauthenticated", userResult);
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_registrations",
+    level: "manage",
+  });
   if (permissionError) return fromGuard("forbidden", permissionError);
 
   const { error } = await supabase

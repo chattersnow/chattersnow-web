@@ -3,9 +3,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   hasAnyPermission,
+  hasPermission,
   type PermissionCheck,
   type PermissionMap,
 } from "@/lib/auth/permissions";
+import type { EventAccessArea, EventGrant } from "@/lib/auth/event-access";
 import type { Program } from "../programs/actions";
 import type { EventRow } from "./event-badges";
 import type { PhaseKey } from "./phase-status";
@@ -115,6 +117,12 @@ export type TabConfigEntry = {
    * same reason: the actions behind these cards use checkAnyPermission.
    */
   access?: readonly PermissionCheck[];
+  /**
+   * The per-event access area this card belongs to (#1688): a guest's grant
+   * shows the card when it covers this area. The area of the table the card
+   * saves to, so a card a grant shows is one RLS lets it write.
+   */
+  area: EventAccessArea;
   /** Reads this card takes from the shared provider rather than fetching. */
   sharedData?: readonly SharedEventResource[];
   /**
@@ -144,6 +152,7 @@ export type TabConfigEntry = {
 export const TAB_CONFIG: readonly TabConfigEntry[] = [
   {
     value: "overview",
+    area: "details",
     label: "Overview",
     group: "overview",
     kind: "form",
@@ -162,6 +171,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "planning",
+    area: "details",
     label: "Planning",
     keywords: ["budget", "capacity", "lead", "registration", "deadline"],
     group: "overview",
@@ -183,6 +193,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "checklist",
+    area: "details",
     label: "Checklist",
     group: "overview",
     kind: "plain",
@@ -195,6 +206,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "registrants",
+    area: "registrations",
     label: "Registrants",
     keywords: ["tickets", "rsvp", "sign-ups", "check-in"],
     group: "guests",
@@ -218,6 +230,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     // #1649. Only on an event with Organize carpools on; the board itself is
     // its own page, which this card links to.
     value: "carpools",
+    area: "registrations",
     label: "Carpools",
     keywords: ["rides", "drivers", "cars", "passengers", "transport"],
     group: "guests",
@@ -233,6 +246,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "attendance",
+    area: "registrations",
     label: "Attendance",
     keywords: ["headcount", "turnout", "check-in"],
     group: "guests",
@@ -249,6 +263,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "discount-codes",
+    area: "sponsors",
     label: "Discount codes",
     group: "guests",
     kind: "plain",
@@ -267,6 +282,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "staff",
+    area: "staff",
     label: "Staff",
     group: "team",
     kind: "plain",
@@ -277,6 +293,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "volunteers",
+    area: "staff",
     label: "Volunteers",
     group: "team",
     kind: "plain",
@@ -297,6 +314,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "sponsors",
+    area: "sponsors",
     label: "Sponsors",
     group: "goods",
     kind: "plain",
@@ -315,6 +333,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "donations",
+    area: "goods",
     label: "Donations",
     group: "goods",
     kind: "plain",
@@ -335,6 +354,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "giveaway",
+    area: "goods",
     label: "Giveaway",
     keywords: ["raffle", "prizes", "tiers", "winners"],
     group: "goods",
@@ -352,6 +372,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "distributions",
+    area: "goods",
     label: "Distributions",
     keywords: ["inventory", "supplies", "handed out"],
     group: "goods",
@@ -373,6 +394,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "logistics",
+    area: "details",
     label: "Logistics",
     keywords: ["venue", "setup", "parking", "equipment", "load-in"],
     group: "operations",
@@ -391,6 +413,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "incidents",
+    area: "incidents",
     label: "Incidents",
     group: "operations",
     kind: "plain",
@@ -401,6 +424,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "sales",
+    area: "revenue",
     label: "Sales",
     group: "money",
     kind: "plain",
@@ -432,6 +456,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "revenue",
+    area: "revenue",
     label: "Revenue",
     group: "money",
     kind: "plain",
@@ -455,6 +480,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "cash-donations",
+    area: "revenue",
     label: "Cash donations",
     keywords: ["gifts", "money", "donors"],
     group: "money",
@@ -468,6 +494,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
   },
   {
     value: "expenses",
+    area: "expenses",
     label: "Expenses",
     group: "money",
     kind: "plain",
@@ -495,6 +522,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     // Report and Impact merged (#1588). `?tab=report` and `?tab=impact`
     // links still land here, through LEGACY_TAB_VALUES.
     value: "results",
+    area: "impact",
     label: "Results",
     keywords: [
       "report",
@@ -535,6 +563,7 @@ export const TAB_CONFIG: readonly TabConfigEntry[] = [
     // Photos and videos taken at the event (#1606). Ungated beyond the route's
     // events:view; the upload control inside checks who may upload.
     value: "media",
+    area: "media",
     label: "Media",
     keywords: ["photos", "videos", "pictures", "footage", "gallery"],
     group: "results",
@@ -636,6 +665,11 @@ export function cardTitle(value: TabValue, label: string): string {
 
 export type EventSection = {
   value: TabValue;
+  /**
+   * Whether this reader may edit the card: `events: manage`, or a `manage`
+   * grant covering its area (#1688).
+   */
+  canManage: boolean;
   /** The display title -- `CARD_TITLES` already applied. */
   label: string;
   /** Extra words the rail's search matches. */
@@ -666,17 +700,33 @@ export type EventGroupOptions = {
 export function eventGroups(
   permissions: PermissionMap,
   options: EventGroupOptions = {},
+  /**
+   * The reader's grant on this event (#1688), which shows the cards whose
+   * area it covers beside whatever the role shows. Null for a role holder
+   * without one.
+   */
+  grant: EventGrant | null = null,
 ): EventGroup[] {
+  const roleManages = hasPermission(permissions, "events", "manage");
+  // `events: view` is the route layout's own gate for a role holder; asked
+  // here because a guest passes that layout on a grant instead.
+  const roleSees = (entry: TabConfigEntry) =>
+    hasPermission(permissions, "events", "view") &&
+    (!entry.access || hasAnyPermission(permissions, entry.access));
+  const granted = (entry: TabConfigEntry) =>
+    grant !== null && grant.areas.includes(entry.area);
+
   return EVENT_GROUPS.map(({ key, label }) => ({
     key,
     label,
     tabs: TAB_CONFIG.filter(
       (entry) =>
         entry.group === key &&
-        (!entry.access || hasAnyPermission(permissions, entry.access)) &&
+        (roleSees(entry) || granted(entry)) &&
         (!entry.shownWhen || options[entry.shownWhen] === true),
     ).map((entry) => ({
       value: entry.value,
+      canManage: roleManages || (granted(entry) && grant?.level === "manage"),
       label: cardTitle(entry.value, entry.label),
       keywords: [...(entry.keywords ?? [])],
     })),

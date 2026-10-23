@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseImpactForm } from "./impact-form";
 import {
-  checkPermission,
   getCurrentUserPermissions,
   hasPermission,
 } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 
 /**
@@ -80,11 +80,12 @@ export async function upsertEventImpactAction(
     "You must be signed in to save impact notes.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(
-    supabase,
-    "event_impact",
-    "manage",
-  );
+  const permissionError = await checkEventAccess(supabase, {
+    table: "event_impact_notes",
+    level: "manage",
+    eventId,
+    role: [{ resource: "event_impact", level: "manage" }],
+  });
   if (permissionError) return permissionError;
 
   const parsed = parseImpactForm(formData);

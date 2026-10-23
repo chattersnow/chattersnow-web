@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { checkPermission } from "@/lib/auth/permissions";
+import { checkEventAccess } from "@/lib/auth/event-access";
 import { checkUser } from "@/lib/auth/current-user";
 import type { GiveawayActionResult } from "./giveaway-actions";
 import {
@@ -91,7 +91,10 @@ export async function getGiveawayTierConfigAction(
   giveawayId: string,
 ): Promise<{ data: GiveawayTierConfig } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_tiers",
+    level: "view",
+  });
   if (permissionError) return permissionError;
 
   const [tiers, grants, rules, buckets, packages, totals, sales, saleGrants] =
@@ -175,7 +178,10 @@ async function requireManage(): Promise<
     "You must be signed in to update the giveaway.",
   );
   if ("error" in userResult) return userResult;
-  const permissionError = await checkPermission(supabase, "events", "manage");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_tiers",
+    level: "manage",
+  });
   if (permissionError) return permissionError;
   return { supabase };
 }
@@ -484,7 +490,10 @@ export async function listGiveawayTicketSalesAction(
   giveawayId: string,
 ): Promise<{ data: GiveawayTicketSale[] } | { error: string }> {
   const supabase = await createSupabaseServerClient();
-  const permissionError = await checkPermission(supabase, "events", "view");
+  const permissionError = await checkEventAccess(supabase, {
+    table: "giveaway_ticket_sales",
+    level: "view",
+  });
   if (permissionError) return permissionError;
 
   const { data, error } = await supabase

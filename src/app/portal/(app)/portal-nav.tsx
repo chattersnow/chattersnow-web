@@ -37,9 +37,12 @@ import { sectionIcon } from "./nav-icons";
 
 export function PortalNav({
   permissions,
+  guest = false,
   lexicon = DEFAULT_VOCABULARY,
 }: {
   permissions: PermissionMap;
+  /** Per-event grants only (#1688): Events and nothing else. */
+  guest?: boolean;
   /** This tenant's words for the sections it names itself (#896). */
   lexicon?: Lexicon;
 }) {
@@ -80,7 +83,7 @@ export function PortalNav({
     });
   }, []);
 
-  const visibleItems = visibleNavItems(permissions, lexicon);
+  const visibleItems = visibleNavItems(permissions, lexicon, { guest });
 
   // One SidebarGroup per heading rather than one SidebarMenu for everything:
   // SidebarGroupLabel already folds itself away in the icon rail
