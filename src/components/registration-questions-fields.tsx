@@ -237,8 +237,8 @@ function QuestionField({
             disabled={disabled}
             placeholder={
               question.place?.granularity === "neighborhood"
-                ? "Start typing a neighborhood, city or town"
-                : "Start typing a city or town"
+                ? "Start typing a neighborhood, city, town or ZIP"
+                : "Start typing a city, town or ZIP"
             }
           />
           {notListed && answer && "other" in answer && (

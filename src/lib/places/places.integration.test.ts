@@ -2,7 +2,8 @@
 // kind (#1699), against the real seed on a local Supabase stack:
 // search_places() ranking with and without a service area, its granularities,
 // NJ's repeated municipal names, the answer validation in
-// apply_registration_answers(), and the service area setting.
+// apply_registration_answers(), and the service area setting; and the ZIP
+// shortcut and aliases (#1700).
 // Requires `bun run db:start && bun run db:reset`; run via
 // `bun run test:integration`.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
@@ -38,6 +39,9 @@ beforeAll(async () => {
     essex: "county:34013",
     williamsburg: "nta:BK0102",
     montclair: "cousub:3401347500",
+    newark: "place:3451000",
+    tomsRiver: "cousub:3402973125",
+    eastWilliamsburg: "nta:BK0104",
   })) {
     ids[name] = await placeId(key);
   }
@@ -60,7 +64,15 @@ async function search(
   query: string,
   granularity: string,
   area?: string[],
-): Promise<{ id: string; kind: string; label: string; in_area: boolean }[]> {
+): Promise<
+  {
+    id: string;
+    kind: string;
+    label: string;
+    in_area: boolean;
+    matched: string | null;
+  }[]
+> {
   const { data, error } = await anon.rpc("search_places", {
     p_query: query,
     p_granularity: granularity,
@@ -188,6 +200,85 @@ describe("search_places", () => {
       p_granularity: "street",
     });
     expect(error?.message).toBe("PLACE_GRANULARITY_INVALID");
+  });
+});
+
+describe("search_places: ZIPs and aliases (#1700)", () => {
+  test("anyone can read the ZIP table and nobody can write it", async () => {
+    const { data, error } = await anon
+      .from("place_zips")
+      .select("place_id")
+      .eq("zip", "07105");
+    expect(error).toBeNull();
+    expect(data).toEqual([{ place_id: ids.newark }]);
+
+    const { error: insertError } = await adminClient
+      .from("place_zips")
+      .insert({ zip: "00000", place_id: ids.newark, share: 1 });
+    expect(insertError).not.toBeNull();
+  });
+
+  test("a ZIP suggests the places it covers", async () => {
+    const results = await search("07105", "locality");
+    expect(results).toEqual([
+      {
+        id: ids.newark,
+        kind: "locality",
+        label: "Newark, Essex Co., NJ",
+        in_area: false,
+        matched: null,
+      },
+    ]);
+  });
+
+  test("an NYC ZIP lists its neighborhoods first, then the borough", async () => {
+    const results = await search("11211", "neighborhood");
+    expect(results.map((place) => place.id)).toEqual(
+      expect.arrayContaining([
+        ids.williamsburg,
+        ids.eastWilliamsburg,
+        ids.brooklyn,
+      ]),
+    );
+    expect(results.at(-1)?.id).toBe(ids.brooklyn);
+
+    const locality = await search("11211", "locality");
+    expect(locality.map((place) => place.id)).toEqual([ids.brooklyn]);
+  });
+
+  test("a ZIP ranks the service area first, and finds no service area", async () => {
+    const results = await search("11211", "neighborhood", [ids.brooklyn]);
+    expect(results.every((place) => place.in_area)).toBe(true);
+    expect(await search("07105", "area")).toEqual([]);
+    expect(await search("00000", "locality")).toEqual([]);
+  });
+
+  test("a section's name finds its municipality and says which name matched", async () => {
+    const [first] = await search("ironbound", "locality");
+    expect(first).toMatchObject({
+      id: ids.newark,
+      label: "Newark, Essex Co., NJ",
+      matched: "Ironbound",
+    });
+    const [newark] = await search("newark", "locality");
+    expect(newark).toMatchObject({ id: ids.newark, matched: null });
+  });
+
+  test("shows the alias typed, not a longer one", async () => {
+    const [first] = await search("kings", "locality");
+    expect(first).toMatchObject({ id: ids.brooklyn, matched: "Kings" });
+  });
+
+  test("'township' finds a Twp, and 'borough' still finds Borough Park", async () => {
+    const [toms] = await search("toms river township", "locality");
+    expect(toms).toMatchObject({
+      id: ids.tomsRiver,
+      label: "Toms River Twp, Ocean Co., NJ",
+    });
+    const [montclair] = await search("montclair twp", "locality");
+    expect(montclair.id).toBe(ids.montclair);
+    const boroughPark = await search("borough park", "neighborhood");
+    expect(boroughPark[0].label).toBe("Borough Park, Brooklyn");
   });
 });
 

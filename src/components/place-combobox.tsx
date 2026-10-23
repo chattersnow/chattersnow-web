@@ -24,10 +24,22 @@ export const NOT_LISTED: PlaceOption = {
 
 const SEARCH_DELAY_MS = 200;
 
+const isZip = (query: string) => /^\d{5}$/.test(query.trim());
+
+/**
+ * What the list shows for a place: "Ironbound (Newark, Essex Co., NJ)" when
+ * an alias found it (#1700), so the registrant sees why. The input and the
+ * answer keep the place's own label.
+ */
+export function placeOptionText(option: PlaceOption): string {
+  return option.matched ? `${option.matched} (${option.label})` : option.label;
+}
+
 /**
  * An autocomplete over the places reference table (#1699). Searches after the
  * second character, debounced; results come back ranked with the tenant's
- * service area first. With `allowNotListed`, "Not listed" is always offered,
+ * service area first. Five digits are a ZIP and list the places it covers,
+ * since a ZIP crosses town lines (#1700). With `allowNotListed`, "Not listed" is always offered,
  * so nobody is blocked by a place the dataset does not have.
  */
 export function PlaceCombobox({
@@ -38,7 +50,7 @@ export function PlaceCombobox({
   allowNotListed = false,
   required,
   disabled,
-  placeholder = "Start typing a city or town",
+  placeholder = "Start typing a city, town or ZIP",
   labelledBy,
   describedBy,
 }: {
@@ -124,12 +136,14 @@ export function PlaceCombobox({
             ? "Searching…"
             : query.trim().length < 2
               ? "Type at least two letters."
-              : "No matching places."}
+              : isZip(query)
+                ? "No places found for that ZIP."
+                : "No matching places."}
         </ComboboxEmpty>
         <ComboboxList>
           {(item: PlaceOption) => (
             <ComboboxItem key={item.id} value={item}>
-              {item.label}
+              {placeOptionText(item)}
             </ComboboxItem>
           )}
         </ComboboxList>
