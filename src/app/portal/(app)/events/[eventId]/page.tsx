@@ -129,7 +129,12 @@ export default async function EventDetailPage({
   // (#903) -- is absent from the payload rather than hidden in it.
   const groups = eventGroups(
     permissions,
-    { carpoolsEnabled: event.carpools_enabled ?? false },
+    {
+      carpoolsEnabled: event.carpools_enabled ?? false,
+      hasPlaceQuestion: (event.registration_questions ?? []).some(
+        (question) => question.kind === "place",
+      ),
+    },
     grant,
   );
 
