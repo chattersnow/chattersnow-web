@@ -26,6 +26,8 @@ import {
   type ActionFailure,
 } from "@/lib/portal/action-result";
 import { getRequestOrigin } from "@/lib/request-origin";
+import { loadPhotosEmailBody } from "@/lib/notifications/photos-email-body";
+import { loadPublicGalleryEmailUrl } from "./public-gallery-url";
 import {
   hasOptionAnswer,
   optionCountsError,
@@ -324,6 +326,12 @@ export type RegistrantMessagingContext = {
   orgName: string;
   replyTo: string | null;
   orgEmailEnabled: boolean;
+  /**
+   * Send photos (#1555): the event's public gallery as an absolute link, or
+   * null while that page would not answer, and the tenant's message to start
+   * from.
+   */
+  photos: { url: string | null; body: string[] };
 };
 
 /**
@@ -605,6 +613,7 @@ export async function listEventRegistrantsAction(
     orgMail,
     minorContacts,
     riderMountains,
+    photosUrl,
   ] = await Promise.all([
     loadRecordMessages(
       supabase,
@@ -632,7 +641,16 @@ export async function listEventRegistrantsAction(
     // The door dialog's picker (#1408). Only for a reader who sees rider
     // answers, which is the only reader the dialog opens for.
     canSeeRider ? getRiderProfileMountains(supabase) : Promise.resolve(null),
+    loadPublicGalleryEmailUrl(supabase, eventId),
   ]);
+  // Only once there is a gallery to send, so most events pay nothing for it.
+  const photosBody =
+    photosUrl && tenantContext.currentTenantId
+      ? await loadPhotosEmailBody(
+          createSupabaseAdminClient(),
+          tenantContext.currentTenantId,
+        )
+      : [];
 
   const contactsById = new Map(
     (minorContacts.data ?? []).map((row) => [
@@ -661,6 +679,7 @@ export async function listEventRegistrantsAction(
           )?.name ?? "",
         replyTo: (orgMail.data?.reply_to as string | null) ?? null,
         orgEmailEnabled,
+        photos: { url: photosUrl, body: photosBody },
       },
       waiverInForce,
       photoConsentInForce,

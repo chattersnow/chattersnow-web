@@ -95,6 +95,7 @@ function EventDetailBody({
   minorAccompaniment,
   photoConsent,
   carpoolCostNotice,
+  photosNotice,
   registrationOptions,
   registrationQuestions,
   riderProfile,
@@ -131,6 +132,8 @@ function EventDetailBody({
   photoConsent: string[];
   /** The carpool cost-split notice (#1650), empty unless the event organizes carpools. */
   carpoolCostNotice: string[];
+  /** `events.photos_notice` (#1555): blank on a tenant that sends no photos. */
+  photosNotice: string;
   /** The event's registration question (#1407), or null. */
   registrationOptions: RegistrationOptionsQuestion | null;
   /** The event's registration questions (#1501), empty for most events. */
@@ -233,6 +236,7 @@ function EventDetailBody({
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   carpoolCostNotice={carpoolCostNotice}
+                  photosNotice={photosNotice}
                   registrationOptions={registrationOptions}
                   registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
@@ -254,6 +258,7 @@ function EventDetailBody({
                   minorAccompaniment={minorAccompaniment}
                   photoConsent={photoConsent}
                   carpoolCostNotice={carpoolCostNotice}
+                  photosNotice={photosNotice}
                   registrationOptions={registrationOptions}
                   registrationQuestions={registrationQuestions}
                   riderProfile={riderProfile}
@@ -312,6 +317,8 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
   const carpoolCostNotice = event.carpools_enabled
     ? content.paragraphs("events.carpool_cost_notice")
     : [];
+  // #1555. That the address will carry the photos afterward, if it will.
+  const photosNotice = content.text("events.photos_notice");
   // The event's own registration question (#1407). Only where registration
   // is on at all, so the events that take none pay no query for it.
   const registrationOptions = event.registration_enabled
@@ -440,6 +447,7 @@ export async function EventDetailContent({ event }: { event: PublicEvent }) {
             minorAccompaniment={minorAccompaniment}
             photoConsent={photoConsent}
             carpoolCostNotice={carpoolCostNotice}
+            photosNotice={photosNotice}
             registrationOptions={registrationOptions}
             registrationQuestions={registrationQuestions}
             riderProfile={riderProfile}
